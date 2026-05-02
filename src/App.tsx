@@ -136,7 +136,7 @@ async function fetchStatus(account: Account, repo: string) {
   const res = await fetch(`${url}/getContents?${params}`, { credentials: "include" });
   if (!res.ok) throw new Error(`Failed to fetch status: ${res.status}`);
   const data = await res.json();
-  return data.content;
+  return JSON.parse(data.content);
 }
 
 async function fetchEnv(account: Account, repo: string): Promise<Record<string, string>> {

@@ -45,6 +45,7 @@ const STATUS_CONFIG = {
   deployed: { color: "#22c55e", label: "Deployed" },
   success: { color: "#f97316", label: "Ready to deploy" },
   failed: { color: "#ef4444", label: "Failed" },
+  pending: { color: "#94a3b8", label: "Not yet executed" },
 } as const;
 
 const STAGE_LABEL: Record<string, string> = {
@@ -74,6 +75,21 @@ const REPO_STATUS_CONFIG = {
   },
 } as const;
 
+const PIPELINES: Record<string, PipelineConfig> = {
+  corpSetup: {
+    workflowId: "planChanges.yml",
+    label: "Corp Setup",
+    stages: [
+      { key: "c01", label: "c01subscription" },
+      { key: "c02", label: "c02globalGroups" },
+      { key: "c05", label: "c05rootrg" },
+      { key: "c20", label: "c20awsentrasso" },
+      { key: "c21", label: "c21awsentrassoP2" },
+      { key: "c25", label: "c25cloudfront" },
+    ],
+  },
+};
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type Account = {
@@ -100,6 +116,17 @@ type Stage = {
   planJsonId?: string;
   planJsonUrl?: string;
   runId?: string;
+};
+
+type StageDefinition = {
+  key: string;
+  label: string;
+};
+
+type PipelineConfig = {
+  workflowId: string;
+  label: string;
+  stages: StageDefinition[];
 };
 
 type EnvEntry = { key: string; value: string };
@@ -171,9 +198,9 @@ async function triggerWorkflow(account: Account, repo: string, env: Record<strin
   });
 }
 
-function sortStages(data): Stage[] {
-  return [...data].sort((a, b) => parseInt(a.stage.replace(/\D/g, ""), 10) - parseInt(b.stage.replace(/\D/g, ""), 10));
-}
+// function sortStages(data): Stage[] {
+//   return [...data].sort((a, b) => parseInt(a.stage.replace(/\D/g, ""), 10) - parseInt(b.stage.replace(/\D/g, ""), 10));
+// }
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
@@ -421,6 +448,11 @@ export default function App() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [stagesLoading, setStagesLoading] = useState(false);
 
+  // Pipeline
+  const [statusFileFound, setStatusFileFound] = useState<boolean>(true);
+  const [selectedPipeline, setSelectedPipeline] = useState<string>("corpSetup");
+  const pipeline = PIPELINES[selectedPipeline];
+
   // Workflow
   const [running, setRunning] = useState(false);
   const [countdown, setCountdown] = useState(0);
@@ -496,8 +528,19 @@ export default function App() {
     if (!selectedAccount || !selectedRepo) return;
     setStagesLoading(true);
     fetchStatus(selectedAccount, selectedRepo.name)
-      .then((data) => setStages(sortStages(data.stages || [])))
-      .catch(console.error)
+      .then((data) => {
+        const fetched = data.stages || [];
+        const merged = pipeline.stages.map(({ key }) => {
+          const found = fetched.find((s: any) => s.stage === key);
+          return found ?? { stage: key, status: "failed" as const };
+        });
+        setStages(merged);
+        setStatusFileFound(true);
+      })
+      .catch(() => {
+        setStages(pipeline.stages.map(({ key }) => ({ stage: key, status: "pending" as const })));
+        setStatusFileFound(false);
+      })
       .finally(() => setStagesLoading(false));
   }
 
@@ -1083,108 +1126,117 @@ export default function App() {
                       </Typography>
                     </Box>
                   ) : (
-                    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                      {stages.map((item, index) => {
-                        const cfg = STATUS_CONFIG[item.status] || { color: "#64748b", label: item.status };
-                        const isExpanded = expanded[item.stage];
-                        const hasDetails = !!item.planPath;
+                    <>
+                      {!statusFileFound && (
+                        <Box sx={{ mb: 3, p: 2, borderRadius: "8px", background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+                          <Typography sx={{ fontSize: "0.78rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>
+                            No status file found. Run a status update to generate the deployment changeset.
+                          </Typography>
+                        </Box>
+                      )}
+                      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                        {stages.map((item, index) => {
+                          const cfg = STATUS_CONFIG[item.status] || { color: "#64748b", label: item.status };
+                          const isExpanded = expanded[item.stage];
+                          const hasDetails = !!item.planPath;
 
-                        return (
-                          <Box key={item.stage} sx={{ display: "flex", gap: 3 }}>
-                            {/* Timeline spine */}
-                            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", pt: 0.75 }}>
+                          return (
+                            <Box key={item.stage} sx={{ display: "flex", gap: 3 }}>
+                              {/* Timeline spine */}
+                              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", pt: 0.75 }}>
+                                <Box
+                                  sx={{
+                                    width: 10,
+                                    height: 10,
+                                    borderRadius: "50%",
+                                    background: cfg.color,
+                                    boxShadow: `0 0 8px ${cfg.color}55`,
+                                    flexShrink: 0,
+                                  }}
+                                />
+                                {index < stages.length - 1 && <Box sx={{ flex: 1, width: 1, background: "#e2e8f0", minHeight: 32, mt: 0.5 }} />}
+                              </Box>
+
+                              {/* Card */}
                               <Box
                                 sx={{
-                                  width: 10,
-                                  height: 10,
-                                  borderRadius: "50%",
-                                  background: cfg.color,
-                                  boxShadow: `0 0 8px ${cfg.color}55`,
-                                  flexShrink: 0,
-                                }}
-                              />
-                              {index < stages.length - 1 && <Box sx={{ flex: 1, width: 1, background: "#e2e8f0", minHeight: 32, mt: 0.5 }} />}
-                            </Box>
-
-                            {/* Card */}
-                            <Box
-                              sx={{
-                                flex: 1,
-                                border: "1px solid #e2e8f0",
-                                borderRadius: "8px",
-                                background: "#ffffff",
-                                overflow: "hidden",
-                                boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-                              }}
-                            >
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "space-between",
-                                  px: 2.5,
-                                  py: 1.75,
+                                  flex: 1,
+                                  border: "1px solid #e2e8f0",
+                                  borderRadius: "8px",
+                                  background: "#ffffff",
+                                  overflow: "hidden",
+                                  boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
                                 }}
                               >
-                                <Box>
-                                  <Typography
-                                    sx={{ fontSize: "0.82rem", fontWeight: 600, color: "#0f172a", fontFamily: "'IBM Plex Mono', monospace" }}
-                                  >
-                                    {STAGE_LABEL[item.stage] || item.stage}
-                                  </Typography>
-                                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.5 }}>
-                                    <Box sx={{ width: 6, height: 6, borderRadius: "50%", background: cfg.color }} />
-                                    <Typography sx={{ fontSize: "0.72rem", color: cfg.color, fontFamily: "'IBM Plex Mono', monospace" }}>
-                                      {cfg.label}
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    px: 2.5,
+                                    py: 1.75,
+                                  }}
+                                >
+                                  <Box>
+                                    <Typography
+                                      sx={{ fontSize: "0.82rem", fontWeight: 600, color: "#0f172a", fontFamily: "'IBM Plex Mono', monospace" }}
+                                    >
+                                      {pipeline.stages.find((s) => s.key === item.stage)?.label || item.stage}
                                     </Typography>
+                                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.5 }}>
+                                      <Box sx={{ width: 6, height: 6, borderRadius: "50%", background: cfg.color }} />
+                                      <Typography sx={{ fontSize: "0.72rem", color: cfg.color, fontFamily: "'IBM Plex Mono', monospace" }}>
+                                        {cfg.label}
+                                      </Typography>
+                                    </Box>
+                                  </Box>
+
+                                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                    {item.status === "success" && (
+                                      <Button
+                                        size="small"
+                                        variant="contained"
+                                        onClick={() => console.log("Deploy", item.stage, item.runId)}
+                                        sx={{
+                                          background: "#f97316",
+                                          fontSize: "0.72rem",
+                                          textTransform: "none",
+                                          fontFamily: "'IBM Plex Mono', monospace",
+                                          py: 0.5,
+                                          px: 1.5,
+                                          "&:hover": { background: "#ea6c0a" },
+                                        }}
+                                      >
+                                        Deploy
+                                      </Button>
+                                    )}
+                                    {hasDetails && (
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => setExpanded((prev) => ({ ...prev, [item.stage]: !prev[item.stage] }))}
+                                        sx={{ color: "#cbd5e1", "&:hover": { color: "#94a3b8" } }}
+                                      >
+                                        {isExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+                                      </IconButton>
+                                    )}
                                   </Box>
                                 </Box>
 
-                                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                                  {item.status === "success" && (
-                                    <Button
-                                      size="small"
-                                      variant="contained"
-                                      onClick={() => console.log("Deploy", item.stage, item.runId)}
-                                      sx={{
-                                        background: "#f97316",
-                                        fontSize: "0.72rem",
-                                        textTransform: "none",
-                                        fontFamily: "'IBM Plex Mono', monospace",
-                                        py: 0.5,
-                                        px: 1.5,
-                                        "&:hover": { background: "#ea6c0a" },
-                                      }}
-                                    >
-                                      Deploy
-                                    </Button>
-                                  )}
-                                  {hasDetails && (
-                                    <IconButton
-                                      size="small"
-                                      onClick={() => setExpanded((prev) => ({ ...prev, [item.stage]: !prev[item.stage] }))}
-                                      sx={{ color: "#cbd5e1", "&:hover": { color: "#94a3b8" } }}
-                                    >
-                                      {isExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
-                                    </IconButton>
-                                  )}
-                                </Box>
+                                {/* Plan details */}
+                                <Collapse in={isExpanded}>
+                                  <Divider sx={{ borderColor: "#f1f5f9" }} />
+                                  <Box sx={{ p: 2 }}>
+                                    {isExpanded && item.status === "success" && item.planJsonId && item.planJsonUrl !== "" && (
+                                      <PlanView stage={item.stage} path={item.planJsonId} account={selectedAccount} repo={selectedRepo?.name || ""} />
+                                    )}
+                                  </Box>
+                                </Collapse>
                               </Box>
-
-                              {/* Plan details */}
-                              <Collapse in={isExpanded}>
-                                <Divider sx={{ borderColor: "#f1f5f9" }} />
-                                <Box sx={{ p: 2 }}>
-                                  {isExpanded && item.status === "success" && item.planJsonId && item.planJsonUrl !== "" && (
-                                    <PlanView stage={item.stage} path={item.planJsonId} account={selectedAccount} repo={selectedRepo?.name || ""} />
-                                  )}
-                                </Box>
-                              </Collapse>
                             </Box>
-                          </Box>
-                        );
-                      })}
-                    </Box>
+                          );
+                        })}
+                      </Box>
+                    </>
                   )}
                 </Box>
               </Collapse>

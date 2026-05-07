@@ -1,6 +1,6 @@
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
-export type CardId = "repo" | "azure_secrets" | "aws_secrets" | "env" | "status_update" | "stages";
+export type CardId = "repo" | "branch" | "azure_secrets" | "aws_secrets" | "env" | "pr" | "status_update" | "stages";
 export type CardStatus = "idle" | "loading" | "complete" | "warning" | "error";
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -25,6 +25,28 @@ export type RepoOption = {
   id: number | string;
   name: string;
   isNew?: boolean;
+};
+
+// ─── Branch ───────────────────────────────────────────────────────────────────
+
+export type Branch = {
+  name: string;
+  commit: string;
+  protected: boolean;
+};
+
+export type BranchOption = {
+  name: string;
+  isNew?: boolean;
+};
+
+// ─── Pull Request ─────────────────────────────────────────────────────────────
+
+export type PullRequest = {
+  id: number;
+  number: number;
+  title: string;
+  state: string;
 };
 
 // ─── Pipeline ─────────────────────────────────────────────────────────────────
@@ -61,9 +83,9 @@ export type Stage = {
 
 export const STAGE_STATUS_CONFIG: Record<StageStatus, { color: string; label: string }> = {
   deployed: { color: "#22c55e", label: "Deployed" },
-  success:  { color: "#f97316", label: "Ready to deploy" },
-  failed:   { color: "#ef4444", label: "Failed" },
-  pending:  { color: "#94a3b8", label: "Not yet executed" },
+  success: { color: "#f97316", label: "Ready to deploy" },
+  failed: { color: "#ef4444", label: "Failed" },
+  pending: { color: "#94a3b8", label: "Not yet executed" },
 };
 
 // ─── Env ──────────────────────────────────────────────────────────────────────
@@ -75,9 +97,9 @@ export const REQUIRED_ENV_KEYS = ["NAME", "DNS", "SUBSCRIPTION_ID"];
 // ─── Secrets ──────────────────────────────────────────────────────────────────
 
 export type SecretsStatus = {
-  configured: boolean | null; // null = not yet checked
-  valid: boolean | null;      // null = not yet run
+  configured: boolean | null;
+  valid: boolean | null;
 };
 
 export const AZURE_SECRET_KEYS = ["AZURE_CLIENT_ID", "AZURE_SUBSCRIPTION_ID", "AZURE_TENANT_ID"];
-export const AWS_SECRET_KEYS   = ["AWS_ACCOUNT_ID", "AWS_ROLE_NAME"];
+export const AWS_SECRET_KEYS = ["AWS_ACCOUNT_ID", "AWS_ROLE_NAME"];

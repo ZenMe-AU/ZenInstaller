@@ -62,7 +62,7 @@ const DEFAULT_CARD_STATUS: Record<CardId, CardStatus> = {
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
-export default function AppDashboard() {
+export default function App() {
   const defaultTemplateRepo = "ZenMe-AU/ZBCorpArchitecture";
 
   // ── Auth ──────────────────────────────────────────────────────────────────

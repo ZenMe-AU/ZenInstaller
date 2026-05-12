@@ -1,27 +1,25 @@
 import { app } from "@azure/functions";
 import { Octokit } from "octokit";
+import { getTableClient } from "../utils/tableStorage.js";
 import { verifyAuth } from "../utils/auth.js";
 import { corsWrapper } from "../utils/cors.js";
 
-app.http("getSecrets", {
+app.http("getEnvs", {
   methods: ["GET"],
   authLevel: "anonymous",
   handler: corsWrapper(async (request, context) => {
     const { accessToken } = await verifyAuth(request.headers.get("cookie"));
+
+    const type = request.query.get("type");
     const owner = request.query.get("owner");
     const repo = request.query.get("repo");
-    const env = request.query.get("env");
 
     const octokit = new Octokit({ auth: accessToken });
-
-    const uri = env ? "/repos/{owner}/{repo}/environments/{environment_name}/secrets" : "/repos/{owner}/{repo}/actions/secrets";
-    const params = { owner, repo, environment_name: env };
-    console.log("uri:", uri);
-    console.log("Requesting secrets with params:", params);
-    const { data } = await octokit.request(uri, params);
-    const secretList = data.secrets.map(({ name }) => name);
+    const { data } = await octokit.request(`GET /repos/{owner}/{repo}/environments`, { owner, repo });
+    console.log("❤️Received environments data:", data);
+    const envList = data.environments?.map((env) => ({ name: env.name, id: env.id, url: env.url }));
     return {
-      jsonBody: { success: true, secrets: secretList },
+      jsonBody: { success: true, envList },
     };
   }),
 });

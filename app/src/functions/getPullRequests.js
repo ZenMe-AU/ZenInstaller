@@ -18,10 +18,20 @@ app.http("getPullRequests", {
       owner,
       repo,
       state,
-      base: ref,
+      // base: ref,
       // head: `${owner}:${ref}`
     });
-    const pullRequestList = data.map(({ id, number, title, state }) => ({ id, number, title, state }));
+    const pullRequestList = data.map(({ id, number, title, state, html_url, base, head }) => ({
+      id,
+      number,
+      title,
+      state,
+      html_url,
+      base_branch: base.ref,
+      base_sha: base.sha,
+      head_branch: head.ref,
+      head_sha: head.sha,
+    }));
     console.log("Pull Requests: ", data);
     return {
       jsonBody: { success: true, pullRequests: pullRequestList },

@@ -1,17 +1,20 @@
 import { useEffect, useState } from "react";
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 
 import {
   checkTemplate,
+  createBranch,
   fetchBranches,
   fetchEnv,
+  fetchEnvs,
   fetchOrgList,
   fetchPullRequests,
   fetchRepos,
+  fetchRuns,
   fetchSecrets,
   fetchStatus,
   generateRepo,
-  createBranch,
   triggerWorkflow,
   triggerWorkflowFromPR,
   verifyAuth,
@@ -21,27 +24,30 @@ import {
   AZURE_SECRET_KEYS,
   AWS_SECRET_KEYS,
   REQUIRED_ENV_KEYS,
+  STAGE_STATUS_CONFIG,
   type Account,
   type Branch,
-  type BranchOption,
   type CardId,
   type CardStatus,
   type EnvEntry,
+  type GhEnv,
   type PullRequest,
   type Repo,
   type RepoOption,
   type SecretsStatus,
   type Stage,
   type User,
-  STAGE_STATUS_CONFIG,
+  type WorkflowRun,
+  matchEnv,
+  matchBranch,
 } from "./types";
 
 import PipelineCard from "./cards/PipelineCard";
 import RepoCard from "./cards/RepoCard";
-import BranchCard from "./cards/BranchCard";
+import PRCard from "./cards/PRCard";
+import EnvironmentCard from "./cards/EnvironmentCard";
 import SecretsCard from "./cards/SecretsCard";
 import EnvCard from "./cards/EnvCard";
-import PRCard from "./cards/PRCard";
 import StatusCard from "./cards/StatusCard";
 import { StageItem } from "./cards/StagesCard";
 
@@ -51,11 +57,11 @@ const url = import.meta.env.VITE_API_URL;
 
 const DEFAULT_CARD_STATUS: Record<CardId, CardStatus> = {
   repo: "idle",
-  branch: "idle",
+  pr: "idle",
+  env: "idle",
   azure_secrets: "idle",
   aws_secrets: "idle",
-  env: "idle",
-  pr: "idle",
+  envVars: "idle",
   status_update: "idle",
   stages: "idle",
 };
@@ -87,9 +93,8 @@ export default function AppDashboard() {
   const [cloning, setCloning] = useState(false);
   const [cloneError, setCloneError] = useState<string | null>(null);
 
-  // ── Branch ────────────────────────────────────────────────────────────────
+  // ── Branches ──────────────────────────────────────────────────────────────
   const [branches, setBranches] = useState<Branch[]>([]);
-  const [selectedBranch, setSelectedBranch] = useState<BranchOption | null>({ name: "main" });
   const [sourceBranch, setSourceBranch] = useState<string>("main");
   const [creatingBranch, setCreatingBranch] = useState(false);
   const [createBranchError, setCreateBranchError] = useState<string | null>(null);
@@ -98,6 +103,14 @@ export default function AppDashboard() {
   const [pullRequests, setPullRequests] = useState<PullRequest[]>([]);
   const [selectedPR, setSelectedPR] = useState<PullRequest | null>(null);
   const [prLoading, setPrLoading] = useState(false);
+
+  // ── GitHub Environments ───────────────────────────────────────────────────
+  const [envLoading, setEnvLoading] = useState(false);
+  const [envList, setEnvList] = useState<GhEnv[]>([]);
+  const [selectedEnv, setSelectedEnv] = useState<GhEnv | null>(null);
+  const [branchMatchWarning, setBranchMatchWarning] = useState<string | null>(null);
+  const [branchMatchError, setBranchMatchError] = useState<string | null>(null);
+  const envLockedByPR = !!selectedPR;
 
   // ── Pipeline ──────────────────────────────────────────────────────────────
   const [selectedPipeline, setSelectedPipeline] = useState<string>("corpSetup");
@@ -114,8 +127,9 @@ export default function AppDashboard() {
   const [runError, setRunError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(0);
   const [lastRunTime, setLastRunTime] = useState<number | null>(null);
+  const [lastRunId, setLastRunId] = useState<number | null>(null);
 
-  // ── Env ───────────────────────────────────────────────────────────────────
+  // ── Env entries ───────────────────────────────────────────────────────────
   const [envEntries, setEnvEntries] = useState<EnvEntry[]>(REQUIRED_ENV_KEYS.map((k) => ({ key: k, value: "" })));
 
   // ── Secrets ───────────────────────────────────────────────────────────────
@@ -131,11 +145,11 @@ export default function AppDashboard() {
   // ── Card expanded ─────────────────────────────────────────────────────────
   const [expanded, setExpanded] = useState<Record<CardId, boolean>>({
     repo: true,
-    branch: true,
+    pr: true,
+    env: true,
     azure_secrets: true,
     aws_secrets: true,
-    env: true,
-    pr: true,
+    envVars: true,
     status_update: true,
     stages: true,
   });
@@ -145,9 +159,8 @@ export default function AppDashboard() {
   const isCloneRepo = templateStatus === "ready";
   const isNewRepo = selectedRepo?.isNew ?? false;
   const repoFullName = selectedAccount && selectedRepo && !isNewRepo ? `${selectedAccount.login}/${selectedRepo.name}` : null;
-  const activeRef = selectedPR
-    ? String(selectedPR.id) // TODO: replace with commit sha when API returns it
-    : (selectedBranch?.name ?? "main");
+  const envReady = !!selectedEnv && !branchMatchError;
+  const triggerRef = selectedPR ? selectedPR.head_sha : (selectedEnv?.name ?? null);
 
   // ── Effects ───────────────────────────────────────────────────────────────
 
@@ -169,6 +182,8 @@ export default function AppDashboard() {
   }, [user]);
 
   useEffect(() => {
+    setRepos([]);
+    setSelectedRepo(null);
     if (!selectedAccount) return;
     const key = String(selectedAccount.id);
     if (repoCache[key]) {
@@ -181,20 +196,29 @@ export default function AppDashboard() {
         setRepoCache((prev) => ({ ...prev, [key]: list }));
       })
       .catch(console.error);
-    setSelectedRepo(null);
     setStages([]);
     setTemplateName(null);
     setCard("repo", "idle");
   }, [selectedAccount]);
 
   useEffect(() => {
-    if (!selectedAccount || !selectedRepo || selectedRepo.isNew) return;
-
     setTemplateStatus("checking");
     setTemplateName(null);
     setStages([]);
+    setSelectedPR(null);
+    setSelectedEnv(null);
+    setEnvList([]);
+    setPullRequests([]);
+    setBranches([]);
+    setBranchMatchWarning(null);
+    setBranchMatchError(null);
+    resetSecrets();
     setCard("repo", "loading");
+    setCard("pr", "idle");
+    setCard("env", "idle");
+    setCard("envVars", "idle");
 
+    if (!selectedAccount || !selectedRepo || selectedRepo.isNew) return;
     checkTemplate(selectedAccount, selectedRepo.name)
       .then((data) => {
         const isTemplate = data.isTemplate;
@@ -209,26 +233,30 @@ export default function AppDashboard() {
 
         if (isTemplate) {
           loadStages();
-          loadSecrets();
+          loadPRs(selectedAccount, selectedRepo.name);
+          loadEnvs(selectedAccount, selectedRepo.name);
 
           fetchBranches(selectedAccount, selectedRepo.name)
             .then((list) => {
               setBranches(list);
-              const mainExists = list.find((b) => b.name === "main");
-              setSelectedBranch({ name: mainExists ? "main" : (list[0]?.name ?? "main") });
-              setSourceBranch(mainExists ? "main" : (list[0]?.name ?? "main"));
-              setCard("branch", "complete");
+              const main = list.find((b) => b.name === "main");
+              setSourceBranch(main ? "main" : (list[0]?.name ?? "main"));
             })
             .catch(console.error);
 
+          // fetchEnvs(selectedAccount, selectedRepo.name)
+          //   .then((list) => setEnvList(list))
+          //   .catch(console.error);
+
           fetchEnv(selectedAccount, selectedRepo.name)
             .then((obj) => {
-              const entries = Object.entries(obj).map(([key, value]) => ({ key, value: value as string }));
-              setEnvEntries(entries);
-              const allFilled = REQUIRED_ENV_KEYS.every((k) => obj[k]?.trim());
-              setCard("env", allFilled ? "complete" : "warning");
+              setEnvEntries(Object.entries(obj).map(([key, value]) => ({ key, value: value as string })));
             })
-            .catch(console.error);
+            .catch((err) => {
+              console.error(err);
+              setEnvEntries(REQUIRED_ENV_KEYS.map((k) => ({ key: k, value: "" })));
+              setCard("envVars", "idle");
+            });
         }
       })
       .catch(() => {
@@ -237,11 +265,83 @@ export default function AppDashboard() {
       });
   }, [selectedRepo, selectedAccount]);
 
+  // When PR selected: auto-match env
   useEffect(() => {
-    if (!isCloneRepo) return;
-    const allFilled = REQUIRED_ENV_KEYS.every((k) => envEntries.find((e) => e.key === k && e.value.trim()));
-    setCard("env", allFilled ? "complete" : "warning");
-  }, [envEntries, isCloneRepo]);
+    if (!selectedPR) return;
+    const result = matchEnv(selectedPR.base_branch, envList);
+    if (result.status === "exact") {
+      setSelectedEnv(result.env);
+      setBranchMatchWarning(null);
+      setBranchMatchError(null);
+      setCard("env", "complete");
+    } else if (result.status === "case") {
+      setSelectedEnv(result.env);
+      setBranchMatchWarning(`Base branch "${selectedPR.base_branch}" and environment "${result.env.name}" have mismatched casing.`);
+      setBranchMatchError(null);
+      setCard("env", "warning");
+    } else {
+      setSelectedEnv(null);
+      setBranchMatchWarning(null);
+      setBranchMatchError(`No matching environment found for base branch "${selectedPR.base_branch}".`);
+      setCard("env", "error");
+    }
+  }, [selectedPR, envList]);
+
+  // When env manually selected: match against branch list
+  useEffect(() => {
+    if (envLockedByPR || !selectedEnv) return;
+    const result = matchBranch(selectedEnv.name, branches);
+    if (result.status === "exact") {
+      setBranchMatchWarning(null);
+      setBranchMatchError(null);
+      setCard("env", "complete");
+    } else if (result.status === "case") {
+      setBranchMatchWarning(`Environment "${selectedEnv.name}" and branch "${result.branch.name}" have mismatched casing.`);
+      setBranchMatchError(null);
+      setCard("env", "warning");
+    } else if (result.status === "multiple") {
+      setBranchMatchWarning(null);
+      setBranchMatchError(
+        `Multiple branches match environment "${selectedEnv.name}". Please resolve the conflict. ${(
+          <Button
+            size="small"
+            variant="outlined"
+            endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />}
+            onClick={() => window.open(`https://github.com/${repoFullName}/branches`, "_blank")}
+            sx={{
+              borderColor: "#e2e8f0",
+              color: "#475569",
+              fontSize: "0.75rem",
+              textTransform: "none",
+              fontFamily: "'IBM Plex Mono', monospace",
+              "&:hover": { borderColor: "#cbd5e1", color: "#0f172a", background: "#f8fafc" },
+            }}
+          />
+        )}`,
+      );
+      setCard("env", "error");
+    } else {
+      setBranchMatchWarning(null);
+      setBranchMatchError(`No branch found matching environment "${selectedEnv.name}".`);
+      setCard("env", "error");
+    }
+  }, [selectedEnv, branches, envLockedByPR]);
+
+  // Load secrets when env changes
+  useEffect(() => {
+    if (!selectedAccount || !selectedRepo || !selectedEnv || branchMatchError) return;
+    loadSecrets(selectedEnv.name);
+  }, [selectedEnv, branchMatchError]);
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  function resetSecrets() {
+    setPresentSecretKeys([]);
+    setAzureSecrets({ configured: null, valid: null });
+    setAwsSecrets({ configured: null, valid: null });
+    setCard("azure_secrets", "idle");
+    setCard("aws_secrets", "idle");
+  }
 
   // ── Loaders ───────────────────────────────────────────────────────────────
 
@@ -263,8 +363,7 @@ export default function AppDashboard() {
         if (data.azure) setAzureSecrets((prev) => ({ ...prev, valid: data.azure.valid ?? null }));
         if (data.aws) setAwsSecrets((prev) => ({ ...prev, valid: data.aws.valid ?? null }));
 
-        const anyFailed = merged.some((s) => s.status === "failed");
-        setCard("stages", anyFailed ? "warning" : "complete");
+        setCard("stages", merged.some((s) => s.status === "failed") ? "warning" : "complete");
         setCard("status_update", "complete");
       })
       .catch(() => {
@@ -275,9 +374,30 @@ export default function AppDashboard() {
       .finally(() => setStagesLoading(false));
   }
 
-  async function loadSecrets() {
+  async function loadPRs(account: Account, repoName: string) {
+    setPrLoading(true);
+    try {
+      const prs = await fetchPullRequests(account, repoName);
+      setPullRequests(prs);
+      setCard("pr", prs.length > 0 ? "warning" : "idle");
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setPrLoading(false);
+    }
+  }
+
+  async function loadEnvs(account: Account, repoName: string) {
+    setEnvLoading(true);
+    fetchEnvs(account, repoName)
+      .then((list) => setEnvList(list))
+      .catch(console.error)
+      .finally(() => setEnvLoading(false));
+  }
+
+  async function loadSecrets(envName: string) {
     if (!selectedAccount || !selectedRepo) return;
-    const keys = await fetchSecrets(selectedAccount, selectedRepo.name);
+    const keys = await fetchSecrets(selectedAccount, selectedRepo.name, envName);
     const azureConfigured = AZURE_SECRET_KEYS.every((k) => keys.includes(k));
     const awsConfigured = AWS_SECRET_KEYS.every((k) => keys.includes(k));
     setAzureSecrets((prev) => ({ ...prev, configured: azureConfigured }));
@@ -311,15 +431,13 @@ export default function AppDashboard() {
     }
   }
 
-  async function handleCreateBranch() {
-    if (!selectedAccount || !selectedRepo || !selectedBranch) return;
+  async function handleCreateBranch(targetName: string) {
+    if (!selectedAccount || !selectedRepo) return;
     setCreatingBranch(true);
     setCreateBranchError(null);
     try {
-      const newBranch = await createBranch(selectedAccount, selectedRepo.name, selectedBranch.name, sourceBranch);
+      const newBranch = await createBranch(selectedAccount, selectedRepo.name, targetName, sourceBranch);
       setBranches((prev) => [...prev, newBranch]);
-      setSelectedBranch({ name: newBranch.name });
-      setCard("branch", "complete");
     } catch (e: any) {
       setCreateBranchError(e.message || "Failed to create branch");
     } finally {
@@ -327,44 +445,36 @@ export default function AppDashboard() {
     }
   }
 
-  async function handleLoadPRs() {
-    if (!selectedAccount || !selectedRepo || !selectedBranch) return;
-    setPrLoading(true);
-    try {
-      const prs = await fetchPullRequests(selectedAccount, selectedRepo.name, selectedBranch.name);
-      setPullRequests(prs);
-      setCard("pr", prs.length > 0 ? "warning" : "idle");
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setPrLoading(false);
-    }
-  }
-
   async function handleRecheck() {
-    if (!selectedAccount || !selectedRepo) return;
+    if (!selectedEnv) return;
     setRechecking(true);
     try {
-      await loadSecrets();
+      await loadSecrets(selectedEnv.name);
     } finally {
       setRechecking(false);
     }
   }
 
   async function handleRunStatusUpdate() {
-    if (!selectedAccount || !selectedRepo || !isCloneRepo) return;
+    if (!selectedAccount || !selectedRepo || !isCloneRepo || !envReady || !triggerRef) return;
     setRunError(null);
     setRunning(true);
     setCountdown(180);
     setLastRunTime(Date.now());
     setCard("status_update", "loading");
 
+    const env = Object.fromEntries(envEntries.map((e) => [e.key, e.value]));
+
     try {
-      const env = Object.fromEntries(envEntries.map((e) => [e.key, e.value]));
       if (selectedPR) {
-        await triggerWorkflowFromPR(selectedAccount, selectedRepo.name, pipeline.workflowId, env, String(selectedPR.id));
+        await triggerWorkflowFromPR(selectedAccount, selectedRepo.name, pipeline.workflowId, env, selectedPR.head_sha);
+        fetchRuns(selectedAccount, selectedRepo.name, selectedPR.head_sha)
+          .then((runs) => {
+            if (runs.length > 0) setLastRunId(runs[0].id);
+          })
+          .catch(console.error);
       } else {
-        await triggerWorkflow(selectedAccount, selectedRepo.name, pipeline.workflowId, env, selectedBranch?.name ?? "main");
+        await triggerWorkflow(selectedAccount, selectedRepo.name, pipeline.workflowId, env, triggerRef);
       }
     } catch (e: any) {
       setRunning(false);
@@ -390,7 +500,6 @@ export default function AppDashboard() {
 
   return (
     <>
-      {/* Redirect overlay */}
       {redirecting && (
         <Box
           sx={{
@@ -511,15 +620,7 @@ export default function AppDashboard() {
             </Box>
           ) : !user ? (
             <Box
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                py: 10,
-                gap: 2,
-                textAlign: "center",
-              }}
+              sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", py: 10, gap: 2, textAlign: "center" }}
             >
               <Typography sx={{ fontSize: "1.1rem", fontWeight: 600, color: "#0f172a" }}>Sign in to continue</Typography>
               <Typography sx={{ fontSize: "0.85rem", color: "#64748b", maxWidth: 360 }}>
@@ -557,7 +658,7 @@ export default function AppDashboard() {
                 <RepoCard
                   accounts={accounts}
                   selectedAccount={selectedAccount}
-                  onAccountChange={(acc) => setSelectedAccount(acc)}
+                  onAccountChange={setSelectedAccount}
                   repos={repos}
                   selectedRepo={selectedRepo}
                   onRepoChange={(repo) => {
@@ -574,48 +675,125 @@ export default function AppDashboard() {
                   cloning={cloning}
                   cloneError={cloneError}
                   onClone={handleClone}
-                />
-              </PipelineCard>
-
-              {/* Step 2 — Branch */}
-              <PipelineCard
-                step={2}
-                title="Select Branch"
-                subtitle={selectedBranch && !selectedBranch.isNew ? selectedBranch.name : "Choose a branch to work with"}
-                status={cardStatus.branch}
-                expanded={expanded.branch}
-                onToggle={() => toggleCard("branch")}
-                disabled={!isCloneRepo}
-                hasNext
-              >
-                <BranchCard
                   branches={branches}
-                  selectedBranch={selectedBranch}
-                  onBranchChange={(b) => {
-                    setSelectedBranch(b);
-                    setCreateBranchError(null);
-                    setSelectedPR(null);
-                    setPullRequests([]);
-                    setCard("pr", "idle");
-                    if (b && !b.isNew) setCard("branch", "complete");
-                  }}
                   sourceBranch={sourceBranch}
                   onSourceBranchChange={setSourceBranch}
-                  creating={creatingBranch}
-                  createError={createBranchError}
-                  onCreate={handleCreateBranch}
+                  creatingBranch={creatingBranch}
+                  createBranchError={createBranchError}
+                  onCreateBranch={handleCreateBranch}
                 />
               </PipelineCard>
 
-              {/* Step 3 — Azure Secrets */}
+              {/* Step 2 — PR (optional) */}
+              <PipelineCard
+                step={2}
+                title="Pull Request"
+                subtitle={selectedPR ? `#${selectedPR.number} · ${selectedPR.title}` : "Optional — select a PR to deploy from"}
+                status={cardStatus.pr}
+                expanded={expanded.pr}
+                onToggle={() => toggleCard("pr")}
+                disabled={!isCloneRepo}
+                hasNext
+                action={
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />}
+                    onClick={() => window.open(`https://github.com/${repoFullName}/pulls`, "_blank")}
+                    sx={{
+                      borderColor: "#e2e8f0",
+                      color: "#475569",
+                      fontSize: "0.75rem",
+                      textTransform: "none",
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      "&:hover": { borderColor: "#cbd5e1", color: "#0f172a", background: "#f8fafc" },
+                    }}
+                  >
+                    Pull Requests on GitHub
+                  </Button>
+                }
+              >
+                <PRCard
+                  pullRequests={pullRequests}
+                  selectedPR={selectedPR}
+                  onSelectPR={(pr) => {
+                    setSelectedPR(pr);
+                    if (!pr) {
+                      setSelectedEnv(null);
+                      setBranchMatchWarning(null);
+                      setBranchMatchError(null);
+                      resetSecrets();
+                      setCard("env", "idle");
+                      setCard("pr", "idle");
+                    } else {
+                      setCard("pr", "complete");
+                    }
+                  }}
+                  loading={prLoading}
+                  onRefresh={() => selectedAccount && selectedRepo && loadPRs(selectedAccount, selectedRepo.name)}
+                  envList={envList}
+                />
+              </PipelineCard>
+
+              {/* Step 3 — Environment */}
               <PipelineCard
                 step={3}
+                title="Environment"
+                subtitle={selectedEnv ? selectedEnv.name : "Select target environment"}
+                status={cardStatus.env}
+                expanded={expanded.env}
+                onToggle={() => toggleCard("env")}
+                disabled={!isCloneRepo}
+                hasNext
+                action={
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />}
+                    onClick={() => window.open(`https://github.com/${repoFullName}/settings/environments`, "_blank")}
+                    sx={{
+                      borderColor: "#e2e8f0",
+                      color: "#475569",
+                      fontSize: "0.75rem",
+                      textTransform: "none",
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      "&:hover": { borderColor: "#cbd5e1", color: "#0f172a", background: "#f8fafc" },
+                    }}
+                  >
+                    Environment on GitHub
+                  </Button>
+                }
+              >
+                <EnvironmentCard
+                  envList={envList}
+                  selectedEnv={selectedEnv}
+                  onEnvChange={(env) => {
+                    setSelectedEnv(env);
+                    setBranchMatchWarning(null);
+                    setBranchMatchError(null);
+                    resetSecrets();
+                  }}
+                  lockedByPR={envLockedByPR}
+                  branchMatchWarning={branchMatchWarning}
+                  branchMatchError={branchMatchError}
+                  loading={envLoading}
+                  onRefresh={() => selectedAccount && selectedRepo && loadEnvs(selectedAccount, selectedRepo.name)}
+                />
+              </PipelineCard>
+
+              {/* Step 4 — Azure Secrets */}
+              <PipelineCard
+                step={4}
                 title="Azure Secrets"
-                subtitle="AZURE_CLIENT_ID · AZURE_SUBSCRIPTION_ID · AZURE_TENANT_ID"
+                subtitle={
+                  selectedEnv
+                    ? `${selectedEnv.name} · AZURE_CLIENT_ID · AZURE_SUBSCRIPTION_ID · AZURE_TENANT_ID`
+                    : "AZURE_CLIENT_ID · AZURE_SUBSCRIPTION_ID · AZURE_TENANT_ID"
+                }
                 status={cardStatus.azure_secrets}
                 expanded={expanded.azure_secrets}
                 onToggle={() => toggleCard("azure_secrets")}
-                disabled={!isCloneRepo}
+                disabled={!isCloneRepo || !envReady}
                 hasNext
               >
                 <SecretsCard
@@ -629,15 +807,15 @@ export default function AppDashboard() {
                 />
               </PipelineCard>
 
-              {/* Step 4 — AWS Secrets */}
+              {/* Step 5 — AWS Secrets */}
               <PipelineCard
-                step={4}
+                step={5}
                 title="AWS Secrets"
-                subtitle="AWS_ACCOUNT_ID · AWS_ROLE_NAME"
+                subtitle={selectedEnv ? `${selectedEnv.name} · AWS_ACCOUNT_ID · AWS_ROLE_NAME` : "AWS_ACCOUNT_ID · AWS_ROLE_NAME"}
                 status={cardStatus.aws_secrets}
                 expanded={expanded.aws_secrets}
                 onToggle={() => toggleCard("aws_secrets")}
-                disabled={!isCloneRepo}
+                disabled={!isCloneRepo || !envReady}
                 hasNext
               >
                 <SecretsCard
@@ -651,44 +829,18 @@ export default function AppDashboard() {
                 />
               </PipelineCard>
 
-              {/* Step 5 — Env */}
+              {/* Step 6 — Env Variables */}
               <PipelineCard
-                step={5}
+                step={6}
                 title="Environment Variables"
                 subtitle="Variables passed to the workflow on each run"
-                status={cardStatus.env}
-                expanded={expanded.env}
-                onToggle={() => toggleCard("env")}
+                status={cardStatus.envVars}
+                expanded={expanded.envVars}
+                onToggle={() => toggleCard("envVars")}
                 disabled={!isCloneRepo}
                 hasNext
               >
                 <EnvCard envEntries={envEntries} onChange={setEnvEntries} />
-              </PipelineCard>
-
-              {/* Step 6 — PR (optional) */}
-              <PipelineCard
-                step={6}
-                title="Pull Request"
-                subtitle="Optional — trigger workflow from a specific PR commit"
-                status={cardStatus.pr}
-                expanded={expanded.pr}
-                onToggle={() => {
-                  toggleCard("pr");
-                  if (!expanded.pr) handleLoadPRs();
-                }}
-                disabled={!isCloneRepo || !selectedBranch || !!selectedBranch.isNew}
-                hasNext
-              >
-                <PRCard
-                  pullRequests={pullRequests}
-                  selectedPR={selectedPR}
-                  onSelectPR={(pr) => {
-                    setSelectedPR(pr);
-                    setCard("pr", pr ? "complete" : "idle");
-                  }}
-                  loading={prLoading}
-                  onRefresh={handleLoadPRs}
-                />
               </PipelineCard>
 
               {/* Step 7 — Run Status Update */}
@@ -699,15 +851,23 @@ export default function AppDashboard() {
                 status={cardStatus.status_update}
                 expanded={expanded.status_update}
                 onToggle={() => toggleCard("status_update")}
-                disabled={!isCloneRepo}
+                disabled={!isCloneRepo || !envReady}
                 hasNext
               >
-                <StatusCard running={running} countdown={countdown} lastRunTime={lastRunTime} onRun={handleRunStatusUpdate} runError={runError} />
+                <StatusCard
+                  running={running}
+                  countdown={countdown}
+                  lastRunTime={lastRunTime}
+                  onRun={handleRunStatusUpdate}
+                  runError={runError}
+                  lastRunId={lastRunId}
+                  repoFullName={repoFullName}
+                />
               </PipelineCard>
 
               {/* No status file notice */}
               {!statusFileFound && isCloneRepo && (
-                <Box sx={{ display: "flex", alignItems: "center", gap: 2, my: 3 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2, my: 1 }}>
                   <Box sx={{ flex: 1, height: "1px", background: "linear-gradient(to right, #f1f5f9, #cbd5e1)" }} />
                   <Typography
                     sx={{
@@ -726,10 +886,7 @@ export default function AppDashboard() {
 
               {/* Steps 8~N — Stages */}
               {pipeline.stages.map((stageDef, index) => {
-                const stage = stages.find((s) => s.stage === stageDef.key) ?? {
-                  stage: stageDef.key,
-                  status: "pending" as const,
-                };
+                const stage = stages.find((s) => s.stage === stageDef.key) ?? { stage: stageDef.key, status: "pending" as const };
                 const cfg = STAGE_STATUS_CONFIG[stage.status];
 
                 return (

@@ -1,5 +1,5 @@
 import { parse } from "dotenv";
-import type { Account, Branch, EnvEntry, PullRequest, Repo } from "./types";
+import type { Account, Branch, EnvEntry, GhEnv, PullRequest, Repo, WorkflowRun } from "./types";
 
 const url = import.meta.env.VITE_API_URL;
 
@@ -54,10 +54,62 @@ export async function generateRepo(account: Account, targetName: string, isPriva
   return data.data;
 }
 
+// ─── Branches ─────────────────────────────────────────────────────────────────
+
+export async function fetchBranches(account: Account, repo: string): Promise<Branch[]> {
+  const params = new URLSearchParams({ owner: account.login, repo, type: account.type });
+  const res = await fetch(`${url}/getBranches?${params}`, { credentials: "include" });
+  if (!res.ok) throw new Error(`Failed to fetch branches: ${res.status}`);
+  const data = await res.json();
+  return data.branches || [];
+}
+
+export async function createBranch(account: Account, repo: string, branchName: string, sourceBranch: string): Promise<Branch> {
+  const res = await fetch(`${url}/createBranch`, {
+    credentials: "include",
+    method: "POST",
+    body: JSON.stringify({ owner: account.login, type: account.type, repo, branch: branchName, source: sourceBranch }),
+  });
+  if (!res.ok) throw new Error(`Failed to create branch: ${res.status}`);
+  const data = await res.json();
+  return data.branch;
+}
+
+// ─── Pull Requests ────────────────────────────────────────────────────────────
+
+export async function fetchPullRequests(account: Account, repo: string): Promise<PullRequest[]> {
+  const params = new URLSearchParams({ owner: account.login, repo, type: account.type });
+  const res = await fetch(`${url}/getPullRequests?${params}`, { credentials: "include" });
+  if (!res.ok) throw new Error(`Failed to fetch pull requests: ${res.status}`);
+  const data = await res.json();
+  return data.pullRequests || [];
+}
+
+// ─── Workflow Runs ────────────────────────────────────────────────────────────
+
+export async function fetchRuns(account: Account, repo: string, headSha: string): Promise<WorkflowRun[]> {
+  // TODO: confirm endpoint name with backend
+  const params = new URLSearchParams({ owner: account.login, repo, type: account.type, head_sha: headSha });
+  const res = await fetch(`${url}/getRuns?${params}`, { credentials: "include" });
+  if (!res.ok) throw new Error(`Failed to fetch runs: ${res.status}`);
+  const data = await res.json();
+  return data.runs || [];
+}
+
+// ─── GitHub Environments ──────────────────────────────────────────────────────
+
+export async function fetchEnvs(account: Account, repo: string): Promise<GhEnv[]> {
+  const params = new URLSearchParams({ owner: account.login, repo, type: account.type });
+  const res = await fetch(`${url}/getEnvs?${params}`, { credentials: "include" });
+  if (!res.ok) throw new Error(`Failed to fetch envs: ${res.status}`);
+  const data = await res.json();
+  return data.envList || [];
+}
+
 // ─── Secrets ──────────────────────────────────────────────────────────────────
 
-export async function fetchSecrets(account: Account, repo: string): Promise<string[]> {
-  const params = new URLSearchParams({ owner: account.login, repo, type: account.type });
+export async function fetchSecrets(account: Account, repo: string, envName: string): Promise<string[]> {
+  const params = new URLSearchParams({ owner: account.login, repo, type: account.type, env: envName });
   const res = await fetch(`${url}/getSecrets?${params}`, { credentials: "include" });
   if (!res.ok) throw new Error(`Failed to fetch secrets: ${res.status}`);
   const data = await res.json();
@@ -89,56 +141,17 @@ export async function fetchEnv(account: Account, repo: string): Promise<Record<s
   return parse(data.content);
 }
 
-export async function saveEnv(account: Account, repo: string, entries: EnvEntry[]): Promise<void> {
-  const env = Object.fromEntries(entries.map((e) => [e.key, e.value]));
-  // TODO: implement PUT to repo
-  console.log("Saving env", env);
-}
-
 // ─── Workflow ─────────────────────────────────────────────────────────────────
 
-export async function triggerWorkflow(account: Account, repo: string, workflowId: string, env: Record<string, string>) {
+export async function triggerWorkflow(account: Account, repo: string, workflowId: string, env: Record<string, string>, ref: string) {
   const res = await fetch(`${url}/triggerActions`, {
     credentials: "include",
     method: "POST",
-    body: JSON.stringify({ env: JSON.stringify(env), repo, owner: account.login, type: account.type, workflow_id: workflowId }),
+    body: JSON.stringify({ env: JSON.stringify(env), repo, owner: account.login, type: account.type, workflow_id: workflowId, ref }),
   });
   if (!res.ok) throw new Error(`Failed to trigger workflow: ${res.status}`);
   return res.json();
 }
-
-// ─── Branches ─────────────────────────────────────────────────────────────────
-
-export async function fetchBranches(account: Account, repo: string): Promise<Branch[]> {
-  const params = new URLSearchParams({ owner: account.login, repo, type: account.type });
-  const res = await fetch(`${url}/getBranches?${params}`, { credentials: "include" });
-  if (!res.ok) throw new Error(`Failed to fetch branches: ${res.status}`);
-  const data = await res.json();
-  return data.branches || [];
-}
-
-export async function createBranch(account: Account, repo: string, branchName: string, sourceBranch: string): Promise<Branch> {
-  const res = await fetch(`${url}/createBranch`, {
-    credentials: "include",
-    method: "POST",
-    body: JSON.stringify({ owner: account.login, type: account.type, repo, branch: branchName, source: sourceBranch }),
-  });
-  if (!res.ok) throw new Error(`Failed to create branch: ${res.status}`);
-  const data = await res.json();
-  return data.branch;
-}
-
-// ─── Pull Requests ────────────────────────────────────────────────────────────
-
-export async function fetchPullRequests(account: Account, repo: string, branch: string): Promise<PullRequest[]> {
-  const params = new URLSearchParams({ owner: account.login, repo, type: account.type, ref: branch });
-  const res = await fetch(`${url}/getPullRequests?${params}`, { credentials: "include" });
-  if (!res.ok) throw new Error(`Failed to fetch pull requests: ${res.status}`);
-  const data = await res.json();
-  return data.pullRequests || [];
-}
-
-// ─── Trigger from PR ──────────────────────────────────────────────────────────
 
 export async function triggerWorkflowFromPR(account: Account, repo: string, workflowId: string, env: Record<string, string>, commitSha: string) {
   // Currently uses the same endpoint — replace URI here when splitting

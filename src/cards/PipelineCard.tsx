@@ -42,6 +42,7 @@ export default function PipelineCard({
   action,
 }: Props) {
   const indicator = STATUS_INDICATOR[status];
+  const idle = STATUS_INDICATOR.idle;
 
   return (
     <Box sx={{ display: "flex", gap: 2.5 }}>
@@ -53,12 +54,12 @@ export default function PipelineCard({
             width: 32,
             height: 32,
             borderRadius: "50%",
-            border: `2px solid ${indicator.color}`,
-            background: status === "complete" ? indicator.color : "#ffffff",
+            border: `2px solid ${!disabled ? indicator.color : idle.color}`,
+            background: status === "complete" && !disabled ? indicator.color : "#ffffff",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            color: status === "complete" ? "#ffffff" : indicator.color,
+            color: status === "complete" && !disabled ? "#ffffff" : indicator.color,
             fontSize: "0.72rem",
             fontWeight: 700,
             fontFamily: "'IBM Plex Mono', monospace",
@@ -67,11 +68,11 @@ export default function PipelineCard({
           }}
         >
           {status === "complete" ? (
-            <CheckCircleIcon sx={{ fontSize: 16, color: "#ffffff" }} />
+            <CheckCircleIcon sx={{ fontSize: 16, color: disabled ? idle.color : "#ffffff" }} />
           ) : status === "warning" ? (
-            <WarningAmberIcon sx={{ fontSize: 16 }} />
+            <WarningAmberIcon sx={{ fontSize: 16, color: disabled ? idle.color : "#f97316" }} />
           ) : status === "error" ? (
-            <ErrorOutlineIcon sx={{ fontSize: 16 }} />
+            <ErrorOutlineIcon sx={{ fontSize: 16, color: disabled ? idle.color : "#ef4444" }} />
           ) : (
             step
           )}
@@ -83,7 +84,7 @@ export default function PipelineCard({
             sx={{
               flex: 1,
               width: "2px",
-              background: status === "complete" ? "#22c55e44" : "#e2e8f0",
+              background: status === "complete" && !disabled ? "#22c55e44" : "#e2e8f0",
               mt: 0.5,
               minHeight: 24,
             }}

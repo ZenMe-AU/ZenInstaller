@@ -1,6 +1,6 @@
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
-export type CardId = "repo" | "branch" | "azure_secrets" | "aws_secrets" | "env" | "pr" | "status_update" | "stages";
+export type CardId = "repo" | "pr" | "env" | "azure_secrets" | "aws_secrets" | "envVars" | "status_update" | "stages";
 export type CardStatus = "idle" | "loading" | "complete" | "warning" | "error";
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -35,10 +35,53 @@ export type Branch = {
   protected: boolean;
 };
 
-export type BranchOption = {
+// ─── GitHub Environment ───────────────────────────────────────────────────────
+
+export type GhEnv = {
   name: string;
-  isNew?: boolean;
+  id: number;
+  url: string;
 };
+
+// Whitelist — only these env names (case-insensitive) are shown and selectable
+export const VALID_ENV_NAMES = ["PROD", "TEST"] as const;
+
+export function isValidEnvName(name: string): boolean {
+  return VALID_ENV_NAMES.some((v) => v.toLowerCase() === name.toLowerCase());
+}
+
+// Match result when comparing a branch name to an env list
+export type EnvMatchResult =
+  | { status: "exact"; env: GhEnv }
+  | { status: "case"; env: GhEnv }
+  | { status: "multiple"; envs: GhEnv[] }
+  | { status: "none" };
+
+export function matchEnv(name: string, envList: GhEnv[]): EnvMatchResult {
+  const filtered = envList.filter((e) => isValidEnvName(e.name));
+  const matches = filtered.filter((e) => e.name.toLowerCase() === name.toLowerCase());
+  if (matches.length === 0) return { status: "none" };
+  if (matches.length > 1) return { status: "multiple", envs: matches };
+  const match = matches[0];
+  if (match.name === name) return { status: "exact", env: match };
+  return { status: "case", env: match };
+}
+
+// Match an env against the branch list
+export type BranchMatchResult =
+  | { status: "exact"; branch: Branch }
+  | { status: "case"; branch: Branch }
+  | { status: "multiple"; branches: Branch[] }
+  | { status: "none" };
+
+export function matchBranch(envName: string, branches: Branch[]): BranchMatchResult {
+  const matches = branches.filter((b) => b.name.toLowerCase() === envName.toLowerCase());
+  if (matches.length === 0) return { status: "none" };
+  if (matches.length > 1) return { status: "multiple", branches: matches };
+  const match = matches[0];
+  if (match.name === envName) return { status: "exact", branch: match };
+  return { status: "case", branch: match };
+}
 
 // ─── Pull Request ─────────────────────────────────────────────────────────────
 
@@ -47,6 +90,19 @@ export type PullRequest = {
   number: number;
   title: string;
   state: string;
+  html_url: string;
+  base_branch: string;
+  head_sha: string;
+};
+
+// ─── Workflow Run ─────────────────────────────────────────────────────────────
+
+export type WorkflowRun = {
+  id: number;
+  head_sha: string;
+  workflow_id: string;
+  created_at: string;
+  actor: string;
 };
 
 // ─── Pipeline ─────────────────────────────────────────────────────────────────

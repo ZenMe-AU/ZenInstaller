@@ -1,8 +1,12 @@
-import { Box, Button, CircularProgress, Chip, Typography } from "@mui/material";
+import { Box, Button, Chip, CircularProgress, Collapse, Typography } from "@mui/material";
 import CallMergeIcon from "@mui/icons-material/CallMerge";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import type { PullRequest } from "../types";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import type { GhEnv, PullRequest } from "../types";
+import { matchEnv } from "../types";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -12,149 +16,214 @@ type Props = {
   onSelectPR: (pr: PullRequest | null) => void;
   loading: boolean;
   onRefresh: () => void;
+  envList: GhEnv[];
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function PRCard({ pullRequests, selectedPR, onSelectPR, loading, onRefresh }: Props) {
+export default function PRCard({ pullRequests, selectedPR, onSelectPR, loading, onRefresh, envList }: Props) {
   return (
     <Box>
+      {/* Header row */}
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
         <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
-          Optional. Select a pull request to trigger the workflow using that PR's commit SHA instead of the branch HEAD.
+          Optional. Select a pull request to trigger the workflow using that PR's head commit SHA.
         </Typography>
-        <Button
-          size="small"
-          onClick={onRefresh}
-          disabled={loading}
-          startIcon={loading ? <CircularProgress size={12} sx={{ color: "#94a3b8" }} /> : <RefreshIcon sx={{ fontSize: 14 }} />}
-          sx={{
-            color: "#94a3b8",
-            fontSize: "0.72rem",
-            textTransform: "none",
-            fontFamily: "'IBM Plex Mono', monospace",
-            flexShrink: 0,
-            ml: 2,
-            "&:hover": { color: "#475569" },
-          }}
-        >
-          Refresh
-        </Button>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexShrink: 0, ml: 2 }}>
+          {selectedPR && (
+            <Button
+              size="small"
+              onClick={() => onSelectPR(null)}
+              sx={{
+                color: "#94a3b8",
+                fontSize: "0.72rem",
+                textTransform: "none",
+                fontFamily: "'IBM Plex Mono', monospace",
+                "&:hover": { color: "#ef4444" },
+              }}
+            >
+              Clear
+            </Button>
+          )}
+          <Button
+            size="small"
+            onClick={onRefresh}
+            disabled={loading}
+            startIcon={loading ? <CircularProgress size={12} sx={{ color: "#94a3b8" }} /> : <RefreshIcon sx={{ fontSize: 14 }} />}
+            sx={{
+              color: "#94a3b8",
+              fontSize: "0.72rem",
+              textTransform: "none",
+              fontFamily: "'IBM Plex Mono', monospace",
+              "&:hover": { color: "#475569" },
+            }}
+          >
+            Refresh
+          </Button>
+        </Box>
       </Box>
 
+      {/* PR list */}
       {loading ? (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
           <CircularProgress size={14} sx={{ color: "#cbd5e1" }} />
-          <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>
-            Loading pull requests...
-          </Typography>
+          <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>Loading pull requests...</Typography>
         </Box>
       ) : pullRequests.length === 0 ? (
         <Box sx={{ py: 2, textAlign: "center" }}>
           <Typography sx={{ fontSize: "0.78rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>
-            No open pull requests on this branch.
+            No open pull requests found.
           </Typography>
         </Box>
       ) : (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
           {pullRequests.map((pr) => {
             const isSelected = selectedPR?.id === pr.id;
+            const matchResult = matchEnv(pr.base_branch, envList);
+            const hasEnv = matchResult.status !== "none" && matchResult.status !== "multiple";
+
             return (
               <Box
                 key={pr.id}
-                onClick={() => onSelectPR(isSelected ? null : pr)}
                 sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1.5,
-                  px: 2,
-                  py: 1.25,
                   borderRadius: "8px",
                   border: "1px solid",
                   borderColor: isSelected ? "#bfdbfe" : "#e2e8f0",
                   background: isSelected ? "#eff6ff" : "#ffffff",
-                  cursor: "pointer",
+                  overflow: "hidden",
                   transition: "all 0.15s",
-                  "&:hover": { borderColor: isSelected ? "#93c5fd" : "#cbd5e1", background: isSelected ? "#eff6ff" : "#fafafa" },
                 }}
               >
-                {/* Selected indicator */}
-                {isSelected ? (
-                  <CheckCircleIcon sx={{ fontSize: 16, color: "#2563eb", flexShrink: 0 }} />
-                ) : (
-                  <CallMergeIcon sx={{ fontSize: 16, color: "#94a3b8", flexShrink: 0 }} />
-                )}
-
-                {/* PR number */}
-                <Typography
+                {/* PR row — always visible */}
+                <Box
+                  onClick={() => onSelectPR(isSelected ? null : pr)}
                   sx={{
-                    fontSize: "0.72rem",
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    color: "#94a3b8",
-                    flexShrink: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    px: 2,
+                    py: 1.25,
+                    cursor: "pointer",
+                    "&:hover": {
+                      background: isSelected ? "#e8f0fe" : "#fafafa",
+                    },
                   }}
                 >
-                  #{pr.number}
-                </Typography>
+                  {isSelected ? (
+                    <CheckCircleIcon sx={{ fontSize: 16, color: "#2563eb", flexShrink: 0 }} />
+                  ) : (
+                    <CallMergeIcon sx={{ fontSize: 16, color: "#94a3b8", flexShrink: 0 }} />
+                  )}
+                  <Typography sx={{ fontSize: "0.72rem", fontFamily: "'IBM Plex Mono', monospace", color: "#94a3b8", flexShrink: 0 }}>
+                    #{pr.number}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: "0.8rem",
+                      color: isSelected ? "#1d4ed8" : "#0f172a",
+                      flex: 1,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      fontWeight: isSelected ? 600 : 400,
+                    }}
+                  >
+                    {pr.title}
+                  </Typography>
+                  <Chip
+                    label={pr.base_branch}
+                    size="small"
+                    sx={{
+                      height: 18,
+                      fontSize: "0.62rem",
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      background: hasEnv ? "#f0fdf4" : "#fff7ed",
+                      color: hasEnv ? "#16a34a" : "#ea580c",
+                      border: `1px solid ${hasEnv ? "#bbf7d0" : "#fed7aa"}`,
+                    }}
+                  />
+                </Box>
 
-                {/* PR title */}
-                <Typography
-                  sx={{
-                    fontSize: "0.8rem",
-                    color: isSelected ? "#1d4ed8" : "#0f172a",
-                    flex: 1,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    fontWeight: isSelected ? 600 : 400,
-                  }}
-                >
-                  {pr.title}
-                </Typography>
+                {/* Expanded detail — only shown when selected */}
+                <Collapse in={isSelected}>
+                  <Box
+                    sx={{
+                      px: 2,
+                      py: 1.5,
+                      borderTop: "1px solid #dbeafe",
+                      background: "#eef4ff",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 1,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+                      {/* Env match */}
+                      {matchResult.status === "exact" || matchResult.status === "case" ? (
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                          <Typography sx={{ fontSize: "0.7rem", color: "#64748b", fontFamily: "'IBM Plex Mono', monospace" }}>env:</Typography>
+                          <Chip
+                            label={matchResult.env.name}
+                            size="small"
+                            sx={{
+                              height: 18,
+                              fontSize: "0.62rem",
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              background: "#f0fdf4",
+                              color: "#16a34a",
+                              border: "1px solid #bbf7d0",
+                            }}
+                          />
+                          {matchResult.status === "case" && (
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                              <WarningAmberIcon sx={{ fontSize: 13, color: "#d97706" }} />
+                              <Typography sx={{ fontSize: "0.68rem", color: "#d97706", fontFamily: "'IBM Plex Mono', monospace" }}>
+                                case mismatch
+                              </Typography>
+                            </Box>
+                          )}
+                        </Box>
+                      ) : matchResult.status === "none" ? (
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                          <ErrorOutlineIcon sx={{ fontSize: 13, color: "#ef4444" }} />
+                          <Typography sx={{ fontSize: "0.68rem", color: "#ef4444", fontFamily: "'IBM Plex Mono', monospace" }}>
+                            No matching environment
+                          </Typography>
+                        </Box>
+                      ) : null}
 
-                {/* State chip */}
-                <Chip
-                  label={pr.state}
-                  size="small"
-                  sx={{
-                    height: 18,
-                    fontSize: "0.62rem",
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    background: pr.state === "open" ? "#f0fdf4" : "#f8fafc",
-                    color: pr.state === "open" ? "#16a34a" : "#64748b",
-                    border: `1px solid ${pr.state === "open" ? "#bbf7d0" : "#e2e8f0"}`,
-                  }}
-                />
+                      {/* SHA */}
+                      <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>
+                        sha: {pr.head_sha.slice(0, 7)}
+                      </Typography>
+                    </Box>
+
+                    {/* View on GitHub */}
+                    <Button
+                      size="small"
+                      endIcon={<OpenInNewIcon sx={{ fontSize: 12 }} />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.open(pr.html_url, "_blank");
+                      }}
+                      sx={{
+                        color: "#64748b",
+                        fontSize: "0.7rem",
+                        textTransform: "none",
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        flexShrink: 0,
+                        "&:hover": { color: "#0f172a" },
+                      }}
+                    >
+                      View on GitHub
+                    </Button>
+                  </Box>
+                </Collapse>
               </Box>
             );
           })}
-        </Box>
-      )}
-
-      {/* Selected PR info */}
-      {selectedPR && (
-        <Box
-          sx={{
-            mt: 2,
-            p: 1.5,
-            borderRadius: "8px",
-            background: "#f0fdf4",
-            border: "1px solid #bbf7d0",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <Typography sx={{ fontSize: "0.75rem", color: "#16a34a", fontFamily: "'IBM Plex Mono', monospace" }}>
-            Workflow will trigger using PR #{selectedPR.number} commit SHA
-          </Typography>
-          <Button
-            size="small"
-            onClick={() => onSelectPR(null)}
-            sx={{ color: "#94a3b8", fontSize: "0.7rem", textTransform: "none", fontFamily: "'IBM Plex Mono', monospace", "&:hover": { color: "#475569" } }}
-          >
-            Clear
-          </Button>
         </Box>
       )}
     </Box>

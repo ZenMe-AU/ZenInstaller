@@ -102,7 +102,7 @@ resource "azurerm_function_app_flex_consumption" "fa" {
 
   storage_container_type = "blobContainer"
   storage_container_endpoint = format(
-    "%s%s/",
+    "%s%s",
     azurerm_storage_account.sa.primary_blob_endpoint,
     azurerm_storage_container.fa.name
   )
@@ -135,9 +135,27 @@ resource "azurerm_function_app_flex_consumption" "fa" {
     application_insights_connection_string = azurerm_application_insights.ai.connection_string
   }
 
+  auth_settings_v2 {
+    auth_enabled           = true
+    default_provider       = "github"
+    unauthenticated_action = "Return401"
+    http_route_api_prefix  = "/auth" # only apply auth to routes under /auth, so we can have a health check endpoint that doesn't require auth
+    github_v2 {
+      client_id                  = var.oauth_client_id
+      client_secret_setting_name = "OAUTH_SECRET"
+      login_scopes               = ["read:user", "user:email", "read:org", "repo"]
+    }
+    login {
+      token_store_enabled            = true
+      token_refresh_extension_time   = 12
+      allowed_external_redirect_urls = ["*"] # allow any redirect URL, since we will dynamically specify the redirect URL in the GitHub App based on the installation's host URL. We will validate the redirect URL in our code before accepting it.
+    }
+  }
+
   lifecycle {
     ignore_changes = [
-      app_settings["AzureWebJobsStorage"], # prevent Terraform from adding this back
+      app_settings["AzureWebJobsStorage"],            # prevent Terraform from adding this back
+      tags["hidden-link: /app-insights-resource-id"], # this is added by Azure when we link AI to FA, and it causes a diff on every apply
     ]
   }
 }

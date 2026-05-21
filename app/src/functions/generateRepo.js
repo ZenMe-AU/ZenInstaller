@@ -13,8 +13,7 @@ app.http("generateRepo", {
     const { accessToken } = await verifyAuth(request.headers.get("cookie"));
 
     const body = await request.json();
-    console.log("👍body", body);
-    const { isPrivate = true, includeAllBranch = false, owner, type, repo = template_repo } = body;
+    const { isPrivate = true, includeAllBranch = false, owner, type, repo = template_repo, createEnvs = true } = body;
 
     const octokit = new Octokit({ auth: accessToken });
     const { data } = await octokit.request(`POST /repos/{template_owner}/{template_repo}/generate`, {
@@ -28,9 +27,25 @@ app.http("generateRepo", {
         "X-GitHub-Api-Version": "2026-03-10",
       },
     });
-    const result = { name: data.name, id: data.id, full_name: data.full_name };
+
+    const repoResult = { name: data.name, id: data.id, full_name: data.full_name };
+    const results = { repo: { name: data.full_name, success: true }, envs: [] };
+    if (createEnvs) {
+      const envs = ["PROD", "TEST"];
+      for (const envName of envs) {
+        try {
+          await octokit.request("PUT /repos/{owner}/{repo}/environments/{environment_name}", { owner, repo: data.name, environment_name: envName });
+          results.envs.push({ name: envName, success: true });
+        } catch (err) {
+          results.envs.push({ name: envName, success: false, error: err.message });
+        }
+      }
+    }
+
+    const success = results.envs.every((env) => env.success);
+    const envSuccess = results.envs.length === 0 || results.envs.every((env) => env.success);
     return {
-      jsonBody: { success: true, data: result },
+      jsonBody: { success, envSuccess, data: repoResult, results },
     };
   }),
 });

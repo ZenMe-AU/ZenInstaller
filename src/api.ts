@@ -43,15 +43,28 @@ export async function checkTemplate(account: Account, repo: string): Promise<{ i
 
 // ─── Repo generation ──────────────────────────────────────────────────────────
 
-export async function generateRepo(account: Account, targetName: string, isPrivate: boolean, includeAllBranch: boolean): Promise<Repo> {
+export async function generateRepo(
+  account: Account,
+  targetName: string,
+  isPrivate: boolean,
+  includeAllBranch: boolean,
+  createEnvs: boolean,
+): Promise<{ repo: Repo; envSuccess: boolean; results: { envs: { name: string; success: boolean; error?: string }[] } }> {
   const res = await fetch(`${url}/generateRepo`, {
     credentials: "include",
     method: "POST",
-    body: JSON.stringify({ includeAllBranch, isPrivate, owner: account.login, type: account.type, repo: targetName }),
+    body: JSON.stringify({
+      includeAllBranch,
+      isPrivate,
+      createEnvs,
+      owner: account.login,
+      type: account.type,
+      repo: targetName,
+    }),
   });
   if (!res.ok) throw new Error(`Failed to clone repo: ${res.status}`);
   const data = await res.json();
-  return data.data;
+  return { repo: data.data, envSuccess: data.envSuccess, results: data.results };
 }
 
 // ─── Branches ─────────────────────────────────────────────────────────────────

@@ -92,6 +92,8 @@ export default function AppDashboard() {
   const [includeAllBranch, setIncludeAllBranch] = useState(false);
   const [cloning, setCloning] = useState(false);
   const [cloneError, setCloneError] = useState<string | null>(null);
+  const [createEnvs, setCreateEnvs] = useState(true);
+  const [cloneEnvWarning, setCloneEnvWarning] = useState<string | null>(null);
 
   // ── Branches ──────────────────────────────────────────────────────────────
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -418,12 +420,18 @@ export default function AppDashboard() {
     }
     setCloning(true);
     setCloneError(null);
+    setCloneEnvWarning(null);
     try {
-      const newRepo: Repo = await generateRepo(selectedAccount, name, isPrivate, includeAllBranch);
+      const { repo: newRepo, envSuccess, results } = await generateRepo(selectedAccount, name, isPrivate, includeAllBranch, createEnvs);
       const updated = [...repos, newRepo];
       setRepos(updated);
       setRepoCache((prev) => ({ ...prev, [String(selectedAccount.id)]: updated }));
       setSelectedRepo({ id: newRepo.id, name: newRepo.name });
+
+      if (!envSuccess) {
+        const failed = results.envs.filter((e) => !e.success).map((e) => e.name);
+        setCloneEnvWarning(`Repo created but failed to create environments: ${failed.join(", ")}`);
+      }
     } catch (e: any) {
       setCloneError(e.message || "Clone failed");
     } finally {
@@ -681,6 +689,9 @@ export default function AppDashboard() {
                   creatingBranch={creatingBranch}
                   createBranchError={createBranchError}
                   onCreateBranch={handleCreateBranch}
+                  createEnvs={createEnvs}
+                  onCreateEnvsChange={setCreateEnvs}
+                  cloneEnvWarning={cloneEnvWarning}
                 />
               </PipelineCard>
 

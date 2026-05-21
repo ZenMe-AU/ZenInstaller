@@ -99,6 +99,9 @@ type Props = {
   creatingBranch: boolean;
   createBranchError: string | null;
   onCreateBranch: (target: string) => void;
+  createEnvs: boolean;
+  onCreateEnvsChange: (v: boolean) => void;
+  cloneEnvWarning: string | null;
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -126,6 +129,9 @@ export default function RepoCard({
   creatingBranch,
   createBranchError,
   onCreateBranch,
+  createEnvs,
+  onCreateEnvsChange,
+  cloneEnvWarning,
 }: Props) {
   const isNewRepo = selectedRepo?.isNew ?? false;
   const isCloneRepo = templateStatus === "ready";
@@ -281,10 +287,29 @@ export default function RepoCard({
               }
               label={
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  <Typography sx={{ fontSize: "0.78rem", color: "#475569", fontFamily: "'IBM Plex Mono', monospace" }}>
-                    Include all branches
-                  </Typography>
+                  <Typography sx={{ fontSize: "0.78rem", color: "#475569", fontFamily: "'IBM Plex Mono', monospace" }}>Clone all branches</Typography>
                   <Tooltip title="When enabled, all branches from the template will be copied. Otherwise only the default branch is cloned.">
+                    <InfoOutlinedIcon sx={{ fontSize: 14, color: "#94a3b8" }} />
+                  </Tooltip>
+                </Box>
+              }
+            />
+
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={createEnvs}
+                  onChange={(e) => onCreateEnvsChange(e.target.checked)}
+                  size="small"
+                  sx={{ "& .Mui-checked + .MuiSwitch-track": { background: "#93c5fd" } }}
+                />
+              }
+              label={
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <Typography sx={{ fontSize: "0.78rem", color: "#475569", fontFamily: "'IBM Plex Mono', monospace" }}>
+                    Create environments
+                  </Typography>
+                  <Tooltip title="Automatically creates PROD and TEST GitHub environments in the new repo.">
                     <InfoOutlinedIcon sx={{ fontSize: 14, color: "#94a3b8" }} />
                   </Tooltip>
                 </Box>
@@ -309,7 +334,23 @@ export default function RepoCard({
               <Typography sx={{ fontSize: "0.75rem", color: "#ef4444" }}>{cloneError}</Typography>
             </Box>
           )}
-
+          {cloneEnvWarning && (
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                mb: 2,
+                p: 1.25,
+                borderRadius: "6px",
+                background: "#fff7ed",
+                border: "1px solid #fed7aa",
+              }}
+            >
+              <WarningAmberIcon sx={{ fontSize: 15, color: "#ea580c" }} />
+              <Typography sx={{ fontSize: "0.75rem", color: "#ea580c" }}>{cloneEnvWarning}</Typography>
+            </Box>
+          )}
           <Button
             onClick={onClone}
             disabled={cloning}
@@ -339,7 +380,6 @@ export default function RepoCard({
       </Collapse>
 
       {/* ── Create Branch — shown only for confirmed clone repos with missing env branches ── */}
-
       <Collapse
         in={!isNewRepo && isCloneRepo && missingEnvBranches.length > 0}
         sx={{ display: !isNewRepo && isCloneRepo && missingEnvBranches.length > 0 ? "block" : "none" }}

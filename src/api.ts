@@ -1,4 +1,5 @@
 import { parse } from "dotenv";
+import JSZip from "jszip";
 import type { Account, Branch, GhEnv, PullRequest, Repo, WorkflowRun, UpsertSecretResult } from "./types";
 
 const url = import.meta.env.VITE_API_URL;
@@ -20,7 +21,7 @@ export async function fetchOrgList(): Promise<Account[]> {
   const data = await res.json();
   return [
     { login: data.user.login, type: "User", id: data.user.id, isInstalled: data.user.isInstalled },
-    ...data.orgList.map((o: any) => ({ login: o.login, type: "Organization", id: o.id, isInstalled: o.isInstalled })),
+    ...data.orgList.map((o: { login: string; id: number; isInstalled: boolean }) => ({ login: o.login, type: "Organization" as const, id: o.id, isInstalled: o.isInstalled })),
   ];
 }
 
@@ -240,4 +241,18 @@ export async function triggerWorkflowFromPR(account: Account, repo: string, work
   });
   if (!res.ok) throw new Error(`Failed to trigger workflow from PR: ${res.status}`);
   return res.json();
+}
+
+// ─── Plan (artifact) ──────────────────────────────────────────────────────────
+
+export async function fetchPlan(id: string, account: { login: string; type: string }, repo: string) {
+  const params = new URLSearchParams({ artifacts_id: id, owner: account.login, type: account.type, repo, ref: "dev" });
+  const res = await fetch(`${url}/downloadArtifacts?${params.toString()}`, { credentials: "include" });
+  if (!res.ok) throw new Error(`Failed to fetch plan for ${id}`);
+  const data = await res.json();
+  const zip = await JSZip.loadAsync(data.content as string, { base64: true });
+  const fileName = Object.keys(zip.files).find((f) => f.endsWith(".json"));
+  if (!fileName) throw new Error("No JSON file found in artifact zip");
+  const content = await zip.file(fileName)!.async("string");
+  return JSON.parse(content);
 }

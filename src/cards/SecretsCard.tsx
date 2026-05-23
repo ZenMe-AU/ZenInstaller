@@ -2,7 +2,6 @@ import { useState } from "react";
 import {
   Box,
   Button,
-  CircularProgress,
   Dialog,
   DialogContent,
   DialogTitle,
@@ -21,12 +20,7 @@ import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
-import type { SecretsStatus } from "../types";
-
-// ─── Exported types (used by EnvironmentCard) ─────────────────────────────────
-
-export type PendingSecret = { key: string; value: string };
-export type UpsertStatus = { key: string; status: "success" | "error"; error?: string };
+import type { PendingSecret, SecretsStatus, UpsertStatus } from "../types";
 
 // ─── Input style ──────────────────────────────────────────────────────────────
 
@@ -339,7 +333,6 @@ function SecretDialog({
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 type Props = {
-  provider: "azure" | "aws";
   requiredKeys: string[];
   presentKeys: string[];
   secretsStatus: SecretsStatus;
@@ -353,7 +346,6 @@ type Props = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function SecretsCard({
-  provider,
   requiredKeys,
   presentKeys,
   secretsStatus,

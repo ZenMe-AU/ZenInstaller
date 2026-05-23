@@ -1,8 +1,8 @@
-import { Box, Button, Collapse, Divider, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
-import type { CardId, CardStatus, Prerequisite, Stage, StageDefinition } from "../types.ts";
+import type { Account, CardId, CardStatus, Prerequisite, Stage, StageDefinition } from "../types.ts";
 import PlanView from "../component/PlanView.tsx";
 
 // ─── Prerequisite check ───────────────────────────────────────────────────────
@@ -12,7 +12,7 @@ function checkPrerequisite(prereq: Prerequisite, cardStatus: Record<CardId, Card
     case "card":
       return cardStatus[prereq.cardId] === "complete";
     case "env":
-      return !!(variableValues[prereq.key]?.trim());
+      return !!variableValues[prereq.key]?.trim();
   }
 }
 
@@ -37,7 +37,21 @@ function prereqLabel(prereq: Prerequisite): string {
 
 // ─── Single stage card ────────────────────────────────────────────────────────
 
-export function StageItem({ stageDef, stage, cardStatus, variableValues, account, repoName }) {
+export function StageItem({
+  stageDef,
+  stage,
+  cardStatus,
+  variableValues,
+  account,
+  repoName,
+}: {
+  stageDef: StageDefinition;
+  stage: Stage;
+  cardStatus: Record<CardId, CardStatus>;
+  variableValues: Record<string, string>;
+  account: Account | null;
+  repoName: string;
+}) {
   const prereqResults = stageDef.prerequisites.map((p) => ({
     label: prereqLabel(p),
     met: checkPrerequisite(p, cardStatus, variableValues),
@@ -103,24 +117,13 @@ type Props = {
   loading: boolean;
   cardStatus: Record<CardId, CardStatus>;
   variableValues: Record<string, string>;
-  account: any;
+  account: Account | null;
   repoName: string;
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function StagesCard({
-  stages,
-  stageDefinitions,
-  expanded,
-  onToggle,
-  statusFileFound,
-  loading,
-  cardStatus,
-  variableValues,
-  account,
-  repoName,
-}: Props) {
+export default function StagesCard({ stages, stageDefinitions, statusFileFound, loading, cardStatus, variableValues, account, repoName }: Props) {
   if (loading) {
     return <Box sx={{ py: 2, color: "#94a3b8", fontSize: "0.78rem", fontFamily: "'IBM Plex Mono', monospace" }}>Loading stages...</Box>;
   }
@@ -158,8 +161,6 @@ export default function StagesCard({
               key={stage.stage}
               stageDef={def}
               stage={stage}
-              expanded={!!expanded[stage.stage]}
-              onToggle={() => onToggle(stage.stage)}
               cardStatus={cardStatus}
               variableValues={variableValues}
               account={account}

@@ -35,6 +35,11 @@ export type Branch = {
   protected: boolean;
 };
 
+export type BranchOption = {
+  name: string;
+  isNew?: boolean;
+};
+
 // ─── GitHub Environment ───────────────────────────────────────────────────────
 
 export type GhEnv = {
@@ -160,3 +165,19 @@ export type UpsertSecretResult = {
 export const AZURE_SECRET_KEYS = ["AZURE_CLIENT_ID", "AZURE_SUBSCRIPTION_ID", "AZURE_TENANT_ID"];
 export const AWS_SECRET_KEYS = ["AWS_ACCOUNT_ID", "AWS_ROLE_NAME"];
 export const GITHUB_VARIABLE_KEYS = ["NAME", "DNS"] as const;
+
+// ─── Pending secrets / upsert ─────────────────────────────────────────────────
+
+export type PendingSecret = { key: string; value: string };
+export type UpsertStatus = { key: string; status: "success" | "error"; error?: string };
+
+// ─── Plan view ────────────────────────────────────────────────────────────────
+
+export type PlanItem = {
+  address: string;
+  change: {
+    actions: string[];
+  };
+};
+
+export type ActionType = "create" | "delete" | "update" | "replace" | "noOp" | "unknown";

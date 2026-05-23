@@ -15,12 +15,8 @@ import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import UndoIcon from "@mui/icons-material/Undo";
-import type { Account } from "../types";
+import type { Account, UpsertStatus } from "../types";
 import { createVariable, updateVariable } from "../api";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type UpsertStatus = { key: string; status: "success" | "error"; error?: string };
 
 // ─── Input style (compact, matches secret row height) ─────────────────────────
 
@@ -191,6 +187,7 @@ export default function VariablesCard({
 
   // Sync local fields when server state updates (initial load or Refresh)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLocalValues(variableValues);
     setUpsertStatuses([]);
   }, [variableValues]);

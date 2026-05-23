@@ -146,7 +146,7 @@ export default function RepoCard({
         {/* Org selector */}
         <Select
           size="small"
-          value={selectedAccount?.id || ""}
+          value={selectedAccount ? String(selectedAccount.id) : ""}
           onChange={(e) => {
             const acc = accounts.find((a) => String(a.id) === e.target.value);
             if (acc) onAccountChange(acc);

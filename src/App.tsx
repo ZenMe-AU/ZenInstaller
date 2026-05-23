@@ -35,7 +35,6 @@ import {
   type SecretsStatus,
   type Stage,
   type User,
-  type WorkflowRun,
   matchEnv,
   matchBranch,
 } from "./types";
@@ -116,7 +115,6 @@ export default function AppDashboard() {
   // ── Stages ────────────────────────────────────────────────────────────────
   const [stages, setStages] = useState<Stage[]>([]);
   const [stagesExpanded, setStagesExpanded] = useState<Record<string, boolean>>({});
-  const [stagesLoading, setStagesLoading] = useState(false);
   const [statusFileFound, setStatusFileFound] = useState(true);
 
   // ── Workflow ──────────────────────────────────────────────────────────────
@@ -335,14 +333,13 @@ export default function AppDashboard() {
 
   function loadStages() {
     if (!selectedAccount || !selectedRepo) return;
-    setStagesLoading(true);
     setCard("stages", "loading");
 
     fetchStatus(selectedAccount, selectedRepo.name)
       .then((data) => {
         const fetched = data.stages || [];
         const merged = pipeline.stages.map(({ key }) => {
-          const found = fetched.find((s: any) => s.stage === key);
+          const found = fetched.find((s: Stage) => s.stage === key);
           return found ?? { stage: key, status: "failed" as const };
         });
         setStages(merged);
@@ -359,7 +356,6 @@ export default function AppDashboard() {
         setStatusFileFound(false);
         setCard("stages", "idle");
       })
-      .finally(() => setStagesLoading(false));
   }
 
   async function loadPRs(account: Account, repoName: string) {
@@ -428,8 +424,8 @@ export default function AppDashboard() {
         const failed = results.envs.filter((e) => !e.success).map((e) => e.name);
         setCloneEnvWarning(`Repo created but failed to create environments: ${failed.join(", ")}`);
       }
-    } catch (e: any) {
-      setCloneError(e.message || "Clone failed");
+    } catch (e: unknown) {
+      setCloneError(e instanceof Error ? e.message : "Clone failed");
     } finally {
       setCloning(false);
     }
@@ -442,8 +438,8 @@ export default function AppDashboard() {
     try {
       const newBranch = await createBranch(selectedAccount, selectedRepo.name, targetName, sourceBranch);
       setBranches((prev) => [...prev, newBranch]);
-    } catch (e: any) {
-      setCreateBranchError(e.message || "Failed to create branch");
+    } catch (e: unknown) {
+      setCreateBranchError(e instanceof Error ? e.message : "Failed to create branch");
     } finally {
       setCreatingBranch(false);
     }
@@ -494,10 +490,10 @@ export default function AppDashboard() {
       } else {
         await triggerWorkflow(selectedAccount, selectedRepo.name, pipeline.workflowId, env, triggerRef);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       setRunning(false);
       setCard("status_update", "error");
-      setRunError(e.message || "Failed to trigger workflow");
+      setRunError(e instanceof Error ? e.message : "Failed to trigger workflow");
       return;
     }
 

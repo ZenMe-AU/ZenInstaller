@@ -5,11 +5,11 @@ import LockIcon from "@mui/icons-material/Lock";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import type { Account, GhEnv, SecretsStatus } from "../types";
+import type { Account, GhEnv, PendingSecret, SecretsStatus, UpsertStatus } from "../types";
 import { VALID_ENV_NAMES, isValidEnvName, AZURE_SECRET_KEYS, AWS_SECRET_KEYS, GITHUB_VARIABLE_KEYS } from "../types";
 import { fetchPublicKey, upsertSecret } from "../api";
 import { encryptSecret } from "../helper";
-import SecretsCard, { type PendingSecret, type UpsertStatus } from "./SecretsCard";
+import SecretsCard from "./SecretsCard";
 import VariablesCard from "./VariablesCard";
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
@@ -102,6 +102,7 @@ export default function EnvironmentCard({
   const [upserting, setUpserting] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPendingSecrets([]);
     setUpsertStatuses([]);
   }, [selectedEnv?.id]);
@@ -327,7 +328,6 @@ export default function EnvironmentCard({
                 })()}
               </Box>
               <SecretsCard
-                provider="azure"
                 requiredKeys={AZURE_SECRET_KEYS}
                 presentKeys={presentKeys}
                 secretsStatus={azureSecretsStatus}
@@ -355,7 +355,6 @@ export default function EnvironmentCard({
                 })()}
               </Box>
               <SecretsCard
-                provider="aws"
                 requiredKeys={AWS_SECRET_KEYS}
                 presentKeys={presentKeys}
                 secretsStatus={awsSecretsStatus}

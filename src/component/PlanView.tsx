@@ -1,17 +1,7 @@
 import { useEffect, useState } from "react";
 import { Box, CircularProgress, Typography } from "@mui/material";
-import { fetchPlan } from "../fetchPlan";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type PlanItem = {
-  address: string;
-  change: {
-    actions: string[];
-  };
-};
-
-type ActionType = "create" | "delete" | "update" | "replace" | "noOp" | "unknown";
+import { fetchPlan } from "../api";
+import type { Account, ActionType, PlanItem } from "../types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -66,14 +56,15 @@ function SummaryChip({ type, count }: { type: ActionType; count: number }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function PlanView({ stage, path, account, repo }: { stage: string; path: string; account: any; repo: string }) {
+export default function PlanView({ path, account, repo }: { stage?: string; path: string; account: Account | null; repo: string }) {
   const [plan, setPlan] = useState<PlanItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
-    fetchPlan(path, account, repo)
+    fetchPlan(path, account!, repo)
       .then((data) => {
         setPlan(data.resource_changes || []);
         setError(null);

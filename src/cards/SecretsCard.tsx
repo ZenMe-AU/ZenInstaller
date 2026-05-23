@@ -17,27 +17,16 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CloseIcon from "@mui/icons-material/Close";
 import EditIcon from "@mui/icons-material/Edit";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import RefreshIcon from "@mui/icons-material/Refresh";
+import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
-import type { Account, SecretsStatus, GhEnv } from "../types";
-import { fetchPublicKey, upsertSecret } from "../api";
-import { encryptSecret } from "../helper";
+import type { SecretsStatus } from "../types";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Exported types (used by EnvironmentCard) ─────────────────────────────────
 
-type PendingSecret = {
-  key: string;
-  value: string;
-};
-
-type UpsertStatus = {
-  key: string;
-  status: "success" | "error";
-  error?: string;
-};
+export type PendingSecret = { key: string; value: string };
+export type UpsertStatus = { key: string; status: "success" | "error"; error?: string };
 
 // ─── Input style ──────────────────────────────────────────────────────────────
 
@@ -54,6 +43,77 @@ const inputSx = {
   "& .MuiInputBase-input::placeholder": { color: "#94a3b8" },
 };
 
+// ─── Validation badge ─────────────────────────────────────────────────────────
+
+function ValidationBadge({ valid, pendingValidation }: { valid: boolean | null; pendingValidation: boolean }) {
+  if (pendingValidation) {
+    return (
+      <Box
+        sx={{
+          display: "inline-flex",
+          alignItems: "center",
+          px: 0.875,
+          py: 0.2,
+          borderRadius: "4px",
+          background: "#fefce8",
+          border: "1px solid #fde68a",
+          fontSize: "0.62rem",
+          fontFamily: "'IBM Plex Mono', monospace",
+          color: "#92400e",
+          whiteSpace: "nowrap",
+        }}
+      >
+        pending validation
+      </Box>
+    );
+  }
+  if (valid === true) {
+    return (
+      <Box
+        sx={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 0.4,
+          px: 0.875,
+          py: 0.2,
+          borderRadius: "4px",
+          background: "#f0fdf4",
+          border: "1px solid #bbf7d0",
+          fontSize: "0.62rem",
+          fontFamily: "'IBM Plex Mono', monospace",
+          color: "#16a34a",
+        }}
+      >
+        <CheckCircleIcon sx={{ fontSize: 10 }} />
+        valid
+      </Box>
+    );
+  }
+  if (valid === false) {
+    return (
+      <Box
+        sx={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 0.4,
+          px: 0.875,
+          py: 0.2,
+          borderRadius: "4px",
+          background: "#fef2f2",
+          border: "1px solid #fecaca",
+          fontSize: "0.62rem",
+          fontFamily: "'IBM Plex Mono', monospace",
+          color: "#ef4444",
+        }}
+      >
+        <ErrorOutlineIcon sx={{ fontSize: 10 }} />
+        invalid
+      </Box>
+    );
+  }
+  return null;
+}
+
 // ─── Secret key row ───────────────────────────────────────────────────────────
 
 function SecretKeyRow({
@@ -63,6 +123,7 @@ function SecretKeyRow({
   pending,
   upsertStatus,
   onEdit,
+  onCancelPending,
 }: {
   secretKey: string;
   present: boolean;
@@ -70,12 +131,34 @@ function SecretKeyRow({
   pending: PendingSecret | undefined;
   upsertStatus: UpsertStatus | undefined;
   onEdit: (key: string) => void;
+  onCancelPending: (key: string) => void;
 }) {
   const [showValue, setShowValue] = useState(false);
   const hasPending = !!pending;
   const isSuccess = upsertStatus?.status === "success";
   const isError = upsertStatus?.status === "error";
-  const showValid = present && valid !== null && !hasPending && !isSuccess;
+  const isSet = present || isSuccess;
+
+  // ── Left icon ────────────────────────────────────────────────────────────
+  // ✓  = set + validated
+  // ●  = set, not validated (or never run)
+  // ◉  = pending staged change (amber)
+  // ○  = not set
+  let LeftIcon: typeof CheckCircleIcon;
+  let iconColor: string;
+  if (hasPending) {
+    LeftIcon = RadioButtonCheckedIcon;
+    iconColor = "#d97706";
+  } else if (isSet && valid === true) {
+    LeftIcon = CheckCircleIcon;
+    iconColor = "#22c55e";
+  } else if (isSet) {
+    LeftIcon = RadioButtonCheckedIcon;
+    iconColor = "#22c55e";
+  } else {
+    LeftIcon = RadioButtonUncheckedIcon;
+    iconColor = "#cbd5e1";
+  }
 
   return (
     <Box
@@ -90,76 +173,68 @@ function SecretKeyRow({
         transition: "background 0.2s",
       }}
     >
-      {/* Present / success indicator */}
-      {present || isSuccess ? (
-        <CheckCircleIcon sx={{ fontSize: 15, color: isSuccess ? "#16a34a" : "#22c55e", flexShrink: 0 }} />
-      ) : (
-        <RadioButtonUncheckedIcon sx={{ fontSize: 15, color: "#cbd5e1", flexShrink: 0 }} />
-      )}
+      {/* Left icon */}
+      <LeftIcon sx={{ fontSize: 15, color: iconColor, flexShrink: 0 }} />
 
       {/* Key name */}
       <Typography
-        sx={{ fontSize: "0.78rem", fontFamily: "'IBM Plex Mono', monospace", color: present || isSuccess ? "#0f172a" : "#94a3b8", flex: 1 }}
+        sx={{
+          fontSize: "0.78rem",
+          fontFamily: "'IBM Plex Mono', monospace",
+          color: isSet ? "#0f172a" : hasPending ? "#92400e" : "#94a3b8",
+          flex: 1,
+        }}
       >
         {secretKey}
       </Typography>
 
-      {/* Pending value preview with show/hide */}
+      {/* Pending value + visibility toggle + cancel */}
       {hasPending && (
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
           <Typography
-            sx={{ fontSize: "0.72rem", fontFamily: "'IBM Plex Mono', monospace", color: "#d97706", letterSpacing: showValue ? "normal" : "0.1em" }}
+            sx={{
+              fontSize: "0.72rem",
+              fontFamily: "'IBM Plex Mono', monospace",
+              color: "#d97706",
+              letterSpacing: showValue ? "normal" : "0.1em",
+            }}
           >
             {showValue ? pending!.value : "•".repeat(Math.min(pending!.value.length, 12))}
           </Typography>
           <IconButton size="small" onClick={() => setShowValue((v) => !v)} sx={{ color: "#94a3b8", p: 0.25, "&:hover": { color: "#475569" } }}>
-            {showValue ? <VisibilityOffIcon sx={{ fontSize: 14 }} /> : <VisibilityIcon sx={{ fontSize: 14 }} />}
+            {showValue ? <VisibilityOffIcon sx={{ fontSize: 13 }} /> : <VisibilityIcon sx={{ fontSize: 13 }} />}
           </IconButton>
+          <Tooltip title="Discard change">
+            <IconButton
+              size="small"
+              onClick={() => onCancelPending(secretKey)}
+              sx={{ color: "#94a3b8", p: 0.25, "&:hover": { color: "#ef4444" } }}
+            >
+              <CloseIcon sx={{ fontSize: 12 }} />
+            </IconButton>
+          </Tooltip>
         </Box>
       )}
 
-      {/* Valid badge */}
-      {showValid && (
-        <Tooltip title={valid ? "Validated on last run" : "Validation failed on last run"}>
-          <Box
-            sx={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 0.5,
-              px: 1,
-              py: 0.25,
-              borderRadius: "4px",
-              background: valid ? "#f0fdf4" : "#fef2f2",
-              border: `1px solid ${valid ? "#bbf7d0" : "#fecaca"}`,
-              fontSize: "0.65rem",
-              fontFamily: "'IBM Plex Mono', monospace",
-              color: valid ? "#16a34a" : "#ef4444",
-            }}
-          >
-            {valid ? (
-              <>
-                <CheckCircleIcon sx={{ fontSize: 11 }} />
-                valid
-              </>
-            ) : (
-              <>
-                <ErrorOutlineIcon sx={{ fontSize: 11 }} />
-                invalid
-              </>
-            )}
-          </Box>
-        </Tooltip>
+      {/* Validation badge — hidden while staging */}
+      {!hasPending && <ValidationBadge valid={valid} pendingValidation={isSuccess} />}
+
+      {/* Just updated */}
+      {isSuccess && (
+        <Typography sx={{ fontSize: "0.62rem", color: "#16a34a", fontFamily: "'IBM Plex Mono', monospace", whiteSpace: "nowrap" }}>
+          just updated
+        </Typography>
       )}
 
-      {/* Upsert error icon */}
+      {/* Update error */}
       {isError && (
         <Tooltip title={upsertStatus!.error ?? "Update failed"}>
-          <ErrorOutlineIcon sx={{ fontSize: 15, color: "#ef4444", flexShrink: 0 }} />
+          <ErrorOutlineIcon sx={{ fontSize: 14, color: "#ef4444", flexShrink: 0 }} />
         </Tooltip>
       )}
 
       {/* Not set label */}
-      {!present && !hasPending && !isSuccess && (
+      {!isSet && !hasPending && !isError && (
         <Typography sx={{ fontSize: "0.65rem", color: "#cbd5e1", fontFamily: "'IBM Plex Mono', monospace" }}>not set</Typography>
       )}
 
@@ -185,19 +260,16 @@ function SecretDialog({
   onConfirm: (key: string, value: string) => void;
 }) {
   const [value, setValue] = useState("");
-  const [show, setShow] = useState(true);
 
   const handleConfirm = () => {
     if (!value.trim()) return;
     onConfirm(secretKey, value.trim());
     setValue("");
-    setShow(false);
     onClose();
   };
 
   const handleClose = () => {
     setValue("");
-    setShow(false);
     onClose();
   };
 
@@ -228,7 +300,7 @@ function SecretDialog({
           fullWidth
           size="small"
           autoFocus
-          type={show ? "text" : "password"}
+          type="password"
           placeholder="Secret value"
           value={value}
           onChange={(e) => setValue(e.target.value)}
@@ -236,15 +308,7 @@ function SecretDialog({
             if (e.key === "Enter") handleConfirm();
           }}
           sx={inputSx}
-          InputProps={{
-            endAdornment: (
-              <InputAdornment position="end">
-                {/* <IconButton size="small" onClick={() => setShow((s) => !s)} sx={{ color: "#94a3b8", "&:hover": { color: "#475569" } }}>
-                  {show ? <VisibilityOffIcon sx={{ fontSize: 16 }} /> : <VisibilityIcon sx={{ fontSize: 16 }} />}
-                </IconButton> */}
-              </InputAdornment>
-            ),
-          }}
+          InputProps={{ endAdornment: <InputAdornment position="end" /> }}
         />
         <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1.5, mt: 2.5 }}>
           <Button onClick={handleClose} size="small" sx={{ color: "#64748b", textTransform: "none" }}>
@@ -279,27 +343,11 @@ type Props = {
   requiredKeys: string[];
   presentKeys: string[];
   secretsStatus: SecretsStatus;
-  repoFullName: string | null;
-  onRecheck: () => void;
-  rechecking: boolean;
-  account: Account | null;
-  repo: string;
-  selectedEnv: GhEnv | null;
-};
-
-// ─── Provider config ──────────────────────────────────────────────────────────
-
-const PROVIDER_CONFIG = {
-  azure: {
-    label: "Azure Login",
-    description: "Required for Azure resource deployment.",
-    docsUrl: "https://learn.microsoft.com/en-us/azure/developer/github/connect-from-azure",
-  },
-  aws: {
-    label: "AWS Login",
-    description: "Required for AWS resource deployment.",
-    docsUrl: "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc.html",
-  },
+  // Controlled by EnvironmentCard
+  pendingSecrets: PendingSecret[];
+  onSetPending: (key: string, value: string) => void;
+  onCancelPending: (key: string) => void;
+  upsertStatuses: UpsertStatus[];
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -309,86 +357,17 @@ export default function SecretsCard({
   requiredKeys,
   presentKeys,
   secretsStatus,
-  repoFullName,
-  onRecheck,
-  rechecking,
-  account,
-  repo,
-  selectedEnv,
+  pendingSecrets,
+  onSetPending,
+  onCancelPending,
+  upsertStatuses,
 }: Props) {
-  const cfg = PROVIDER_CONFIG[provider];
-
   const [dialogKey, setDialogKey] = useState<string | null>(null);
-  const [pendingSecrets, setPendingSecrets] = useState<PendingSecret[]>([]);
-  const [upserting, setUpserting] = useState(false);
-  const [upsertStatuses, setUpsertStatuses] = useState<UpsertStatus[]>([]);
-
-  const githubSecretsUrl = repoFullName && selectedEnv ? `https://github.com/${repoFullName}/settings/environments/${selectedEnv.id}/edit` : null;
-  const allConfigured = requiredKeys.every((k) => presentKeys.includes(k));
-  const missingKeys = requiredKeys.filter((k) => !presentKeys.includes(k));
-  const pendingCount = pendingSecrets.length;
-  const hasUpsertErrors = upsertStatuses.some((s) => s.status === "error");
-  const selectedEnvName = selectedEnv ? selectedEnv.name : null;
-
-  const handleSetPending = (key: string, value: string) => {
-    setPendingSecrets((prev) => {
-      const idx = prev.findIndex((p) => p.key === key);
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = { key, value };
-        return next;
-      }
-      return [...prev, { key, value }];
-    });
-    setUpsertStatuses((prev) => prev.filter((s) => s.key !== key));
-  };
-
-  const handleUpsert = async () => {
-    if (!account || !repo || pendingCount === 0) return;
-    setUpserting(true);
-
-    // Fetch public key once for the whole batch
-    let publicKey: string;
-    let keyId: string;
-    try {
-      const result = await fetchPublicKey(account, repo, selectedEnvName ?? undefined);
-      publicKey = result.key;
-      keyId = result.keyId;
-    } catch (e) {
-      console.error("Failed to fetch public key:", e);
-      setUpsertStatuses(pendingSecrets.map((p) => ({ key: p.key, status: "error", error: "Error updating secret" })));
-      setUpserting(false);
-      return;
-    }
-
-    // Encrypt and upsert each secret sequentially
-    const statuses: UpsertStatus[] = [];
-    for (const pending of pendingSecrets) {
-      try {
-        throw 5;
-        const encryptedValue = await encryptSecret(publicKey, pending.value);
-        await upsertSecret(account, repo, pending.key, encryptedValue, keyId, selectedEnvName ?? undefined);
-        statuses.push({ key: pending.key, status: "success" });
-      } catch (e) {
-        console.error("Failed to upsert secret:", e);
-        statuses.push({ key: pending.key, status: "error", error: "Error updating secret" });
-      }
-    }
-
-    setUpsertStatuses(statuses);
-    const successKeys = new Set(statuses.filter((s) => s.status === "success").map((s) => s.key));
-    setPendingSecrets((prev) => prev.filter((p) => !successKeys.has(p.key)));
-    setUpserting(false);
-  };
 
   return (
     <Box>
-      <Typography sx={{ fontSize: "0.78rem", color: "#64748b", mb: 2 }}>
-        {cfg.description} The following GitHub Actions secrets must be configured.
-      </Typography>
-
       {/* Key list */}
-      <Box sx={{ border: "1px solid #f1f5f9", borderRadius: "8px", overflow: "hidden", mb: 2 }}>
+      <Box sx={{ border: "1px solid #f1f5f9", borderRadius: "8px", overflow: "hidden" }}>
         {requiredKeys.map((k) => (
           <SecretKeyRow
             key={k}
@@ -398,153 +377,12 @@ export default function SecretsCard({
             pending={pendingSecrets.find((p) => p.key === k)}
             upsertStatus={upsertStatuses.find((s) => s.key === k)}
             onEdit={(key) => setDialogKey(key)}
+            onCancelPending={onCancelPending}
           />
         ))}
       </Box>
 
-      {/* Missing keys warning */}
-      {!allConfigured && secretsStatus.configured !== null && (
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 1,
-            p: 1.5,
-            borderRadius: "8px",
-            background: "#fff7ed",
-            border: "1px solid #fed7aa",
-            mb: 2,
-          }}
-        >
-          <ErrorOutlineIcon sx={{ fontSize: 16, color: "#ea580c", flexShrink: 0, mt: 0.1 }} />
-          <Box>
-            <Typography sx={{ fontSize: "0.78rem", color: "#ea580c", fontWeight: 600 }}>
-              {missingKeys.length} secret{missingKeys.length > 1 ? "s" : ""} not configured
-            </Typography>
-            <Typography sx={{ fontSize: "0.72rem", color: "#ea580c", mt: 0.25 }}>{missingKeys.join(", ")}</Typography>
-          </Box>
-        </Box>
-      )}
-
-      {/* Validation failed */}
-      {secretsStatus.valid === false && (
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-            p: 1.5,
-            borderRadius: "8px",
-            background: "#fef2f2",
-            border: "1px solid #fecaca",
-            mb: 2,
-          }}
-        >
-          <ErrorOutlineIcon sx={{ fontSize: 16, color: "#ef4444", flexShrink: 0 }} />
-          <Typography sx={{ fontSize: "0.78rem", color: "#ef4444" }}>
-            Secrets are set but validation failed on last run. Check your credentials.
-          </Typography>
-        </Box>
-      )}
-
-      {/* Upsert errors
-      {hasUpsertErrors &&  (
-        <Box sx={{ p: 1.5, borderRadius: "8px", background: "#fef2f2", border: "1px solid #fecaca", mb: 2 }}>
-          {upsertStatuses
-            .filter((s) => s.status === "error")
-            .map((s) => (
-              <Box key={s.key} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <ErrorOutlineIcon sx={{ fontSize: 14, color: "#ef4444", flexShrink: 0 }} />
-                <Typography sx={{ fontSize: "0.75rem", color: "#ef4444", fontFamily: "'IBM Plex Mono', monospace" }}>
-                  {s.key}: {s.error ?? "Update failed"}
-                </Typography>
-              </Box>
-            ))}
-        </Box>
-      )} */}
-
-      {/* Action row */}
-      <Box sx={{ display: "flex", gap: 1.5, alignItems: "center", flexWrap: "wrap" }}>
-        <Button
-          name={"update-secrets-" + cfg.label}
-          onClick={handleUpsert}
-          disabled={upserting || pendingCount === 0}
-          variant="contained"
-          size="small"
-          sx={{
-            background: "#2563eb",
-            fontFamily: "'IBM Plex Mono', monospace",
-            fontSize: "0.75rem",
-            textTransform: "none",
-            py: 0.75,
-            px: 2,
-            "&:hover": { background: "#1d4ed8" },
-            "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
-          }}
-        >
-          {upserting ? (
-            <>
-              <CircularProgress size={12} sx={{ mr: 1, color: "#93c5fd" }} />
-              Updating...
-            </>
-          ) : (
-            `Update ${pendingCount > 0 ? pendingCount : ""} secret${pendingCount !== 1 ? "s" : ""}`.trim()
-          )}
-        </Button>
-
-        <Button
-          size="small"
-          onClick={onRecheck}
-          disabled={rechecking}
-          startIcon={rechecking ? <CircularProgress size={12} sx={{ color: "#94a3b8" }} /> : <RefreshIcon sx={{ fontSize: 14 }} />}
-          sx={{
-            color: "#94a3b8",
-            fontSize: "0.75rem",
-            textTransform: "none",
-            fontFamily: "'IBM Plex Mono', monospace",
-            "&:hover": { color: "#475569" },
-          }}
-        >
-          Re-check
-        </Button>
-
-        {githubSecretsUrl && (
-          <Button
-            size="small"
-            variant="outlined"
-            endIcon={<OpenInNewIcon sx={{ fontSize: 13 }} />}
-            onClick={() => window.open(githubSecretsUrl, "_blank")}
-            sx={{
-              borderColor: "#e2e8f0",
-              color: "#475569",
-              fontSize: "0.75rem",
-              textTransform: "none",
-              fontFamily: "'IBM Plex Mono', monospace",
-              "&:hover": { borderColor: "#cbd5e1", color: "#0f172a", background: "#f8fafc" },
-            }}
-          >
-            Manage on GitHub
-          </Button>
-        )}
-        {/*
-        <Button
-          size="small"
-          endIcon={<OpenInNewIcon sx={{ fontSize: 13 }} />}
-          onClick={() => window.open(cfg.docsUrl, "_blank")}
-          sx={{
-            color: "#94a3b8",
-            fontSize: "0.72rem",
-            textTransform: "none",
-            fontFamily: "'IBM Plex Mono', monospace",
-            "&:hover": { color: "#475569" },
-          }}
-        >
-          Setup guide
-        </Button> */}
-      </Box>
-
-      {/* Dialog */}
-      <SecretDialog open={!!dialogKey} secretKey={dialogKey ?? ""} onClose={() => setDialogKey(null)} onConfirm={handleSetPending} />
+      <SecretDialog open={!!dialogKey} secretKey={dialogKey ?? ""} onClose={() => setDialogKey(null)} onConfirm={onSetPending} />
     </Box>
   );
 }

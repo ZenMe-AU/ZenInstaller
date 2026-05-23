@@ -14,6 +14,7 @@ import {
   fetchRuns,
   fetchSecrets,
   fetchStatus,
+  fetchVariables,
   generateRepo,
   triggerWorkflow,
   triggerWorkflowFromPR,
@@ -46,7 +47,6 @@ import PipelineCard from "./cards/PipelineCard";
 import RepoCard from "./cards/RepoCard";
 import PRCard from "./cards/PRCard";
 import EnvironmentCard from "./cards/EnvironmentCard";
-import SecretsCard from "./cards/SecretsCard";
 import EnvCard from "./cards/EnvCard";
 import StatusCard from "./cards/StatusCard";
 import { StageItem } from "./cards/StagesCard";
@@ -139,6 +139,10 @@ export default function AppDashboard() {
   const [azureSecrets, setAzureSecrets] = useState<SecretsStatus>({ configured: null, valid: null });
   const [awsSecrets, setAwsSecrets] = useState<SecretsStatus>({ configured: null, valid: null });
   const [rechecking, setRechecking] = useState(false);
+
+  // ── Variables ─────────────────────────────────────────────────────────────
+  const [presentVariableValues, setPresentVariableValues] = useState<Record<string, string>>({});
+  const [variablesRechecking, setVariablesRechecking] = useState(false);
 
   // ── Card status ───────────────────────────────────────────────────────────
   const [cardStatus, setCardStatus] = useState<Record<CardId, CardStatus>>(DEFAULT_CARD_STATUS);
@@ -329,10 +333,11 @@ export default function AppDashboard() {
     }
   }, [selectedEnv, branches, envLockedByPR]);
 
-  // Load secrets when env changes
+  // Load secrets + variables when env changes
   useEffect(() => {
     if (!selectedAccount || !selectedRepo || !selectedEnv || branchMatchError) return;
     loadSecrets(selectedEnv.name);
+    loadVariables(selectedEnv.name);
   }, [selectedEnv, branchMatchError]);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -341,6 +346,7 @@ export default function AppDashboard() {
     setPresentSecretKeys([]);
     setAzureSecrets({ configured: null, valid: null });
     setAwsSecrets({ configured: null, valid: null });
+    setPresentVariableValues({});
     setCard("azure_secrets", "idle");
     setCard("aws_secrets", "idle");
   }
@@ -409,6 +415,16 @@ export default function AppDashboard() {
     setPresentSecretKeys(keys);
   }
 
+  async function loadVariables(envName: string) {
+    if (!selectedAccount || !selectedRepo) return;
+    try {
+      const values = await fetchVariables(selectedAccount, selectedRepo.name, envName);
+      setPresentVariableValues(values);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   async function handleClone() {
@@ -460,6 +476,16 @@ export default function AppDashboard() {
       await loadSecrets(selectedEnv.name);
     } finally {
       setRechecking(false);
+    }
+  }
+
+  async function handleVariableRecheck() {
+    if (!selectedEnv) return;
+    setVariablesRechecking(true);
+    try {
+      await loadVariables(selectedEnv.name);
+    } finally {
+      setVariablesRechecking(false);
     }
   }
 
@@ -746,7 +772,7 @@ export default function AppDashboard() {
                 />
               </PipelineCard>
 
-              {/* Step 3 — Environment */}
+              {/* Step 3 — Environment + Secrets */}
               <PipelineCard
                 step={3}
                 title="Environment"
@@ -789,68 +815,23 @@ export default function AppDashboard() {
                   branchMatchError={branchMatchError}
                   loading={envLoading}
                   onRefresh={() => selectedAccount && selectedRepo && loadEnvs(selectedAccount, selectedRepo.name)}
+                  presentKeys={presentSecretKeys}
+                  azureSecretsStatus={azureSecrets}
+                  awsSecretsStatus={awsSecrets}
+                  repoFullName={repoFullName}
+                  onRecheck={handleRecheck}
+                  rechecking={rechecking}
+                  account={selectedAccount}
+                  repo={selectedRepo?.name ?? ""}
+                  variableValues={presentVariableValues}
+                  onVariableRecheck={handleVariableRecheck}
+                  variablesRechecking={variablesRechecking}
                 />
               </PipelineCard>
 
-              {/* Step 4 — Azure Secrets */}
+              {/* Step 4 — Env Variables */}
               <PipelineCard
                 step={4}
-                title="Azure Secrets"
-                subtitle={
-                  selectedEnv
-                    ? `${selectedEnv.name} · AZURE_CLIENT_ID · AZURE_SUBSCRIPTION_ID · AZURE_TENANT_ID`
-                    : "AZURE_CLIENT_ID · AZURE_SUBSCRIPTION_ID · AZURE_TENANT_ID"
-                }
-                status={cardStatus.azure_secrets}
-                expanded={expanded.azure_secrets}
-                onToggle={() => toggleCard("azure_secrets")}
-                disabled={!isCloneRepo || !envReady}
-                hasNext
-              >
-                <SecretsCard
-                  provider="azure"
-                  requiredKeys={AZURE_SECRET_KEYS}
-                  presentKeys={presentSecretKeys}
-                  secretsStatus={azureSecrets}
-                  repoFullName={repoFullName}
-                  onRecheck={handleRecheck}
-                  rechecking={rechecking}
-                  account={selectedAccount}
-                  repo={selectedRepo?.name ?? ""}
-                  selectedEnv={selectedEnv ?? null}
-                  // selectedEnvName={selectedEnv?.name ?? null}
-                />
-              </PipelineCard>
-
-              {/* Step 5 — AWS Secrets */}
-              <PipelineCard
-                step={5}
-                title="AWS Secrets"
-                subtitle={selectedEnv ? `${selectedEnv.name} · AWS_ACCOUNT_ID · AWS_ROLE_NAME` : "AWS_ACCOUNT_ID · AWS_ROLE_NAME"}
-                status={cardStatus.aws_secrets}
-                expanded={expanded.aws_secrets}
-                onToggle={() => toggleCard("aws_secrets")}
-                disabled={!isCloneRepo || !envReady}
-                hasNext
-              >
-                <SecretsCard
-                  provider="aws"
-                  requiredKeys={AWS_SECRET_KEYS}
-                  presentKeys={presentSecretKeys}
-                  secretsStatus={awsSecrets}
-                  repoFullName={repoFullName}
-                  onRecheck={handleRecheck}
-                  rechecking={rechecking}
-                  account={selectedAccount}
-                  repo={selectedRepo?.name ?? ""}
-                  selectedEnv={selectedEnv ?? null}
-                  // selectedEnvName={selectedEnv?.name ?? null}
-                />
-              </PipelineCard>
-
-              {/* Step 6 — Env Variables */}
-              <PipelineCard
-                step={6}
                 title="Environment Variables"
                 subtitle="Variables passed to the workflow on each run"
                 status={cardStatus.envVars}
@@ -862,9 +843,9 @@ export default function AppDashboard() {
                 <EnvCard envEntries={envEntries} onChange={setEnvEntries} />
               </PipelineCard>
 
-              {/* Step 7 — Run Status Update */}
+              {/* Step 5 — Run Status Update */}
               <PipelineCard
-                step={7}
+                step={5}
                 title="Run Status Update"
                 subtitle="Trigger the GitHub Actions workflow to check deployment state"
                 status={cardStatus.status_update}
@@ -903,7 +884,7 @@ export default function AppDashboard() {
                 </Box>
               )}
 
-              {/* Steps 8~N — Stages */}
+              {/* Steps 6~N — Stages */}
               {pipeline.stages.map((stageDef, index) => {
                 const stage = stages.find((s) => s.stage === stageDef.key) ?? { stage: stageDef.key, status: "pending" as const };
                 const cfg = STAGE_STATUS_CONFIG[stage.status];
@@ -911,7 +892,7 @@ export default function AppDashboard() {
                 return (
                   <PipelineCard
                     key={stageDef.key}
-                    step={8 + index}
+                    step={6 + index}
                     title={stageDef.label}
                     subtitle={cfg.label}
                     status={

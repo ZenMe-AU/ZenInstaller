@@ -164,6 +164,26 @@ export async function upsertSecret(
   return res.json();
 }
 
+// ─── Variables ────────────────────────────────────────────────────────────────
+
+export async function fetchVariables(account: Account, repo: string, envName: string): Promise<Record<string, string>> {
+  const params = new URLSearchParams({ owner: account.login, repo, type: account.type, env: envName });
+  const res = await fetch(`${url}/getVariables?${params}`, { credentials: "include" });
+  if (!res.ok) throw new Error(`Failed to fetch variables: ${res.status}`);
+  const data = await res.json();
+  return data.variables || {};
+}
+
+export async function upsertVariable(account: Account, repo: string, name: string, value: string, envName: string): Promise<void> {
+  const res = await fetch(`${url}/upsertVariable`, {
+    credentials: "include",
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ owner: account.login, repo, type: account.type, name, value, env: envName }),
+  });
+  if (!res.ok) throw new Error(`Failed to upsert variable "${name}": ${res.status}`);
+}
+
 // ─── Status file ──────────────────────────────────────────────────────────────
 
 export async function fetchStatus(account: Account, repo: string) {

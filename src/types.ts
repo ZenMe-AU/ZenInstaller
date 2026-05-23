@@ -157,5 +157,11 @@ export type SecretsStatus = {
   valid: boolean | null;
 };
 
+export type UpsertSecretResult = {
+  success: boolean;
+  name: string;
+  env: string;
+};
+
 export const AZURE_SECRET_KEYS = ["AZURE_CLIENT_ID", "AZURE_SUBSCRIPTION_ID", "AZURE_TENANT_ID"];
 export const AWS_SECRET_KEYS = ["AWS_ACCOUNT_ID", "AWS_ROLE_NAME"];

@@ -1,5 +1,5 @@
 import { parse } from "dotenv";
-import type { Account, Branch, EnvEntry, GhEnv, PullRequest, Repo, WorkflowRun } from "./types";
+import type { Account, Branch, EnvEntry, GhEnv, PullRequest, Repo, WorkflowRun, UpsertSecretResult } from "./types";
 
 const url = import.meta.env.VITE_API_URL;
 
@@ -127,6 +127,41 @@ export async function fetchSecrets(account: Account, repo: string, envName: stri
   if (!res.ok) throw new Error(`Failed to fetch secrets: ${res.status}`);
   const data = await res.json();
   return (data.secrets || []) as string[];
+}
+
+export async function fetchPublicKey(account: Account, repo: string, envName?: string): Promise<{ key: string; keyId: string }> {
+  const params = new URLSearchParams({ owner: account.login, repo, type: account.type });
+  if (envName) params.set("env", envName);
+  const res = await fetch(`${url}/getPublicKey?${params}`, { credentials: "include" });
+  if (!res.ok) throw new Error(`Failed to fetch public key: ${res.status}`);
+  const data = await res.json();
+  return { key: data.key, keyId: data.keyId };
+}
+
+export async function upsertSecret(
+  account: Account,
+  repo: string,
+  name: string,
+  encryptedValue: string,
+  keyId: string,
+  envName?: string,
+): Promise<UpsertSecretResult> {
+  const res = await fetch(`${url}/upsertSecret`, {
+    credentials: "include",
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      owner: account.login,
+      repo,
+      type: account.type,
+      name,
+      value: encryptedValue,
+      keyId,
+      ...(envName ? { env: envName } : {}),
+    }),
+  });
+  if (!res.ok) throw new Error(`Failed to upsert secret "${name}": ${res.status}`);
+  return res.json();
 }
 
 // ─── Status file ──────────────────────────────────────────────────────────────

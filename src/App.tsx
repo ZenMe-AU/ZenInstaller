@@ -815,6 +815,10 @@ export default function AppDashboard() {
                   repoFullName={repoFullName}
                   onRecheck={handleRecheck}
                   rechecking={rechecking}
+                  account={selectedAccount}
+                  repo={selectedRepo?.name ?? ""}
+                  selectedEnv={selectedEnv ?? null}
+                  // selectedEnvName={selectedEnv?.name ?? null}
                 />
               </PipelineCard>
 
@@ -837,6 +841,10 @@ export default function AppDashboard() {
                   repoFullName={repoFullName}
                   onRecheck={handleRecheck}
                   rechecking={rechecking}
+                  account={selectedAccount}
+                  repo={selectedRepo?.name ?? ""}
+                  selectedEnv={selectedEnv ?? null}
+                  // selectedEnvName={selectedEnv?.name ?? null}
                 />
               </PipelineCard>
 

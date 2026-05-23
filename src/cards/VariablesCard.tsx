@@ -1,40 +1,40 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Box,
   Button,
   CircularProgress,
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  Divider,
   IconButton,
+  InputAdornment,
   TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
+import ClearIcon from "@mui/icons-material/Clear";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import CloseIcon from "@mui/icons-material/Close";
-import EditIcon from "@mui/icons-material/Edit";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
-import RefreshIcon from "@mui/icons-material/Refresh";
+import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
+import UndoIcon from "@mui/icons-material/Undo";
 import type { Account } from "../types";
-import { upsertVariable } from "../api";
+import { createVariable, updateVariable } from "../api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type PendingVariable = { key: string; value: string };
-type VariableUpsertStatus = { key: string; status: "success" | "error"; error?: string };
+type UpsertStatus = { key: string; status: "success" | "error"; error?: string };
 
-// ─── Input style ──────────────────────────────────────────────────────────────
+// ─── Input style (compact, matches secret row height) ─────────────────────────
 
 const inputSx = {
   "& .MuiInputBase-root": {
     background: "#f8fafc",
     color: "#0f172a",
     fontFamily: "'IBM Plex Mono', monospace",
-    fontSize: "0.8rem",
+    fontSize: "0.78rem",
     borderRadius: "6px",
+  },
+  "& .MuiInputBase-input": {
+    py: "5px",
+    px: "10px",
   },
   "& .MuiOutlinedInput-notchedOutline": { borderColor: "#e2e8f0" },
   "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#cbd5e1" },
@@ -45,22 +45,38 @@ const inputSx = {
 
 function VariableRow({
   varKey,
-  currentValue,
-  pending,
+  savedValue,
+  localValue,
+  isDirty,
   upsertStatus,
-  onEdit,
+  onChange,
+  onRevert,
 }: {
   varKey: string;
-  currentValue: string | undefined;
-  pending: PendingVariable | undefined;
-  upsertStatus: VariableUpsertStatus | undefined;
-  onEdit: (key: string, current: string) => void;
+  savedValue: string | undefined;
+  localValue: string;
+  isDirty: boolean;
+  upsertStatus: UpsertStatus | undefined;
+  onChange: (key: string, value: string) => void;
+  onRevert: (key: string) => void;
 }) {
-  const isPresent = currentValue !== undefined;
-  const hasPending = !!pending;
+  const isSet = !!savedValue;
   const isSuccess = upsertStatus?.status === "success";
   const isError = upsertStatus?.status === "error";
-  const displayValue = hasPending ? pending!.value : currentValue;
+
+  // Icon: amber ◉ if dirty, green ●/✓ if set, gray ○ if not set
+  let LeftIcon: typeof CheckCircleIcon;
+  let iconColor: string;
+  if (isDirty) {
+    LeftIcon = RadioButtonCheckedIcon;
+    iconColor = "#d97706";
+  } else if (isSet || isSuccess) {
+    LeftIcon = RadioButtonCheckedIcon;
+    iconColor = "#22c55e";
+  } else {
+    LeftIcon = RadioButtonUncheckedIcon;
+    iconColor = "#cbd5e1";
+  }
 
   return (
     <Box
@@ -71,144 +87,80 @@ function VariableRow({
         py: 0.875,
         px: 2,
         borderBottom: "1px solid #f8fafc",
-        background: isSuccess ? "#f0fdf4" : isError ? "#fef2f2" : hasPending ? "#fffbeb" : "transparent",
+        background: isSuccess ? "#f0fdf4" : isError ? "#fef2f2" : isDirty ? "#fffbeb" : "transparent",
         transition: "background 0.2s",
       }}
     >
-      {isPresent || isSuccess ? (
-        <CheckCircleIcon sx={{ fontSize: 15, color: isSuccess ? "#16a34a" : "#22c55e", flexShrink: 0 }} />
-      ) : (
-        <RadioButtonUncheckedIcon sx={{ fontSize: 15, color: "#cbd5e1", flexShrink: 0 }} />
-      )}
+      {/* Left icon */}
+      <LeftIcon sx={{ fontSize: 15, color: iconColor, flexShrink: 0 }} />
 
+      {/* Key label — fixed width so all inputs align */}
       <Typography
-        sx={{ fontSize: "0.78rem", fontFamily: "'IBM Plex Mono', monospace", color: isPresent || isSuccess ? "#0f172a" : "#94a3b8", flex: 1 }}
+        sx={{
+          fontSize: "0.78rem",
+          fontFamily: "'IBM Plex Mono', monospace",
+          color: isDirty ? "#92400e" : "#0f172a",
+          width: 120,
+          flexShrink: 0,
+        }}
       >
         {varKey}
       </Typography>
 
-      {displayValue !== undefined && (
-        <Typography
-          sx={{
-            fontSize: "0.72rem",
-            fontFamily: "'IBM Plex Mono', monospace",
-            color: hasPending ? "#d97706" : "#94a3b8",
-            maxWidth: 160,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {displayValue}
-        </Typography>
-      )}
+      {/* Input field — takes remaining space; clear + revert inside endAdornment */}
+      <TextField
+        size="small"
+        placeholder="not set"
+        value={localValue}
+        onChange={(e) => onChange(varKey, e.target.value)}
+        sx={{
+          flex: 1,
+          ...inputSx,
+          ...(isDirty ? { "& .MuiOutlinedInput-notchedOutline": { borderColor: "#fbbf24" } } : {}),
+          ...(isError ? { "& .MuiOutlinedInput-notchedOutline": { borderColor: "#ef4444" } } : {}),
+        }}
+        InputProps={{
+          endAdornment: (localValue || isDirty) ? (
+            <InputAdornment position="end" sx={{ gap: 0 }}>
+              {localValue && (
+                <IconButton
+                  size="small"
+                  onClick={() => onChange(varKey, "")}
+                  sx={{ color: "#94a3b8", p: 0.25, "&:hover": { color: "#475569" } }}
+                >
+                  <ClearIcon sx={{ fontSize: 13 }} />
+                </IconButton>
+              )}
+              {isDirty && (
+                <Tooltip title="Revert to saved value">
+                  <IconButton
+                    size="small"
+                    onClick={() => onRevert(varKey)}
+                    sx={{ color: "#94a3b8", p: 0.25, "&:hover": { color: "#d97706" } }}
+                  >
+                    <UndoIcon sx={{ fontSize: 13 }} />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </InputAdornment>
+          ) : undefined,
+        }}
+      />
 
+      {/* Error icon */}
       {isError && (
         <Tooltip title={upsertStatus!.error ?? "Update failed"}>
-          <ErrorOutlineIcon sx={{ fontSize: 15, color: "#ef4444", flexShrink: 0 }} />
+          <ErrorOutlineIcon sx={{ fontSize: 14, color: "#ef4444", flexShrink: 0 }} />
         </Tooltip>
       )}
 
-      {!isPresent && !hasPending && !isSuccess && (
-        <Typography sx={{ fontSize: "0.65rem", color: "#cbd5e1", fontFamily: "'IBM Plex Mono', monospace" }}>not set</Typography>
+      {/* Just updated */}
+      {isSuccess && (
+        <Typography sx={{ fontSize: "0.62rem", color: "#16a34a", fontFamily: "'IBM Plex Mono', monospace", whiteSpace: "nowrap" }}>
+          just updated
+        </Typography>
       )}
-
-      <IconButton
-        size="small"
-        onClick={() => onEdit(varKey, currentValue ?? "")}
-        sx={{ color: "#cbd5e1", p: 0.5, "&:hover": { color: "#2563eb" } }}
-      >
-        <EditIcon sx={{ fontSize: 14 }} />
-      </IconButton>
     </Box>
-  );
-}
-
-// ─── Variable edit dialog ─────────────────────────────────────────────────────
-
-function VariableDialog({
-  open,
-  varKey,
-  initialValue,
-  onClose,
-  onConfirm,
-}: {
-  open: boolean;
-  varKey: string;
-  initialValue: string;
-  onClose: () => void;
-  onConfirm: (key: string, value: string) => void;
-}) {
-  const [value, setValue] = useState(initialValue);
-
-  const handleConfirm = () => {
-    if (!value.trim()) return;
-    onConfirm(varKey, value.trim());
-    onClose();
-  };
-
-  const handleClose = () => {
-    setValue(initialValue);
-    onClose();
-  };
-
-  return (
-    <Dialog
-      open={open}
-      onClose={handleClose}
-      maxWidth="xs"
-      fullWidth
-      PaperProps={{ sx: { background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "12px" } }}
-    >
-      <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pb: 1 }}>
-        <Box>
-          <Typography sx={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: "0.9rem", color: "#0f172a" }}>
-            {varKey}
-          </Typography>
-          <Typography sx={{ fontSize: "0.72rem", color: "#64748b", mt: 0.25 }}>Enter the variable value</Typography>
-        </Box>
-        <IconButton onClick={handleClose} size="small" sx={{ color: "#94a3b8" }}>
-          <CloseIcon fontSize="small" />
-        </IconButton>
-      </DialogTitle>
-
-      <Divider sx={{ borderColor: "#f1f5f9" }} />
-
-      <DialogContent sx={{ pt: 2.5 }}>
-        <TextField
-          fullWidth
-          size="small"
-          autoFocus
-          type="text"
-          placeholder="Variable value"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") handleConfirm(); }}
-          sx={inputSx}
-        />
-        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1.5, mt: 2.5 }}>
-          <Button onClick={handleClose} size="small" sx={{ color: "#64748b", textTransform: "none" }}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleConfirm}
-            disabled={!value.trim()}
-            variant="contained"
-            size="small"
-            sx={{
-              background: "#2563eb",
-              textTransform: "none",
-              fontFamily: "'IBM Plex Mono', monospace",
-              fontSize: "0.8rem",
-              "&:hover": { background: "#1d4ed8" },
-              "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
-            }}
-          >
-            Set
-          </Button>
-        </Box>
-      </DialogContent>
-    </Dialog>
   );
 }
 
@@ -217,150 +169,112 @@ function VariableDialog({
 type Props = {
   requiredKeys: readonly string[];
   variableValues: Record<string, string>;
-  onRecheck: () => void;
-  rechecking: boolean;
   account: Account | null;
   repo: string;
   selectedEnvName: string | null;
+  onVariableConfirmed: (key: string, value: string) => void;
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function VariablesCard({ requiredKeys, variableValues, onRecheck, rechecking, account, repo, selectedEnvName }: Props) {
-  const [dialogKey, setDialogKey] = useState<string | null>(null);
-  const [dialogInitial, setDialogInitial] = useState("");
-  const [pendingVariables, setPendingVariables] = useState<PendingVariable[]>([]);
-  const [upsertStatuses, setUpsertStatuses] = useState<VariableUpsertStatus[]>([]);
+export default function VariablesCard({
+  requiredKeys,
+  variableValues,
+  account,
+  repo,
+  selectedEnvName,
+  onVariableConfirmed,
+}: Props) {
+  const [localValues, setLocalValues] = useState<Record<string, string>>({});
+  const [upsertStatuses, setUpsertStatuses] = useState<UpsertStatus[]>([]);
   const [updating, setUpdating] = useState(false);
 
-  const pendingCount = pendingVariables.length;
-  const failedCount = upsertStatuses.filter((s) => s.status === "error").length;
+  // Sync local fields when server state updates (initial load or Refresh)
+  useEffect(() => {
+    setLocalValues(variableValues);
+    setUpsertStatuses([]);
+  }, [variableValues]);
 
-  const handleSetPending = (key: string, value: string) => {
-    setPendingVariables((prev) => {
-      const idx = prev.findIndex((p) => p.key === key);
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = { key, value };
-        return next;
-      }
-      return [...prev, { key, value }];
-    });
+  const isDirty = (key: string) => (localValues[key] ?? "") !== (variableValues[key] ?? "");
+  const dirtyKeys = requiredKeys.filter(isDirty);
+
+  const handleChange = (key: string, value: string) => {
+    setLocalValues((prev) => ({ ...prev, [key]: value }));
+    setUpsertStatuses((prev) => prev.filter((s) => s.key !== key));
+  };
+
+  const handleRevert = (key: string) => {
+    setLocalValues((prev) => ({ ...prev, [key]: variableValues[key] ?? "" }));
     setUpsertStatuses((prev) => prev.filter((s) => s.key !== key));
   };
 
   const handleUpdate = async () => {
-    if (!account || !repo || !selectedEnvName || pendingCount === 0) return;
+    if (!account || !repo || !selectedEnvName || dirtyKeys.length === 0) return;
     setUpdating(true);
 
-    const statuses: VariableUpsertStatus[] = [];
-    for (const pending of pendingVariables) {
+    const statuses: UpsertStatus[] = [];
+    for (const key of dirtyKeys) {
+      const value = localValues[key] ?? "";
+      const isNew = !variableValues[key];
+      const apiFn = isNew ? createVariable : updateVariable;
       try {
-        await upsertVariable(account, repo, pending.key, pending.value, selectedEnvName);
-        statuses.push({ key: pending.key, status: "success" });
+        await apiFn(account, repo, key, value, selectedEnvName);
+        statuses.push({ key, status: "success" });
+        onVariableConfirmed(key, value);
       } catch (e) {
-        console.error("Failed to upsert variable:", e);
-        statuses.push({ key: pending.key, status: "error", error: "Update failed" });
+        console.error(`Failed to ${isNew ? "create" : "update"} variable "${key}":`, e);
+        statuses.push({ key, status: "error", error: "Update failed" });
       }
     }
 
     setUpsertStatuses(statuses);
-    const successKeys = new Set(statuses.filter((s) => s.status === "success").map((s) => s.key));
-    setPendingVariables((prev) => prev.filter((p) => !successKeys.has(p.key)));
     setUpdating(false);
-  };
-
-  const openDialog = (key: string, current: string) => {
-    setDialogKey(key);
-    setDialogInitial(current);
   };
 
   return (
     <Box>
-      {/* Header row */}
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
-        <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
-          GitHub Actions environment variables for this deployment.
-        </Typography>
-        <Button
-          size="small"
-          onClick={onRecheck}
-          disabled={rechecking}
-          startIcon={rechecking ? <CircularProgress size={12} sx={{ color: "#94a3b8" }} /> : <RefreshIcon sx={{ fontSize: 14 }} />}
-          sx={{
-            ml: 2,
-            flexShrink: 0,
-            color: "#94a3b8",
-            fontSize: "0.72rem",
-            textTransform: "none",
-            fontFamily: "'IBM Plex Mono', monospace",
-            "&:hover": { color: "#475569" },
-          }}
-        >
-          Refresh
-        </Button>
-      </Box>
-
-      {/* Update failed — inline style, between header and rows */}
-      {failedCount > 0 && (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1.25 }}>
-          <ErrorOutlineIcon sx={{ fontSize: 14, color: "#ef4444", flexShrink: 0 }} />
-          <Typography sx={{ fontSize: "0.75rem", color: "#ef4444" }}>
-            {failedCount} variable{failedCount > 1 ? "s" : ""} failed to update
-          </Typography>
-        </Box>
-      )}
-
-      {/* Variable rows */}
+      {/* Variable rows — same outer frame as SecretsCard */}
       <Box sx={{ border: "1px solid #f1f5f9", borderRadius: "8px", overflow: "hidden", mb: 2 }}>
-        {requiredKeys.map((k) => (
+        {requiredKeys.map((key) => (
           <VariableRow
-            key={k}
-            varKey={k}
-            currentValue={variableValues[k]}
-            pending={pendingVariables.find((p) => p.key === k)}
-            upsertStatus={upsertStatuses.find((s) => s.key === k)}
-            onEdit={openDialog}
+            key={key}
+            varKey={key}
+            savedValue={variableValues[key]}
+            localValue={localValues[key] ?? ""}
+            isDirty={isDirty(key)}
+            upsertStatus={upsertStatuses.find((s) => s.key === key)}
+            onChange={handleChange}
+            onRevert={handleRevert}
           />
         ))}
       </Box>
 
       {/* Update button */}
-      <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
-        <Button
-          onClick={handleUpdate}
-          disabled={updating || pendingCount === 0}
-          variant="contained"
-          size="small"
-          sx={{
-            background: "#2563eb",
-            fontFamily: "'IBM Plex Mono', monospace",
-            fontSize: "0.75rem",
-            textTransform: "none",
-            py: 0.75,
-            px: 2,
-            "&:hover": { background: "#1d4ed8" },
-            "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
-          }}
-        >
-          {updating ? (
-            <>
-              <CircularProgress size={12} sx={{ mr: 1, color: "#93c5fd" }} />
-              Updating...
-            </>
-          ) : (
-            `Update ${pendingCount > 0 ? pendingCount : ""} variable${pendingCount !== 1 ? "s" : ""}`.trim()
-          )}
-        </Button>
-      </Box>
-
-      <VariableDialog
-        open={!!dialogKey}
-        varKey={dialogKey ?? ""}
-        initialValue={dialogInitial}
-        onClose={() => setDialogKey(null)}
-        onConfirm={handleSetPending}
-      />
+      <Button
+        onClick={handleUpdate}
+        disabled={updating || dirtyKeys.length === 0}
+        variant="contained"
+        size="small"
+        sx={{
+          background: "#2563eb",
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontSize: "0.75rem",
+          textTransform: "none",
+          py: 0.75,
+          px: 2,
+          "&:hover": { background: "#1d4ed8" },
+          "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
+        }}
+      >
+        {updating ? (
+          <>
+            <CircularProgress size={12} sx={{ mr: 1, color: "#93c5fd" }} />
+            Updating...
+          </>
+        ) : (
+          `Update ${dirtyKeys.length > 0 ? dirtyKeys.length : ""} variable${dirtyKeys.length !== 1 ? "s" : ""}`.trim()
+        )}
+      </Button>
     </Box>
   );
 }

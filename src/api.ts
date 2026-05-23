@@ -1,5 +1,5 @@
 import { parse } from "dotenv";
-import type { Account, Branch, EnvEntry, GhEnv, PullRequest, Repo, WorkflowRun, UpsertSecretResult } from "./types";
+import type { Account, Branch, GhEnv, PullRequest, Repo, WorkflowRun, UpsertSecretResult } from "./types";
 
 const url = import.meta.env.VITE_API_URL;
 
@@ -174,14 +174,24 @@ export async function fetchVariables(account: Account, repo: string, envName: st
   return data.variables || {};
 }
 
-export async function upsertVariable(account: Account, repo: string, name: string, value: string, envName: string): Promise<void> {
-  const res = await fetch(`${url}/upsertVariable`, {
+export async function createVariable(account: Account, repo: string, name: string, value: string, envName: string): Promise<void> {
+  const res = await fetch(`${url}/createVariable`, {
     credentials: "include",
-    method: "PUT",
+    method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ owner: account.login, repo, type: account.type, name, value, env: envName }),
+    body: JSON.stringify({ owner: account.login, repo, name, value, env: envName }),
   });
-  if (!res.ok) throw new Error(`Failed to upsert variable "${name}": ${res.status}`);
+  if (!res.ok) throw new Error(`Failed to create variable "${name}": ${res.status}`);
+}
+
+export async function updateVariable(account: Account, repo: string, name: string, value: string, envName: string): Promise<void> {
+  const res = await fetch(`${url}/updateVariable`, {
+    credentials: "include",
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ owner: account.login, repo, name, value, env: envName }),
+  });
+  if (!res.ok) throw new Error(`Failed to update variable "${name}": ${res.status}`);
 }
 
 // ─── Status file ──────────────────────────────────────────────────────────────

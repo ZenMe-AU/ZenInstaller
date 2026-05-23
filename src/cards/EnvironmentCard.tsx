@@ -65,6 +65,7 @@ type Props = {
   variableValues: Record<string, string>;
   onVariableRecheck: () => void;
   variablesRechecking: boolean;
+  onVariableConfirmed: (key: string, value: string) => void;
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -89,6 +90,7 @@ export default function EnvironmentCard({
   variableValues,
   onVariableRecheck,
   variablesRechecking,
+  onVariableConfirmed,
 }: Props) {
   const validEnvs = envList.filter((e) => isValidEnvName(e.name));
   const secretsReady = !!selectedEnv && !branchMatchError;
@@ -398,16 +400,50 @@ export default function EnvironmentCard({
 
           {/* ── Variables section ── */}
           <Box>
-            <Typography sx={{ ...sectionLabelSx, mb: 1.5 }}>Variables</Typography>
-            <VariablesCard
-              requiredKeys={GITHUB_VARIABLE_KEYS}
-              variableValues={variableValues}
-              onRecheck={onVariableRecheck}
-              rechecking={variablesRechecking}
-              account={account}
-              repo={repo}
-              selectedEnvName={selectedEnv.name}
-            />
+            {/* Variables section header: label + description + Refresh */}
+            <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", mb: 1 }}>
+              <Box>
+                <Typography sx={{ ...sectionLabelSx, mb: 0.75 }}>Variables</Typography>
+                <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
+                  GitHub Actions environment variables for this environment.
+                </Typography>
+              </Box>
+              <Button
+                size="small"
+                onClick={onVariableRecheck}
+                disabled={variablesRechecking}
+                startIcon={variablesRechecking ? <CircularProgress size={12} sx={{ color: "#94a3b8" }} /> : <RefreshIcon sx={{ fontSize: 14 }} />}
+                sx={{ ml: 2, mt: 0.25, ...refreshBtnSx }}
+              >
+                Refresh
+              </Button>
+            </Box>
+
+            {/* Deployment sub-section */}
+            <Box sx={{ mt: 2 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+                <Typography sx={subLabelSx}>Deployment</Typography>
+                {(() => {
+                  const n = GITHUB_VARIABLE_KEYS.filter((k) => !variableValues[k]).length;
+                  return n > 0 ? (
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                      <ErrorOutlineIcon sx={{ fontSize: 12, color: "#ea580c" }} />
+                      <Typography sx={{ fontSize: "0.65rem", color: "#ea580c" }}>
+                        {n} not configured
+                      </Typography>
+                    </Box>
+                  ) : null;
+                })()}
+              </Box>
+              <VariablesCard
+                requiredKeys={GITHUB_VARIABLE_KEYS}
+                variableValues={variableValues}
+                account={account}
+                repo={repo}
+                selectedEnvName={selectedEnv.name}
+                onVariableConfirmed={onVariableConfirmed}
+              />
+            </Box>
           </Box>
         </>
       )}

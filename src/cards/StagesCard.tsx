@@ -2,17 +2,17 @@ import { Box, Button, Collapse, Divider, Typography } from "@mui/material";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
-import type { CardId, CardStatus, EnvEntry, Prerequisite, Stage, StageDefinition } from "../types.ts";
+import type { CardId, CardStatus, Prerequisite, Stage, StageDefinition } from "../types.ts";
 import PlanView from "../component/PlanView.tsx";
 
 // ─── Prerequisite check ───────────────────────────────────────────────────────
 
-function checkPrerequisite(prereq: Prerequisite, cardStatus: Record<CardId, CardStatus>, envEntries: EnvEntry[]): boolean {
+function checkPrerequisite(prereq: Prerequisite, cardStatus: Record<CardId, CardStatus>, variableValues: Record<string, string>): boolean {
   switch (prereq.type) {
     case "card":
       return cardStatus[prereq.cardId] === "complete";
     case "env":
-      return !!envEntries.find((e) => e.key === prereq.key && e.value.trim());
+      return !!(variableValues[prereq.key]?.trim());
   }
 }
 
@@ -21,9 +21,10 @@ function prereqLabel(prereq: Prerequisite): string {
     case "card": {
       const labels: Record<CardId, string> = {
         repo: "Repo selected",
+        pr: "PR selected",
+        env: "Env configured",
         azure_secrets: "Azure secrets configured",
         aws_secrets: "AWS secrets configured",
-        env: "Env configured",
         status_update: "Status update run",
         stages: "Stages",
       };
@@ -36,10 +37,10 @@ function prereqLabel(prereq: Prerequisite): string {
 
 // ─── Single stage card ────────────────────────────────────────────────────────
 
-export function StageItem({ stageDef, stage, cardStatus, envEntries, account, repoName }) {
+export function StageItem({ stageDef, stage, cardStatus, variableValues, account, repoName }) {
   const prereqResults = stageDef.prerequisites.map((p) => ({
     label: prereqLabel(p),
-    met: checkPrerequisite(p, cardStatus, envEntries),
+    met: checkPrerequisite(p, cardStatus, variableValues),
   }));
 
   const hasDetails = stage.status === "success" && !!stage.planJsonId && stage.planJsonUrl !== "";
@@ -101,7 +102,7 @@ type Props = {
   statusFileFound: boolean;
   loading: boolean;
   cardStatus: Record<CardId, CardStatus>;
-  envEntries: EnvEntry[];
+  variableValues: Record<string, string>;
   account: any;
   repoName: string;
 };
@@ -116,7 +117,7 @@ export default function StagesCard({
   statusFileFound,
   loading,
   cardStatus,
-  envEntries,
+  variableValues,
   account,
   repoName,
 }: Props) {
@@ -160,7 +161,7 @@ export default function StagesCard({
               expanded={!!expanded[stage.stage]}
               onToggle={() => onToggle(stage.stage)}
               cardStatus={cardStatus}
-              envEntries={envEntries}
+              variableValues={variableValues}
               account={account}
               repoName={repoName}
             />

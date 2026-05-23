@@ -1,6 +1,6 @@
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
-export type CardId = "repo" | "pr" | "env" | "azure_secrets" | "aws_secrets" | "envVars" | "status_update" | "stages";
+export type CardId = "repo" | "pr" | "env" | "azure_secrets" | "aws_secrets" | "status_update" | "stages";
 export type CardStatus = "idle" | "loading" | "complete" | "warning" | "error";
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -143,12 +143,6 @@ export const STAGE_STATUS_CONFIG: Record<StageStatus, { color: string; label: st
   failed: { color: "#ef4444", label: "Failed" },
   pending: { color: "#94a3b8", label: "Not yet executed" },
 };
-
-// ─── Env ──────────────────────────────────────────────────────────────────────
-
-export type EnvEntry = { key: string; value: string };
-
-export const REQUIRED_ENV_KEYS = ["NAME", "DNS", "SUBSCRIPTION_ID"];
 
 // ─── Secrets ──────────────────────────────────────────────────────────────────
 

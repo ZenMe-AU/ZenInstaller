@@ -6,7 +6,6 @@ import {
   checkTemplate,
   createBranch,
   fetchBranches,
-  fetchEnv,
   fetchEnvs,
   fetchOrgList,
   fetchPullRequests,
@@ -24,13 +23,11 @@ import { PIPELINES, matchPipelineByTemplate } from "./pipelineConfig";
 import {
   AZURE_SECRET_KEYS,
   AWS_SECRET_KEYS,
-  REQUIRED_ENV_KEYS,
   STAGE_STATUS_CONFIG,
   type Account,
   type Branch,
   type CardId,
   type CardStatus,
-  type EnvEntry,
   type GhEnv,
   type PullRequest,
   type Repo,
@@ -47,7 +44,6 @@ import PipelineCard from "./cards/PipelineCard";
 import RepoCard from "./cards/RepoCard";
 import PRCard from "./cards/PRCard";
 import EnvironmentCard from "./cards/EnvironmentCard";
-import EnvCard from "./cards/EnvCard";
 import StatusCard from "./cards/StatusCard";
 import { StageItem } from "./cards/StagesCard";
 
@@ -61,7 +57,6 @@ const DEFAULT_CARD_STATUS: Record<CardId, CardStatus> = {
   env: "idle",
   azure_secrets: "idle",
   aws_secrets: "idle",
-  envVars: "idle",
   status_update: "idle",
   stages: "idle",
 };
@@ -131,9 +126,6 @@ export default function AppDashboard() {
   const [lastRunTime, setLastRunTime] = useState<number | null>(null);
   const [lastRunId, setLastRunId] = useState<number | null>(null);
 
-  // ── Env entries ───────────────────────────────────────────────────────────
-  const [envEntries, setEnvEntries] = useState<EnvEntry[]>(REQUIRED_ENV_KEYS.map((k) => ({ key: k, value: "" })));
-
   // ── Secrets ───────────────────────────────────────────────────────────────
   const [presentSecretKeys, setPresentSecretKeys] = useState<string[]>([]);
   const [azureSecrets, setAzureSecrets] = useState<SecretsStatus>({ configured: null, valid: null });
@@ -155,7 +147,6 @@ export default function AppDashboard() {
     env: true,
     azure_secrets: true,
     aws_secrets: true,
-    envVars: true,
     status_update: true,
     stages: true,
   });
@@ -222,8 +213,6 @@ export default function AppDashboard() {
     setCard("repo", "loading");
     setCard("pr", "idle");
     setCard("env", "idle");
-    setCard("envVars", "idle");
-
     if (!selectedAccount || !selectedRepo || selectedRepo.isNew) return;
     checkTemplate(selectedAccount, selectedRepo.name)
       .then((data) => {
@@ -254,15 +243,6 @@ export default function AppDashboard() {
           //   .then((list) => setEnvList(list))
           //   .catch(console.error);
 
-          fetchEnv(selectedAccount, selectedRepo.name)
-            .then((obj) => {
-              setEnvEntries(Object.entries(obj).map(([key, value]) => ({ key, value: value as string })));
-            })
-            .catch((err) => {
-              console.error(err);
-              setEnvEntries(REQUIRED_ENV_KEYS.map((k) => ({ key: k, value: "" })));
-              setCard("envVars", "idle");
-            });
         }
       })
       .catch(() => {
@@ -489,6 +469,10 @@ export default function AppDashboard() {
     }
   }
 
+  function handleVariableConfirmed(key: string, value: string) {
+    setPresentVariableValues((prev) => ({ ...prev, [key]: value }));
+  }
+
   async function handleRunStatusUpdate() {
     if (!selectedAccount || !selectedRepo || !isCloneRepo || !envReady || !triggerRef) return;
     setRunError(null);
@@ -497,7 +481,7 @@ export default function AppDashboard() {
     setLastRunTime(Date.now());
     setCard("status_update", "loading");
 
-    const env = Object.fromEntries(envEntries.map((e) => [e.key, e.value]));
+    const env = presentVariableValues;
 
     try {
       if (selectedPR) {
@@ -826,26 +810,13 @@ export default function AppDashboard() {
                   variableValues={presentVariableValues}
                   onVariableRecheck={handleVariableRecheck}
                   variablesRechecking={variablesRechecking}
+                  onVariableConfirmed={handleVariableConfirmed}
                 />
               </PipelineCard>
 
-              {/* Step 4 — Env Variables */}
+              {/* Step 4 — Run Status Update */}
               <PipelineCard
                 step={4}
-                title="Environment Variables"
-                subtitle="Variables passed to the workflow on each run"
-                status={cardStatus.envVars}
-                expanded={expanded.envVars}
-                onToggle={() => toggleCard("envVars")}
-                disabled={!isCloneRepo}
-                hasNext
-              >
-                <EnvCard envEntries={envEntries} onChange={setEnvEntries} />
-              </PipelineCard>
-
-              {/* Step 5 — Run Status Update */}
-              <PipelineCard
-                step={5}
                 title="Run Status Update"
                 subtitle="Trigger the GitHub Actions workflow to check deployment state"
                 status={cardStatus.status_update}
@@ -884,7 +855,7 @@ export default function AppDashboard() {
                 </Box>
               )}
 
-              {/* Steps 6~N — Stages */}
+              {/* Steps 5~N — Stages */}
               {pipeline.stages.map((stageDef, index) => {
                 const stage = stages.find((s) => s.stage === stageDef.key) ?? { stage: stageDef.key, status: "pending" as const };
                 const cfg = STAGE_STATUS_CONFIG[stage.status];
@@ -892,7 +863,7 @@ export default function AppDashboard() {
                 return (
                   <PipelineCard
                     key={stageDef.key}
-                    step={6 + index}
+                    step={5 + index}
                     title={stageDef.label}
                     subtitle={cfg.label}
                     status={
@@ -938,7 +909,7 @@ export default function AppDashboard() {
                       stageDef={stageDef}
                       stage={stage}
                       cardStatus={cardStatus}
-                      envEntries={envEntries}
+                      variableValues={presentVariableValues}
                       account={selectedAccount}
                       repoName={selectedRepo?.name || ""}
                     />

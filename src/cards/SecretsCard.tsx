@@ -181,7 +181,7 @@ function SecretKeyRow({
         sx={{
           fontSize: "0.78rem",
           fontFamily: "'IBM Plex Mono', monospace",
-          color: isSet ? "#0f172a" : hasPending ? "#92400e" : "#94a3b8",
+          color: hasPending ? "#92400e" : "#0f172a",
           flex: 1,
         }}
       >

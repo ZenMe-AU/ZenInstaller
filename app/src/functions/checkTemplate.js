@@ -1,6 +1,6 @@
 import { app } from "@azure/functions";
 import { Octokit } from "octokit";
-import { verifyAuth } from "../utils/auth.js";
+import { getAccessToken } from "../utils/auth.js";
 import { corsWrapper } from "../utils/cors.js";
 
 app.http("checkTemplate", {
@@ -9,7 +9,7 @@ app.http("checkTemplate", {
   handler: corsWrapper(async (request, context) => {
     const templateOwner = "ZenMe-AU";
 
-    const { accessToken } = await verifyAuth(request.headers.get("cookie"));
+    const accessToken = getAccessToken(request);
 
     const type = request.query.get("type");
     const owner = request.query.get("owner");

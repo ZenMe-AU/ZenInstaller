@@ -13,7 +13,6 @@ export type Account = {
   login: string;
   type: "User" | "Organization";
   id: number;
-  isInstalled: boolean;
 };
 
 export type Repo = {

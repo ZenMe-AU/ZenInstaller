@@ -163,11 +163,6 @@ export default function RepoCard({
                   <BusinessIcon sx={{ fontSize: 16, color: "#64748b" }} />
                 )}
                 {acc.login}
-                {acc.isInstalled && (
-                  <Box component="span" sx={{ ml: 0.5, fontSize: "0.65rem", color: "#22c55e" }}>
-                    installed
-                  </Box>
-                )}
               </Box>
             </MenuItem>
           ))}

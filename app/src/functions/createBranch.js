@@ -1,7 +1,6 @@
 import { app } from "@azure/functions";
 import { Octokit } from "octokit";
-import { verifyAuth } from "../utils/auth.js";
-import { getTableClient } from "../utils/tableStorage.js";
+import { getAccessToken } from "../utils/auth.js";
 import { corsWrapper } from "../utils/cors.js";
 import { MissingParam } from "../error/index.js";
 
@@ -9,7 +8,7 @@ app.http("createBranch", {
   methods: ["POST"],
   authLevel: "anonymous",
   handler: corsWrapper(async (request, context) => {
-    const { accessToken } = await verifyAuth(request.headers.get("cookie"));
+    const accessToken = getAccessToken(request);
 
     const body = await request.json();
     const { owner, type, repo, source = "main", branch } = body;

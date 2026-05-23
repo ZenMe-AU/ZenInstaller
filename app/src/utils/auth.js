@@ -1,62 +1,22 @@
-import jwt from "jsonwebtoken";
-import { DefaultAzureCredential } from "@azure/identity";
-import { Unauthorized, InternalError } from "../error/index.js";
-import { getTableClient, getEntity } from "./tableStorage.js";
+import { Unauthorized } from "../error/index.js";
 
-const jwtSecret = process.env.JWT_SECRET;
+/**
+ * Returns the GitHub access token for the current request.
+ *
+ * Production (Azure App Service with Easy Auth):
+ *   The token is injected automatically as x-ms-token-github-access-token.
+ *
+ * Local development fallback:
+ *   Set GITHUB_TOKEN in local.settings.json.
+ *   The app will authenticate as that user without needing an OAuth flow.
+ */
+export function getAccessToken(request) {
+  const token = request.headers.get("x-ms-token-github-access-token");
+  if (token) return token;
 
-export async function verifyAuth(cookieHeader) {
-  const token = parseCookie(cookieHeader)?.github_session;
-  if (!token) {
-    throw Unauthorized({
-      meta: { reason: "missing_cookie" },
-    });
-  }
+  // ── Local dev fallback ────────────────────────────────────────────────────
+  const devToken = process.env.GITHUB_TOKEN;
+  if (devToken) return devToken;
 
-  let userId, login;
-  try {
-    const decoded = await authenticateJWT(token);
-    userId = decoded.id;
-    login = decoded.login;
-  } catch (err) {
-    throw Unauthorized({
-      cause: err,
-      meta: { reason: "invalid_token" },
-    });
-  }
-
-  let entity;
-  try {
-    const tokensClient = getTableClient({ tableName: "tokens" });
-    entity = await getEntity(tokensClient, String(userId), login);
-  } catch (err) {
-    throw InternalError({
-      cause: err,
-      meta: { reason: "storage_read_failed" },
-    });
-  }
-
-  return {
-    user: { userId, login },
-    accessToken: entity.accessToken,
-  };
-}
-
-export function parseCookie(cookie = "") {
-  return Object.fromEntries(
-    cookie.split(";").map((c) => {
-      const [k, v] = c.trim().split("=");
-      return [k, v];
-    }),
-  );
-}
-
-function authenticateJWT(token) {
-  return new Promise((resolve, reject) => {
-    jwt.verify(token, jwtSecret, (err, decoded) => {
-      if (err) return reject(new Error("invalid_token"));
-
-      resolve(decoded);
-    });
-  });
+  throw Unauthorized({ meta: { reason: "not_authenticated" } });
 }

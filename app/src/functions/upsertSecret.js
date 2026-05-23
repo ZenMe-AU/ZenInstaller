@@ -1,13 +1,13 @@
 import { app } from "@azure/functions";
 import { Octokit } from "octokit";
-import { verifyAuth } from "../utils/auth.js";
+import { getAccessToken } from "../utils/auth.js";
 import { corsWrapper } from "../utils/cors.js";
 
 app.http("upsertSecret", {
-  methods: ["PUT", "OPTIONS"],
+  methods: ["PUT"],
   authLevel: "anonymous",
   handler: corsWrapper(async (request, context) => {
-    const { accessToken } = await verifyAuth(request.headers.get("cookie"));
+    const accessToken = getAccessToken(request);
 
     const body = await request.json();
     const { owner, repo, env, name, value, key, keyId } = body;

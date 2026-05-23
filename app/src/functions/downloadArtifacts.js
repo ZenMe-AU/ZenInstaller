@@ -1,14 +1,13 @@
 import { app } from "@azure/functions";
 import { Octokit } from "octokit";
-import { verifyAuth } from "../utils/auth.js";
-import { getTableClient } from "../utils/tableStorage.js";
+import { getAccessToken } from "../utils/auth.js";
 import { corsWrapper } from "../utils/cors.js";
 
 app.http("downloadArtifacts", {
   methods: ["GET"],
   authLevel: "anonymous",
   handler: corsWrapper(async (request, context) => {
-    const { accessToken } = await verifyAuth(request.headers.get("cookie"));
+    const accessToken = getAccessToken(request);
 
     const artifacts_id = request.query.get("artifacts_id");
     const type = request.query.get("type");

@@ -240,7 +240,6 @@ export default function AppDashboard() {
           // fetchEnvs(selectedAccount, selectedRepo.name)
           //   .then((list) => setEnvList(list))
           //   .catch(console.error);
-
         }
       })
       .catch(() => {
@@ -355,7 +354,7 @@ export default function AppDashboard() {
         setStages(pipeline.stages.map(({ key }) => ({ stage: key, status: "pending" as const })));
         setStatusFileFound(false);
         setCard("stages", "idle");
-      })
+      });
   }
 
   async function loadPRs(account: Account, repoName: string) {
@@ -586,7 +585,7 @@ export default function AppDashboard() {
                   variant="outlined"
                   onClick={() => {
                     setRedirecting("logout");
-                    window.location.href = `${url}/logout?returnUrl=${encodeURIComponent(window.location.href)}`;
+                    window.location.href = `${url}/auth/logout?post_logout_redirect_uri=${encodeURIComponent(window.location.href)}`;
                   }}
                   sx={{
                     borderColor: "#e2e8f0",
@@ -607,7 +606,7 @@ export default function AppDashboard() {
                 variant="outlined"
                 onClick={() => {
                   setRedirecting("login");
-                  window.location.href = `${url}/login?returnUrl=${encodeURIComponent(window.location.href)}`;
+                  window.location.href = `${url}/auth/login/github?post_login_redirect_uri=${encodeURIComponent(window.location.href)}`;
                 }}
                 sx={{
                   borderColor: "#e2e8f0",
@@ -644,7 +643,7 @@ export default function AppDashboard() {
                 variant="contained"
                 onClick={() => {
                   setRedirecting("login");
-                  window.location.href = `${url}/login?returnUrl=${encodeURIComponent(window.location.href)}`;
+                  window.location.href = `${url}/auth/login/github?post_login_redirect_uri=${encodeURIComponent(window.location.href)}`;
                 }}
                 sx={{
                   mt: 1,

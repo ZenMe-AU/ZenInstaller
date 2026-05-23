@@ -1,13 +1,13 @@
 import { app } from "@azure/functions";
 import { Octokit } from "octokit";
-import { verifyAuth } from "../utils/auth.js";
+import { getAccessToken } from "../utils/auth.js";
 import { corsWrapper } from "../utils/cors.js";
 
 app.http("getPullRequests", {
   methods: ["GET"],
   authLevel: "anonymous",
   handler: corsWrapper(async (request, context) => {
-    const { accessToken } = await verifyAuth(request.headers.get("cookie"));
+    const accessToken = getAccessToken(request);
     const owner = request.query.get("owner");
     const repo = request.query.get("repo");
     const ref = request.query.get("ref") ?? "main";

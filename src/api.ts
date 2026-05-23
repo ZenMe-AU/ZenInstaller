@@ -7,7 +7,7 @@ const url = import.meta.env.VITE_API_URL;
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export async function verifyAuth(): Promise<{ login: string }> {
-  const res = await fetch(`${url}/getOrgs`, { credentials: "include" }); // TODO: use getOrg endpoint to verify auth
+  const res = await fetch(`${url}/getUser`, { credentials: "include" });
   if (!res.ok) throw new Error("Unauthorized");
   const data = await res.json();
   return data.user;
@@ -16,12 +16,16 @@ export async function verifyAuth(): Promise<{ login: string }> {
 // ─── Orgs & Repos ─────────────────────────────────────────────────────────────
 
 export async function fetchOrgList(): Promise<Account[]> {
-  const res = await fetch(`${url}/getOrgs`, { credentials: "include" });
-  if (!res.ok) throw new Error(`Failed to fetch orgs: ${res.status}`);
-  const data = await res.json();
+  const [userRes, orgsRes] = await Promise.all([
+    fetch(`${url}/getUser`, { credentials: "include" }),
+    fetch(`${url}/getOrgs`, { credentials: "include" }),
+  ]);
+  if (!userRes.ok) throw new Error(`Failed to fetch user: ${userRes.status}`);
+  if (!orgsRes.ok) throw new Error(`Failed to fetch orgs: ${orgsRes.status}`);
+  const [userData, orgsData] = await Promise.all([userRes.json(), orgsRes.json()]);
   return [
-    { login: data.user.login, type: "User", id: data.user.id, isInstalled: data.user.isInstalled },
-    ...data.orgList.map((o: { login: string; id: number; isInstalled: boolean }) => ({ login: o.login, type: "Organization" as const, id: o.id, isInstalled: o.isInstalled })),
+    { login: userData.user.login, type: "User", id: userData.user.id },
+    ...orgsData.orgList.map((o: { login: string; id: number }) => ({ login: o.login, type: "Organization" as const, id: o.id })),
   ];
 }
 

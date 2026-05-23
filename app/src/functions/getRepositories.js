@@ -1,13 +1,13 @@
 import { app } from "@azure/functions";
 import { Octokit } from "octokit";
-import { verifyAuth } from "../utils/auth.js";
+import { getAccessToken } from "../utils/auth.js";
 import { corsWrapper } from "../utils/cors.js";
 
 app.http("getRepositories", {
   methods: ["GET"],
   authLevel: "anonymous",
   handler: corsWrapper(async (request, context) => {
-    const { accessToken } = await verifyAuth(request.headers.get("cookie"));
+    const accessToken = getAccessToken(request);
 
     const octokit = new Octokit({ auth: accessToken });
     const { data } = await octokit.request(`GET user/repos`);

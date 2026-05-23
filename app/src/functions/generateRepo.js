@@ -1,6 +1,6 @@
 import { app } from "@azure/functions";
 import { Octokit } from "octokit";
-import { verifyAuth } from "../utils/auth.js";
+import { getAccessToken } from "../utils/auth.js";
 import { corsWrapper } from "../utils/cors.js";
 
 app.http("generateRepo", {
@@ -10,7 +10,7 @@ app.http("generateRepo", {
     const template_owner = "ZenMe-AU";
     const template_repo = "ZBCorpArchitecture";
 
-    const { accessToken } = await verifyAuth(request.headers.get("cookie"));
+    const accessToken = getAccessToken(request);
 
     const body = await request.json();
     const { isPrivate = true, includeAllBranch = false, owner, type, repo = template_repo, createEnvs = true } = body;

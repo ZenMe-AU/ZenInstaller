@@ -3,16 +3,15 @@ import { Octokit } from "octokit";
 import { getAccessToken } from "../utils/auth.js";
 import { corsWrapper } from "../utils/cors.js";
 
-app.http("getOrgs", {
+app.http("getUser", {
   methods: ["GET"],
   authLevel: "anonymous",
   handler: corsWrapper(async (request, context) => {
     const accessToken = getAccessToken(request);
     const octokit = new Octokit({ auth: accessToken });
-    const { data } = await octokit.request("GET /user/orgs");
-    const orgList = data.map((org) => ({ login: org.login, id: org.id }));
+    const { data } = await octokit.request("GET /user");
     return {
-      jsonBody: { success: true, orgList },
+      jsonBody: { success: true, user: { login: data.login, id: data.id } },
     };
   }),
 });

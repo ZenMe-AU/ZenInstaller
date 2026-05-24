@@ -94,6 +94,7 @@ type Props = {
   cloneError: string | null;
   onClone: () => void;
   branches: Branch[];
+  branchesLoading: boolean;
   sourceBranch: string;
   onSourceBranchChange: (v: string) => void;
   creatingBranch: boolean;
@@ -124,6 +125,7 @@ export default function RepoCard({
   cloneError,
   onClone,
   branches,
+  branchesLoading,
   sourceBranch,
   onSourceBranchChange,
   creatingBranch,
@@ -376,8 +378,8 @@ export default function RepoCard({
 
       {/* ── Create Branch — shown only for confirmed clone repos with missing env branches ── */}
       <Collapse
-        in={!isNewRepo && isCloneRepo && missingEnvBranches.length > 0}
-        sx={{ display: !isNewRepo && isCloneRepo && missingEnvBranches.length > 0 ? "block" : "none" }}
+        in={!isNewRepo && isCloneRepo && !branchesLoading && missingEnvBranches.length > 0}
+        sx={{ display: !isNewRepo && isCloneRepo && !branchesLoading && missingEnvBranches.length > 0 ? "block" : "none" }}
       >
         <Box sx={{ p: 2.5, border: "1px solid #bfdbfe", borderRadius: "10px", background: "#eff6ff" }}>
           <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace", mb: 2 }}>Create Branch</Typography>

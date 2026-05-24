@@ -535,9 +535,7 @@ export default function AppDashboard() {
     <>
       {/* ── Session expired dialog ── */}
       <Dialog open={sessionExpired} disableEscapeKeyDown>
-        <DialogTitle sx={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600, fontSize: "1rem", pb: 0.5 }}>
-          Session Expired
-        </DialogTitle>
+        <DialogTitle sx={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600, fontSize: "1rem", pb: 0.5 }}>Session Expired</DialogTitle>
         <DialogContent>
           <Typography sx={{ fontSize: "0.875rem", color: "#475569", fontFamily: "'IBM Plex Sans', sans-serif" }}>
             Your login session has expired. Please sign in again to continue.
@@ -548,7 +546,7 @@ export default function AppDashboard() {
             variant="contained"
             onClick={() => {
               setRedirecting("login");
-              window.location.href = `/.auth/login/github?post_login_redirect_uri=${encodeURIComponent(window.location.href)}`;
+              window.location.href = `${url}/auth/login/github?post_login_redirect_uri=${encodeURIComponent(window.location.href)}`;
             }}
             sx={{
               background: "#2563eb",

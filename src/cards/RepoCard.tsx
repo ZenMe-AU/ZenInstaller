@@ -188,8 +188,8 @@ export default function RepoCard({
             options={repoOptions}
             getOptionLabel={(o) => (typeof o === "string" ? o : o.name)}
             isOptionEqualToValue={(o, v) => o.name === v.name}
-            renderOption={(props, option) => (
-              <Box component="li" {...props} sx={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.82rem" }}>
+            renderOption={({ key, ...props }, option) => (
+              <Box key={key} component="li" {...props} sx={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.82rem" }}>
                 {option.isNew ? (
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "#2563eb" }}>
                     <AddIcon sx={{ fontSize: 16 }} />

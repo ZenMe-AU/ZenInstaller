@@ -51,36 +51,6 @@ resource "azurerm_storage_container" "fa" {
 }
 
 # =========================
-# SINGLE Storage Account(Table)
-# =========================
-resource "azurerm_storage_account" "table" {
-  name                     = var.storage_account_table_name
-  resource_group_name      = azurerm_resource_group.rg.name
-  location                 = azurerm_resource_group.rg.location
-  account_tier             = "Standard"
-  account_replication_type = "LRS"
-  account_kind             = "StorageV2"
-
-  shared_access_key_enabled = true # azurerm_storage_table requires this to be true, even if we won't use the keys
-}
-
-# =========================
-# Table Storage (for GitHub App installation info)
-# =========================
-resource "azurerm_storage_table" "installations" {
-  name                 = var.installations_table_name
-  storage_account_name = azurerm_storage_account.table.name
-}
-
-# =========================
-# Table Storage (for GitHub OAuth App tokens)
-# =========================
-resource "azurerm_storage_table" "tokens" {
-  name                 = var.tokens_table_name
-  storage_account_name = azurerm_storage_account.table.name
-}
-
-# =========================
 # Service Plan (Consumption)
 # =========================
 resource "azurerm_service_plan" "plan" {
@@ -122,13 +92,8 @@ resource "azurerm_function_app_flex_consumption" "fa" {
     AzureWebJobsStorage__queueServiceUri      = "https://${var.storage_account_name}.queue.core.windows.net/"
     AzureWebJobsStorage__tableServiceUri      = "https://${var.storage_account_name}.table.core.windows.net/"
     AzureWebJobsStorage__blobServiceUri       = "https://${var.storage_account_name}.blob.core.windows.net/"
-    GITHUB_APP_ID                             = var.github_app_id
-    OAUTH_CLIENT_ID                           = var.oauth_client_id
     ALLOWED_ORIGINS                           = var.allowed_origins
-    JWT_SECRET                                = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.jwt.versionless_id})"
     OAUTH_SECRET                              = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.oauth_secret.versionless_id})"
-    GITHUB_APP_PRIVATE_KEY                    = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.github_app_private_key.versionless_id})"
-    STORAGE_ACCOUNT_TABLE_NAME                = var.storage_account_table_name
   }
 
   site_config {
@@ -214,29 +179,9 @@ resource "azurerm_role_assignment" "deployer_kv_access" {
   }
 }
 
-resource "azurerm_key_vault_secret" "jwt" {
-  name         = "jwt-secret"
-  value        = var.jwt_secret
-  key_vault_id = azurerm_key_vault.kv.id
-  lifecycle {
-    ignore_changes = [value]
-  }
-  depends_on = [azurerm_role_assignment.deployer_kv_access]
-}
-
 resource "azurerm_key_vault_secret" "oauth_secret" {
   name         = "oauth-secret"
   value        = var.oauth_secret
-  key_vault_id = azurerm_key_vault.kv.id
-  lifecycle {
-    ignore_changes = [value]
-  }
-  depends_on = [azurerm_role_assignment.deployer_kv_access]
-}
-
-resource "azurerm_key_vault_secret" "github_app_private_key" {
-  name         = "github-app-private-key"
-  value        = var.github_app_private_key
   key_vault_id = azurerm_key_vault.kv.id
   lifecycle {
     ignore_changes = [value]

@@ -1,24 +1,24 @@
+import { config } from "dotenv";
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
 import { runDeploy } from "./delivery/index.js";
 import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const appCwd = path.resolve(__dirname, "../app");
+// Load .env from deploy/
+config({ path: resolve(__dirname, ".env") });
 
-const config = JSON.parse(fs.readFileSync("./env/terraform.auto.tfvars.json", "utf8"));
+const appCwd = resolve(__dirname, "../app");
+const tfvars = JSON.parse(fs.readFileSync(resolve(__dirname, "env/terraform.auto.tfvars.json"), "utf8"));
 
 await runDeploy({
-  subscriptionId: config.subscription_id,
-  vaultName: config.key_vault_name,
+  subscriptionId: tfvars.subscription_id,
+  vaultName: tfvars.key_vault_name,
   secretList: {
-    "jwt-secret": process.env.JWT_SECRET,
     "oauth-secret": process.env.OAUTH_SECRET,
-    "github-app-private-key": process.env.GH_PRIVATE_KEY,
   },
-  functionAppName: config.function_app_name,
-  resourceGroupName: config.resource_group_name,
+  functionAppName: tfvars.function_app_name,
+  resourceGroupName: tfvars.resource_group_name,
   appCwd,
 });

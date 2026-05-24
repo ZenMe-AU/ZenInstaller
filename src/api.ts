@@ -6,6 +6,24 @@ const url = import.meta.env.VITE_API_URL;
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
+// Wrapper that auto-refreshes the Easy Auth session on 401.
+// On 401: attempt /auth/refresh → retry once. If still 401, redirect to login.
+// Not used by verifyAuth (initial check should show login button, not auto-redirect).
+async function fetchWithAuth(input: string, init: RequestInit = {}): Promise<Response> {
+  const res = await fetch(input, { credentials: "include", ...init });
+  if (res.status !== 401) return res;
+
+  const refreshed = await fetch("/auth/refresh", { credentials: "include" });
+  if (refreshed.ok) {
+    const retried = await fetch(input, { credentials: "include", ...init });
+    if (retried.status !== 401) return retried;
+    // Refresh appeared to succeed but API still returns 401 — session is unusable
+  }
+
+  window.dispatchEvent(new CustomEvent("auth:session-expired"));
+  return res;
+}
+
 export async function verifyAuth(): Promise<{ login: string }> {
   const res = await fetch(`${url}/getUser`, { credentials: "include" });
   if (!res.ok) throw new Error("Unauthorized");
@@ -16,10 +34,7 @@ export async function verifyAuth(): Promise<{ login: string }> {
 // ─── Orgs & Repos ─────────────────────────────────────────────────────────────
 
 export async function fetchOrgList(): Promise<Account[]> {
-  const [userRes, orgsRes] = await Promise.all([
-    fetch(`${url}/getUser`, { credentials: "include" }),
-    fetch(`${url}/getOrgs`, { credentials: "include" }),
-  ]);
+  const [userRes, orgsRes] = await Promise.all([fetchWithAuth(`${url}/getUser`), fetchWithAuth(`${url}/getOrgs`)]);
   if (!userRes.ok) throw new Error(`Failed to fetch user: ${userRes.status}`);
   if (!orgsRes.ok) throw new Error(`Failed to fetch orgs: ${orgsRes.status}`);
   const [userData, orgsData] = await Promise.all([userRes.json(), orgsRes.json()]);
@@ -31,7 +46,7 @@ export async function fetchOrgList(): Promise<Account[]> {
 
 export async function fetchRepos(account: Account): Promise<Repo[]> {
   const params = new URLSearchParams({ owner: account.login, type: account.type });
-  const res = await fetch(`${url}/getRepos?${params}`, { credentials: "include" });
+  const res = await fetchWithAuth(`${url}/getRepos?${params}`);
   if (!res.ok) throw new Error(`Failed to fetch repos: ${res.status}`);
   const data = await res.json();
   return data.repoList || [];
@@ -41,7 +56,7 @@ export async function fetchRepos(account: Account): Promise<Repo[]> {
 
 export async function checkTemplate(account: Account, repo: string): Promise<{ isTemplate: boolean; templateName: string }> {
   const params = new URLSearchParams({ owner: account.login, repo, type: account.type });
-  const res = await fetch(`${url}/checkTemplate?${params}`, { credentials: "include" });
+  const res = await fetchWithAuth(`${url}/checkTemplate?${params}`);
   if (!res.ok) throw new Error(`Failed to check template: ${res.status}`);
   return res.json();
 }
@@ -55,8 +70,7 @@ export async function generateRepo(
   includeAllBranch: boolean,
   createEnvs: boolean,
 ): Promise<{ repo: Repo; envSuccess: boolean; results: { envs: { name: string; success: boolean; error?: string }[] } }> {
-  const res = await fetch(`${url}/generateRepo`, {
-    credentials: "include",
+  const res = await fetchWithAuth(`${url}/generateRepo`, {
     method: "POST",
     body: JSON.stringify({
       includeAllBranch,
@@ -76,15 +90,14 @@ export async function generateRepo(
 
 export async function fetchBranches(account: Account, repo: string): Promise<Branch[]> {
   const params = new URLSearchParams({ owner: account.login, repo, type: account.type });
-  const res = await fetch(`${url}/getBranches?${params}`, { credentials: "include" });
+  const res = await fetchWithAuth(`${url}/getBranches?${params}`);
   if (!res.ok) throw new Error(`Failed to fetch branches: ${res.status}`);
   const data = await res.json();
   return data.branches || [];
 }
 
 export async function createBranch(account: Account, repo: string, branchName: string, sourceBranch: string): Promise<Branch> {
-  const res = await fetch(`${url}/createBranch`, {
-    credentials: "include",
+  const res = await fetchWithAuth(`${url}/createBranch`, {
     method: "POST",
     body: JSON.stringify({ owner: account.login, type: account.type, repo, branch: branchName, source: sourceBranch }),
   });
@@ -97,7 +110,7 @@ export async function createBranch(account: Account, repo: string, branchName: s
 
 export async function fetchPullRequests(account: Account, repo: string): Promise<PullRequest[]> {
   const params = new URLSearchParams({ owner: account.login, repo, type: account.type });
-  const res = await fetch(`${url}/getPullRequests?${params}`, { credentials: "include" });
+  const res = await fetchWithAuth(`${url}/getPullRequests?${params}`);
   if (!res.ok) throw new Error(`Failed to fetch pull requests: ${res.status}`);
   const data = await res.json();
   return data.pullRequests || [];
@@ -106,9 +119,8 @@ export async function fetchPullRequests(account: Account, repo: string): Promise
 // ─── Workflow Runs ────────────────────────────────────────────────────────────
 
 export async function fetchRuns(account: Account, repo: string, headSha: string): Promise<WorkflowRun[]> {
-  // TODO: confirm endpoint name with backend
   const params = new URLSearchParams({ owner: account.login, repo, type: account.type, head_sha: headSha });
-  const res = await fetch(`${url}/getRuns?${params}`, { credentials: "include" });
+  const res = await fetchWithAuth(`${url}/getRuns?${params}`);
   if (!res.ok) throw new Error(`Failed to fetch runs: ${res.status}`);
   const data = await res.json();
   return data.runs || [];
@@ -118,7 +130,7 @@ export async function fetchRuns(account: Account, repo: string, headSha: string)
 
 export async function fetchEnvs(account: Account, repo: string): Promise<GhEnv[]> {
   const params = new URLSearchParams({ owner: account.login, repo, type: account.type });
-  const res = await fetch(`${url}/getEnvs?${params}`, { credentials: "include" });
+  const res = await fetchWithAuth(`${url}/getEnvs?${params}`);
   if (!res.ok) throw new Error(`Failed to fetch envs: ${res.status}`);
   const data = await res.json();
   return data.envList || [];
@@ -128,7 +140,7 @@ export async function fetchEnvs(account: Account, repo: string): Promise<GhEnv[]
 
 export async function fetchSecrets(account: Account, repo: string, envName: string): Promise<string[]> {
   const params = new URLSearchParams({ owner: account.login, repo, type: account.type, env: envName });
-  const res = await fetch(`${url}/getSecrets?${params}`, { credentials: "include" });
+  const res = await fetchWithAuth(`${url}/getSecrets?${params}`);
   if (!res.ok) throw new Error(`Failed to fetch secrets: ${res.status}`);
   const data = await res.json();
   return (data.secrets || []) as string[];
@@ -137,7 +149,7 @@ export async function fetchSecrets(account: Account, repo: string, envName: stri
 export async function fetchPublicKey(account: Account, repo: string, envName?: string): Promise<{ key: string; keyId: string }> {
   const params = new URLSearchParams({ owner: account.login, repo, type: account.type });
   if (envName) params.set("env", envName);
-  const res = await fetch(`${url}/getPublicKey?${params}`, { credentials: "include" });
+  const res = await fetchWithAuth(`${url}/getPublicKey?${params}`);
   if (!res.ok) throw new Error(`Failed to fetch public key: ${res.status}`);
   const data = await res.json();
   return { key: data.key, keyId: data.keyId };
@@ -151,8 +163,7 @@ export async function upsertSecret(
   keyId: string,
   envName?: string,
 ): Promise<UpsertSecretResult> {
-  const res = await fetch(`${url}/upsertSecret`, {
-    credentials: "include",
+  const res = await fetchWithAuth(`${url}/upsertSecret`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -173,15 +184,14 @@ export async function upsertSecret(
 
 export async function fetchVariables(account: Account, repo: string, envName: string): Promise<Record<string, string>> {
   const params = new URLSearchParams({ owner: account.login, repo, type: account.type, env: envName });
-  const res = await fetch(`${url}/getVariables?${params}`, { credentials: "include" });
+  const res = await fetchWithAuth(`${url}/getVariables?${params}`);
   if (!res.ok) throw new Error(`Failed to fetch variables: ${res.status}`);
   const data = await res.json();
   return data.variables || {};
 }
 
 export async function createVariable(account: Account, repo: string, name: string, value: string, envName: string): Promise<void> {
-  const res = await fetch(`${url}/createVariable`, {
-    credentials: "include",
+  const res = await fetchWithAuth(`${url}/createVariable`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ owner: account.login, repo, name, value, env: envName }),
@@ -190,8 +200,7 @@ export async function createVariable(account: Account, repo: string, name: strin
 }
 
 export async function updateVariable(account: Account, repo: string, name: string, value: string, envName: string): Promise<void> {
-  const res = await fetch(`${url}/updateVariable`, {
-    credentials: "include",
+  const res = await fetchWithAuth(`${url}/updateVariable`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ owner: account.login, repo, name, value, env: envName }),
@@ -208,7 +217,7 @@ export async function fetchStatus(account: Account, repo: string) {
     repo,
     type: account.type,
   });
-  const res = await fetch(`${url}/getContents?${params}`, { credentials: "include" });
+  const res = await fetchWithAuth(`${url}/getContents?${params}`);
   if (!res.ok) throw new Error(`Failed to fetch status: ${res.status}`);
   const data = await res.json();
   return JSON.parse(data.content);
@@ -218,7 +227,7 @@ export async function fetchStatus(account: Account, repo: string) {
 
 export async function fetchEnv(account: Account, repo: string): Promise<Record<string, string>> {
   const params = new URLSearchParams({ path: "corpSetup/corp.env", owner: account.login, repo, type: account.type });
-  const res = await fetch(`${url}/getContents?${params}`, { credentials: "include" });
+  const res = await fetchWithAuth(`${url}/getContents?${params}`);
   if (!res.ok) throw new Error(`Failed to fetch env: ${res.status}`);
   const data = await res.json();
   return parse(data.content);
@@ -227,8 +236,7 @@ export async function fetchEnv(account: Account, repo: string): Promise<Record<s
 // ─── Workflow ─────────────────────────────────────────────────────────────────
 
 export async function triggerWorkflow(account: Account, repo: string, workflowId: string, env: Record<string, string>, ref: string) {
-  const res = await fetch(`${url}/triggerActions`, {
-    credentials: "include",
+  const res = await fetchWithAuth(`${url}/triggerActions`, {
     method: "POST",
     body: JSON.stringify({ env: JSON.stringify(env), repo, owner: account.login, type: account.type, workflow_id: workflowId, ref }),
   });
@@ -238,8 +246,7 @@ export async function triggerWorkflow(account: Account, repo: string, workflowId
 
 export async function triggerWorkflowFromPR(account: Account, repo: string, workflowId: string, env: Record<string, string>, commitSha: string) {
   // Currently uses the same endpoint — replace URI here when splitting
-  const res = await fetch(`${url}/triggerActions`, {
-    credentials: "include",
+  const res = await fetchWithAuth(`${url}/triggerActions`, {
     method: "POST",
     body: JSON.stringify({ env: JSON.stringify(env), repo, owner: account.login, type: account.type, workflow_id: workflowId, ref: commitSha }),
   });
@@ -251,7 +258,7 @@ export async function triggerWorkflowFromPR(account: Account, repo: string, work
 
 export async function fetchPlan(id: string, account: { login: string; type: string }, repo: string) {
   const params = new URLSearchParams({ artifacts_id: id, owner: account.login, type: account.type, repo, ref: "dev" });
-  const res = await fetch(`${url}/downloadArtifacts?${params.toString()}`, { credentials: "include" });
+  const res = await fetchWithAuth(`${url}/downloadArtifacts?${params.toString()}`);
   if (!res.ok) throw new Error(`Failed to fetch plan for ${id}`);
   const data = await res.json();
   const zip = await JSZip.loadAsync(data.content as string, { base64: true });

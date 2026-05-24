@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Box, Button, CircularProgress, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 
 import {
@@ -69,6 +69,7 @@ export default function AppDashboard() {
   const [authLoading, setAuthLoading] = useState(true);
   const [redirecting, setRedirecting] = useState<"login" | "logout" | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   // ── Accounts & repos ──────────────────────────────────────────────────────
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -165,6 +166,12 @@ export default function AppDashboard() {
       .then((data) => setUser({ login: data.login }))
       .catch(() => setUser(null))
       .finally(() => setAuthLoading(false));
+  }, []);
+
+  useEffect(() => {
+    const handler = () => setSessionExpired(true);
+    window.addEventListener("auth:session-expired", handler);
+    return () => window.removeEventListener("auth:session-expired", handler);
   }, []);
 
   useEffect(() => {
@@ -526,6 +533,36 @@ export default function AppDashboard() {
 
   return (
     <>
+      {/* ── Session expired dialog ── */}
+      <Dialog open={sessionExpired} disableEscapeKeyDown>
+        <DialogTitle sx={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600, fontSize: "1rem", pb: 0.5 }}>
+          Session Expired
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: "0.875rem", color: "#475569", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+            Your login session has expired. Please sign in again to continue.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button
+            variant="contained"
+            onClick={() => {
+              setRedirecting("login");
+              window.location.href = `/.auth/login/github?post_login_redirect_uri=${encodeURIComponent(window.location.href)}`;
+            }}
+            sx={{
+              background: "#2563eb",
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontSize: "0.8rem",
+              textTransform: "none",
+              "&:hover": { background: "#1d4ed8" },
+            }}
+          >
+            Sign in again
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {redirecting && (
         <Box
           sx={{

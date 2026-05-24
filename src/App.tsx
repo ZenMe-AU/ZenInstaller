@@ -91,6 +91,7 @@ export default function AppDashboard() {
 
   // ── Branches ──────────────────────────────────────────────────────────────
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [branchesLoading, setBranchesLoading] = useState(false);
   const [sourceBranch, setSourceBranch] = useState<string>("main");
   const [creatingBranch, setCreatingBranch] = useState(false);
   const [createBranchError, setCreateBranchError] = useState<string | null>(null);
@@ -205,6 +206,7 @@ export default function AppDashboard() {
     setEnvList([]);
     setPullRequests([]);
     setBranches([]);
+    setBranchesLoading(false);
     setBranchMatchWarning(null);
     setBranchMatchError(null);
     resetSecrets();
@@ -229,20 +231,23 @@ export default function AppDashboard() {
           loadPRs(selectedAccount, selectedRepo.name);
           loadEnvs(selectedAccount, selectedRepo.name);
 
+          setBranchesLoading(true);
           fetchBranches(selectedAccount, selectedRepo.name)
             .then((list) => {
               setBranches(list);
               const main = list.find((b) => b.name === "main");
               setSourceBranch(main ? "main" : (list[0]?.name ?? "main"));
             })
-            .catch(console.error);
+            .catch((e) => console.error("Failed to fetch branches:", e))
+            .finally(() => setBranchesLoading(false));
 
           // fetchEnvs(selectedAccount, selectedRepo.name)
           //   .then((list) => setEnvList(list))
           //   .catch(console.error);
         }
       })
-      .catch(() => {
+      .catch((e) => {
+        console.error("Failed to check template:", e);
         setTemplateStatus("not_clone");
         setCard("repo", "warning");
       });
@@ -350,7 +355,8 @@ export default function AppDashboard() {
         setCard("stages", merged.some((s) => s.status === "failed") ? "warning" : "complete");
         setCard("status_update", "complete");
       })
-      .catch(() => {
+      .catch((e) => {
+        console.error("Failed to fetch status:", e);
         setStages(pipeline.stages.map(({ key }) => ({ stage: key, status: "pending" as const })));
         setStatusFileFound(false);
         setCard("stages", "idle");
@@ -380,14 +386,18 @@ export default function AppDashboard() {
 
   async function loadSecrets(envName: string) {
     if (!selectedAccount || !selectedRepo) return;
-    const keys = await fetchSecrets(selectedAccount, selectedRepo.name, envName);
-    const azureConfigured = AZURE_SECRET_KEYS.every((k) => keys.includes(k));
-    const awsConfigured = AWS_SECRET_KEYS.every((k) => keys.includes(k));
-    setAzureSecrets((prev) => ({ ...prev, configured: azureConfigured }));
-    setAwsSecrets((prev) => ({ ...prev, configured: awsConfigured }));
-    setCard("azure_secrets", azureConfigured ? "complete" : "warning");
-    setCard("aws_secrets", awsConfigured ? "complete" : "warning");
-    setPresentSecretKeys(keys);
+    try {
+      const keys = await fetchSecrets(selectedAccount, selectedRepo.name, envName);
+      const azureConfigured = AZURE_SECRET_KEYS.every((k) => keys.includes(k));
+      const awsConfigured = AWS_SECRET_KEYS.every((k) => keys.includes(k));
+      setAzureSecrets((prev) => ({ ...prev, configured: azureConfigured }));
+      setAwsSecrets((prev) => ({ ...prev, configured: awsConfigured }));
+      setCard("azure_secrets", azureConfigured ? "complete" : "warning");
+      setCard("aws_secrets", awsConfigured ? "complete" : "warning");
+      setPresentSecretKeys(keys);
+    } catch (e) {
+      console.error("Failed to load secrets:", e);
+    }
   }
 
   async function loadVariables(envName: string) {
@@ -424,7 +434,8 @@ export default function AppDashboard() {
         setCloneEnvWarning(`Repo created but failed to create environments: ${failed.join(", ")}`);
       }
     } catch (e: unknown) {
-      setCloneError(e instanceof Error ? e.message : "Clone failed");
+      console.error("Failed to clone repo:", e);
+      setCloneError("Clone failed");
     } finally {
       setCloning(false);
     }
@@ -438,7 +449,8 @@ export default function AppDashboard() {
       const newBranch = await createBranch(selectedAccount, selectedRepo.name, targetName, sourceBranch);
       setBranches((prev) => [...prev, newBranch]);
     } catch (e: unknown) {
-      setCreateBranchError(e instanceof Error ? e.message : "Failed to create branch");
+      console.error("Failed to create branch:", e);
+      setCreateBranchError("Failed to create branch");
     } finally {
       setCreatingBranch(false);
     }
@@ -490,9 +502,10 @@ export default function AppDashboard() {
         await triggerWorkflow(selectedAccount, selectedRepo.name, pipeline.workflowId, env, triggerRef);
       }
     } catch (e: unknown) {
+      console.error("Failed to trigger workflow:", e);
       setRunning(false);
       setCard("status_update", "error");
-      setRunError(e instanceof Error ? e.message : "Failed to trigger workflow");
+      setRunError("Failed to trigger workflow");
       return;
     }
 
@@ -689,6 +702,7 @@ export default function AppDashboard() {
                   cloneError={cloneError}
                   onClone={handleClone}
                   branches={branches}
+                  branchesLoading={branchesLoading}
                   sourceBranch={sourceBranch}
                   onSourceBranchChange={setSourceBranch}
                   creatingBranch={creatingBranch}

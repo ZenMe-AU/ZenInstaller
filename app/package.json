@@ -9,10 +9,7 @@
     "test": "echo \"No tests yet...\""
   },
   "dependencies": {
-    "@azure/data-tables": "^13.3.2",
     "@azure/functions": "^4.0.0",
-    "@azure/identity": "^4.13.1",
-    "jsonwebtoken": "^9.0.3",
     "octokit": "^5.0.5"
   },
   "devDependencies": {

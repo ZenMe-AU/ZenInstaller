@@ -60,6 +60,14 @@ export function toHttpResponse(error) {
     };
   }
 
+  // Pass through HTTP status from upstream APIs (e.g. Octokit errors carry .status)
+  if (typeof error.status === "number" && error.status >= 400 && error.status < 600) {
+    return {
+      status: error.status,
+      jsonBody: { error: error.message },
+    };
+  }
+
   // unknown error
   logError(error);
 

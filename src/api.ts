@@ -210,14 +210,16 @@ export async function updateVariable(account: Account, repo: string, name: strin
 
 // ─── Status file ──────────────────────────────────────────────────────────────
 
-export async function fetchStatus(account: Account, repo: string) {
+export async function fetchStatus(account: Account, repo: string, ref: string): Promise<object | null> {
   const params = new URLSearchParams({
     path: "corpSetup/deploymentChangeset.json",
     owner: account.login,
     repo,
     type: account.type,
+    ref,
   });
   const res = await fetchWithAuth(`${url}/getContents?${params}`);
+  if (res.status === 404) return null; // file doesn't exist yet — pipeline hasn't run before
   if (!res.ok) throw new Error(`Failed to fetch status: ${res.status}`);
   const data = await res.json();
   return JSON.parse(data.content);
@@ -225,9 +227,10 @@ export async function fetchStatus(account: Account, repo: string) {
 
 // ─── Env ──────────────────────────────────────────────────────────────────────
 
-export async function fetchEnv(account: Account, repo: string): Promise<Record<string, string>> {
+export async function fetchEnv(account: Account, repo: string): Promise<Record<string, string> | null> {
   const params = new URLSearchParams({ path: "corpSetup/corp.env", owner: account.login, repo, type: account.type });
   const res = await fetchWithAuth(`${url}/getContents?${params}`);
+  if (res.status === 404) return null; // file doesn't exist yet
   if (!res.ok) throw new Error(`Failed to fetch env: ${res.status}`);
   const data = await res.json();
   return parse(data.content);

@@ -234,7 +234,6 @@ export default function AppDashboard() {
         }
 
         if (isTemplate) {
-          loadStages();
           loadPRs(selectedAccount, selectedRepo.name);
           loadEnvs(selectedAccount, selectedRepo.name);
 
@@ -322,11 +321,14 @@ export default function AppDashboard() {
     }
   }, [selectedEnv, branches, envLockedByPR]);
 
-  // Load secrets + variables when env changes
+  // Load secrets, variables, and stages when env is confirmed
   useEffect(() => {
     if (!selectedAccount || !selectedRepo || !selectedEnv || branchMatchError) return;
+    const matchedBranch = branches.find((b) => b.name.toLowerCase() === selectedEnv.name.toLowerCase());
+    if (!matchedBranch) console.error(`No branch found matching env "${selectedEnv.name}"`);
     loadSecrets(selectedEnv.name);
     loadVariables(selectedEnv.name);
+    if (matchedBranch) loadStages(matchedBranch.name);
   }, [selectedEnv, branchMatchError]);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -342,13 +344,21 @@ export default function AppDashboard() {
 
   // ── Loaders ───────────────────────────────────────────────────────────────
 
-  function loadStages() {
+  function loadStages(ref: string) {
     if (!selectedAccount || !selectedRepo) return;
     setCard("stages", "loading");
 
-    fetchStatus(selectedAccount, selectedRepo.name)
+    fetchStatus(selectedAccount, selectedRepo.name, ref)
       .then((data) => {
-        const fetched = data.stages || [];
+        if (!data) {
+          // File not found — pipeline hasn't run before
+          setStages(pipeline.stages.map(({ key }) => ({ stage: key, status: "pending" as const })));
+          setStatusFileFound(false);
+          setCard("stages", "idle");
+          return;
+        }
+        const statusData = data as Record<string, unknown>;
+        const fetched = (statusData.stages as Stage[]) || [];
         const merged = pipeline.stages.map(({ key }) => {
           const found = fetched.find((s: Stage) => s.stage === key);
           return found ?? { stage: key, status: "failed" as const };
@@ -356,8 +366,8 @@ export default function AppDashboard() {
         setStages(merged);
         setStatusFileFound(true);
 
-        if (data.azure) setAzureSecrets((prev) => ({ ...prev, valid: data.azure.valid ?? null }));
-        if (data.aws) setAwsSecrets((prev) => ({ ...prev, valid: data.aws.valid ?? null }));
+        if (statusData.azure) setAzureSecrets((prev) => ({ ...prev, valid: (statusData.azure as { valid: boolean | null }).valid ?? null }));
+        if (statusData.aws) setAwsSecrets((prev) => ({ ...prev, valid: (statusData.aws as { valid: boolean | null }).valid ?? null }));
 
         setCard("stages", merged.some((s) => s.status === "failed") ? "warning" : "complete");
         setCard("status_update", "complete");
@@ -516,11 +526,13 @@ export default function AppDashboard() {
       return;
     }
 
+    const matchedBranch = branches.find((b) => b.name.toLowerCase() === selectedEnv.name.toLowerCase());
+    if (!matchedBranch) console.error(`No branch found matching env "${selectedEnv.name}"`);
     const interval = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(interval);
-          loadStages();
+          if (matchedBranch) loadStages(matchedBranch.name);
           setRunning(false);
           return 0;
         }

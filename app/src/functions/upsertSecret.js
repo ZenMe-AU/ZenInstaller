@@ -4,7 +4,7 @@ import { getAccessToken } from "../utils/auth.js";
 import { corsWrapper } from "../utils/cors.js";
 
 app.http("upsertSecret", {
-  methods: ["PUT"],
+  methods: ["PUT", "OPTIONS"],
   authLevel: "anonymous",
   handler: corsWrapper(async (request, context) => {
     const accessToken = getAccessToken(request);

@@ -34,7 +34,7 @@ export function buildCorsResponse({ origin, status = 200, headers = {}, jsonBody
         "Access-Control-Allow-Origin": allowedOrigin,
         "Access-Control-Allow-Credentials": "true",
         "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-CSRF-Token",
       }
     : {};
   return {

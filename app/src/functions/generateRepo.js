@@ -4,7 +4,7 @@ import { getAccessToken } from "../utils/auth.js";
 import { corsWrapper } from "../utils/cors.js";
 
 app.http("generateRepo", {
-  methods: ["POST"],
+  methods: ["POST", "OPTIONS"],
   authLevel: "anonymous",
   handler: corsWrapper(async (request, context) => {
     const template_owner = "ZenMe-AU";

@@ -98,6 +98,10 @@ resource "azurerm_function_app_flex_consumption" "fa" {
 
   site_config {
     application_insights_connection_string = azurerm_application_insights.ai.connection_string
+    cors {
+      allowed_origins     = split(",", var.allowed_origins)
+      support_credentials = true # required — browser sends credentials: "include" (Easy Auth cookies)
+    }
   }
 
   auth_settings_v2 {

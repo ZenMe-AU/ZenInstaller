@@ -4,7 +4,7 @@ import { getAccessToken } from "../utils/auth.js";
 import { corsWrapper } from "../utils/cors.js";
 
 app.http("createVariable", {
-  methods: ["POST"],
+  methods: ["POST", "OPTIONS"],
   authLevel: "anonymous",
   handler: corsWrapper(async (request, context) => {
     const accessToken = getAccessToken(request);

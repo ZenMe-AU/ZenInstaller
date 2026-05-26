@@ -1,6 +1,6 @@
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
-export type CardId = "repo" | "pr" | "env" | "azure_secrets" | "aws_secrets" | "status_update" | "stages";
+export type CardId = "repo" | "pr" | "env" | "status_update" | "stages";
 export type CardStatus = "idle" | "loading" | "complete" | "warning" | "error";
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -112,8 +112,9 @@ export type WorkflowRun = {
 // ─── Pipeline ─────────────────────────────────────────────────────────────────
 
 export type PrerequisiteCard = { type: "card"; cardId: CardId };
-export type PrerequisiteEnv = { type: "env"; key: string };
-export type Prerequisite = PrerequisiteCard | PrerequisiteEnv;
+export type PrerequisiteVar = { type: "var"; key: string };
+export type PrerequisiteVarGroup = { type: "varGroup"; keys: readonly string[]; label: string };
+export type Prerequisite = PrerequisiteCard | PrerequisiteVar | PrerequisiteVarGroup;
 
 export type StageDefinition = {
   key: string;
@@ -161,8 +162,10 @@ export type UpsertSecretResult = {
   env: string;
 };
 
-export const AZURE_SECRET_KEYS = ["AZURE_CLIENT_ID", "AZURE_SUBSCRIPTION_ID", "AZURE_TENANT_ID"];
-export const AWS_SECRET_KEYS = ["AWS_ACCOUNT_ID", "AWS_ROLE_NAME"];
+export const AZURE_SECRET_KEYS = ["AZURE_CLIENT_SECRET"];
+export const AWS_SECRET_KEYS = ["AWS_CLIENT_SECRET"];
+export const AZURE_VARIABLE_KEYS = ["AZURE_CLIENT_ID", "AZURE_SUBSCRIPTION_ID", "AZURE_TENANT_ID"] as const;
+export const AWS_VARIABLE_KEYS = ["AWS_ACCOUNT_ID", "AWS_ROLE_NAME"] as const;
 export const GITHUB_VARIABLE_KEYS = ["NAME", "DNS"] as const;
 
 // ─── Pending secrets / upsert ─────────────────────────────────────────────────

@@ -54,8 +54,6 @@ const DEFAULT_CARD_STATUS: Record<CardId, CardStatus> = {
   repo: "idle",
   pr: "idle",
   env: "idle",
-  azure_secrets: "idle",
-  aws_secrets: "idle",
   status_update: "idle",
   stages: "idle",
 };
@@ -145,8 +143,6 @@ export default function AppDashboard() {
     repo: true,
     pr: true,
     env: true,
-    azure_secrets: true,
-    aws_secrets: true,
     status_update: true,
     stages: true,
   });
@@ -338,8 +334,6 @@ export default function AppDashboard() {
     setAzureSecrets({ configured: null, valid: null });
     setAwsSecrets({ configured: null, valid: null });
     setPresentVariableValues({});
-    setCard("azure_secrets", "idle");
-    setCard("aws_secrets", "idle");
   }
 
   // ── Loaders ───────────────────────────────────────────────────────────────
@@ -409,8 +403,6 @@ export default function AppDashboard() {
       const awsConfigured = AWS_SECRET_KEYS.every((k) => keys.includes(k));
       setAzureSecrets((prev) => ({ ...prev, configured: azureConfigured }));
       setAwsSecrets((prev) => ({ ...prev, configured: awsConfigured }));
-      setCard("azure_secrets", azureConfigured ? "complete" : "warning");
-      setCard("aws_secrets", awsConfigured ? "complete" : "warning");
       setPresentSecretKeys(keys);
     } catch (e) {
       console.error("Failed to load secrets:", e);

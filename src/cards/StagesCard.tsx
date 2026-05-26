@@ -11,27 +11,31 @@ function checkPrerequisite(prereq: Prerequisite, cardStatus: Record<CardId, Card
   switch (prereq.type) {
     case "card":
       return cardStatus[prereq.cardId] === "complete";
-    case "env":
+    case "var":
       return !!variableValues[prereq.key]?.trim();
+    case "varGroup":
+      return prereq.keys.every((k) => !!variableValues[k]?.trim());
   }
 }
 
-function prereqLabel(prereq: Prerequisite): string {
+function prereqLabel(prereq: Prerequisite, variableValues: Record<string, string>): string {
   switch (prereq.type) {
     case "card": {
       const labels: Record<CardId, string> = {
         repo: "Repo selected",
         pr: "PR selected",
         env: "Env configured",
-        azure_secrets: "Azure secrets configured",
-        aws_secrets: "AWS secrets configured",
         status_update: "Status update run",
         stages: "Stages",
       };
       return labels[prereq.cardId];
     }
-    case "env":
-      return `${prereq.key} set`;
+    case "var": {
+      const val = variableValues[prereq.key]?.trim();
+      return val ? `${prereq.key}: ${val}` : `${prereq.key} not set`;
+    }
+    case "varGroup":
+      return prereq.label;
   }
 }
 
@@ -53,7 +57,7 @@ export function StageItem({
   repoName: string;
 }) {
   const prereqResults = stageDef.prerequisites.map((p) => ({
-    label: prereqLabel(p),
+    label: prereqLabel(p, variableValues),
     met: checkPrerequisite(p, cardStatus, variableValues),
   }));
 

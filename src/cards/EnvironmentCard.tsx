@@ -6,8 +6,16 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { Account, GhEnv, PendingSecret, SecretsStatus, UpsertStatus } from "../types";
-import { VALID_ENV_NAMES, isValidEnvName, AZURE_SECRET_KEYS, AWS_SECRET_KEYS, GITHUB_VARIABLE_KEYS } from "../types";
-import { fetchPublicKey, upsertSecret } from "../api";
+import {
+  VALID_ENV_NAMES,
+  isValidEnvName,
+  AZURE_SECRET_KEYS,
+  AWS_SECRET_KEYS,
+  AZURE_VARIABLE_KEYS,
+  AWS_VARIABLE_KEYS,
+  GITHUB_VARIABLE_KEYS,
+} from "../types";
+import { fetchPublicKey, upsertSecret, createVariable, updateVariable } from "../api";
 import { encryptSecret } from "../helper";
 import SecretsCard from "./SecretsCard";
 import VariablesCard from "./VariablesCard";
@@ -101,11 +109,58 @@ export default function EnvironmentCard({
   const [upsertStatuses, setUpsertStatuses] = useState<UpsertStatus[]>([]);
   const [upserting, setUpserting] = useState(false);
 
+  // ── Variable state (shared across all sub-sections) ───────────────────────
+  const [localVarValues, setLocalVarValues] = useState<Record<string, string>>({});
+  const [varUpsertStatuses, setVarUpsertStatuses] = useState<UpsertStatus[]>([]);
+  const [updatingVars, setUpdatingVars] = useState(false);
+
+  const allVariableKeys = [...AZURE_VARIABLE_KEYS, ...AWS_VARIABLE_KEYS, ...GITHUB_VARIABLE_KEYS];
+  const dirtyVarKeys = allVariableKeys.filter((k) => (localVarValues[k] ?? "") !== (variableValues[k] ?? ""));
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setPendingSecrets([]);
     setUpsertStatuses([]);
+    setLocalVarValues({});
+    setVarUpsertStatuses([]);
   }, [selectedEnv?.id]);
+
+  // Sync local variable fields when server state updates (initial load or Refresh)
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLocalVarValues(variableValues);
+    setVarUpsertStatuses([]);
+  }, [variableValues]);
+
+  const handleVarChange = (key: string, value: string) => {
+    setLocalVarValues((prev) => ({ ...prev, [key]: value }));
+    setVarUpsertStatuses((prev) => prev.filter((s) => s.key !== key));
+  };
+
+  const handleVarRevert = (key: string) => {
+    setLocalVarValues((prev) => ({ ...prev, [key]: variableValues[key] ?? "" }));
+    setVarUpsertStatuses((prev) => prev.filter((s) => s.key !== key));
+  };
+
+  const handleUpdateVars = async () => {
+    if (!account || !repo || !selectedEnv || dirtyVarKeys.length === 0) return;
+    setUpdatingVars(true);
+    const statuses: UpsertStatus[] = [];
+    for (const key of dirtyVarKeys) {
+      const value = localVarValues[key] ?? "";
+      const isNew = !variableValues[key];
+      try {
+        await (isNew ? createVariable : updateVariable)(account, repo, key, value, selectedEnv.name);
+        statuses.push({ key, status: "success" });
+        onVariableConfirmed(key, value);
+      } catch (e) {
+        console.error(`Failed to ${isNew ? "create" : "update"} variable "${key}":`, e);
+        statuses.push({ key, status: "error", error: "Update failed" });
+      }
+    }
+    setVarUpsertStatuses(statuses);
+    setUpdatingVars(false);
+  };
 
   const handleSetPending = (key: string, value: string) => {
     setPendingSecrets((prev) => {
@@ -320,9 +375,7 @@ export default function EnvironmentCard({
                   return n > 0 && azureSecretsStatus.configured !== null ? (
                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                       <ErrorOutlineIcon sx={{ fontSize: 12, color: "#ea580c" }} />
-                      <Typography sx={{ fontSize: "0.65rem", color: "#ea580c" }}>
-                        {n} not configured
-                      </Typography>
+                      <Typography sx={{ fontSize: "0.65rem", color: "#ea580c" }}>{n} not configured</Typography>
                     </Box>
                   ) : null;
                 })()}
@@ -347,9 +400,7 @@ export default function EnvironmentCard({
                   return n > 0 && awsSecretsStatus.configured !== null ? (
                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                       <ErrorOutlineIcon sx={{ fontSize: 12, color: "#ea580c" }} />
-                      <Typography sx={{ fontSize: "0.65rem", color: "#ea580c" }}>
-                        {n} not configured
-                      </Typography>
+                      <Typography sx={{ fontSize: "0.65rem", color: "#ea580c" }}>{n} not configured</Typography>
                     </Box>
                   ) : null;
                 })()}
@@ -403,9 +454,7 @@ export default function EnvironmentCard({
             <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", mb: 1 }}>
               <Box>
                 <Typography sx={{ ...sectionLabelSx, mb: 0.75 }}>Variables</Typography>
-                <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
-                  GitHub Actions environment variables for this environment.
-                </Typography>
+                <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>GitHub Actions environment variables for this environment.</Typography>
               </Box>
               <Button
                 size="small"
@@ -418,6 +467,56 @@ export default function EnvironmentCard({
               </Button>
             </Box>
 
+            {/* Azure variable sub-section */}
+            <Box sx={{ mt: 2 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+                <Typography sx={subLabelSx}>Azure</Typography>
+                {(() => {
+                  const n = AZURE_VARIABLE_KEYS.filter((k) => !variableValues[k]).length;
+                  return n > 0 ? (
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                      <ErrorOutlineIcon sx={{ fontSize: 12, color: "#ea580c" }} />
+                      <Typography sx={{ fontSize: "0.65rem", color: "#ea580c" }}>{n} not configured</Typography>
+                    </Box>
+                  ) : null;
+                })()}
+              </Box>
+              <VariablesCard
+                requiredKeys={AZURE_VARIABLE_KEYS}
+                savedValues={variableValues}
+                localValues={localVarValues}
+                upsertStatuses={varUpsertStatuses}
+                validStatus={azureSecretsStatus.valid}
+                onChange={handleVarChange}
+                onRevert={handleVarRevert}
+              />
+            </Box>
+
+            {/* AWS variable sub-section */}
+            <Box sx={{ mt: 2 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+                <Typography sx={subLabelSx}>AWS</Typography>
+                {(() => {
+                  const n = AWS_VARIABLE_KEYS.filter((k) => !variableValues[k]).length;
+                  return n > 0 ? (
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                      <ErrorOutlineIcon sx={{ fontSize: 12, color: "#ea580c" }} />
+                      <Typography sx={{ fontSize: "0.65rem", color: "#ea580c" }}>{n} not configured</Typography>
+                    </Box>
+                  ) : null;
+                })()}
+              </Box>
+              <VariablesCard
+                requiredKeys={AWS_VARIABLE_KEYS}
+                savedValues={variableValues}
+                localValues={localVarValues}
+                upsertStatuses={varUpsertStatuses}
+                validStatus={awsSecretsStatus.valid}
+                onChange={handleVarChange}
+                onRevert={handleVarRevert}
+              />
+            </Box>
+
             {/* Deployment sub-section */}
             <Box sx={{ mt: 2 }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
@@ -427,21 +526,48 @@ export default function EnvironmentCard({
                   return n > 0 ? (
                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                       <ErrorOutlineIcon sx={{ fontSize: 12, color: "#ea580c" }} />
-                      <Typography sx={{ fontSize: "0.65rem", color: "#ea580c" }}>
-                        {n} not configured
-                      </Typography>
+                      <Typography sx={{ fontSize: "0.65rem", color: "#ea580c" }}>{n} not configured</Typography>
                     </Box>
                   ) : null;
                 })()}
               </Box>
               <VariablesCard
                 requiredKeys={GITHUB_VARIABLE_KEYS}
-                variableValues={variableValues}
-                account={account}
-                repo={repo}
-                selectedEnvName={selectedEnv.name}
-                onVariableConfirmed={onVariableConfirmed}
+                savedValues={variableValues}
+                localValues={localVarValues}
+                upsertStatuses={varUpsertStatuses}
+                onChange={handleVarChange}
+                onRevert={handleVarRevert}
               />
+            </Box>
+
+            {/* Shared Update button */}
+            <Box sx={{ mt: 2 }}>
+              <Button
+                onClick={handleUpdateVars}
+                disabled={updatingVars || dirtyVarKeys.length === 0}
+                variant="contained"
+                size="small"
+                sx={{
+                  background: "#2563eb",
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontSize: "0.75rem",
+                  textTransform: "none",
+                  py: 0.75,
+                  px: 2,
+                  "&:hover": { background: "#1d4ed8" },
+                  "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
+                }}
+              >
+                {updatingVars ? (
+                  <>
+                    <CircularProgress size={12} sx={{ mr: 1, color: "#93c5fd" }} />
+                    Updating...
+                  </>
+                ) : (
+                  `Update ${dirtyVarKeys.length > 0 ? dirtyVarKeys.length : ""} variable${dirtyVarKeys.length !== 1 ? "s" : ""}`.trim()
+                )}
+              </Button>
             </Box>
           </Box>
         </>

@@ -1,4 +1,5 @@
 import type { PipelineConfig } from "./types";
+import { AZURE_VARIABLE_KEYS, AWS_VARIABLE_KEYS } from "./types";
 
 export const PIPELINES: Record<string, PipelineConfig> = {
   corpSetup: {
@@ -10,60 +11,63 @@ export const PIPELINES: Record<string, PipelineConfig> = {
         key: "c01",
         label: "c01subscription",
         prerequisites: [
-          { type: "card", cardId: "azure_secrets" },
-          { type: "env", key: "NAME" },
-          { type: "env", key: "SUBSCRIPTION_ID" },
+          { type: "varGroup", keys: AZURE_VARIABLE_KEYS, label: "Azure variables configured" },
+          { type: "var", key: "NAME" },
         ],
       },
       {
         key: "c02",
         label: "c02globalGroups",
         prerequisites: [
-          { type: "card", cardId: "azure_secrets" },
-          { type: "env", key: "NAME" },
-          { type: "env", key: "SUBSCRIPTION_ID" },
+          { type: "varGroup", keys: AZURE_VARIABLE_KEYS, label: "Azure variables configured" },
+          { type: "var", key: "NAME" },
         ],
       },
       {
         key: "c05",
         label: "c05rootrg",
         prerequisites: [
-          { type: "card", cardId: "azure_secrets" },
-          { type: "env", key: "NAME" },
-          { type: "env", key: "DNS" },
-          { type: "env", key: "SUBSCRIPTION_ID" },
+          { type: "varGroup", keys: AZURE_VARIABLE_KEYS, label: "Azure variables configured" },
+          { type: "var", key: "NAME" },
+          { type: "var", key: "DNS" },
+        ],
+      },
+      {
+        key: "c07",
+        label: "c07userAccounts",
+        prerequisites: [
+          { type: "varGroup", keys: AZURE_VARIABLE_KEYS, label: "Azure variables configured" },
+          { type: "var", key: "NAME" },
+          { type: "var", key: "DNS" },
         ],
       },
       {
         key: "c20",
         label: "c20awsentrasso",
         prerequisites: [
-          { type: "card", cardId: "azure_secrets" },
-          { type: "env", key: "NAME" },
-          { type: "env", key: "DNS" },
-          { type: "env", key: "SUBSCRIPTION_ID" },
+          { type: "varGroup", keys: AZURE_VARIABLE_KEYS, label: "Azure variables configured" },
+          { type: "var", key: "NAME" },
+          { type: "var", key: "DNS" },
         ],
       },
       {
         key: "c21",
         label: "c21awsentrassoP2",
         prerequisites: [
-          { type: "card", cardId: "azure_secrets" },
-          { type: "card", cardId: "aws_secrets" },
-          { type: "env", key: "NAME" },
-          { type: "env", key: "DNS" },
-          { type: "env", key: "SUBSCRIPTION_ID" },
+          { type: "varGroup", keys: AZURE_VARIABLE_KEYS, label: "Azure variables configured" },
+          { type: "varGroup", keys: AWS_VARIABLE_KEYS, label: "AWS variables configured" },
+          { type: "var", key: "NAME" },
+          { type: "var", key: "DNS" },
         ],
       },
       {
         key: "c25",
         label: "c25cloudfront",
         prerequisites: [
-          { type: "card", cardId: "azure_secrets" },
-          { type: "card", cardId: "aws_secrets" },
-          { type: "env", key: "NAME" },
-          { type: "env", key: "DNS" },
-          { type: "env", key: "SUBSCRIPTION_ID" },
+          { type: "varGroup", keys: AZURE_VARIABLE_KEYS, label: "Azure variables configured" },
+          { type: "varGroup", keys: AWS_VARIABLE_KEYS, label: "AWS variables configured" },
+          { type: "var", key: "NAME" },
+          { type: "var", key: "DNS" },
         ],
       },
     ],

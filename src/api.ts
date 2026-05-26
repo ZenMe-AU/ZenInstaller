@@ -14,7 +14,7 @@ async function fetchWithAuth(input: string, init: RequestInit = {}): Promise<Res
   const res = await fetch(input, { credentials: "include", ...init, headers });
   if (res.status !== 401) return res;
 
-  const refreshed = await fetch("/auth/refresh", { credentials: "include" });
+  const refreshed = await fetch(`${url}/auth/refresh`, { credentials: "include" });
   if (refreshed.ok) {
     const retried = await fetch(input, { credentials: "include", ...init, headers });
     if (retried.status !== 401) return retried;

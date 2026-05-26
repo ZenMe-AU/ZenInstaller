@@ -188,7 +188,7 @@ resource "azurerm_key_vault_secret" "oauth_secret" {
   value        = var.oauth_secret
   key_vault_id = azurerm_key_vault.kv.id
   lifecycle {
-    ignore_changes = [value]
+    ignore_changes = [value, tags]
   }
   depends_on = [azurerm_role_assignment.deployer_kv_access]
 }

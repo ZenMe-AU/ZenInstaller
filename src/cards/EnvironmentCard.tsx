@@ -1,44 +1,15 @@
-import { useEffect, useState } from "react";
 import { Box, Button, CircularProgress, Divider, Typography } from "@mui/material";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import LockIcon from "@mui/icons-material/Lock";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import type { Account, GhEnv, PendingSecret, SecretsStatus, UpsertStatus } from "../types";
-import {
-  VALID_ENV_NAMES,
-  isValidEnvName,
-  AZURE_SECRET_KEYS,
-  AWS_SECRET_KEYS,
-  AZURE_VARIABLE_KEYS,
-  AWS_VARIABLE_KEYS,
-  GITHUB_VARIABLE_KEYS,
-} from "../types";
-import { fetchPublicKey, upsertSecret, createVariable, updateVariable } from "../api";
-import { encryptSecret } from "../helper";
-import SecretsCard from "./SecretsCard";
-import VariablesCard from "./VariablesCard";
+import type { Account, GhEnv, SecretsStatus } from "../types";
+import { VALID_ENV_NAMES, isValidEnvName } from "../types";
+import SecretsSection from "./SecretsSection";
+import VariablesSection from "./VariablesSection";
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
-
-const sectionLabelSx = {
-  fontSize: "0.7rem",
-  fontWeight: 700,
-  color: "#94a3b8",
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.1em",
-  fontFamily: "'IBM Plex Mono', monospace",
-};
-
-const subLabelSx = {
-  fontSize: "0.67rem",
-  fontWeight: 600,
-  color: "#cbd5e1",
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.08em",
-  fontFamily: "'IBM Plex Mono', monospace",
-};
 
 const refreshBtnSx = {
   flexShrink: 0,
@@ -103,121 +74,7 @@ export default function EnvironmentCard({
   const validEnvs = envList.filter((e) => isValidEnvName(e.name));
   const secretsReady = !!selectedEnv && !branchMatchError;
   const githubSecretsUrl = repoFullName && selectedEnv ? `https://github.com/${repoFullName}/settings/environments/${selectedEnv.id}/edit` : null;
-
-  // ── Secrets pending state (lifted from SecretsCard) ───────────────────────
-  const [pendingSecrets, setPendingSecrets] = useState<PendingSecret[]>([]);
-  const [upsertStatuses, setUpsertStatuses] = useState<UpsertStatus[]>([]);
-  const [upserting, setUpserting] = useState(false);
-
-  // ── Variable state (shared across all sub-sections) ───────────────────────
-  const [localVarValues, setLocalVarValues] = useState<Record<string, string>>({});
-  const [varUpsertStatuses, setVarUpsertStatuses] = useState<UpsertStatus[]>([]);
-  const [updatingVars, setUpdatingVars] = useState(false);
-
-  const allVariableKeys = [...AZURE_VARIABLE_KEYS, ...AWS_VARIABLE_KEYS, ...GITHUB_VARIABLE_KEYS];
-  const dirtyVarKeys = allVariableKeys.filter((k) => (localVarValues[k] ?? "") !== (variableValues[k] ?? ""));
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPendingSecrets([]);
-    setUpsertStatuses([]);
-    setLocalVarValues({});
-    setVarUpsertStatuses([]);
-  }, [selectedEnv?.id]);
-
-  // Sync local variable fields when server state updates (initial load or Refresh)
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLocalVarValues(variableValues);
-    setVarUpsertStatuses([]);
-  }, [variableValues]);
-
-  const handleVarChange = (key: string, value: string) => {
-    setLocalVarValues((prev) => ({ ...prev, [key]: value }));
-    setVarUpsertStatuses((prev) => prev.filter((s) => s.key !== key));
-  };
-
-  const handleVarRevert = (key: string) => {
-    setLocalVarValues((prev) => ({ ...prev, [key]: variableValues[key] ?? "" }));
-    setVarUpsertStatuses((prev) => prev.filter((s) => s.key !== key));
-  };
-
-  const handleUpdateVars = async () => {
-    if (!account || !repo || !selectedEnv || dirtyVarKeys.length === 0) return;
-    setUpdatingVars(true);
-    const statuses: UpsertStatus[] = [];
-    for (const key of dirtyVarKeys) {
-      const value = localVarValues[key] ?? "";
-      const isNew = !variableValues[key];
-      try {
-        await (isNew ? createVariable : updateVariable)(account, repo, key, value, selectedEnv.name);
-        statuses.push({ key, status: "success" });
-        onVariableConfirmed(key, value);
-      } catch (e) {
-        console.error(`Failed to ${isNew ? "create" : "update"} variable "${key}":`, e);
-        statuses.push({ key, status: "error", error: "Update failed" });
-      }
-    }
-    setVarUpsertStatuses(statuses);
-    setUpdatingVars(false);
-  };
-
-  const handleSetPending = (key: string, value: string) => {
-    setPendingSecrets((prev) => {
-      const idx = prev.findIndex((p) => p.key === key);
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = { key, value };
-        return next;
-      }
-      return [...prev, { key, value }];
-    });
-    setUpsertStatuses((prev) => prev.filter((s) => s.key !== key));
-  };
-
-  const handleCancelPending = (key: string) => {
-    setPendingSecrets((prev) => prev.filter((p) => p.key !== key));
-    setUpsertStatuses((prev) => prev.filter((s) => s.key !== key));
-  };
-
-  const handleUpsertSecrets = async () => {
-    if (!account || !repo || !selectedEnv || pendingSecrets.length === 0) return;
-    setUpserting(true);
-
-    let publicKey: string;
-    let keyId: string;
-    try {
-      const result = await fetchPublicKey(account, repo, selectedEnv.name);
-      publicKey = result.key;
-      keyId = result.keyId;
-    } catch (e) {
-      console.error("Failed to fetch public key:", e);
-      setUpsertStatuses(pendingSecrets.map((p) => ({ key: p.key, status: "error" as const, error: "Failed to fetch key" })));
-      setUpserting(false);
-      return;
-    }
-
-    const statuses: UpsertStatus[] = [];
-    for (const pending of pendingSecrets) {
-      try {
-        const encrypted = await encryptSecret(publicKey, pending.value);
-        await upsertSecret(account, repo, pending.key, encrypted, keyId, selectedEnv.name);
-        statuses.push({ key: pending.key, status: "success" });
-      } catch (e) {
-        console.error("Failed to upsert secret:", e);
-        statuses.push({ key: pending.key, status: "error", error: "Update failed" });
-      }
-    }
-
-    setUpsertStatuses(statuses);
-    const successKeys = new Set(statuses.filter((s) => s.status === "success").map((s) => s.key));
-    setPendingSecrets((prev) => prev.filter((p) => !successKeys.has(p.key)));
-    setUpserting(false);
-  };
-
-  const totalPending = pendingSecrets.length;
-
-  // ── Render ────────────────────────────────────────────────────────────────
+  const secretsVisible = false;
 
   return (
     <Box>
@@ -244,7 +101,7 @@ export default function EnvironmentCard({
         )}
       </Box>
 
-      {/* Branch match warning — inline style, below description */}
+      {/* Branch match warning */}
       {branchMatchWarning && (
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1.5 }}>
           <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706", flexShrink: 0 }} />
@@ -252,7 +109,7 @@ export default function EnvironmentCard({
         </Box>
       )}
 
-      {/* Branch match error — inline style, below description */}
+      {/* Branch match error */}
       {branchMatchError && (
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1.5 }}>
           <ErrorOutlineIcon sx={{ fontSize: 14, color: "#ef4444", flexShrink: 0 }} />
@@ -311,7 +168,7 @@ export default function EnvironmentCard({
         </Box>
       )}
 
-      {/* ── Secrets + Variables — shown once env is selected and valid ── */}
+      {/* ── Sections — shown once env is selected and valid ── */}
       {secretsReady && (
         <>
           {/* Context header: env name + Manage on GitHub */}
@@ -347,229 +204,34 @@ export default function EnvironmentCard({
 
           <Divider sx={{ mb: 2.5, borderColor: "#f1f5f9" }} />
 
-          {/* ── Secrets section ── */}
-          <Box sx={{ mb: 2.5 }}>
-            {/* Secrets section header: label + description + Refresh */}
-            <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", mb: 1 }}>
-              <Box>
-                <Typography sx={{ ...sectionLabelSx, mb: 0.75 }}>Secrets</Typography>
-                <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>The following GitHub Actions secrets must be configured.</Typography>
-              </Box>
-              <Button
-                size="small"
-                onClick={onRecheck}
-                disabled={rechecking}
-                startIcon={rechecking ? <CircularProgress size={12} sx={{ color: "#94a3b8" }} /> : <RefreshIcon sx={{ fontSize: 14 }} />}
-                sx={{ ml: 2, mt: 0.25, ...refreshBtnSx }}
-              >
-                Refresh
-              </Button>
-            </Box>
-
-            {/* Azure sub-section */}
-            <Box sx={{ mt: 2 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-                <Typography sx={subLabelSx}>Azure</Typography>
-                {(() => {
-                  const n = AZURE_SECRET_KEYS.filter((k) => !presentKeys.includes(k)).length;
-                  return n > 0 && azureSecretsStatus.configured !== null ? (
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                      <ErrorOutlineIcon sx={{ fontSize: 12, color: "#ea580c" }} />
-                      <Typography sx={{ fontSize: "0.65rem", color: "#ea580c" }}>{n} not configured</Typography>
-                    </Box>
-                  ) : null;
-                })()}
-              </Box>
-              <SecretsCard
-                requiredKeys={AZURE_SECRET_KEYS}
-                presentKeys={presentKeys}
-                secretsStatus={azureSecretsStatus}
-                pendingSecrets={pendingSecrets.filter((p) => AZURE_SECRET_KEYS.includes(p.key))}
-                onSetPending={handleSetPending}
-                onCancelPending={handleCancelPending}
-                upsertStatuses={upsertStatuses.filter((s) => AZURE_SECRET_KEYS.includes(s.key))}
-              />
-            </Box>
-
-            {/* AWS sub-section */}
-            <Box sx={{ mt: 2 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-                <Typography sx={subLabelSx}>AWS</Typography>
-                {(() => {
-                  const n = AWS_SECRET_KEYS.filter((k) => !presentKeys.includes(k)).length;
-                  return n > 0 && awsSecretsStatus.configured !== null ? (
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                      <ErrorOutlineIcon sx={{ fontSize: 12, color: "#ea580c" }} />
-                      <Typography sx={{ fontSize: "0.65rem", color: "#ea580c" }}>{n} not configured</Typography>
-                    </Box>
-                  ) : null;
-                })()}
-              </Box>
-              <SecretsCard
-                requiredKeys={AWS_SECRET_KEYS}
-                presentKeys={presentKeys}
-                secretsStatus={awsSecretsStatus}
-                pendingSecrets={pendingSecrets.filter((p) => AWS_SECRET_KEYS.includes(p.key))}
-                onSetPending={handleSetPending}
-                onCancelPending={handleCancelPending}
-                upsertStatuses={upsertStatuses.filter((s) => AWS_SECRET_KEYS.includes(s.key))}
-              />
-            </Box>
-
-            {/* Update secrets button */}
-            <Box sx={{ mt: 2 }}>
-              <Button
-                onClick={handleUpsertSecrets}
-                disabled={upserting || totalPending === 0}
-                variant="contained"
-                size="small"
-                sx={{
-                  background: "#2563eb",
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  fontSize: "0.75rem",
-                  textTransform: "none",
-                  py: 0.75,
-                  px: 2,
-                  "&:hover": { background: "#1d4ed8" },
-                  "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
-                }}
-              >
-                {upserting ? (
-                  <>
-                    <CircularProgress size={12} sx={{ mr: 1, color: "#93c5fd" }} />
-                    Updating...
-                  </>
-                ) : (
-                  `Update ${totalPending > 0 ? totalPending : ""} secret${totalPending !== 1 ? "s" : ""}`.trim()
-                )}
-              </Button>
-            </Box>
-          </Box>
-
-          <Divider sx={{ mb: 2.5, borderColor: "#f1f5f9" }} />
+          {/* ── Secrets section (hidden) ── */}
+          {secretsVisible && (
+            <SecretsSection
+              key={selectedEnv.id}
+              account={account}
+              repo={repo}
+              selectedEnv={selectedEnv}
+              presentKeys={presentKeys}
+              azureSecretsStatus={azureSecretsStatus}
+              awsSecretsStatus={awsSecretsStatus}
+              onRecheck={onRecheck}
+              rechecking={rechecking}
+            />
+          )}
 
           {/* ── Variables section ── */}
-          <Box>
-            {/* Variables section header: label + description + Refresh */}
-            <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", mb: 1 }}>
-              <Box>
-                <Typography sx={{ ...sectionLabelSx, mb: 0.75 }}>Variables</Typography>
-                <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>GitHub Actions environment variables for this environment.</Typography>
-              </Box>
-              <Button
-                size="small"
-                onClick={onVariableRecheck}
-                disabled={variablesRechecking}
-                startIcon={variablesRechecking ? <CircularProgress size={12} sx={{ color: "#94a3b8" }} /> : <RefreshIcon sx={{ fontSize: 14 }} />}
-                sx={{ ml: 2, mt: 0.25, ...refreshBtnSx }}
-              >
-                Refresh
-              </Button>
-            </Box>
-
-            {/* Azure variable sub-section */}
-            <Box sx={{ mt: 2 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
-                <Typography sx={subLabelSx}>Azure</Typography>
-                {(() => {
-                  const n = AZURE_VARIABLE_KEYS.filter((k) => !variableValues[k]).length;
-                  return n > 0 ? (
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                      <ErrorOutlineIcon sx={{ fontSize: 12, color: "#ea580c" }} />
-                      <Typography sx={{ fontSize: "0.65rem", color: "#ea580c" }}>{n} not configured</Typography>
-                    </Box>
-                  ) : null;
-                })()}
-              </Box>
-              <VariablesCard
-                requiredKeys={AZURE_VARIABLE_KEYS}
-                savedValues={variableValues}
-                localValues={localVarValues}
-                upsertStatuses={varUpsertStatuses}
-                validStatus={azureSecretsStatus.valid}
-                onChange={handleVarChange}
-                onRevert={handleVarRevert}
-              />
-            </Box>
-
-            {/* AWS variable sub-section */}
-            <Box sx={{ mt: 2 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
-                <Typography sx={subLabelSx}>AWS</Typography>
-                {(() => {
-                  const n = AWS_VARIABLE_KEYS.filter((k) => !variableValues[k]).length;
-                  return n > 0 ? (
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                      <ErrorOutlineIcon sx={{ fontSize: 12, color: "#ea580c" }} />
-                      <Typography sx={{ fontSize: "0.65rem", color: "#ea580c" }}>{n} not configured</Typography>
-                    </Box>
-                  ) : null;
-                })()}
-              </Box>
-              <VariablesCard
-                requiredKeys={AWS_VARIABLE_KEYS}
-                savedValues={variableValues}
-                localValues={localVarValues}
-                upsertStatuses={varUpsertStatuses}
-                validStatus={awsSecretsStatus.valid}
-                onChange={handleVarChange}
-                onRevert={handleVarRevert}
-              />
-            </Box>
-
-            {/* Deployment sub-section */}
-            <Box sx={{ mt: 2 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
-                <Typography sx={subLabelSx}>Deployment</Typography>
-                {(() => {
-                  const n = GITHUB_VARIABLE_KEYS.filter((k) => !variableValues[k]).length;
-                  return n > 0 ? (
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                      <ErrorOutlineIcon sx={{ fontSize: 12, color: "#ea580c" }} />
-                      <Typography sx={{ fontSize: "0.65rem", color: "#ea580c" }}>{n} not configured</Typography>
-                    </Box>
-                  ) : null;
-                })()}
-              </Box>
-              <VariablesCard
-                requiredKeys={GITHUB_VARIABLE_KEYS}
-                savedValues={variableValues}
-                localValues={localVarValues}
-                upsertStatuses={varUpsertStatuses}
-                onChange={handleVarChange}
-                onRevert={handleVarRevert}
-              />
-            </Box>
-
-            {/* Shared Update button */}
-            <Box sx={{ mt: 2 }}>
-              <Button
-                onClick={handleUpdateVars}
-                disabled={updatingVars || dirtyVarKeys.length === 0}
-                variant="contained"
-                size="small"
-                sx={{
-                  background: "#2563eb",
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  fontSize: "0.75rem",
-                  textTransform: "none",
-                  py: 0.75,
-                  px: 2,
-                  "&:hover": { background: "#1d4ed8" },
-                  "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
-                }}
-              >
-                {updatingVars ? (
-                  <>
-                    <CircularProgress size={12} sx={{ mr: 1, color: "#93c5fd" }} />
-                    Updating...
-                  </>
-                ) : (
-                  `Update ${dirtyVarKeys.length > 0 ? dirtyVarKeys.length : ""} variable${dirtyVarKeys.length !== 1 ? "s" : ""}`.trim()
-                )}
-              </Button>
-            </Box>
-          </Box>
+          <VariablesSection
+            key={selectedEnv.id}
+            account={account}
+            repo={repo}
+            selectedEnv={selectedEnv}
+            variableValues={variableValues}
+            onVariableRecheck={onVariableRecheck}
+            variablesRechecking={variablesRechecking}
+            onVariableConfirmed={onVariableConfirmed}
+            azureSecretsStatus={azureSecretsStatus}
+            awsSecretsStatus={awsSecretsStatus}
+          />
         </>
       )}
     </Box>

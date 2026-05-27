@@ -239,22 +239,51 @@ export async function fetchEnv(account: Account, repo: string): Promise<Record<s
 
 // ─── Workflow ─────────────────────────────────────────────────────────────────
 
-export async function triggerWorkflow(account: Account, repo: string, workflowId: string, env: Record<string, string>, ref: string) {
+export async function triggerWorkflow(account: Account, repo: string, workflowId: string, githubEnvName: string, ref: string) {
   const res = await fetchWithAuth(`${url}/triggerActions`, {
     method: "POST",
-    body: JSON.stringify({ env: JSON.stringify(env), repo, owner: account.login, type: account.type, workflow_id: workflowId, ref }),
+    body: JSON.stringify({
+      repo,
+      owner: account.login,
+      type: account.type,
+      workflow_id: workflowId,
+      ref,
+      inputs: { github_env_name: githubEnvName },
+    }),
   });
   if (!res.ok) throw new Error(`Failed to trigger workflow: ${res.status}`);
   return res.json();
 }
 
-export async function triggerWorkflowFromPR(account: Account, repo: string, workflowId: string, env: Record<string, string>, commitSha: string) {
-  // Currently uses the same endpoint — replace URI here when splitting
+export async function triggerWorkflowFromPR(account: Account, repo: string, workflowId: string, githubEnvName: string, commitSha: string) {
   const res = await fetchWithAuth(`${url}/triggerActions`, {
     method: "POST",
-    body: JSON.stringify({ env: JSON.stringify(env), repo, owner: account.login, type: account.type, workflow_id: workflowId, ref: commitSha }),
+    body: JSON.stringify({
+      repo,
+      owner: account.login,
+      type: account.type,
+      workflow_id: workflowId,
+      ref: commitSha,
+      inputs: { github_env_name: githubEnvName },
+    }),
   });
   if (!res.ok) throw new Error(`Failed to trigger workflow from PR: ${res.status}`);
+  return res.json();
+}
+
+export async function deployChangeset(account: Account, repo: string, runId: string, dir: string, githubEnvName: string, ref: string) {
+  const res = await fetchWithAuth(`${url}/triggerActions`, {
+    method: "POST",
+    body: JSON.stringify({
+      repo,
+      owner: account.login,
+      type: account.type,
+      workflow_id: "deployChangeset.yml",
+      ref,
+      inputs: { run_id: runId, dir, github_env_name: githubEnvName },
+    }),
+  });
+  if (!res.ok) throw new Error(`Failed to trigger deploy: ${res.status}`);
   return res.json();
 }
 

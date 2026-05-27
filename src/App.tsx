@@ -17,6 +17,7 @@ import {
   fetchStatus,
   fetchVariables,
   generateRepo,
+  deployChangeset,
   triggerWorkflow,
   triggerWorkflowFromPR,
   verifyAuth,
@@ -643,18 +644,18 @@ export default function AppDashboard() {
     setLastRunTime(Date.now());
     setCard("status_update", "loading");
 
-    const env = presentVariableValues;
+    const githubEnvName = selectedEnv!.name;
 
     try {
       if (selectedPR) {
-        await triggerWorkflowFromPR(selectedAccount, selectedRepo.name, pipeline.workflowId, env, selectedPR.head_sha);
+        await triggerWorkflowFromPR(selectedAccount, selectedRepo.name, pipeline.workflowId, githubEnvName, selectedPR.head_sha);
         fetchRuns(selectedAccount, selectedRepo.name, selectedPR.head_sha)
           .then((runs) => {
             if (runs.length > 0) setLastRunId(runs[0].id);
           })
           .catch(console.error);
       } else {
-        await triggerWorkflow(selectedAccount, selectedRepo.name, pipeline.workflowId, env, triggerRef);
+        await triggerWorkflow(selectedAccount, selectedRepo.name, pipeline.workflowId, githubEnvName, triggerRef);
       }
     } catch (e: unknown) {
       console.error("Failed to trigger workflow:", e);
@@ -1101,13 +1102,21 @@ export default function AppDashboard() {
                     disabled={!isCloneRepo}
                     hasNext={index < pipeline.stages.length - 1}
                     action={
-                      stage.status === "success" ? (
+                      stage.status === "success" && stage.runId ? (
                         <Button
                           variant="contained"
                           size="small"
                           onClick={(e) => {
                             e.stopPropagation();
-                            console.log("Deploy", stageDef.key, stage.runId);
+                            if (!selectedAccount || !selectedRepo || !selectedEnv) return;
+                            deployChangeset(
+                              selectedAccount,
+                              selectedRepo.name,
+                              stage.runId!,
+                              stageDef.label,
+                              selectedEnv.name,
+                              selectedEnv.name,
+                            ).catch(console.error);
                           }}
                           sx={{
                             background: "#f97316",

@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
-import { Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from "@mui/material";
+import { useEffect, useRef, useState } from "react";
+import { Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from "@mui/material";
+import CheckIcon from "@mui/icons-material/Check";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 
 import {
@@ -62,6 +64,42 @@ const DEFAULT_CARD_STATUS: Record<CardId, CardStatus> = {
 
 export default function AppDashboard() {
   const defaultTemplateRepo = "ZenMe-AU/ZBCorpArchitecture";
+
+  // ── URL state persistence ─────────────────────────────────────────────────
+  // Captured once at mount; each field nulled out after it has been applied.
+  const pendingRestore = useRef({
+    account: new URLSearchParams(window.location.search).get("account"),
+    repo: new URLSearchParams(window.location.search).get("repo"),
+    pr: new URLSearchParams(window.location.search).get("pr"),
+    env: new URLSearchParams(window.location.search).get("env"),
+  });
+  // Prevents the URL-restore effect from running more than once (guards against
+  // React Strict Mode double-invocation and accounts being re-fetched).
+  const urlAccountApplied = useRef(false);
+
+  // Tracks restore progress shown to the user.
+  const [urlRestoreMsg, setUrlRestoreMsg] = useState<{ loading: boolean; warnings: string[] }>(() => {
+    const p = new URLSearchParams(window.location.search);
+    const hasParams = p.has("account") || p.has("repo") || p.has("pr") || p.has("env");
+    return { loading: hasParams, warnings: [] };
+  });
+  // Adds a warning line (e.g. "Repository 'X' not found").
+  const addRestoreWarning = (msg: string) => setUrlRestoreMsg((prev) => ({ ...prev, warnings: [...prev.warnings, msg] }));
+  // Call after each pendingRestore field is cleared; ends the loading state when all are null.
+  const checkRestoreDone = () => {
+    const p = pendingRestore.current;
+    if (p.account === null && p.repo === null && p.pr === null && p.env === null)
+      setUrlRestoreMsg((prev) => (prev.loading ? { ...prev, loading: false } : prev));
+  };
+
+  // Auto-dismiss warnings after 8 seconds once they appear.
+  useEffect(() => {
+    if (urlRestoreMsg.warnings.length === 0) return;
+    const t = setTimeout(() => setUrlRestoreMsg((prev) => ({ ...prev, warnings: [] })), 8000);
+    return () => clearTimeout(t);
+  }, [urlRestoreMsg.warnings.length]);
+
+  const [copied, setCopied] = useState(false);
 
   // ── Auth ──────────────────────────────────────────────────────────────────
   const [authLoading, setAuthLoading] = useState(true);
@@ -170,29 +208,98 @@ export default function AppDashboard() {
     return () => window.removeEventListener("auth:session-expired", handler);
   }, []);
 
+  // Keep URL in sync so refresh restores state and the link is shareable.
+  // Guard: skip while any pending restore value is still outstanding, so the
+  // original URL params are preserved until auth/data has fully loaded (otherwise
+  // the first render wipes params and a login redirect loses them).
+  useEffect(() => {
+    const p = pendingRestore.current;
+    if (p.account !== null || p.repo !== null || p.pr !== null || p.env !== null) return;
+    const params = new URLSearchParams();
+    if (selectedAccount) params.set("account", selectedAccount.login);
+    if (selectedRepo && !selectedRepo.isNew) params.set("repo", selectedRepo.name);
+    if (selectedPR) {
+      params.set("pr", String(selectedPR.number));
+    } else if (selectedEnv) {
+      params.set("env", selectedEnv.name);
+    }
+    const search = params.toString();
+    window.history.replaceState(null, "", search ? `?${search}` : window.location.pathname);
+  }, [selectedAccount, selectedRepo, selectedPR, selectedEnv]);
+
   useEffect(() => {
     if (!user) return;
     fetchOrgList()
       .then((data) => {
         setAccounts(data);
-        setSelectedAccount(data[0] || null);
+        const p = pendingRestore.current;
+        // If there are no URL params to restore, select the first account immediately.
+        // Otherwise, let the URL-restore effect below handle account selection once
+        // the org list is confirmed ready — avoids the race where the default account
+        // briefly overrides the URL account before restoration fires.
+        const hasUrlParams = p.account !== null || p.repo !== null || p.pr !== null || p.env !== null;
+        if (!hasUrlParams) {
+          setSelectedAccount(data[0] ?? null);
+        }
       })
       .catch(console.error);
   }, [user]);
+
+  // URL-restore: fires once org list is loaded, then applies the URL account param.
+  // Runs exactly once (urlAccountApplied guard). All subsequent restoration steps
+  // (repo → applyRepoRestore, PR/env → loadPRs/loadEnvs) cascade from this.
+  useEffect(() => {
+    if (urlAccountApplied.current || !user || accounts.length === 0) return;
+    const p = pendingRestore.current;
+    if (p.account === null && p.repo === null && p.pr === null && p.env === null) return;
+    urlAccountApplied.current = true;
+    const targetLogin = p.account;
+    const match = targetLogin ? accounts.find((a) => a.login.toLowerCase() === targetLogin.toLowerCase()) : null;
+    if (targetLogin && !match) {
+      addRestoreWarning(`Account "${targetLogin}" not found or not accessible`);
+      // Silently cancel all downstream params — no point cascading errors
+      p.repo = null;
+      p.pr = null;
+      p.env = null;
+    }
+    p.account = null;
+    setSelectedAccount(match ?? accounts[0] ?? null);
+    checkRestoreDone();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, accounts]);
 
   useEffect(() => {
     setRepos([]);
     setSelectedRepo(null);
     if (!selectedAccount) return;
     const key = String(selectedAccount.id);
+    const applyRepoRestore = (list: Repo[]) => {
+      const p = pendingRestore.current;
+      const targetRepo = p.repo;
+      p.repo = null;
+      if (targetRepo) {
+        const match = list.find((r) => r.name === targetRepo);
+        if (match) {
+          setSelectedRepo({ id: match.id, name: match.name });
+        } else {
+          addRestoreWarning(`Repository "${targetRepo}" not found`);
+          // Silently cancel downstream params — repo error is enough
+          p.pr = null;
+          p.env = null;
+        }
+      }
+      checkRestoreDone();
+    };
     if (repoCache[key]) {
       setRepos(repoCache[key]);
+      applyRepoRestore(repoCache[key]);
       return;
     }
     fetchRepos(selectedAccount)
       .then((list) => {
         setRepos(list);
         setRepoCache((prev) => ({ ...prev, [key]: list }));
+        applyRepoRestore(list);
       })
       .catch(console.error);
     setStages([]);
@@ -242,16 +349,26 @@ export default function AppDashboard() {
             })
             .catch((e) => console.error("Failed to fetch branches:", e))
             .finally(() => setBranchesLoading(false));
-
-          // fetchEnvs(selectedAccount, selectedRepo.name)
-          //   .then((list) => setEnvList(list))
-          //   .catch(console.error);
+        } else {
+          // Not a template — PRs and envs won't be loaded; silently cancel pending params
+          const rp = pendingRestore.current;
+          rp.pr = null;
+          rp.env = null;
+          checkRestoreDone();
         }
       })
       .catch((e) => {
         console.error("Failed to check template:", e);
         setTemplateStatus("not_clone");
         setCard("repo", "warning");
+        const rp = pendingRestore.current;
+        if (rp.pr !== null) {
+          rp.pr = null;
+        }
+        if (rp.env !== null) {
+          rp.env = null;
+        }
+        checkRestoreDone();
       });
   }, [selectedRepo, selectedAccount]);
 
@@ -380,17 +497,46 @@ export default function AppDashboard() {
       const prs = await fetchPullRequests(account, repoName);
       setPullRequests(prs);
       setCard("pr", prs.length > 0 ? "warning" : "idle");
+      const targetPr = pendingRestore.current.pr;
+      pendingRestore.current.pr = null;
+      if (targetPr) {
+        const match = prs.find((p) => p.number === Number(targetPr));
+        if (match) {
+          pendingRestore.current.env = null; // PR auto-selects env
+          setSelectedPR(match);
+          setCard("pr", "complete");
+        } else {
+          addRestoreWarning(`Pull request #${targetPr} not found`);
+          pendingRestore.current.env = null; // silently cancel env — PR error is enough
+        }
+      }
     } catch (e) {
       console.error(e);
+      pendingRestore.current.pr = null;
     } finally {
       setPrLoading(false);
+      checkRestoreDone();
     }
   }
 
   async function loadEnvs(account: Account, repoName: string) {
     setEnvLoading(true);
     fetchEnvs(account, repoName)
-      .then((list) => setEnvList(list))
+      .then((list) => {
+        setEnvList(list);
+        // Restore env from URL only if no PR is being restored (PR auto-matches env)
+        const targetEnv = pendingRestore.current.env;
+        pendingRestore.current.env = null;
+        if (targetEnv && !pendingRestore.current.pr) {
+          const match = list.find((e) => e.name.toLowerCase() === targetEnv.toLowerCase());
+          if (match) {
+            setSelectedEnv(match);
+          } else {
+            addRestoreWarning(`Environment "${targetEnv}" not found`);
+          }
+        }
+        checkRestoreDone();
+      })
       .catch(console.error)
       .finally(() => setEnvLoading(false));
   }
@@ -632,6 +778,31 @@ export default function AppDashboard() {
               <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
                 <Box sx={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e" }} />
                 <Typography sx={{ fontSize: "0.78rem", color: "#475569", fontFamily: "'IBM Plex Mono', monospace" }}>{user.login}</Typography>
+                {selectedRepo && !selectedRepo.isNew && (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={copied ? <CheckIcon sx={{ fontSize: 12 }} /> : <ContentCopyIcon sx={{ fontSize: 12 }} />}
+                    onClick={() => {
+                      navigator.clipboard.writeText(window.location.href).then(() => {
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      });
+                    }}
+                    sx={{
+                      borderColor: copied ? "#bbf7d0" : "#e2e8f0",
+                      color: copied ? "#16a34a" : "#94a3b8",
+                      fontSize: "0.72rem",
+                      textTransform: "none",
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      py: 0.5,
+                      transition: "color 0.15s, border-color 0.15s",
+                      "&:hover": { borderColor: "#cbd5e1", color: "#475569" },
+                    }}
+                  >
+                    {copied ? "Copied!" : "Copy link"}
+                  </Button>
+                )}
                 <Button
                   size="small"
                   variant="outlined"
@@ -968,6 +1139,60 @@ export default function AppDashboard() {
           )}
         </Box>
       </Box>
+
+      {/* ── URL restore toasts — positioned just below the sticky navbar ── */}
+      {(urlRestoreMsg.loading || urlRestoreMsg.warnings.length > 0) && (
+        <Box
+          sx={{
+            position: "fixed",
+            top: "75px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 1400,
+            minWidth: 300,
+            maxWidth: 480,
+            width: "max-content",
+          }}
+        >
+          {urlRestoreMsg.loading && (
+            <Alert
+              severity="info"
+              icon={<CircularProgress size={16} sx={{ color: "#2563eb" }} />}
+              sx={{
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: "0.78rem",
+                alignItems: "center",
+                boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+                borderRadius: "10px",
+              }}
+            >
+              Restoring session
+            </Alert>
+          )}
+          {!urlRestoreMsg.loading && urlRestoreMsg.warnings.length > 0 && (
+            <Alert
+              severity="warning"
+              onClose={() => setUrlRestoreMsg((prev) => ({ ...prev, warnings: [] }))}
+              sx={{
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: "0.78rem",
+                boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+                borderRadius: "10px",
+              }}
+            >
+              {urlRestoreMsg.warnings.length === 1 ? (
+                urlRestoreMsg.warnings[0]
+              ) : (
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+                  {urlRestoreMsg.warnings.map((w, i) => (
+                    <Box key={i}>{w}</Box>
+                  ))}
+                </Box>
+              )}
+            </Alert>
+          )}
+        </Box>
+      )}
     </>
   );
 }

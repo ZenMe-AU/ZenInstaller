@@ -2,6 +2,7 @@ import { app } from "@azure/functions";
 import { Octokit } from "octokit";
 import { getAccessToken } from "../utils/auth.js";
 import { corsWrapper } from "../utils/cors.js";
+import { MissingParam } from "../error/index.js";
 
 app.http("triggerActions", {
   methods: ["POST", "OPTIONS"],
@@ -10,7 +11,13 @@ app.http("triggerActions", {
     const accessToken = getAccessToken(request);
 
     const body = await request.json();
-    const { env, workflow_id, ref = "main", type, owner, repo } = body;
+    const { workflow_id, ref, type, owner, repo, github_env_name, runId, dir } = body;
+    if (!ref || !type || !owner || !repo || !workflow_id || !github_env_name) {
+      throw new MissingParam();
+    }
+    if (workflow_id === "deployChangeset.yml" && (!runId || !dir)) {
+      throw new MissingParam();
+    }
 
     const octokit = new Octokit({ auth: accessToken });
     const { data } = await octokit.request(`POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches`, {
@@ -18,7 +25,7 @@ app.http("triggerActions", {
       repo,
       workflow_id,
       ref,
-      inputs: { env },
+      inputs: { github_env_name, run_id: runId, dir },
       headers: {
         "X-GitHub-Api-Version": "2026-03-10",
       },

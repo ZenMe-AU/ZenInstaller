@@ -248,7 +248,7 @@ export async function triggerWorkflow(account: Account, repo: string, workflowId
       type: account.type,
       workflow_id: workflowId,
       ref,
-      inputs: { github_env_name: githubEnvName },
+      github_env_name: githubEnvName,
     }),
   });
   if (!res.ok) throw new Error(`Failed to trigger workflow: ${res.status}`);
@@ -264,7 +264,7 @@ export async function triggerWorkflowFromPR(account: Account, repo: string, work
       type: account.type,
       workflow_id: workflowId,
       ref: commitSha,
-      inputs: { github_env_name: githubEnvName },
+      github_env_name: githubEnvName,
     }),
   });
   if (!res.ok) throw new Error(`Failed to trigger workflow from PR: ${res.status}`);
@@ -280,7 +280,9 @@ export async function deployChangeset(account: Account, repo: string, runId: str
       type: account.type,
       workflow_id: "deployChangeset.yml",
       ref,
-      inputs: { run_id: runId, dir, github_env_name: githubEnvName },
+      github_env_name: githubEnvName,
+      run_id: runId,
+      dir,
     }),
   });
   if (!res.ok) throw new Error(`Failed to trigger deploy: ${res.status}`);

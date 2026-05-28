@@ -117,7 +117,7 @@ resource "azurerm_function_app_flex_consumption" "fa" {
     login {
       token_store_enabled            = true
       token_refresh_extension_time   = 12
-      allowed_external_redirect_urls = ["*"] # allow any redirect URL, since we will dynamically specify the redirect URL in the GitHub App based on the installation's host URL. We will validate the redirect URL in our code before accepting it.
+      allowed_external_redirect_urls = var.allowed_origins == "" ? ["*"] : split(",", var.allowed_origins) # allow any redirect URL, since we will dynamically specify the redirect URL in the GitHub App based on the installation's host URL. We will validate the redirect URL in our code before accepting it.
     }
   }
 

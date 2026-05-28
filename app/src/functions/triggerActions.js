@@ -5,7 +5,7 @@ import { corsWrapper } from "../utils/cors.js";
 import { MissingParam } from "../error/index.js";
 
 app.http("triggerActions", {
-  methods: ["POST", "OPTIONS"],
+  methods: ["POST"],
   authLevel: "anonymous",
   handler: corsWrapper(async (request, context) => {
     const accessToken = getAccessToken(request);

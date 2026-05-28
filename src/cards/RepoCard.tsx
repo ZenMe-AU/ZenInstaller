@@ -2,14 +2,12 @@ import { Box, Button, CircularProgress, Collapse, FormControlLabel, MenuItem, Se
 import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 import AddIcon from "@mui/icons-material/Add";
 import BusinessIcon from "@mui/icons-material/Business";
-import CallSplitIcon from "@mui/icons-material/CallSplit";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import PersonIcon from "@mui/icons-material/Person";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import type { Account, Branch, Repo, RepoOption } from "../types";
-import { VALID_ENV_NAMES } from "../types";
+import type { Account, Repo, RepoOption } from "../types";
 
 // ─── Template status badge ────────────────────────────────────────────────────
 
@@ -93,13 +91,6 @@ type Props = {
   cloning: boolean;
   cloneError: string | null;
   onClone: () => void;
-  branches: Branch[];
-  branchesLoading: boolean;
-  sourceBranch: string;
-  onSourceBranchChange: (v: string) => void;
-  creatingBranch: boolean;
-  createBranchError: string | null;
-  onCreateBranch: (target: string) => void;
   createEnvs: boolean;
   onCreateEnvsChange: (v: boolean) => void;
   cloneEnvWarning: string | null;
@@ -124,22 +115,12 @@ export default function RepoCard({
   cloning,
   cloneError,
   onClone,
-  branches,
-  branchesLoading,
-  sourceBranch,
-  onSourceBranchChange,
-  creatingBranch,
-  createBranchError,
-  onCreateBranch,
   createEnvs,
   onCreateEnvsChange,
   cloneEnvWarning,
 }: Props) {
   const isNewRepo = selectedRepo?.isNew ?? false;
-  const isCloneRepo = templateStatus === "ready";
   const repoOptions: RepoOption[] = repos.map((r) => ({ id: r.id, name: r.name }));
-
-  const missingEnvBranches = VALID_ENV_NAMES.filter((v) => !branches.some((b) => b.name.toLowerCase() === v.toLowerCase()));
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
@@ -376,86 +357,6 @@ export default function RepoCard({
         </Box>
       </Collapse>
 
-      {/* ── Create Branch — shown only for confirmed clone repos with missing env branches ── */}
-      <Collapse
-        in={!isNewRepo && isCloneRepo && !branchesLoading && missingEnvBranches.length > 0}
-        sx={{ display: !isNewRepo && isCloneRepo && !branchesLoading && missingEnvBranches.length > 0 ? "block" : "none" }}
-      >
-        <Box sx={{ p: 2.5, border: "1px solid #bfdbfe", borderRadius: "10px", background: "#eff6ff" }}>
-          <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace", mb: 2 }}>Create Branch</Typography>
-
-          {/* Single row: source selector + create buttons */}
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
-            {/* Source branch — hidden if only one branch exists */}
-            {branches.length > 1 && (
-              <>
-                <Typography sx={{ fontSize: "0.72rem", color: "#64748b", fontFamily: "'IBM Plex Mono', monospace", flexShrink: 0 }}>from:</Typography>
-                <Select
-                  size="small"
-                  value={sourceBranch}
-                  onChange={(e) => onSourceBranchChange(e.target.value)}
-                  sx={{ mr: 3, minWidth: 140, ...selectSx }}
-                >
-                  {branches.map((b) => (
-                    <MenuItem key={b.name} value={b.name} sx={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" }}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <CallSplitIcon sx={{ fontSize: 13, color: "#94a3b8" }} />
-                        {b.name}
-                        {b.protected && (
-                          <Box component="span" sx={{ fontSize: "0.62rem", color: "#f97316", ml: 0.5 }}>
-                            protected
-                          </Box>
-                        )}
-                      </Box>
-                    </MenuItem>
-                  ))}
-                </Select>
-              </>
-            )}
-            {/* Create buttons — one per missing env */}
-            {missingEnvBranches.map((envName) => (
-              <Button
-                key={envName}
-                onClick={() => onCreateBranch(envName)}
-                disabled={creatingBranch || !sourceBranch}
-                variant="contained"
-                size="small"
-                startIcon={creatingBranch ? <CircularProgress size={12} sx={{ color: "#93c5fd" }} /> : <AddIcon />}
-                sx={{
-                  background: "#2563eb",
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  fontSize: "0.8rem",
-                  textTransform: "none",
-                  py: 0.75,
-                  px: 2,
-                  "&:hover": { background: "#1d4ed8" },
-                  "&.Mui-disabled": { background: "#bfdbfe", color: "#93c5fd" },
-                }}
-              >
-                {envName}
-              </Button>
-            ))}
-          </Box>
-
-          {createBranchError && (
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 1,
-                mt: 1.5,
-                p: 1.25,
-                borderRadius: "6px",
-                background: "#fef2f2",
-                border: "1px solid #fecaca",
-              }}
-            >
-              <ErrorOutlineIcon sx={{ fontSize: 15, color: "#ef4444" }} />
-              <Typography sx={{ fontSize: "0.75rem", color: "#ef4444" }}>{createBranchError}</Typography>
-            </Box>
-          )}
-        </Box>
-      </Collapse>
     </Box>
   );
 }

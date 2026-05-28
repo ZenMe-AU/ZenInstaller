@@ -912,13 +912,6 @@ export default function AppDashboard() {
                   cloning={cloning}
                   cloneError={cloneError}
                   onClone={handleClone}
-                  branches={branches}
-                  branchesLoading={branchesLoading}
-                  sourceBranch={sourceBranch}
-                  onSourceBranchChange={setSourceBranch}
-                  creatingBranch={creatingBranch}
-                  createBranchError={createBranchError}
-                  onCreateBranch={handleCreateBranch}
                   createEnvs={createEnvs}
                   onCreateEnvsChange={setCreateEnvs}
                   cloneEnvWarning={cloneEnvWarning}
@@ -1031,6 +1024,12 @@ export default function AppDashboard() {
                   onVariableRecheck={handleVariableRecheck}
                   variablesRechecking={variablesRechecking}
                   onVariableConfirmed={handleVariableConfirmed}
+                  branches={branches}
+                  sourceBranch={sourceBranch}
+                  onSourceBranchChange={setSourceBranch}
+                  creatingBranch={creatingBranch}
+                  createBranchError={createBranchError}
+                  onCreateBranch={handleCreateBranch}
                 />
               </PipelineCard>
 

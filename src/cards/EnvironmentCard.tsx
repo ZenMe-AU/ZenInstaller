@@ -4,8 +4,9 @@ import LockIcon from "@mui/icons-material/Lock";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import type { Account, GhEnv, SecretsStatus } from "../types";
+import type { Account, Branch, GhEnv, SecretsStatus } from "../types";
 import { VALID_ENV_NAMES, isValidEnvName } from "../types";
+import BranchSection from "./BranchSection";
 import SecretsSection from "./SecretsSection";
 import VariablesSection from "./VariablesSection";
 
@@ -45,6 +46,13 @@ type Props = {
   onVariableRecheck: () => void;
   variablesRechecking: boolean;
   onVariableConfirmed: (key: string, value: string) => void;
+  // Branch creation (shown when no branch matches the selected env)
+  branches: Branch[];
+  sourceBranch: string;
+  onSourceBranchChange: (v: string) => void;
+  creatingBranch: boolean;
+  createBranchError: string | null;
+  onCreateBranch: (target: string) => void;
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -70,9 +78,17 @@ export default function EnvironmentCard({
   onVariableRecheck,
   variablesRechecking,
   onVariableConfirmed,
+  branches,
+  sourceBranch,
+  onSourceBranchChange,
+  creatingBranch,
+  createBranchError,
+  onCreateBranch,
 }: Props) {
   const validEnvs = envList.filter((e) => isValidEnvName(e.name));
   const secretsReady = !!selectedEnv && !branchMatchError;
+  // Show BranchSection only when the error is "no branch found" (not PR mismatch / multiple)
+  const showBranchCreate = !!selectedEnv && !!branchMatchError && branchMatchError.startsWith("No branch found");
   const githubSecretsUrl = repoFullName && selectedEnv ? `https://github.com/${repoFullName}/settings/environments/${selectedEnv.id}/edit` : null;
   const secretsVisible = false;
 
@@ -111,10 +127,23 @@ export default function EnvironmentCard({
 
       {/* Branch match error */}
       {branchMatchError && (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1.5 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: showBranchCreate ? 0 : 1.5 }}>
           <ErrorOutlineIcon sx={{ fontSize: 14, color: "#ef4444", flexShrink: 0 }} />
           <Typography sx={{ fontSize: "0.75rem", color: "#ef4444" }}>{branchMatchError}</Typography>
         </Box>
+      )}
+
+      {/* Create branch — only when the selected env has no matching branch */}
+      {showBranchCreate && (
+        <BranchSection
+          targetBranch={selectedEnv!.name}
+          branches={branches}
+          sourceBranch={sourceBranch}
+          onSourceBranchChange={onSourceBranchChange}
+          creatingBranch={creatingBranch}
+          createBranchError={createBranchError}
+          onCreateBranch={onCreateBranch}
+        />
       )}
 
       {/* Env chips */}
@@ -128,7 +157,7 @@ export default function EnvironmentCard({
           <Typography sx={{ fontSize: "0.78rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>No environment found.</Typography>
         </Box>
       ) : (
-        <Box sx={{ display: !selectedEnv && lockedByPR ? "none" : "flex", gap: 1.5 }}>
+        <Box sx={{ display: !selectedEnv && lockedByPR ? "none" : "flex", gap: 1.5, mt: showBranchCreate ? 2.5 : 0 }}>
           {validEnvs.map((env) => {
             const isSelected = selectedEnv?.id === env.id;
             return (

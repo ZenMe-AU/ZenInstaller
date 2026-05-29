@@ -147,8 +147,6 @@ export default function PlanView({ path, account, repo }: { stage?: string; path
                   width: 20,
                   height: 20,
                   borderRadius: "4px",
-                  background: cfg.bg,
-                  border: `1px solid ${cfg.color}33`,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",

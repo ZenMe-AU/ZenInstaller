@@ -162,6 +162,9 @@ export default function AppDashboard() {
   const [countdown, setCountdown] = useState(0);
   const [lastRunTime, setLastRunTime] = useState<number | null>(null);
   const [lastRunId, setLastRunId] = useState<number | null>(null);
+  // Tracks when the user last pressed "Run" — drives "just updated" label and stale detection
+  const [lastTriggeredAt, setLastTriggeredAt] = useState<number | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   // ── Secrets ───────────────────────────────────────────────────────────────
   const [presentSecretKeys, setPresentSecretKeys] = useState<string[]>([]);
@@ -435,6 +438,21 @@ export default function AppDashboard() {
     }
   }, [selectedEnv, branches, envLockedByPR]);
 
+  // Reset workflow state when env changes
+  useEffect(() => {
+    setRunning(false);
+    setRunError(null);
+    setCountdown(0);
+    setLastRunTime(null);
+    setLastRunId(null);
+    setLastTriggeredAt(null);
+    setRetryCount(0);
+    setStages([]);
+    setStatusFileFound(true);
+    setCard("status_update", "idle");
+    setCard("stages", "idle");
+  }, [selectedEnv?.id]);
+
   // Load secrets, variables, and stages when env is confirmed
   useEffect(() => {
     if (!selectedAccount || !selectedRepo || !selectedEnv || branchMatchError) return;
@@ -456,20 +474,69 @@ export default function AppDashboard() {
 
   // ── Loaders ───────────────────────────────────────────────────────────────
 
-  function loadStages(ref: string) {
+  // Delays (seconds) for each successive poll attempt after a trigger.
+  const POLL_DELAYS = [150, 180, 200, 300];
+
+  // Start a countdown interval then call loadStages with poll-check params.
+  // Uses a local `remaining` counter instead of state updater to avoid React
+  // Concurrent Mode running the updater multiple times and duplicating the fetch.
+  function startPollingInterval(ref: string, attempt: number, triggerTime: number, prevRunId: string | null) {
+    const delay = POLL_DELAYS[attempt] ?? POLL_DELAYS[POLL_DELAYS.length - 1];
+    setRunning(true);
+    setCountdown(delay);
+    let remaining = delay;
+    const interval = setInterval(() => {
+      remaining -= 1;
+      setCountdown(remaining);
+      if (remaining <= 0) {
+        clearInterval(interval);
+        loadStages(ref, { attempt, triggerTime, prevRunId });
+      }
+    }, 1000);
+  }
+
+  function loadStages(ref: string, poll?: { attempt: number; triggerTime: number; prevRunId: string | null }) {
     if (!selectedAccount || !selectedRepo) return;
     setCard("stages", "loading");
 
     fetchStatus(selectedAccount, selectedRepo.name, ref)
       .then((data) => {
+        setRunning(false);
+
         if (!data) {
-          // File not found — pipeline hasn't run before
           setStages(pipeline.stages.map(({ key }) => ({ stage: key, status: "pending" as const })));
           setStatusFileFound(false);
           setCard("stages", "idle");
           return;
         }
+
         const statusData = data as Record<string, unknown>;
+        const fileUpdatedAt = typeof statusData.updatedAt === "number" ? statusData.updatedAt : null;
+        const fetchedRunId = (statusData.runId as string | undefined) ?? (statusData.stages as Stage[] | undefined)?.[0]?.runId ?? null;
+
+        // ── Staleness check (only during a poll) ──────────────────────────
+        if (poll) {
+          const timeStale = fileUpdatedAt === null || poll.triggerTime > fileUpdatedAt;
+          const runIdStale = poll.prevRunId !== null && fetchedRunId !== null && fetchedRunId === poll.prevRunId;
+
+          if (timeStale || runIdStale) {
+            const next = poll.attempt + 1;
+            setRetryCount(next);
+            if (next >= POLL_DELAYS.length) {
+              setRunError("Workflow is taking too long. Please check GitHub Actions.");
+            } else {
+              startPollingInterval(ref, next, poll.triggerTime, poll.prevRunId);
+            }
+            // Fall through to still render whatever data we have
+          } else {
+            // Fresh — clear triggered state
+            setLastTriggeredAt(null);
+            setRetryCount(0);
+          }
+        }
+
+        if (fileUpdatedAt) setLastRunTime(fileUpdatedAt);
+
         const fetched = (statusData.stages as Stage[]) || [];
         const merged = pipeline.stages.map(({ key }) => {
           const found = fetched.find((s: Stage) => s.stage === key);
@@ -486,6 +553,7 @@ export default function AppDashboard() {
       })
       .catch((e) => {
         console.error("Failed to fetch status:", e);
+        setRunning(false);
         setStages(pipeline.stages.map(({ key }) => ({ stage: key, status: "pending" as const })));
         setStatusFileFound(false);
         setCard("stages", "idle");
@@ -639,10 +707,12 @@ export default function AppDashboard() {
   async function handleRunStatusUpdate() {
     if (!selectedAccount || !selectedRepo || !isCloneRepo || !envReady || !triggerRef) return;
     setRunError(null);
-    setRunning(true);
-    setCountdown(180);
-    setLastRunTime(Date.now());
     setCard("status_update", "loading");
+
+    const triggerTime = Date.now();
+    const prevRunId = stages[0]?.runId ?? null;
+    setLastTriggeredAt(triggerTime);
+    setRetryCount(0);
 
     const githubEnvName = selectedEnv!.name;
 
@@ -659,25 +729,18 @@ export default function AppDashboard() {
       }
     } catch (e: unknown) {
       console.error("Failed to trigger workflow:", e);
-      setRunning(false);
       setCard("status_update", "error");
       setRunError("Failed to trigger workflow");
+      setLastTriggeredAt(null);
       return;
     }
 
     const matchedBranch = branches.find((b) => b.name.toLowerCase() === selectedEnv.name.toLowerCase());
-    if (!matchedBranch) console.error(`No branch found matching env "${selectedEnv.name}"`);
-    const interval = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          if (matchedBranch) loadStages(matchedBranch.name);
-          setRunning(false);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    if (!matchedBranch) {
+      console.error(`No branch found matching env "${selectedEnv.name}"`);
+      return;
+    }
+    startPollingInterval(matchedBranch.name, 0, triggerTime, prevRunId);
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -1048,10 +1111,13 @@ export default function AppDashboard() {
                   running={running}
                   countdown={countdown}
                   lastRunTime={lastRunTime}
+                  lastTriggeredAt={lastTriggeredAt}
+                  retryCount={retryCount}
                   onRun={handleRunStatusUpdate}
                   runError={runError}
                   lastRunId={lastRunId}
                   repoFullName={repoFullName}
+                  workflowId={pipeline.workflowId}
                 />
               </PipelineCard>
 
@@ -1074,10 +1140,31 @@ export default function AppDashboard() {
                 </Box>
               )}
 
+              {/* Stale status notice — shown when a poll returned old data and we're retrying */}
+              {isCloneRepo && (running || retryCount > 0) && (
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2, my: 1.5 }}>
+                  <Box sx={{ flex: 1, height: "1px", background: "linear-gradient(to right, #fef9c3, #fbbf24)" }} />
+                  <Typography
+                    sx={{
+                      fontSize: "0.65rem",
+                      letterSpacing: "0.15em",
+                      color: "#d97706",
+                      textTransform: "uppercase",
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Status outdated — waiting for workflow
+                  </Typography>
+                  <Box sx={{ flex: 1, height: "1px", background: "linear-gradient(to left, #fef9c3, #fbbf24)" }} />
+                </Box>
+              )}
+
               {/* Steps 5~N — Stages */}
               {pipeline.stages.map((stageDef, index) => {
                 const stage = stages.find((s) => s.stage === stageDef.key) ?? { stage: stageDef.key, status: "pending" as const };
                 const cfg = STAGE_STATUS_CONFIG[stage.status];
+                const stagesStale = running || retryCount > 0;
 
                 return (
                   <PipelineCard
@@ -1086,15 +1173,17 @@ export default function AppDashboard() {
                     title={stageDef.label}
                     subtitle={cfg.label}
                     status={
-                      cardStatus.stages === "loading"
-                        ? "loading"
-                        : stage.status === "deployed"
-                          ? "complete"
-                          : stage.status === "success"
-                            ? "warning"
-                            : stage.status === "failed"
-                              ? "error"
-                              : "idle"
+                      stagesStale
+                        ? "idle"
+                        : cardStatus.stages === "loading"
+                          ? "loading"
+                          : stage.status === "deployed"
+                            ? "complete"
+                            : stage.status === "success"
+                              ? "warning"
+                              : stage.status === "failed"
+                                ? "error"
+                                : "idle"
                     }
                     expanded={!!stagesExpanded[stageDef.key]}
                     onToggle={() => setStagesExpanded((prev) => ({ ...prev, [stageDef.key]: !prev[stageDef.key] }))}
@@ -1103,6 +1192,7 @@ export default function AppDashboard() {
                     action={
                       stage.status === "success" && stage.runId ? (
                         <Button
+                          disabled={stagesStale}
                           variant="contained"
                           size="small"
                           onClick={(e) => {

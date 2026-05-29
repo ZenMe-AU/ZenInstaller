@@ -8,16 +8,31 @@ type Props = {
   running: boolean;
   countdown: number;
   lastRunTime: number | null;
+  lastTriggeredAt: number | null;
+  retryCount: number;
   onRun: () => void;
   runError: string | null;
   // Workflow run link
   lastRunId: number | null;
   repoFullName: string | null;
+  workflowId: string;
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function StatusCard({ running, countdown, lastRunTime, onRun, runError, lastRunId, repoFullName }: Props) {
+export default function StatusCard({
+  running,
+  countdown,
+  lastRunTime,
+  lastTriggeredAt,
+  retryCount,
+  onRun,
+  runError,
+  lastRunId,
+  repoFullName,
+  workflowId,
+}: Props) {
+  const isStale = lastTriggeredAt !== null && (lastRunTime === null || lastTriggeredAt > lastRunTime);
   const runUrl = lastRunId && repoFullName ? `https://github.com/${repoFullName}/actions/runs/${lastRunId}` : null;
 
   return (
@@ -31,7 +46,7 @@ export default function StatusCard({ running, countdown, lastRunTime, onRun, run
       <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
         <Button
           onClick={onRun}
-          disabled={running}
+          disabled={running || retryCount > 0}
           variant="contained"
           startIcon={running ? undefined : <PlayArrowIcon />}
           sx={{
@@ -57,7 +72,10 @@ export default function StatusCard({ running, countdown, lastRunTime, onRun, run
           )}
         </Button>
 
-        {lastRunTime && !running && (
+        {isStale && (retryCount > 0 || running) && (
+          <Typography sx={{ fontSize: "0.72rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>just updated</Typography>
+        )}
+        {!isStale && lastRunTime && (
           <Typography sx={{ fontSize: "0.72rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>
             last run {new Date(lastRunTime).toLocaleTimeString()}
           </Typography>
@@ -88,6 +106,7 @@ export default function StatusCard({ running, countdown, lastRunTime, onRun, run
           sx={{
             display: "flex",
             alignItems: "center",
+            justifyContent: "space-between",
             gap: 1,
             mt: 2,
             p: 1.5,
@@ -97,6 +116,20 @@ export default function StatusCard({ running, countdown, lastRunTime, onRun, run
           }}
         >
           <Typography sx={{ fontSize: "0.78rem", color: "#ef4444" }}>{runError}</Typography>
+
+          <Button
+            size="small"
+            endIcon={<OpenInNewIcon sx={{ fontSize: 13 }} />}
+            onClick={() => window.open(`https://github.com/${repoFullName}/actions/workflows/${workflowId}`, "_blank")}
+            sx={{
+              flexShrink: 0,
+              color: "#ef4444",
+              fontSize: "0.72rem",
+              textTransform: "none",
+              fontFamily: "'IBM Plex Mono', monospace",
+              "&:hover": { color: "#b91c1c" },
+            }}
+          />
         </Box>
       )}
     </Box>

@@ -1,4 +1,4 @@
-name: Deploy React to GitHub Pages
+name: Deploy to GitHub Pages
 
 on:
     # push:
@@ -21,18 +21,34 @@ jobs:
             - name: Checkout
               uses: actions/checkout@v4
 
+            - name: Setup pnpm
+              uses: pnpm/action-setup@v4
+              with:
+                  version: 10
+
             - name: Setup Node
               uses: actions/setup-node@v4
               with:
                   node-version: 22
+                  cache: pnpm
 
             - name: Install dependencies
-              run: npm install
+              run: pnpm install
 
-            - name: Build project
-              run: npm run build
+            - name: Build React app
+              run: pnpm run build
               env:
                   VITE_API_URL: ${{ vars.VITE_API_URL }}
+
+            - name: Build VitePress docs
+              run: pnpm run docs:build
+
+            - name: Merge docs into dist
+              run: cp -r docs/.vitepress/dist dist/docs
+
+            - name: Write CNAME
+              if: vars.CNAME != ''
+              run: echo "${{ vars.CNAME }}" > dist/CNAME
 
             - name: Upload build files
               uses: actions/upload-pages-artifact@v3

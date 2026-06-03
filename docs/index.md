@@ -1,12 +1,5 @@
----
-layout: home
+# ZenInstaller Documentation
 
-hero:
-  name: ZenInstaller
-  text: Documentation
-  tagline: Guides and references for setting up your environment
-  actions:
-    - theme: brand
-      text: Get Started
-      link: /Creating_org_Microsoft_account
----
+Guides and references for setting up your environment
+
+<a href="/">Go Back to ZenInstaller</a>

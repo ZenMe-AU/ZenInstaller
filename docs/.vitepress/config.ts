@@ -4,15 +4,9 @@ export default defineConfig({
   title: "ZenInstaller Docs",
   description: "ZenInstaller documentation and guides",
   base: "/docs/",
-
   themeConfig: {
-    nav: [
-      { text: "App", link: "/../" },
-      { text: "Docs", link: "/" },
-    ],
     sidebar: [
       {
-        text: "Guides",
         items: [
           {
             text: "Creating org Microsoft account",

@@ -7,7 +7,9 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import {
   checkTemplate,
   createBranch,
+  deployChangeset,
   fetchBranches,
+  getPlanEnv,
   fetchEnvs,
   fetchOrgList,
   fetchPullRequests,
@@ -17,7 +19,6 @@ import {
   fetchStatus,
   fetchVariables,
   generateRepo,
-  deployChangeset,
   triggerWorkflow,
   triggerWorkflowFromPR,
   verifyAuth,
@@ -32,15 +33,21 @@ import {
   type CardId,
   type CardStatus,
   type GhEnv,
+  type PlanSummary,
+  type PrerequisiteStageVar,
+  type PrerequisiteVar,
+  type PrerequisiteVarGroup,
   type PullRequest,
   type Repo,
   type RepoOption,
   type SecretsStatus,
   type Stage,
+  type StageStatus,
   type User,
   matchEnv,
   matchBranch,
 } from "./types";
+import { SummaryChip } from "./component/PlanView";
 
 import PipelineCard from "./cards/PipelineCard";
 import RepoCard from "./cards/RepoCard";
@@ -154,6 +161,7 @@ export default function AppDashboard() {
   // ── Stages ────────────────────────────────────────────────────────────────
   const [stages, setStages] = useState<Stage[]>([]);
   const [stagesExpanded, setStagesExpanded] = useState<Record<string, boolean>>({});
+  const [stageSummaries, setStageSummaries] = useState<Record<string, PlanSummary>>({});
   const [statusFileFound, setStatusFileFound] = useState(true);
 
   // ── Workflow ──────────────────────────────────────────────────────────────
@@ -175,6 +183,7 @@ export default function AppDashboard() {
   // ── Variables ─────────────────────────────────────────────────────────────
   const [presentVariableValues, setPresentVariableValues] = useState<Record<string, string>>({});
   const [variablesRechecking, setVariablesRechecking] = useState(false);
+  const [deployedEnv, setDeployedEnv] = useState<Record<string, string> | null>(null);
 
   // ── Card status ───────────────────────────────────────────────────────────
   const [cardStatus, setCardStatus] = useState<Record<CardId, CardStatus>>(DEFAULT_CARD_STATUS);
@@ -451,6 +460,7 @@ export default function AppDashboard() {
     setStatusFileFound(true);
     setCard("status_update", "idle");
     setCard("stages", "idle");
+    setDeployedEnv(null);
   }, [selectedEnv?.id]);
 
   // Load secrets, variables, and stages when env is confirmed
@@ -513,6 +523,7 @@ export default function AppDashboard() {
         const statusData = data as Record<string, unknown>;
         const fileUpdatedAt = typeof statusData.updatedAt === "number" ? statusData.updatedAt : null;
         const fetchedRunId = (statusData.runId as string | undefined) ?? (statusData.stages as Stage[] | undefined)?.[0]?.runId ?? null;
+        const envId = typeof statusData.envId === "number" ? statusData.envId : null;
 
         // ── Staleness check (only during a poll) ──────────────────────────
         if (poll) {
@@ -533,6 +544,13 @@ export default function AppDashboard() {
             setLastTriggeredAt(null);
             setRetryCount(0);
           }
+        }
+
+        // Refresh deployed env snapshot whenever we have a valid envId
+        if (envId && selectedAccount && selectedRepo) {
+          getPlanEnv(selectedAccount, selectedRepo.name, envId)
+            .then(setDeployedEnv)
+            .catch(console.error);
         }
 
         if (fileUpdatedAt) setLastRunTime(fileUpdatedAt);
@@ -1163,62 +1181,107 @@ export default function AppDashboard() {
               {/* Steps 5~N — Stages */}
               {pipeline.stages.map((stageDef, index) => {
                 const stage = stages.find((s) => s.stage === stageDef.key) ?? { stage: stageDef.key, status: "pending" as const };
-                const cfg = STAGE_STATUS_CONFIG[stage.status];
+                const summary = stageSummaries[stageDef.key];
+                const noChanges = summary != null && summary.create === 0 && summary.update === 0 && summary.delete === 0 && summary.replace === 0;
+                const effectiveStatus: StageStatus = stage.deployStatus === "success" || noChanges ? "deployed" : stage.status;
+                const cfg = STAGE_STATUS_CONFIG[effectiveStatus];
                 const stagesStale = running || retryCount > 0;
+                const varsMismatch =
+                  deployedEnv !== null &&
+                  stageDef.prerequisites.some((p) => {
+                    if (p.type === "var")
+                      return (presentVariableValues[(p as PrerequisiteVar).key] ?? "") !== (deployedEnv[(p as PrerequisiteVar).key] ?? "");
+                    if (p.type === "varGroup" || p.type === "stageVar")
+                      return (p as PrerequisiteVarGroup | PrerequisiteStageVar).keys.some(
+                        (k) => (presentVariableValues[k] ?? "") !== (deployedEnv[k] ?? ""),
+                      );
+                    return false;
+                  });
+                const deployDisabled = stagesStale || varsMismatch;
+                const isExpanded = !!stagesExpanded[stageDef.key];
+
+                const onDeploy =
+                  effectiveStatus === "success" && stage.runId
+                    ? async () => {
+                        if (!selectedAccount || !selectedRepo || !selectedEnv) return;
+                        try {
+                          await deployChangeset(
+                            selectedAccount,
+                            selectedRepo.name,
+                            stage.runId!,
+                            stageDef.label,
+                            selectedEnv.name,
+                            selectedEnv.name,
+                          );
+                        } catch (e) {
+                          console.error("Failed to trigger deploy:", e);
+                          return;
+                        }
+                        const triggerTime = Date.now();
+                        const prevRunId = stages[0]?.runId ?? null;
+                        setLastTriggeredAt(triggerTime);
+                        setRetryCount(0);
+                        const ref = selectedPR
+                          ? selectedPR.head_sha
+                          : branches.find((b) => b.name.toLowerCase() === selectedEnv.name.toLowerCase())?.name ?? selectedEnv.name;
+                        startPollingInterval(ref, 0, triggerTime, prevRunId);
+                      }
+                    : undefined;
 
                 return (
                   <PipelineCard
                     key={stageDef.key}
                     step={5 + index}
                     title={stageDef.label}
-                    subtitle={cfg.label}
+                    subtitle={noChanges ? "No changes" : cfg.label}
                     status={
                       stagesStale
                         ? "idle"
                         : cardStatus.stages === "loading"
                           ? "loading"
-                          : stage.status === "deployed"
+                          : effectiveStatus === "deployed"
                             ? "complete"
-                            : stage.status === "success"
+                            : effectiveStatus === "success"
                               ? "warning"
-                              : stage.status === "failed"
+                              : effectiveStatus === "failed"
                                 ? "error"
                                 : "idle"
                     }
-                    expanded={!!stagesExpanded[stageDef.key]}
+                    expanded={isExpanded}
                     onToggle={() => setStagesExpanded((prev) => ({ ...prev, [stageDef.key]: !prev[stageDef.key] }))}
                     disabled={!isCloneRepo}
                     hasNext={index < pipeline.stages.length - 1}
                     action={
-                      stage.status === "success" && stage.runId ? (
-                        <Button
-                          disabled={stagesStale}
-                          variant="contained"
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (!selectedAccount || !selectedRepo || !selectedEnv) return;
-                            deployChangeset(
-                              selectedAccount,
-                              selectedRepo.name,
-                              stage.runId!,
-                              stageDef.label,
-                              selectedEnv.name,
-                              selectedEnv.name,
-                            ).catch(console.error);
-                          }}
-                          sx={{
-                            background: "#f97316",
-                            fontFamily: "'IBM Plex Mono', monospace",
-                            fontSize: "0.72rem",
-                            textTransform: "none",
-                            py: 0.4,
-                            px: 1.5,
-                            "&:hover": { background: "#ea6c0a" },
-                          }}
+                      !isExpanded && summary && effectiveStatus !== "deployed" ? (
+                        <Box
+                          sx={{ display: "flex", gap: 0.75, alignItems: "center" }}
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          Deploy
-                        </Button>
+                          <SummaryChip type="create" count={summary.create} />
+                          <SummaryChip type="update" count={summary.update} />
+                          <SummaryChip type="delete" count={summary.delete} />
+                          {summary.replace > 0 && <SummaryChip type="replace" count={summary.replace} />}
+                          {onDeploy && (
+                            <Button
+                              disabled={deployDisabled}
+                              variant="contained"
+                              size="small"
+                              onClick={(e) => { e.stopPropagation(); onDeploy(); }}
+                              sx={{
+                                background: "#f97316",
+                                fontFamily: "'IBM Plex Mono', monospace",
+                                fontSize: "0.72rem",
+                                textTransform: "none",
+                                py: 0.4,
+                                px: 1.5,
+                                "&:hover": { background: "#ea6c0a" },
+                                "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
+                              }}
+                            >
+                              Deploy
+                            </Button>
+                          )}
+                        </Box>
                       ) : undefined
                     }
                   >
@@ -1229,6 +1292,12 @@ export default function AppDashboard() {
                       variableValues={presentVariableValues}
                       account={selectedAccount}
                       repoName={selectedRepo?.name || ""}
+                      selectedEnv={selectedEnv}
+                      onVariableConfirmed={handleVariableConfirmed}
+                      onDeploy={onDeploy}
+                      stagesStale={deployDisabled}
+                      deployedEnv={deployedEnv}
+                      onPlanSummary={(s) => setStageSummaries((prev) => ({ ...prev, [stageDef.key]: s }))}
                     />
                   </PipelineCard>
                 );

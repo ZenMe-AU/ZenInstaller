@@ -237,6 +237,18 @@ export async function fetchEnv(account: Account, repo: string): Promise<Record<s
   return parse(data.content);
 }
 
+export async function getPlanEnv(account: Account, repo: string, envId: number): Promise<Record<string, string> | null> {
+  const params = new URLSearchParams({ artifacts_id: String(envId), owner: account.login, type: account.type, repo });
+  const res = await fetchWithAuth(`${url}/downloadArtifacts?${params}`);
+  if (!res.ok) return null;
+  const data = await res.json();
+  const zip = await JSZip.loadAsync(data.content as string, { base64: true });
+  const envFile = zip.file("corp.env");
+  if (!envFile) return null;
+  const content = await envFile.async("string");
+  return parse(content);
+}
+
 // ─── Workflow ─────────────────────────────────────────────────────────────────
 
 export async function triggerWorkflow(account: Account, repo: string, workflowId: string, githubEnvName: string, ref: string) {
@@ -287,6 +299,19 @@ export async function deployChangeset(account: Account, repo: string, runId: str
   });
   if (!res.ok) throw new Error(`Failed to trigger deploy: ${res.status}`);
   return res.json();
+}
+
+// ─── Deploy error (from artifact log) ────────────────────────────────────────
+
+export async function fetchDeployLog(account: Account, repo: string, logId: number): Promise<string | null> {
+  const params = new URLSearchParams({ artifacts_id: String(logId), owner: account.login, type: account.type, repo });
+  const res = await fetchWithAuth(`${url}/downloadArtifacts?${params}`);
+  if (!res.ok) return null;
+  const data = await res.json();
+  const zip = await JSZip.loadAsync(data.content as string, { base64: true });
+  const logFile = Object.values(zip.files).find((f) => !f.dir);
+  if (!logFile) return null;
+  return logFile.async("string");
 }
 
 // ─── Plan (artifact) ──────────────────────────────────────────────────────────

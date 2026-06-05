@@ -114,7 +114,15 @@ export type WorkflowRun = {
 export type PrerequisiteCard = { type: "card"; cardId: CardId };
 export type PrerequisiteVar = { type: "var"; key: string };
 export type PrerequisiteVarGroup = { type: "varGroup"; keys: readonly string[]; label: string };
-export type Prerequisite = PrerequisiteCard | PrerequisiteVar | PrerequisiteVarGroup;
+/** Stage-local editable variables — checked like varGroup but also rendered as inline edit fields inside the stage card */
+export type PrerequisiteStageVar = {
+  type: "stageVar";
+  keys: readonly string[];
+  label: string;
+  /** Optional per-key hint shown below the input field */
+  descriptions?: Partial<Record<string, string>>;
+};
+export type Prerequisite = PrerequisiteCard | PrerequisiteVar | PrerequisiteVarGroup | PrerequisiteStageVar;
 
 export type StageDefinition = {
   key: string;
@@ -140,6 +148,11 @@ export type Stage = {
   planJsonId?: string;
   planJsonUrl?: string;
   runId?: string;
+  deployStatus?: string;
+  deployRunId?: string;
+  deployedAt?: number;
+  deployLogId?: number;
+  deployLogUrl?: string;
 };
 
 export const STAGE_STATUS_CONFIG: Record<StageStatus, { color: string; label: string }> = {
@@ -167,6 +180,7 @@ export const AWS_SECRET_KEYS = ["AWS_CLIENT_SECRET"];
 export const AZURE_VARIABLE_KEYS = ["AZURE_CLIENT_ID", "AZURE_SUBSCRIPTION_ID", "AZURE_TENANT_ID"] as const;
 export const AWS_VARIABLE_KEYS = ["AWS_ACCOUNT_ID", "AWS_ROLE_NAME"] as const;
 export const GITHUB_VARIABLE_KEYS = ["NAME", "DNS"] as const;
+export const C01_KEYS = ["CONTACT_EMAILS"] as const;
 
 // ─── Pending secrets / upsert ─────────────────────────────────────────────────
 
@@ -174,6 +188,8 @@ export type PendingSecret = { key: string; value: string };
 export type UpsertStatus = { key: string; status: "success" | "error"; error?: string };
 
 // ─── Plan view ────────────────────────────────────────────────────────────────
+
+export type PlanSummary = { create: number; update: number; delete: number; replace: number };
 
 export type PlanItem = {
   address: string;

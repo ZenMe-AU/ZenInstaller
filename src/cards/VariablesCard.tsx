@@ -9,12 +9,12 @@ import {
 import ClearIcon from "@mui/icons-material/Clear";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
-import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked";
-import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import UndoIcon from "@mui/icons-material/Undo";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { UpsertStatus } from "../types";
 
-// ─── Input style (compact, matches secret row height) ─────────────────────────
+// ─── Input style ──────────────────────────────────────────────────────────────
 
 const inputSx = {
   "& .MuiInputBase-root": {
@@ -24,10 +24,7 @@ const inputSx = {
     fontSize: "0.78rem",
     borderRadius: "6px",
   },
-  "& .MuiInputBase-input": {
-    py: "5px",
-    px: "10px",
-  },
+  "& .MuiInputBase-input": { py: "5px", px: "10px" },
   "& .MuiOutlinedInput-notchedOutline": { borderColor: "#e2e8f0" },
   "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#cbd5e1" },
   "& .MuiInputBase-input::placeholder": { color: "#94a3b8" },
@@ -42,6 +39,8 @@ function VariableRow({
   isDirty,
   upsertStatus,
   validStatus,
+  description,
+  deployedValues,
   onChange,
   onRevert,
 }: {
@@ -51,25 +50,15 @@ function VariableRow({
   isDirty: boolean;
   upsertStatus: UpsertStatus | undefined;
   validStatus?: boolean | null;
+  description?: string;
+  deployedValues?: Record<string, string>;
   onChange: (key: string, value: string) => void;
   onRevert: (key: string) => void;
 }) {
-  const isSet = !!savedValue;
   const isSuccess = upsertStatus?.status === "success";
   const isError = upsertStatus?.status === "error";
-
-  let LeftIcon: typeof CheckCircleIcon;
-  let iconColor: string;
-  if (isDirty) {
-    LeftIcon = RadioButtonCheckedIcon;
-    iconColor = "#d97706";
-  } else if (isSet || isSuccess) {
-    LeftIcon = RadioButtonCheckedIcon;
-    iconColor = "#22c55e";
-  } else {
-    LeftIcon = RadioButtonUncheckedIcon;
-    iconColor = "#cbd5e1";
-  }
+  // Value differs from what was last planned (corp.env snapshot)
+  const isDeployedDiff = deployedValues !== undefined && (savedValue ?? "") !== (deployedValues[varKey] ?? "");
 
   return (
     <Box
@@ -84,20 +73,25 @@ function VariableRow({
         transition: "background 0.2s",
       }}
     >
-      <LeftIcon sx={{ fontSize: 15, color: iconColor, flexShrink: 0 }} />
 
-      <Typography
-        sx={{
-          fontSize: "0.78rem",
-          fontFamily: "'IBM Plex Mono', monospace",
-          color: isDirty ? "#92400e" : "#0f172a",
-          minWidth: "10.5rem",
-          flexShrink: 0,
-          whiteSpace: "nowrap",
-        }}
-      >
-        {varKey}
-      </Typography>
+      {/* Key label + optional info tooltip */}
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minWidth: "10.5rem", flexShrink: 0 }}>
+        <Typography
+          sx={{
+            fontSize: "0.78rem",
+            fontFamily: "'IBM Plex Mono', monospace",
+            color: isDirty ? "#92400e" : "#0f172a",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {varKey}
+        </Typography>
+        {description && (
+          <Tooltip title={description} placement="top" arrow>
+            <InfoOutlinedIcon sx={{ fontSize: 13, color: "#cbd5e1", cursor: "help", "&:hover": { color: "#94a3b8" } }} />
+          </Tooltip>
+        )}
+      </Box>
 
       <TextField
         size="small"
@@ -138,6 +132,12 @@ function VariableRow({
         }}
       />
 
+      {isDeployedDiff && !isDirty && !isError && (
+        <Tooltip title={`Plan configured: ${deployedValues![varKey] || "(empty)"}`} placement="top" arrow>
+          <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706", flexShrink: 0 }} />
+        </Tooltip>
+      )}
+
       {isError && (
         <Tooltip title={upsertStatus!.error ?? "Update failed"}>
           <ErrorOutlineIcon sx={{ fontSize: 14, color: "#ef4444", flexShrink: 0 }} />
@@ -175,6 +175,10 @@ type Props = {
   localValues: Record<string, string>;
   upsertStatuses: UpsertStatus[];
   validStatus?: boolean | null;
+  /** Optional per-key hint shown as a tooltip on the ⓘ icon */
+  descriptions?: Partial<Record<string, string>>;
+  /** Values from the last deployed corp.env snapshot — used to highlight changed rows */
+  deployedValues?: Record<string, string>;
   onChange: (key: string, value: string) => void;
   onRevert: (key: string) => void;
 };
@@ -187,6 +191,8 @@ export default function VariablesCard({
   localValues,
   upsertStatuses,
   validStatus,
+  descriptions,
+  deployedValues,
   onChange,
   onRevert,
 }: Props) {
@@ -201,6 +207,8 @@ export default function VariablesCard({
           isDirty={(localValues[key] ?? "") !== (savedValues[key] ?? "")}
           upsertStatus={upsertStatuses.find((s) => s.key === key)}
           validStatus={validStatus}
+          description={descriptions?.[key]}
+          deployedValues={deployedValues}
           onChange={onChange}
           onRevert={onRevert}
         />

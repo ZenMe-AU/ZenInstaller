@@ -14,14 +14,18 @@ app.http("getVariables", {
 
     const octokit = new Octokit({ auth: accessToken });
 
-    const { data } = await octokit.request("GET /repos/{owner}/{repo}/environments/{environment_name}/variables", {
-      owner,
-      repo,
-      environment_name: env,
-    });
-
+    const all = await octokit.paginate(
+      "GET /repos/{owner}/{repo}/environments/{environment_name}/variables",
+      {
+        owner,
+        repo,
+        environment_name: env,
+        per_page: 30,
+      },
+      (res) => res.data ?? [],
+    );
     // Convert array to { NAME: value } map for easy lookup on the frontend
-    const variables = Object.fromEntries((data.variables ?? []).map(({ name, value }) => [name, value]));
+    const variables = Object.fromEntries(all.map(({ name, value }) => [name, value]));
 
     return {
       jsonBody: { success: true, variables },

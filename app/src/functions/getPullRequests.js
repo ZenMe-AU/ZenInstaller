@@ -14,14 +14,15 @@ app.http("getPullRequests", {
     const state = "open";
     console.log("Fetching pull requests for ", { owner, repo, ref });
     const octokit = new Octokit({ auth: accessToken });
-    const { data } = await octokit.request("GET /repos/{owner}/{repo}/pulls", {
+    const all = await octokit.paginate("GET /repos/{owner}/{repo}/pulls", {
       owner,
       repo,
       state,
+      per_page: 100,
       // base: ref,
       // head: `${owner}:${ref}`
     });
-    const pullRequestList = data.map(({ id, number, title, state, html_url, base, head }) => ({
+    const pullRequestList = all.map(({ id, number, title, state, html_url, base, head }) => ({
       id,
       number,
       title,
@@ -32,7 +33,6 @@ app.http("getPullRequests", {
       head_branch: head.ref,
       head_sha: head.sha,
     }));
-    console.log("Pull Requests: ", data);
     return {
       jsonBody: { success: true, pullRequests: pullRequestList },
     };

@@ -9,8 +9,8 @@ app.http("getOrgs", {
   handler: corsWrapper(async (request, context) => {
     const accessToken = getAccessToken(request);
     const octokit = new Octokit({ auth: accessToken });
-    const { data } = await octokit.request("GET /user/orgs");
-    const orgList = data.map((org) => ({ login: org.login, id: org.id }));
+    const all = await octokit.paginate("GET /user/orgs", { per_page: 100 });
+    const orgList = all.map((org) => ({ login: org.login, id: org.id }));
     return {
       jsonBody: { success: true, orgList },
     };

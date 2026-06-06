@@ -10,8 +10,8 @@ app.http("getRepositories", {
     const accessToken = getAccessToken(request);
 
     const octokit = new Octokit({ auth: accessToken });
-    const { data } = await octokit.request(`GET user/repos`);
-    const repoList = data.map((repo) => ({
+    const all = await octokit.paginate("GET /user/repos", { per_page: 100 });
+    const repoList = all.map((repo) => ({
       name: repo.name,
       id: repo.id,
       full_name: repo.full_name,

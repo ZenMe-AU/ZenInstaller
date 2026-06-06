@@ -14,12 +14,11 @@ app.http("getSecrets", {
 
     const octokit = new Octokit({ auth: accessToken });
 
-    const uri = env ? "/repos/{owner}/{repo}/environments/{environment_name}/secrets" : "/repos/{owner}/{repo}/actions/secrets";
-    const params = { owner, repo, environment_name: env };
+    const uri = env ? "GET /repos/{owner}/{repo}/environments/{environment_name}/secrets" : "GET /repos/{owner}/{repo}/actions/secrets";
+    const params = { owner, repo, environment_name: env, per_page: 100 };
     console.log("uri:", uri);
     console.log("Requesting secrets with params:", params);
-    const { data } = await octokit.request(uri, params);
-    const secretList = data.secrets.map(({ name }) => name);
+    const secretList = await octokit.paginate(uri, params, (res) => res.data?.map(({ name }) => name) ?? []);
     return {
       jsonBody: { success: true, secrets: secretList },
     };

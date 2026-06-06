@@ -13,9 +13,10 @@ app.http("getRepos", {
     const owner = request.query.get("owner");
 
     const octokit = new Octokit({ auth: accessToken });
-    const uri = type === "User" ? "/user/repos" : `/orgs/${owner}/repos`;
-    const { data } = await octokit.request(`GET ${uri}`);
-    const repoList = data.filter((repo) => repo.owner.type === type).map((repo) => ({ name: repo.name, id: repo.id, full_name: repo.full_name }));
+    const uri = type === "User" ? "GET /user/repos" : "GET /orgs/{org}/repos";
+    const params = type === "User" ? { per_page: 100 } : { org: owner, per_page: 100 };
+    const all = await octokit.paginate(uri, params);
+    const repoList = all.filter((repo) => repo.owner.type === type).map((repo) => ({ name: repo.name, id: repo.id, full_name: repo.full_name }));
     return {
       jsonBody: { success: true, repoList },
     };

@@ -850,7 +850,7 @@ export default function AppDashboard() {
             >
               ZB
             </Box>
-            <Typography sx={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a", letterSpacing: "-0.01em" }}>Corp Setup</Typography>
+            <Typography sx={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a", letterSpacing: "-0.01em" }}>ZenInstaller Setup Central Corp Environment</Typography>
           </Box>
 
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -931,7 +931,25 @@ export default function AppDashboard() {
 
         {/* ── Main ── */}
         <Box sx={{ maxWidth: 860, mx: "auto", px: 4, py: 5 }}>
-          {authLoading ? (
+        
+          
+            <Box>
+              {/* Introduction */}
+              <div>The ZenInstaller is used to deploy Zenblox to your environment.
+                It requires a Github repository in your own account, an Azure, and AWS subscription in your name.
+                ZenInstaller will guide you through each step of the process starting from nothing.</div>
+              {/* Login to Github */}
+              <PipelineCard
+                step={1}
+                title="Login to GitHub"
+                subtitle="Connecting to your GitHub and obtaining an access token that will be used for the next steps. The token is valid for this session only."
+                status={cardStatus.repo}
+                expanded={expanded.repo}
+                onToggle={() => toggleCard("repo")}
+                hasNext
+              >
+                
+                   {/* {authLoading ? (
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 4 }}>
               <CircularProgress size={16} sx={{ color: "#cbd5e1" }} />
               <Typography sx={{ fontSize: "0.78rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>Verifying access...</Typography>
@@ -961,9 +979,11 @@ export default function AppDashboard() {
                 Login with GitHub
               </Button>
             </Box>
-          ) : (
-            <Box>
-              {/* Step 1 — Repo */}
+          ) :  */}
+
+              </PipelineCard>
+
+              {/* Select CORP Github Repo */}
               <PipelineCard
                 step={1}
                 title="Select Repository"
@@ -1303,7 +1323,7 @@ export default function AppDashboard() {
                 );
               })}
             </Box>
-          )}
+          
         </Box>
       </Box>
 

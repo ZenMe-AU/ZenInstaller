@@ -4,7 +4,7 @@ import { AZURE_VARIABLE_KEYS, AWS_VARIABLE_KEYS, C01_KEYS } from "./types";
 export const PIPELINES: Record<string, PipelineConfig> = {
   corpSetup: {
     workflowId: "planChanges.yml",
-    label: "Corp Setup",
+    label: "ZenInstaller Setup Central Corp Environment",
     templateRepo: "ZenMe-AU/ZBCorpArchitecture",
     stages: [
       {

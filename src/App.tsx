@@ -61,6 +61,7 @@ import { StageItem } from "./cards/StagesCard";
 const url = import.meta.env.VITE_API_URL;
 
 const DEFAULT_CARD_STATUS: Record<CardId, CardStatus> = {
+  auth: "idle",
   repo: "idle",
   pr: "idle",
   env: "idle",
@@ -191,6 +192,7 @@ export default function AppDashboard() {
 
   // ── Card expanded ─────────────────────────────────────────────────────────
   const [expanded, setExpanded] = useState<Record<CardId, boolean>>({
+    auth: true,
     repo: true,
     pr: true,
     env: true,
@@ -198,6 +200,7 @@ export default function AppDashboard() {
     stages: true,
   });
   const toggleCard = (id: CardId) => setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
+  const authCardStatus: CardStatus = authLoading ? "loading" : user ? "complete" : "idle";
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const isCloneRepo = templateStatus === "ready";
@@ -905,27 +908,7 @@ export default function AppDashboard() {
                   Logout
                 </Button>
               </Box>
-            ) : (
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => {
-                  setRedirecting("login");
-                  window.location.href = `${url}/auth/login/github?post_login_redirect_uri=${encodeURIComponent(window.location.href)}`;
-                }}
-                sx={{
-                  borderColor: "#e2e8f0",
-                  color: "#475569",
-                  fontSize: "0.78rem",
-                  textTransform: "none",
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  py: 0.5,
-                  "&:hover": { borderColor: "#cbd5e1", color: "#0f172a" },
-                }}
-              >
-                Login with GitHub
-              </Button>
-            )}
+            ) : null}
           </Box>
         </Box>
 
@@ -934,58 +917,95 @@ export default function AppDashboard() {
         
           
             <Box>
-              {/* Introduction */}
-              <div>The ZenInstaller is used to deploy Zenblox to your environment.
-                It requires a Github repository in your own account, an Azure, and AWS subscription in your name.
-                ZenInstaller will guide you through each step of the process starting from nothing.</div>
-              {/* Login to Github */}
+              {/* Intro card */}
+              <Box
+                sx={{
+                  background: "#ffffff",
+                  borderRadius: "12px",
+                  border: "1px solid #e2e8f0",
+                  px: 3,
+                  py: 2.5,
+                  mb: 3,
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                }}
+              >
+                <Typography sx={{ fontSize: "0.85rem", color: "#475569", lineHeight: 1.7, fontFamily: "'IBM Plex Sans', sans-serif" }}>
+                  The ZenInstaller is used to deploy Zenblox to your environment.
+                  It requires a Github repository in your own account, an Azure, and AWS subscription in your name.
+                  ZenInstaller will guide you through each step of the process starting from nothing.
+                </Typography>
+              </Box>
+
+              {/* Step 1 — Login to GitHub */}
               <PipelineCard
                 step={1}
                 title="Login to GitHub"
-                subtitle="Connecting to your GitHub and obtaining an access token that will be used for the next steps. The token is valid for this session only."
-                status={cardStatus.repo}
-                expanded={expanded.repo}
-                onToggle={() => toggleCard("repo")}
+                subtitle={user ? `Signed in as ${user.login}` : "Connect your GitHub account to get started"}
+                status={authCardStatus}
+                expanded={expanded.auth}
+                onToggle={() => toggleCard("auth")}
                 hasNext
               >
-                
-                   {/* {authLoading ? (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 4 }}>
-              <CircularProgress size={16} sx={{ color: "#cbd5e1" }} />
-              <Typography sx={{ fontSize: "0.78rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>Verifying access...</Typography>
-            </Box>
-          ) : !user ? (
-            <Box
-              sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", py: 10, gap: 2, textAlign: "center" }}
-            >
-              <Typography sx={{ fontSize: "1.1rem", fontWeight: 600, color: "#0f172a" }}>Sign in to continue</Typography>
-              <Typography sx={{ fontSize: "0.85rem", color: "#64748b", maxWidth: 360 }}>
-                Login with your GitHub account to access the Corp Setup dashboard.
-              </Typography>
-              <Button
-                variant="contained"
-                onClick={() => {
-                  setRedirecting("login");
-                  window.location.href = `${url}/auth/login/github?post_login_redirect_uri=${encodeURIComponent(window.location.href)}`;
-                }}
-                sx={{
-                  mt: 1,
-                  background: "#2563eb",
-                  textTransform: "none",
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  "&:hover": { background: "#1d4ed8" },
-                }}
-              >
-                Login with GitHub
-              </Button>
-            </Box>
-          ) :  */}
-
+                {authLoading ? (
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 1 }}>
+                    <CircularProgress size={16} sx={{ color: "#cbd5e1" }} />
+                    <Typography sx={{ fontSize: "0.78rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>
+                      Verifying access...
+                    </Typography>
+                  </Box>
+                ) : !user ? (
+                  <Button
+                    variant="contained"
+                    onClick={() => {
+                      setRedirecting("login");
+                      window.location.href = `${url}/auth/login/github?post_login_redirect_uri=${encodeURIComponent(window.location.href)}`;
+                    }}
+                    sx={{
+                      background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+                      textTransform: "none",
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontSize: "0.85rem",
+                      py: 1,
+                      px: 2.5,
+                      borderRadius: "8px",
+                      boxShadow: "0 2px 8px #2563eb33",
+                      "&:hover": { background: "linear-gradient(135deg, #1d4ed8, #1e40af)", boxShadow: "0 4px 12px #2563eb44" },
+                    }}
+                  >
+                    Login with GitHub
+                  </Button>
+                ) : (
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                    <Box sx={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e" }} />
+                    <Typography sx={{ fontSize: "0.85rem", color: "#0f172a", fontFamily: "'IBM Plex Mono', monospace" }}>
+                      {user.login}
+                    </Typography>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => {
+                        setRedirecting("logout");
+                        window.location.href = `${url}/auth/logout?post_logout_redirect_uri=${encodeURIComponent(window.location.href)}`;
+                      }}
+                      sx={{
+                        borderColor: "#e2e8f0",
+                        color: "#94a3b8",
+                        fontSize: "0.78rem",
+                        textTransform: "none",
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        py: 0.5,
+                        "&:hover": { borderColor: "#fecaca", color: "#ef4444" },
+                      }}
+                    >
+                      Logout
+                    </Button>
+                  </Box>
+                )}
               </PipelineCard>
 
-              {/* Select CORP Github Repo */}
+              {/* Step 2 — Select Repository */}
               <PipelineCard
-                step={1}
+                step={2}
                 title="Select Repository"
                 subtitle="Choose an organisation and repository to work with"
                 status={cardStatus.repo}
@@ -1019,9 +1039,9 @@ export default function AppDashboard() {
                 />
               </PipelineCard>
 
-              {/* Step 2 — PR (optional) */}
+              {/* Step 3 — PR (optional) */}
               <PipelineCard
-                step={2}
+                step={3}
                 title="Pull Request"
                 subtitle={selectedPR ? `#${selectedPR.number} · ${selectedPR.title}` : "Optional — select a PR to deploy from"}
                 status={cardStatus.pr}
@@ -1070,9 +1090,9 @@ export default function AppDashboard() {
                 />
               </PipelineCard>
 
-              {/* Step 3 — Environment + Secrets */}
+              {/* Step 4 — Environment + Secrets */}
               <PipelineCard
-                step={3}
+                step={4}
                 title="Environment"
                 subtitle={selectedEnv ? selectedEnv.name : "Select target environment"}
                 status={cardStatus.env}
@@ -1134,9 +1154,9 @@ export default function AppDashboard() {
                 />
               </PipelineCard>
 
-              {/* Step 4 — Run Status Update */}
+              {/* Step 5 — Run Status Update */}
               <PipelineCard
-                step={4}
+                step={5}
                 title="Run Status Update"
                 subtitle="Trigger the GitHub Actions workflow to check deployment state"
                 status={cardStatus.status_update}
@@ -1251,7 +1271,7 @@ export default function AppDashboard() {
                 return (
                   <PipelineCard
                     key={stageDef.key}
-                    step={5 + index}
+                    step={6 + index}
                     title={stageDef.label}
                     subtitle={noChanges ? "No changes" : cfg.label}
                     status={

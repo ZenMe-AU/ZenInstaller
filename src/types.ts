@@ -1,6 +1,6 @@
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
-export type CardId = "repo" | "pr" | "env" | "status_update" | "stages";
+export type CardId = "auth" | "repo" | "pr" | "env" | "status_update" | "stages";
 export type CardStatus = "idle" | "loading" | "complete" | "warning" | "error";
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────

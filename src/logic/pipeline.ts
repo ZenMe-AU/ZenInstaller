@@ -1,5 +1,5 @@
-import type { PipelineConfig } from "./types";
-import { AZURE_VARIABLE_KEYS, AWS_VARIABLE_KEYS, C01_KEYS } from "./types";
+import type { PipelineConfig } from "../types";
+import { AZURE_VARIABLE_KEYS, AWS_VARIABLE_KEYS, C01_KEYS } from "../types";
 
 export const PIPELINES: Record<string, PipelineConfig> = {
   corpSetup: {

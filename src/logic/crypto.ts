@@ -1,6 +1,6 @@
 import sodium from "libsodium-wrappers";
 
-export async function encryptSecret(publicKey, value) {
+export async function encryptSecret(publicKey: string, value: string): Promise<string> {
   await sodium.ready;
   const keyBin = sodium.from_base64(publicKey, sodium.base64_variants.ORIGINAL);
   const valueBin = sodium.from_string(value);

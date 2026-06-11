@@ -5,7 +5,7 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { Account, Branch, GhEnv, SecretsStatus } from "../types";
-import { VALID_ENV_NAMES, isValidEnvName } from "../types";
+import { VALID_ENV_NAMES, isValidEnvName } from "../logic/env";
 import BranchSection from "./BranchSection";
 import SecretsSection from "./SecretsSection";
 import VariablesSection from "./VariablesSection";

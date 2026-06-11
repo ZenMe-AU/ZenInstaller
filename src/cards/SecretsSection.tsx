@@ -5,8 +5,8 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import type { Account, GhEnv, PendingSecret, SecretsStatus, UpsertStatus } from "../types";
 import { AZURE_SECRET_KEYS, AWS_SECRET_KEYS } from "../types";
 import { fetchPublicKey, upsertSecret } from "../api";
-import { encryptSecret } from "../helper";
-import SecretsCard from "./SecretsCard";
+import { encryptSecret } from "../logic/crypto";
+import SecretsCard from "../components/SecretsCard";
 
 const sectionLabelSx = {
   fontSize: "0.7rem",

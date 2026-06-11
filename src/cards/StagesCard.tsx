@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Box, Button, CircularProgress, Tooltip, Typography } from "@mui/material";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -10,6 +10,7 @@ import type {
   CardId,
   CardStatus,
   GhEnv,
+  PlanItem,
   PlanSummary,
   Prerequisite,
   PrerequisiteStageVar,
@@ -17,17 +18,14 @@ import type {
   StageDefinition,
   UpsertStatus,
 } from "../types.ts";
-import { createVariable, fetchDeployLog, updateVariable } from "../api";
-import PlanView from "../component/PlanView.tsx";
-import VariablesCard from "./VariablesCard";
+import { createVariable, fetchDeployLog, fetchPlan, updateVariable } from "../api";
+import { computePlanSummary } from "../logic/plan";
+import PlanCard from "./PlanCard";
+import VariablesCard from "../components/VariablesCard";
 
 // ─── Prerequisite helpers ─────────────────────────────────────────────────────
 
-function checkPrerequisite(
-  prereq: Prerequisite,
-  cardStatus: Record<CardId, CardStatus>,
-  variableValues: Record<string, string>,
-): boolean {
+function checkPrerequisite(prereq: Prerequisite, cardStatus: Record<CardId, CardStatus>, variableValues: Record<string, string>): boolean {
   switch (prereq.type) {
     case "card":
       return cardStatus[prereq.cardId] === "complete";
@@ -44,6 +42,7 @@ function prereqLabel(prereq: Prerequisite, variableValues: Record<string, string
   switch (prereq.type) {
     case "card": {
       const labels: Record<CardId, string> = {
+        auth: "Authenticated",
         repo: "Repo selected",
         pr: "PR selected",
         env: "Env configured",
@@ -217,8 +216,30 @@ export function StageItem({
 }) {
   // Track which prerequisite rows are expanded (by index)
   const [expandedPrereqs, setExpandedPrereqs] = useState<Record<number, boolean>>({});
-  const togglePrereq = (i: number) =>
-    setExpandedPrereqs((prev) => ({ ...prev, [i]: !prev[i] }));
+  const togglePrereq = (i: number) => setExpandedPrereqs((prev) => ({ ...prev, [i]: !prev[i] }));
+
+  // Plan data (inlined from usePlanData)
+  const [planItems, setPlanItems]   = useState<PlanItem[]>([]);
+  const [planSummary, setPlanSummary] = useState<PlanSummary>({ create: 0, update: 0, delete: 0, replace: 0 });
+  const [planLoading, setPlanLoading] = useState(false);
+  const [planError, setPlanError]   = useState<string | null>(null);
+  const onPlanSummaryRef = useRef(onPlanSummary);
+  useLayoutEffect(() => { onPlanSummaryRef.current = onPlanSummary; });
+  useEffect(() => {
+    if (!stage.planJsonId || !account) return;
+    setPlanLoading(true);
+    fetchPlan(stage.planJsonId, account, repoName)
+      .then((data) => {
+        const fetched: PlanItem[] = data.resource_changes || [];
+        const s = computePlanSummary(fetched);
+        setPlanItems(fetched);
+        setPlanSummary(s);
+        setPlanError(null);
+        onPlanSummaryRef.current?.(s);
+      })
+      .catch((err: Error) => setPlanError(err.message))
+      .finally(() => setPlanLoading(false));
+  }, [stage.planJsonId, account, repoName]);
 
   // Deploy log — fetched lazily when deployStatus is "failed" and logId is available
   const [deployLog, setDeployLog] = useState<string | null>(null);
@@ -259,12 +280,10 @@ export function StageItem({
               const isExpandable = prereq.type === "varGroup" || prereq.type === "stageVar";
               const isOpen = !!expandedPrereqs[i];
               const prereqHasDeployedDiff =
-                deployedEnv != null && (
-                  ((prereq.type === "varGroup" || prereq.type === "stageVar") &&
-                    prereq.keys.some((k) => (variableValues[k] ?? "") !== (deployedEnv[k] ?? ""))) ||
-                  (prereq.type === "var" &&
-                    (variableValues[prereq.key] ?? "") !== (deployedEnv[prereq.key] ?? ""))
-                );
+                deployedEnv != null &&
+                (((prereq.type === "varGroup" || prereq.type === "stageVar") &&
+                  prereq.keys.some((k) => (variableValues[k] ?? "") !== (deployedEnv[k] ?? ""))) ||
+                  (prereq.type === "var" && (variableValues[prereq.key] ?? "") !== (deployedEnv[prereq.key] ?? "")));
 
               const deployedDiffTooltip =
                 prereq.type === "var" && prereqHasDeployedDiff
@@ -308,11 +327,12 @@ export function StageItem({
                     >
                       {label}
                     </Typography>
-                    {isExpandable && (
-                      isOpen
-                        ? <ExpandLessIcon sx={{ fontSize: 14, color: "#cbd5e1" }} />
-                        : <ExpandMoreIcon sx={{ fontSize: 14, color: "#cbd5e1" }} />
-                    )}
+                    {isExpandable &&
+                      (isOpen ? (
+                        <ExpandLessIcon sx={{ fontSize: 14, color: "#cbd5e1" }} />
+                      ) : (
+                        <ExpandMoreIcon sx={{ fontSize: 14, color: "#cbd5e1" }} />
+                      ))}
                   </Box>
 
                   {/* Expanded content */}
@@ -328,9 +348,7 @@ export function StageItem({
                           }}
                         >
                           {prereq.keys.map((k, ki) => {
-                            const isDeployedDiff =
-                              deployedEnv != null &&
-                              (variableValues[k] ?? "") !== (deployedEnv[k] ?? "");
+                            const isDeployedDiff = deployedEnv != null && (variableValues[k] ?? "") !== (deployedEnv[k] ?? "");
                             return (
                               <Box
                                 key={k}
@@ -367,11 +385,7 @@ export function StageItem({
                                   {variableValues[k] || "not set"}
                                 </Typography>
                                 {isDeployedDiff && (
-                                  <Tooltip
-                                    title={`Plan configured: ${deployedEnv![k] || "(empty)"}`}
-                                    placement="top"
-                                    arrow
-                                  >
+                                  <Tooltip title={`Plan configured: ${deployedEnv![k] || "(empty)"}`} placement="top" arrow>
                                     <WarningAmberIcon sx={{ fontSize: 13, color: "#d97706", flexShrink: 0 }} />
                                   </Tooltip>
                                 )}
@@ -404,11 +418,11 @@ export function StageItem({
 
       {/* ── Plan ── */}
       {hasDetails && (
-        <PlanView
-          path={stage.planJsonId!}
-          account={account}
-          repo={repoName}
-          onSummary={onPlanSummary}
+        <PlanCard
+          items={planItems}
+          summary={planSummary}
+          loading={planLoading}
+          error={planError}
           onDeploy={onDeploy}
           stagesStale={stagesStale}
         />
@@ -459,9 +473,7 @@ export function StageItem({
               {stage.deployStatus === "failed" && (
                 <Box sx={{ mt: 0.5 }}>
                   {loadingDeployLog ? (
-                    <Typography sx={{ fontSize: "0.72rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>
-                      Loading log...
-                    </Typography>
+                    <Typography sx={{ fontSize: "0.72rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>Loading log...</Typography>
                   ) : deployLog ? (
                     <Box
                       sx={{
@@ -516,22 +528,9 @@ type Props = {
 
 // ─── Component (used only when StageItem is rendered via StagesCard) ──────────
 
-export default function StagesCard({
-  stages,
-  stageDefinitions,
-  statusFileFound,
-  loading,
-  cardStatus,
-  variableValues,
-  account,
-  repoName,
-}: Props) {
+export default function StagesCard({ stages, stageDefinitions, statusFileFound, loading, cardStatus, variableValues, account, repoName }: Props) {
   if (loading) {
-    return (
-      <Box sx={{ py: 2, color: "#94a3b8", fontSize: "0.78rem", fontFamily: "'IBM Plex Mono', monospace" }}>
-        Loading stages...
-      </Box>
-    );
+    return <Box sx={{ py: 2, color: "#94a3b8", fontSize: "0.78rem", fontFamily: "'IBM Plex Mono', monospace" }}>Loading stages...</Box>;
   }
 
   return (

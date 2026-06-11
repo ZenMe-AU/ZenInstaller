@@ -6,7 +6,7 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { GhEnv, PullRequest } from "../types";
-import { matchEnv } from "../types";
+import { matchEnv } from "../logic/env";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -21,10 +21,12 @@ type Props = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function PRCard({ pullRequests, selectedPR, onSelectPR, loading, onRefresh, envList }: Props) {
+export default function PRCard({
+  pullRequests, selectedPR, onSelectPR, loading, onRefresh, envList,
+}: Props) {
   return (
     <Box>
-      {/* Header row */}
+      {/* Description + controls */}
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
         <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
           Optional. Select a pull request to trigger the workflow using that PR's head commit SHA.
@@ -49,7 +51,11 @@ export default function PRCard({ pullRequests, selectedPR, onSelectPR, loading, 
             size="small"
             onClick={onRefresh}
             disabled={loading}
-            startIcon={loading ? <CircularProgress size={12} sx={{ color: "#94a3b8" }} /> : <RefreshIcon sx={{ fontSize: 14 }} />}
+            startIcon={
+              loading
+                ? <CircularProgress size={12} sx={{ color: "#94a3b8" }} />
+                : <RefreshIcon sx={{ fontSize: 14 }} />
+            }
             sx={{
               color: "#94a3b8",
               fontSize: "0.72rem",
@@ -67,7 +73,9 @@ export default function PRCard({ pullRequests, selectedPR, onSelectPR, loading, 
       {loading ? (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
           <CircularProgress size={14} sx={{ color: "#cbd5e1" }} />
-          <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>Loading pull requests...</Typography>
+          <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>
+            Loading pull requests...
+          </Typography>
         </Box>
       ) : pullRequests.length === 0 ? (
         <Box sx={{ py: 2, textAlign: "center" }}>
@@ -94,7 +102,7 @@ export default function PRCard({ pullRequests, selectedPR, onSelectPR, loading, 
                   transition: "all 0.15s",
                 }}
               >
-                {/* PR row — always visible */}
+                {/* PR row */}
                 <Box
                   onClick={() => onSelectPR(isSelected ? null : pr)}
                   sx={{
@@ -104,9 +112,7 @@ export default function PRCard({ pullRequests, selectedPR, onSelectPR, loading, 
                     px: 2,
                     py: 1.25,
                     cursor: "pointer",
-                    "&:hover": {
-                      background: isSelected ? "#e8f0fe" : "#fafafa",
-                    },
+                    "&:hover": { background: isSelected ? "#e8f0fe" : "#fafafa" },
                   }}
                 >
                   {isSelected ? (
@@ -144,7 +150,7 @@ export default function PRCard({ pullRequests, selectedPR, onSelectPR, loading, 
                   />
                 </Box>
 
-                {/* Expanded detail — only shown when selected */}
+                {/* Expanded detail — only when selected */}
                 <Collapse in={isSelected}>
                   <Box
                     sx={{
@@ -160,8 +166,7 @@ export default function PRCard({ pullRequests, selectedPR, onSelectPR, loading, 
                     }}
                   >
                     <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
-                      {/* Env match */}
-                      {matchResult.status === "exact" || matchResult.status === "case" ? (
+                      {(matchResult.status === "exact" || matchResult.status === "case") ? (
                         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                           <Typography sx={{ fontSize: "0.7rem", color: "#64748b", fontFamily: "'IBM Plex Mono', monospace" }}>env:</Typography>
                           <Chip
@@ -194,20 +199,15 @@ export default function PRCard({ pullRequests, selectedPR, onSelectPR, loading, 
                         </Box>
                       ) : null}
 
-                      {/* SHA */}
                       <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>
                         sha: {pr.head_sha.slice(0, 7)}
                       </Typography>
                     </Box>
 
-                    {/* View on GitHub */}
                     <Button
                       size="small"
                       endIcon={<OpenInNewIcon sx={{ fontSize: 12 }} />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        window.open(pr.html_url, "_blank");
-                      }}
+                      onClick={(e) => { e.stopPropagation(); window.open(pr.html_url, "_blank"); }}
                       sx={{
                         color: "#64748b",
                         fontSize: "0.7rem",

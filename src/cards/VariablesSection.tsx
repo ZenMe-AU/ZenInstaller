@@ -5,7 +5,7 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import type { Account, GhEnv, SecretsStatus, UpsertStatus } from "../types";
 import { AZURE_VARIABLE_KEYS, AWS_VARIABLE_KEYS, GITHUB_VARIABLE_KEYS } from "../types";
 import { createVariable, updateVariable } from "../api";
-import VariablesCard from "../cards/VariablesCard";
+import VariablesCard from "../components/VariablesCard";
 
 const sectionLabelSx = {
   fontSize: "0.7rem",

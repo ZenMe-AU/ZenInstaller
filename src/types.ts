@@ -1,7 +1,7 @@
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
 export type CardId = "auth" | "repo" | "pr" | "env" | "status_update" | "stages";
-export type CardStatus = "idle" | "loading" | "complete" | "warning" | "error";
+export type CardStatus = "idle" | "loading" | "complete" | "warning" | "error" | "skipped";
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
@@ -47,46 +47,6 @@ export type GhEnv = {
   url: string;
 };
 
-// Whitelist — only these env names (case-insensitive) are shown and selectable
-export const VALID_ENV_NAMES = ["PROD", "TEST"] as const;
-
-export function isValidEnvName(name: string): boolean {
-  return VALID_ENV_NAMES.some((v) => v.toLowerCase() === name.toLowerCase());
-}
-
-// Match result when comparing a branch name to an env list
-export type EnvMatchResult =
-  | { status: "exact"; env: GhEnv }
-  | { status: "case"; env: GhEnv }
-  | { status: "multiple"; envs: GhEnv[] }
-  | { status: "none" };
-
-export function matchEnv(name: string, envList: GhEnv[]): EnvMatchResult {
-  const filtered = envList.filter((e) => isValidEnvName(e.name));
-  const matches = filtered.filter((e) => e.name.toLowerCase() === name.toLowerCase());
-  if (matches.length === 0) return { status: "none" };
-  if (matches.length > 1) return { status: "multiple", envs: matches };
-  const match = matches[0];
-  if (match.name === name) return { status: "exact", env: match };
-  return { status: "case", env: match };
-}
-
-// Match an env against the branch list
-export type BranchMatchResult =
-  | { status: "exact"; branch: Branch }
-  | { status: "case"; branch: Branch }
-  | { status: "multiple"; branches: Branch[] }
-  | { status: "none" };
-
-export function matchBranch(envName: string, branches: Branch[]): BranchMatchResult {
-  const matches = branches.filter((b) => b.name.toLowerCase() === envName.toLowerCase());
-  if (matches.length === 0) return { status: "none" };
-  if (matches.length > 1) return { status: "multiple", branches: matches };
-  const match = matches[0];
-  if (match.name === envName) return { status: "exact", branch: match };
-  return { status: "case", branch: match };
-}
-
 // ─── Pull Request ─────────────────────────────────────────────────────────────
 
 export type PullRequest = {
@@ -97,6 +57,16 @@ export type PullRequest = {
   html_url: string;
   base_branch: string;
   head_sha: string;
+};
+
+// ─── URL Restore ─────────────────────────────────────────────────────────────
+
+/** Shared across hooks that participate in URL-parameter restoration. */
+export type PendingRestore = {
+  account: string | null;
+  repo: string | null;
+  pr: string | null;
+  env: string | null;
 };
 
 // ─── Workflow Run ─────────────────────────────────────────────────────────────
@@ -128,6 +98,8 @@ export type StageDefinition = {
   key: string;
   label: string;
   prerequisites: Prerequisite[];
+  /** When true, a pending stage is treated as skipped rather than waiting. */
+  optional?: boolean;
 };
 
 export type PipelineConfig = {
@@ -139,7 +111,7 @@ export type PipelineConfig = {
 
 // ─── Stage ────────────────────────────────────────────────────────────────────
 
-export type StageStatus = "deployed" | "success" | "failed" | "pending";
+export type StageStatus = "deployed" | "success" | "failed" | "pending" | "skipped";
 
 export type Stage = {
   stage: string;
@@ -157,9 +129,10 @@ export type Stage = {
 
 export const STAGE_STATUS_CONFIG: Record<StageStatus, { color: string; label: string }> = {
   deployed: { color: "#22c55e", label: "Deployed" },
-  success: { color: "#f97316", label: "Ready to deploy" },
-  failed: { color: "#ef4444", label: "Failed" },
-  pending: { color: "#94a3b8", label: "Not yet executed" },
+  success:  { color: "#f97316", label: "Ready to deploy" },
+  failed:   { color: "#ef4444", label: "Failed" },
+  pending:  { color: "#94a3b8", label: "Not yet executed" },
+  skipped:  { color: "#94a3b8", label: "Skipped" },
 };
 
 // ─── Secrets ──────────────────────────────────────────────────────────────────

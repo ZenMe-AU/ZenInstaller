@@ -32,6 +32,32 @@ export async function verifyAuth(): Promise<{ login: string }> {
   return data.user;
 }
 
+// ─── PKCE auth (used by usePkceAuth — inactive until VITE_AUTH_PKCE=true) ────
+
+export async function exchangePkceCode(
+  code: string,
+  verifier: string,
+  clientId: string,
+  redirectUri: string,
+): Promise<string> {
+  const res = await fetch(`${url}/getAccessToken`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ client_id: clientId, code, code_verifier: verifier, redirect_uri: redirectUri }),
+  });
+  const data = await res.json();
+  if (!data.access_token) throw new Error(data.error ?? "Token exchange failed");
+  return data.access_token;
+}
+
+export async function fetchGithubUser(token: string): Promise<{ login: string }> {
+  const res = await fetch("https://api.github.com/user", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Unauthorized");
+  return res.json();
+}
+
 // ─── Orgs & Repos ─────────────────────────────────────────────────────────────
 
 export async function fetchOrgList(): Promise<Account[]> {

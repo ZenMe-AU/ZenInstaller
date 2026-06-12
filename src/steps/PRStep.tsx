@@ -12,10 +12,6 @@ type Props = {
   expanded: boolean;
   onToggle: () => void;
   disabled?: boolean;
-  /** Injected by <Connector> */
-  hasNext?: boolean;
-  hasPrev?: boolean;
-  prevStatus?: CardStatus;
   // ── Domain ───────────────────────────────────────────────────────────────
   pullRequests: PullRequest[];
   selectedPR: PullRequest | null;
@@ -30,7 +26,7 @@ type Props = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function PRStep({
-  status, expanded, onToggle, disabled, hasNext, hasPrev, prevStatus,
+  status, expanded, onToggle, disabled,
   pullRequests, selectedPR, onSelectPR, loading, refreshFailed, onRefresh, envList, repoFullName,
 }: Props) {
   return (
@@ -45,9 +41,6 @@ export default function PRStep({
       expanded={expanded}
       onToggle={onToggle}
       disabled={disabled}
-      hasNext={hasNext}
-      hasPrev={hasPrev}
-      prevStatus={prevStatus}
       action={
         <Button
           size="small"

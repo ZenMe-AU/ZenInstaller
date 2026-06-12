@@ -8,10 +8,6 @@ type Props = {
   expanded: boolean;
   onToggle: () => void;
   disabled?: boolean;
-  /** Injected by <Connector> */
-  hasNext?: boolean;
-  hasPrev?: boolean;
-  prevStatus?: CardStatus;
   // ── Domain ───────────────────────────────────────────────────────────────
   running: boolean;
   countdown: number;
@@ -26,7 +22,7 @@ type Props = {
 };
 
 export default function StatusUpdateStep({
-  status, expanded, onToggle, disabled, hasNext, hasPrev, prevStatus,
+  status, expanded, onToggle, disabled,
   running, countdown, lastRunTime, lastTriggeredAt, retryCount,
   onRun, runError, lastRunId, repoFullName, workflowId,
 }: Props) {
@@ -38,9 +34,6 @@ export default function StatusUpdateStep({
       expanded={expanded}
       onToggle={onToggle}
       disabled={disabled}
-      hasNext={hasNext}
-      hasPrev={hasPrev}
-      prevStatus={prevStatus}
     >
       <StatusCard
         running={running}

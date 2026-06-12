@@ -10,9 +10,6 @@ type Props = {
   expanded: boolean;
   onToggle: () => void;
   disabled?: boolean;
-  hasNext?: boolean;
-  hasPrev?: boolean;
-  prevStatus?: CardStatus;
   stageDef: StageDefinition;
   stage: Stage;
   summary?: PlanSummary;
@@ -33,9 +30,6 @@ export default function StageStep({
   expanded,
   onToggle,
   disabled,
-  hasNext,
-  hasPrev,
-  prevStatus,
   stageDef,
   stage,
   summary,
@@ -108,9 +102,6 @@ export default function StageStep({
       expanded={expanded}
       onToggle={onToggle}
       disabled={disabled}
-      hasNext={hasNext}
-      hasPrev={hasPrev}
-      prevStatus={prevStatus}
       action={action}
     >
       <StageItem

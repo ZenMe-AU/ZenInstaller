@@ -7,10 +7,6 @@ type Props = {
   status: CardStatus;
   expanded: boolean;
   onToggle: () => void;
-  /** Injected by <Connector> */
-  hasNext?: boolean;
-  hasPrev?: boolean;
-  prevStatus?: CardStatus;
   // ── Domain ───────────────────────────────────────────────────────────────
   authLoading: boolean;
   user: User | null;
@@ -19,7 +15,7 @@ type Props = {
 };
 
 export default function LoginStep({
-  status, expanded, onToggle, hasNext, hasPrev, prevStatus,
+  status, expanded, onToggle,
   authLoading, user, onLogin, onLogout,
 }: Props) {
   return (
@@ -29,9 +25,6 @@ export default function LoginStep({
       status={status}
       expanded={expanded}
       onToggle={onToggle}
-      hasNext={hasNext}
-      hasPrev={hasPrev}
-      prevStatus={prevStatus}
     >
       {authLoading ? (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 1 }}>

@@ -16,10 +16,6 @@ type Props = {
   expanded: boolean;
   onToggle: () => void;
   disabled?: boolean;
-  /** Injected by <Connector> */
-  hasNext?: boolean;
-  hasPrev?: boolean;
-  prevStatus?: CardStatus;
   // ── Domain ───────────────────────────────────────────────────────────────
   envList: GhEnv[];
   selectedEnv: GhEnv | null;
@@ -53,7 +49,7 @@ type Props = {
 };
 
 export default function EnvStep({
-  status, expanded, onToggle, disabled, hasNext, hasPrev, prevStatus,
+  status, expanded, onToggle, disabled,
   envList, selectedEnv, onEnvChange,
   lockedByPR, branchMatchWarning, branchMatchError,
   loading, refreshFailed, onRefresh,
@@ -72,9 +68,6 @@ export default function EnvStep({
       expanded={expanded}
       onToggle={onToggle}
       disabled={disabled}
-      hasNext={hasNext}
-      hasPrev={hasPrev}
-      prevStatus={prevStatus}
       action={
         <Button
           size="small"

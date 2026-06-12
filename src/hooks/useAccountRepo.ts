@@ -57,9 +57,12 @@ export interface UseAccountRepo {
   createBranchError: string | null;
   // Status
   status: CardStatus;
+  repoLoading: boolean;
+  repoRefreshFailed: boolean;
   // Actions
   onClone: () => Promise<void>;
   onCreateBranch: (targetName: string) => Promise<void>;
+  onRefresh: () => void;
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -98,6 +101,8 @@ export function useAccountRepo(opts: {
   const [createBranchError, setCreateBranchError] = useState<string | null>(null);
 
   const [status, setStatus] = useState<CardStatus>("idle");
+  const [repoLoading, setRepoLoading] = useState(false);
+  const [repoRefreshFailed, setRepoRefreshFailed] = useState(false);
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const isCloneRepo = templateStatus === "ready";
@@ -272,6 +277,26 @@ export function useAccountRepo(opts: {
   const sourceBranchRef = useRef(sourceBranch);
   sourceBranchRef.current = sourceBranch;
 
+  const onRefresh = useCallback(() => {
+    const acc = selectedAccountRef.current;
+    if (!acc) return;
+    const key = String(acc.id);
+    setRepoLoading(true);
+    setRepoRefreshFailed(false);
+    setRepoCache((prev) => { const next = { ...prev }; delete next[key]; return next; });
+    Promise.all([fetchOrgList(), fetchRepos(acc)])
+      .then(([orgs, list]) => {
+        setAccounts(orgs);
+        setRepos(list);
+        setRepoCache((prev) => ({ ...prev, [key]: list }));
+      })
+      .catch((e) => {
+        console.error(e);
+        setRepoRefreshFailed(true);
+      })
+      .finally(() => setRepoLoading(false));
+  }, []);
+
   const onCreateBranch = useCallback(async (targetName: string) => {
     const acc = selectedAccountRef.current;
     const repo = selectedRepoRef.current;
@@ -297,7 +322,7 @@ export function useAccountRepo(opts: {
     cloning, cloneError, createEnvs, setCreateEnvs, cloneEnvWarning,
     branches, branchesLoading, sourceBranch, setSourceBranch,
     creatingBranch, createBranchError,
-    status,
-    onClone, onCreateBranch,
+    status, repoLoading, repoRefreshFailed,
+    onClone, onCreateBranch, onRefresh,
   };
 }

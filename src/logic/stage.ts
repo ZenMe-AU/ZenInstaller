@@ -39,7 +39,7 @@ export function stageToCardStatus(
   if (isStale) return "idle";
   if (isLoading) return "loading";
   if (effectiveStatus === "deployed") return "complete";
-  if (effectiveStatus === "success") return "warning";
+  if (effectiveStatus === "success") return "loading";
   if (effectiveStatus === "failed") return "error";
   if (effectiveStatus === "skipped") return "skipped";
   return "idle";

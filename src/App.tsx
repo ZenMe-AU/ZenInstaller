@@ -76,14 +76,21 @@ export default function AppDashboard() {
   // ── Derived card statuses ──────────────────────────────────────────────────
   const prStatus: CardStatus = pr.selectedPR ? "complete"
     : env.selectedEnv ? "skipped"
-    : pr.pullRequests.length > 0 ? "warning" : "idle";
+    : repo.status === "complete" ? "loading"
+    : "idle";
+
+  const effectiveEnvStatus: CardStatus =
+    env.status === "idle" && repo.status === "complete" ? "loading" : env.status;
+
+  const effectiveStatusUpdateStatus: CardStatus =
+    plan.statusUpdateStatus === "idle" && env.envReady ? "loading" : plan.statusUpdateStatus;
 
   const cardStatus: Record<CardId, CardStatus> = {
     auth: auth.status,
     repo: repo.status,
     pr: prStatus,
-    env: env.status,
-    status_update: plan.statusUpdateStatus,
+    env: effectiveEnvStatus,
+    status_update: effectiveStatusUpdateStatus,
     stages: !plan.hasPlan ? "idle" : plan.stages.some((s) => s.status === "failed") ? "warning" : "complete",
   };
 
@@ -130,7 +137,9 @@ export default function AppDashboard() {
               isPrivate={repo.isPrivate} onIsPrivateChange={repo.setIsPrivate}
               includeAllBranch={repo.includeAllBranch} onIncludeAllBranchChange={repo.setIncludeAllBranch}
               cloning={repo.cloning} cloneError={repo.cloneError} onClone={repo.onClone}
-              createEnvs={repo.createEnvs} onCreateEnvsChange={repo.setCreateEnvs} cloneEnvWarning={repo.cloneEnvWarning} />
+              createEnvs={repo.createEnvs} onCreateEnvsChange={repo.setCreateEnvs} cloneEnvWarning={repo.cloneEnvWarning}
+              repoLoading={repo.repoLoading} repoRefreshFailed={repo.repoRefreshFailed} onRefresh={repo.onRefresh}
+              repoFullName={repo.repoFullName} />
 
             <PRStep status={prStatus} expanded={expanded.pr} onToggle={() => toggle("pr")}
               disabled={!repo.isCloneRepo} repoFullName={repo.repoFullName}
@@ -138,7 +147,7 @@ export default function AppDashboard() {
               onSelectPR={(p) => { pr.setSelectedPR(p); if (!p) env.setSelectedEnv(null); }}
               loading={pr.prLoading} refreshFailed={pr.prRefreshFailed} onRefresh={pr.onRefresh} envList={env.envList} />
 
-            <EnvStep status={env.status} expanded={expanded.env} onToggle={() => toggle("env")}
+            <EnvStep status={effectiveEnvStatus} expanded={expanded.env} onToggle={() => toggle("env")}
               disabled={!repo.isCloneRepo}
               envList={env.envList} selectedEnv={env.selectedEnv} onEnvChange={env.setSelectedEnv}
               lockedByPR={!!pr.selectedPR} branchMatchWarning={env.branchMatchWarning} branchMatchError={env.branchMatchError}
@@ -151,7 +160,7 @@ export default function AppDashboard() {
               branches={repo.branches} sourceBranch={repo.sourceBranch} onSourceBranchChange={repo.setSourceBranch}
               creatingBranch={repo.creatingBranch} createBranchError={repo.createBranchError} onCreateBranch={repo.onCreateBranch} />
 
-            <StatusUpdateStep status={plan.statusUpdateStatus} expanded={expanded.status_update} onToggle={() => toggle("status_update")}
+            <StatusUpdateStep status={effectiveStatusUpdateStatus} expanded={expanded.status_update} onToggle={() => toggle("status_update")}
               disabled={!repo.isCloneRepo || !env.envReady}
               running={plan.running} countdown={plan.countdown} lastRunTime={plan.lastRunTime}
               lastTriggeredAt={plan.lastTriggeredAt} retryCount={plan.retryCount} onRun={plan.onRun}

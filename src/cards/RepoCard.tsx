@@ -1,11 +1,14 @@
+import { useState, useEffect, useRef } from "react";
 import { Box, Button, CircularProgress, Collapse, FormControlLabel, MenuItem, Select, Switch, TextField, Tooltip, Typography } from "@mui/material";
 import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 import AddIcon from "@mui/icons-material/Add";
 import BusinessIcon from "@mui/icons-material/Business";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CheckIcon from "@mui/icons-material/Check";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import PersonIcon from "@mui/icons-material/Person";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { Account, Repo, RepoOption } from "../types";
 
@@ -14,8 +17,8 @@ import type { Account, Repo, RepoOption } from "../types";
 type TemplateStatus = "checking" | "ready" | "not_clone";
 
 const TEMPLATE_STATUS_CONFIG = {
-  ready: { label: "Ready", color: "#16a34a", bg: "#f0fdf4", icon: <CheckCircleIcon sx={{ fontSize: 14 }} /> },
-  not_clone: { label: "Not a Clone of Template", color: "#ea580c", bg: "#fff7ed", icon: <WarningAmberIcon sx={{ fontSize: 14 }} /> },
+  ready: { label: "Valid", color: "#16a34a", bg: "#f0fdf4", icon: <CheckCircleIcon sx={{ fontSize: 14 }} /> },
+  not_clone: { label: "Not a clone", color: "#ea580c", bg: "#fff7ed", icon: <WarningAmberIcon sx={{ fontSize: 14 }} /> },
   checking: { label: "Checking...", color: "#64748b", bg: "#f1f5f9", icon: <CircularProgress size={12} sx={{ color: "#64748b" }} /> },
 } as const;
 
@@ -72,6 +75,15 @@ const selectSx = {
 
 const filterOptions = createFilterOptions<RepoOption>();
 
+const refreshBtnSx = {
+  flexShrink: 0,
+  color: "#94a3b8",
+  fontSize: "0.72rem",
+  textTransform: "none" as const,
+  fontFamily: "'IBM Plex Mono', monospace",
+  "&:hover": { color: "#475569" },
+};
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 type Props = {
@@ -94,6 +106,9 @@ type Props = {
   createEnvs: boolean;
   onCreateEnvsChange: (v: boolean) => void;
   cloneEnvWarning: string | null;
+  repoLoading: boolean;
+  repoRefreshFailed?: boolean;
+  onRefresh: () => void;
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -118,12 +133,66 @@ export default function RepoCard({
   createEnvs,
   onCreateEnvsChange,
   cloneEnvWarning,
+  repoLoading,
+  repoRefreshFailed,
+  onRefresh,
 }: Props) {
   const isNewRepo = selectedRepo?.isNew ?? false;
   const repoOptions: RepoOption[] = repos.map((r) => ({ id: r.id, name: r.name }));
 
+  const clickedRef = useRef(false);
+  const prevLoadingRef = useRef(false);
+  const [refreshResult, setRefreshResult] = useState<"done" | "failed" | null>(null);
+  useEffect(() => {
+    const was = prevLoadingRef.current;
+    prevLoadingRef.current = repoLoading;
+    if (was && !repoLoading && clickedRef.current) {
+      clickedRef.current = false;
+      setRefreshResult(repoRefreshFailed ? "failed" : "done");
+      const t = setTimeout(() => setRefreshResult(null), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [repoLoading, repoRefreshFailed]);
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+      {/* ── Description + Refresh ── */}
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
+          Select a user or organisation, then choose a repo cloned from the <b>{defaultTemplateRepo}</b> template, or type a new name to clone one.
+        </Typography>
+        <Button
+          size="small"
+          onClick={() => {
+            clickedRef.current = true;
+            onRefresh();
+          }}
+          disabled={repoLoading}
+          startIcon={
+            repoLoading ? (
+              <CircularProgress size={12} sx={{ color: "#94a3b8" }} />
+            ) : refreshResult === "done" ? (
+              <CheckIcon sx={{ fontSize: 14 }} />
+            ) : refreshResult === "failed" ? (
+              <ErrorOutlineIcon sx={{ fontSize: 14 }} />
+            ) : (
+              <RefreshIcon sx={{ fontSize: 14 }} />
+            )
+          }
+          sx={{
+            ml: 2,
+            ...refreshBtnSx,
+            ...(refreshResult && {
+              color: refreshResult === "done" ? "#22c55e" : "#ef4444",
+              "&:hover": { color: refreshResult === "done" ? "#16a34a" : "#b91c1c" },
+              transition: "color 0.15s",
+            }),
+          }}
+        >
+          {refreshResult === "done" ? "Done" : refreshResult === "failed" ? "Failed" : "Refresh"}
+        </Button>
+      </Box>
+
       {/* ── Selectors row ── */}
       <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start", flexWrap: "wrap" }}>
         {/* Org selector */}
@@ -188,33 +257,31 @@ export default function RepoCard({
             size="small"
           />
         </Box>
-
-        {/* Template status badge */}
-        {selectedRepo && !isNewRepo && (
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            <TemplateBadge status={templateStatus} />
-          </Box>
-        )}
       </Box>
 
-      {/* Template name */}
-      {templateName && !isNewRepo && (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Typography sx={{ fontSize: "0.72rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>template:</Typography>
-          <Box
-            sx={{
-              px: 1,
-              py: 0.25,
-              borderRadius: "4px",
-              background: "#f1f5f9",
-              border: "1px solid #e2e8f0",
-              fontSize: "0.68rem",
-              fontFamily: "'IBM Plex Mono', monospace",
-              color: "#64748b",
-            }}
-          >
-            {templateName}
-          </Box>
+      {/* ── Status row: badge + template name inline ── */}
+      {selectedRepo && !isNewRepo && (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <TemplateBadge status={templateStatus} />
+          {templateName && (
+            <>
+              <Typography sx={{ fontSize: "0.72rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>template:</Typography>
+              <Box
+                sx={{
+                  px: 1,
+                  py: 0.25,
+                  borderRadius: "4px",
+                  background: "#f1f5f9",
+                  border: "1px solid #e2e8f0",
+                  fontSize: "0.68rem",
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  color: "#64748b",
+                }}
+              >
+                {templateName}
+              </Box>
+            </>
+          )}
         </Box>
       )}
 
@@ -356,7 +423,6 @@ export default function RepoCard({
           </Button>
         </Box>
       </Collapse>
-
     </Box>
   );
 }

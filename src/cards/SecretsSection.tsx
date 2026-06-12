@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
+import CheckIcon from "@mui/icons-material/Check";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import type { Account, GhEnv, PendingSecret, SecretsStatus, UpsertStatus } from "../types";
@@ -46,6 +47,7 @@ type Props = {
   awsSecretsStatus: SecretsStatus;
   onRecheck: () => void;
   rechecking: boolean;
+  recheckFailed?: boolean;
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -59,7 +61,22 @@ export default function SecretsSection({
   awsSecretsStatus,
   onRecheck,
   rechecking,
+  recheckFailed,
 }: Props) {
+  const prevRecheckingRef = useRef(false);
+  const clickedRef = useRef(false);
+  const [refreshResult, setRefreshResult] = useState<"done" | "failed" | null>(null);
+  useEffect(() => {
+    const was = prevRecheckingRef.current;
+    prevRecheckingRef.current = rechecking;
+    if (was && !rechecking && clickedRef.current) {
+      clickedRef.current = false;
+      setRefreshResult(recheckFailed ? "failed" : "done");
+      const t = setTimeout(() => setRefreshResult(null), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [rechecking, recheckFailed]);
+
   const [pendingSecrets, setPendingSecrets] = useState<PendingSecret[]>([]);
   const [upsertStatuses, setUpsertStatuses] = useState<UpsertStatus[]>([]);
   const [upserting, setUpserting] = useState(false);
@@ -129,12 +146,20 @@ export default function SecretsSection({
         </Box>
         <Button
           size="small"
-          onClick={onRecheck}
+          onClick={() => { clickedRef.current = true; onRecheck(); }}
           disabled={rechecking}
-          startIcon={rechecking ? <CircularProgress size={12} sx={{ color: "#94a3b8" }} /> : <RefreshIcon sx={{ fontSize: 14 }} />}
-          sx={{ ml: 2, mt: 0.25, ...refreshBtnSx }}
+          startIcon={
+            rechecking
+              ? <CircularProgress size={12} sx={{ color: "#94a3b8" }} />
+              : refreshResult === "done"
+                ? <CheckIcon sx={{ fontSize: 14 }} />
+                : refreshResult === "failed"
+                  ? <ErrorOutlineIcon sx={{ fontSize: 14 }} />
+                  : <RefreshIcon sx={{ fontSize: 14 }} />
+          }
+          sx={{ ml: 2, mt: 0.25, ...refreshBtnSx, ...(refreshResult && { color: refreshResult === "done" ? "#22c55e" : "#ef4444", "&:hover": { color: refreshResult === "done" ? "#16a34a" : "#b91c1c" }, transition: "color 0.15s" }) }}
         >
-          Refresh
+          {refreshResult === "done" ? "Done" : refreshResult === "failed" ? "Failed" : "Refresh"}
         </Button>
       </Box>
 

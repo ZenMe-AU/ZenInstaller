@@ -136,18 +136,18 @@ export default function AppDashboard() {
               disabled={!repo.isCloneRepo} repoFullName={repo.repoFullName}
               pullRequests={pr.pullRequests} selectedPR={pr.selectedPR}
               onSelectPR={(p) => { pr.setSelectedPR(p); if (!p) env.setSelectedEnv(null); }}
-              loading={pr.prLoading} onRefresh={pr.onRefresh} envList={env.envList} />
+              loading={pr.prLoading} refreshFailed={pr.prRefreshFailed} onRefresh={pr.onRefresh} envList={env.envList} />
 
             <EnvStep status={env.status} expanded={expanded.env} onToggle={() => toggle("env")}
               disabled={!repo.isCloneRepo}
               envList={env.envList} selectedEnv={env.selectedEnv} onEnvChange={env.setSelectedEnv}
               lockedByPR={!!pr.selectedPR} branchMatchWarning={env.branchMatchWarning} branchMatchError={env.branchMatchError}
-              loading={env.envLoading} onRefresh={env.onRefresh}
+              loading={env.envLoading} refreshFailed={env.envRefreshFailed} onRefresh={env.onRefresh}
               presentKeys={env.presentSecretKeys} azureSecretsStatus={env.azureSecrets} awsSecretsStatus={env.awsSecrets}
-              repoFullName={repo.repoFullName} onRecheck={env.onRecheck} rechecking={env.rechecking}
+              repoFullName={repo.repoFullName} onRecheck={env.onRecheck} rechecking={env.rechecking} recheckFailed={env.recheckFailed}
               account={repo.selectedAccount} repo={repo.selectedRepo?.name ?? ""}
               variableValues={env.presentVariableValues} onVariableRecheck={env.onVariableRecheck}
-              variablesRechecking={env.variablesRechecking} onVariableConfirmed={env.onVariableConfirmed}
+              variablesRechecking={env.variablesRechecking} varRecheckFailed={env.varRecheckFailed} onVariableConfirmed={env.onVariableConfirmed}
               branches={repo.branches} sourceBranch={repo.sourceBranch} onSourceBranchChange={repo.setSourceBranch}
               creatingBranch={repo.creatingBranch} createBranchError={repo.createBranchError} onCreateBranch={repo.onCreateBranch} />
 

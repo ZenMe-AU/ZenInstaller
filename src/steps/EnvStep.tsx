@@ -28,6 +28,7 @@ type Props = {
   branchMatchWarning: string | null;
   branchMatchError: string | null;
   loading: boolean;
+  refreshFailed?: boolean;
   onRefresh: () => void;
   presentKeys: string[];
   azureSecretsStatus: SecretsStatus;
@@ -35,11 +36,13 @@ type Props = {
   repoFullName: string | null;
   onRecheck: () => void;
   rechecking: boolean;
+  recheckFailed?: boolean;
   account: Account | null;
   repo: string;
   variableValues: Record<string, string>;
   onVariableRecheck: () => void;
   variablesRechecking: boolean;
+  varRecheckFailed?: boolean;
   onVariableConfirmed: (key: string, value: string) => void;
   branches: Branch[];
   sourceBranch: string;
@@ -53,11 +56,11 @@ export default function EnvStep({
   status, expanded, onToggle, disabled, hasNext, hasPrev, prevStatus,
   envList, selectedEnv, onEnvChange,
   lockedByPR, branchMatchWarning, branchMatchError,
-  loading, onRefresh,
+  loading, refreshFailed, onRefresh,
   presentKeys, azureSecretsStatus, awsSecretsStatus,
-  repoFullName, onRecheck, rechecking,
+  repoFullName, onRecheck, rechecking, recheckFailed,
   account, repo,
-  variableValues, onVariableRecheck, variablesRechecking, onVariableConfirmed,
+  variableValues, onVariableRecheck, variablesRechecking, varRecheckFailed, onVariableConfirmed,
   branches, sourceBranch, onSourceBranchChange,
   creatingBranch, createBranchError, onCreateBranch,
 }: Props) {
@@ -104,6 +107,7 @@ export default function EnvStep({
         branchMatchWarning={branchMatchWarning}
         branchMatchError={branchMatchError}
         loading={loading}
+        refreshFailed={refreshFailed}
         onRefresh={onRefresh}
         presentKeys={presentKeys}
         azureSecretsStatus={azureSecretsStatus}
@@ -111,11 +115,13 @@ export default function EnvStep({
         repoFullName={repoFullName}
         onRecheck={onRecheck}
         rechecking={rechecking}
+        recheckFailed={recheckFailed}
         account={account}
         repo={repo}
         variableValues={variableValues}
         onVariableRecheck={onVariableRecheck}
         variablesRechecking={variablesRechecking}
+        varRecheckFailed={varRecheckFailed}
         onVariableConfirmed={onVariableConfirmed}
         branches={branches}
         sourceBranch={sourceBranch}

@@ -21,6 +21,7 @@ type Props = {
   selectedPR: PullRequest | null;
   onSelectPR: (pr: PullRequest | null) => void;
   loading: boolean;
+  refreshFailed?: boolean;
   onRefresh: () => void;
   envList: GhEnv[];
   repoFullName: string | null;
@@ -30,7 +31,7 @@ type Props = {
 
 export default function PRStep({
   status, expanded, onToggle, disabled, hasNext, hasPrev, prevStatus,
-  pullRequests, selectedPR, onSelectPR, loading, onRefresh, envList, repoFullName,
+  pullRequests, selectedPR, onSelectPR, loading, refreshFailed, onRefresh, envList, repoFullName,
 }: Props) {
   return (
     <StepWrapper
@@ -71,6 +72,7 @@ export default function PRStep({
         selectedPR={selectedPR}
         onSelectPR={onSelectPR}
         loading={loading}
+        refreshFailed={refreshFailed}
         onRefresh={onRefresh}
         envList={envList}
       />

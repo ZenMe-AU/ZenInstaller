@@ -32,6 +32,9 @@ export interface UseEnv {
   rechecking: boolean;
   presentVariableValues: Record<string, string>;
   variablesRechecking: boolean;
+  envRefreshFailed: boolean;
+  recheckFailed: boolean;
+  varRecheckFailed: boolean;
   onRecheck: () => Promise<void>;
   onVariableRecheck: () => Promise<void>;
   onVariableConfirmed: (key: string, value: string) => void;
@@ -75,6 +78,9 @@ export function useEnv(opts: {
   const [rechecking, setRechecking]                     = useState(false);
   const [presentVariableValues, setPresentVariableValues] = useState<Record<string, string>>({});
   const [variablesRechecking, setVariablesRechecking]   = useState(false);
+  const [envRefreshFailed, setEnvRefreshFailed]         = useState(false);
+  const [recheckFailed, setRecheckFailed]               = useState(false);
+  const [varRecheckFailed, setVarRecheckFailed]         = useState(false);
 
   // Clear env + secrets when repo changes
   const prevRepoId = useRef<number | string | null | undefined>(undefined);
@@ -101,44 +107,52 @@ export function useEnv(opts: {
   // ── Loaders ───────────────────────────────────────────────────────────────
   const loadEnvs = useCallback(async (account: Account, repo: RepoOption) => {
     setEnvLoading(true);
-    fetchEnvs(account, repo.name)
-      .then((list) => {
-        setEnvList(list);
-        const targetEnv = pendingRestore.current.env;
-        pendingRestore.current.env = null;
-        if (targetEnv && !pendingRestore.current.pr) {
-          const match = list.find((e) => e.name.toLowerCase() === targetEnv.toLowerCase());
-          if (match) setSelectedEnv(match);
-          else addRestoreWarning(`Environment "${targetEnv}" not found`);
-        }
-        checkRestoreDone();
-      })
-      .catch(console.error)
-      .finally(() => setEnvLoading(false));
+    setEnvRefreshFailed(false);
+    try {
+      const list = await fetchEnvs(account, repo.name);
+      setEnvList(list);
+      const targetEnv = pendingRestore.current.env;
+      pendingRestore.current.env = null;
+      if (targetEnv && !pendingRestore.current.pr) {
+        const match = list.find((e) => e.name.toLowerCase() === targetEnv.toLowerCase());
+        if (match) setSelectedEnv(match);
+        else addRestoreWarning(`Environment "${targetEnv}" not found`);
+      }
+      checkRestoreDone();
+    } catch (e) {
+      console.error(e);
+      setEnvRefreshFailed(true);
+    } finally {
+      setEnvLoading(false);
+    }
   }, [addRestoreWarning, checkRestoreDone, pendingRestore]);
 
-  const loadSecrets = useCallback(async (envName: string) => {
+  const loadSecrets = useCallback(async (envName: string): Promise<boolean> => {
     const acc  = accountRef.current;
     const repo = repoRef.current;
-    if (!acc || !repo) return;
+    if (!acc || !repo) return false;
     try {
       const keys = await fetchSecrets(acc, repo.name, envName);
       setAzureSecrets((prev) => ({ ...prev, configured: AZURE_SECRET_KEYS.every((k) => keys.includes(k)) }));
       setAwsSecrets((prev)   => ({ ...prev, configured: AWS_SECRET_KEYS.every((k)   => keys.includes(k)) }));
       setPresentSecretKeys(keys);
+      return true;
     } catch (e) {
       console.error("Failed to load secrets:", e);
+      return false;
     }
   }, []);
 
-  const loadVariables = useCallback(async (envName: string) => {
+  const loadVariables = useCallback(async (envName: string): Promise<boolean> => {
     const acc  = accountRef.current;
     const repo = repoRef.current;
-    if (!acc || !repo) return;
+    if (!acc || !repo) return false;
     try {
       setPresentVariableValues(await fetchVariables(acc, repo.name, envName));
+      return true;
     } catch (e) {
       console.error(e);
+      return false;
     }
   }, []);
 
@@ -207,15 +221,25 @@ export function useEnv(opts: {
   const onRecheck = useCallback(async () => {
     if (!selectedEnv) return;
     setRechecking(true);
-    try { await loadSecrets(selectedEnv.name); }
-    finally { setRechecking(false); }
+    setRecheckFailed(false);
+    try {
+      const ok = await loadSecrets(selectedEnv.name);
+      if (!ok) setRecheckFailed(true);
+    } finally {
+      setRechecking(false);
+    }
   }, [selectedEnv, loadSecrets]);
 
   const onVariableRecheck = useCallback(async () => {
     if (!selectedEnv) return;
     setVariablesRechecking(true);
-    try { await loadVariables(selectedEnv.name); }
-    finally { setVariablesRechecking(false); }
+    setVarRecheckFailed(false);
+    try {
+      const ok = await loadVariables(selectedEnv.name);
+      if (!ok) setVarRecheckFailed(true);
+    } finally {
+      setVariablesRechecking(false);
+    }
   }, [selectedEnv, loadVariables]);
 
   const onVariableConfirmed = useCallback((key: string, value: string) => {
@@ -237,6 +261,7 @@ export function useEnv(opts: {
     branchMatchWarning, branchMatchError, envReady, status, onRefresh,
     presentSecretKeys, azureSecrets, awsSecrets, rechecking,
     presentVariableValues, variablesRechecking,
+    envRefreshFailed, recheckFailed, varRecheckFailed,
     onRecheck, onVariableRecheck, onVariableConfirmed,
     onAzureValid, onAwsValid,
   };

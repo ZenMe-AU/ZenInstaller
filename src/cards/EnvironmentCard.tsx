@@ -1,4 +1,6 @@
+import { useState, useEffect, useRef } from "react";
 import { Box, Button, CircularProgress, Divider, Typography } from "@mui/material";
+import CheckIcon from "@mui/icons-material/Check";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import LockIcon from "@mui/icons-material/Lock";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
@@ -31,6 +33,7 @@ type Props = {
   branchMatchWarning: string | null;
   branchMatchError: string | null;
   loading: boolean;
+  refreshFailed?: boolean;
   onRefresh: () => void;
   // Secrets
   presentKeys: string[];
@@ -39,12 +42,14 @@ type Props = {
   repoFullName: string | null;
   onRecheck: () => void;
   rechecking: boolean;
+  recheckFailed?: boolean;
   account: Account | null;
   repo: string;
   // Variables
   variableValues: Record<string, string>;
   onVariableRecheck: () => void;
   variablesRechecking: boolean;
+  varRecheckFailed?: boolean;
   onVariableConfirmed: (key: string, value: string) => void;
   // Branch creation (shown when no branch matches the selected env)
   branches: Branch[];
@@ -65,6 +70,7 @@ export default function EnvironmentCard({
   branchMatchWarning,
   branchMatchError,
   loading,
+  refreshFailed,
   onRefresh,
   presentKeys,
   azureSecretsStatus,
@@ -72,11 +78,13 @@ export default function EnvironmentCard({
   repoFullName,
   onRecheck,
   rechecking,
+  recheckFailed,
   account,
   repo,
   variableValues,
   onVariableRecheck,
   variablesRechecking,
+  varRecheckFailed,
   onVariableConfirmed,
   branches,
   sourceBranch,
@@ -85,6 +93,20 @@ export default function EnvironmentCard({
   createBranchError,
   onCreateBranch,
 }: Props) {
+  const prevLoadingRef = useRef(false);
+  const clickedRef = useRef(false);
+  const [refreshResult, setRefreshResult] = useState<"done" | "failed" | null>(null);
+  useEffect(() => {
+    const was = prevLoadingRef.current;
+    prevLoadingRef.current = loading;
+    if (was && !loading && clickedRef.current) {
+      clickedRef.current = false;
+      setRefreshResult(refreshFailed ? "failed" : "done");
+      const t = setTimeout(() => setRefreshResult(null), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [loading, refreshFailed]);
+
   const validEnvs = envList.filter((e) => isValidEnvName(e.name));
   const secretsReady = !!selectedEnv && !branchMatchError;
   // Show BranchSection only when the error is "no branch found" (not PR mismatch / multiple)
@@ -107,12 +129,20 @@ export default function EnvironmentCard({
         {!lockedByPR && (
           <Button
             size="small"
-            onClick={onRefresh}
+            onClick={() => { clickedRef.current = true; onRefresh(); }}
             disabled={loading}
-            startIcon={loading ? <CircularProgress size={12} sx={{ color: "#94a3b8" }} /> : <RefreshIcon sx={{ fontSize: 14 }} />}
-            sx={{ ml: 2, ...refreshBtnSx }}
+            startIcon={
+              loading
+                ? <CircularProgress size={12} sx={{ color: "#94a3b8" }} />
+                : refreshResult === "done"
+                  ? <CheckIcon sx={{ fontSize: 14 }} />
+                  : refreshResult === "failed"
+                    ? <ErrorOutlineIcon sx={{ fontSize: 14 }} />
+                    : <RefreshIcon sx={{ fontSize: 14 }} />
+            }
+            sx={{ ml: 2, ...refreshBtnSx, ...(refreshResult && { color: refreshResult === "done" ? "#22c55e" : "#ef4444", "&:hover": { color: refreshResult === "done" ? "#16a34a" : "#b91c1c" }, transition: "color 0.15s" }) }}
           >
-            Refresh
+            {refreshResult === "done" ? "Done" : refreshResult === "failed" ? "Failed" : "Refresh"}
           </Button>
         )}
       </Box>
@@ -245,6 +275,7 @@ export default function EnvironmentCard({
               awsSecretsStatus={awsSecretsStatus}
               onRecheck={onRecheck}
               rechecking={rechecking}
+              recheckFailed={recheckFailed}
             />
           )}
 
@@ -257,6 +288,7 @@ export default function EnvironmentCard({
             variableValues={variableValues}
             onVariableRecheck={onVariableRecheck}
             variablesRechecking={variablesRechecking}
+            varRecheckFailed={varRecheckFailed}
             onVariableConfirmed={onVariableConfirmed}
             azureSecretsStatus={azureSecretsStatus}
             awsSecretsStatus={awsSecretsStatus}

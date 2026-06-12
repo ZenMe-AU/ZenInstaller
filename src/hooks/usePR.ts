@@ -10,6 +10,7 @@ export interface UsePR {
   selectedPR: PullRequest | null;
   setSelectedPR: (pr: PullRequest | null) => void;
   prLoading: boolean;
+  prRefreshFailed: boolean;
   onRefresh: () => void;
 }
 
@@ -35,6 +36,7 @@ export function usePR(opts: {
   const [pullRequests, setPullRequests] = useState<PullRequest[]>([]);
   const [selectedPR, setSelectedPR] = useState<PullRequest | null>(null);
   const [prLoading, setPrLoading] = useState(false);
+  const [prRefreshFailed, setPrRefreshFailed] = useState(false);
 
   // Auto-clear when repo changes
   const prevRepoId = useRef<number | string | null | undefined>(undefined);
@@ -50,6 +52,7 @@ export function usePR(opts: {
   // ── Loader ────────────────────────────────────────────────────────────────
   const loadPRs = useCallback(async (account: Account, repo: RepoOption) => {
     setPrLoading(true);
+    setPrRefreshFailed(false);
     try {
       const prs = await fetchPullRequests(account, repo.name);
       setPullRequests(prs);
@@ -67,6 +70,7 @@ export function usePR(opts: {
       }
     } catch (e) {
       console.error(e);
+      setPrRefreshFailed(true);
       pendingRestore.current.pr = null;
     } finally {
       setPrLoading(false);
@@ -88,5 +92,5 @@ export function usePR(opts: {
     loadPRs(acc, repo);
   }, [loadPRs]);
 
-  return { pullRequests, selectedPR, setSelectedPR, prLoading, onRefresh };
+  return { pullRequests, selectedPR, setSelectedPR, prLoading, prRefreshFailed, onRefresh };
 }

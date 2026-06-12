@@ -1,6 +1,8 @@
+import { useState, useEffect, useRef } from "react";
 import { Box, Button, Chip, CircularProgress, Collapse, Typography } from "@mui/material";
 import CallMergeIcon from "@mui/icons-material/CallMerge";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CheckIcon from "@mui/icons-material/Check";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import RefreshIcon from "@mui/icons-material/Refresh";
@@ -15,6 +17,7 @@ type Props = {
   selectedPR: PullRequest | null;
   onSelectPR: (pr: PullRequest | null) => void;
   loading: boolean;
+  refreshFailed?: boolean;
   onRefresh: () => void;
   envList: GhEnv[];
 };
@@ -22,8 +25,22 @@ type Props = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function PRCard({
-  pullRequests, selectedPR, onSelectPR, loading, onRefresh, envList,
+  pullRequests, selectedPR, onSelectPR, loading, refreshFailed, onRefresh, envList,
 }: Props) {
+  const prevLoadingRef = useRef(false);
+  const clickedRef = useRef(false);
+  const [refreshResult, setRefreshResult] = useState<"done" | "failed" | null>(null);
+  useEffect(() => {
+    const was = prevLoadingRef.current;
+    prevLoadingRef.current = loading;
+    if (was && !loading && clickedRef.current) {
+      clickedRef.current = false;
+      setRefreshResult(refreshFailed ? "failed" : "done");
+      const t = setTimeout(() => setRefreshResult(null), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [loading, refreshFailed]);
+
   return (
     <Box>
       {/* Description + controls */}
@@ -49,22 +66,27 @@ export default function PRCard({
           )}
           <Button
             size="small"
-            onClick={onRefresh}
+            onClick={() => { clickedRef.current = true; onRefresh(); }}
             disabled={loading}
             startIcon={
               loading
                 ? <CircularProgress size={12} sx={{ color: "#94a3b8" }} />
-                : <RefreshIcon sx={{ fontSize: 14 }} />
+                : refreshResult === "done"
+                  ? <CheckIcon sx={{ fontSize: 14 }} />
+                  : refreshResult === "failed"
+                    ? <ErrorOutlineIcon sx={{ fontSize: 14 }} />
+                    : <RefreshIcon sx={{ fontSize: 14 }} />
             }
             sx={{
-              color: "#94a3b8",
+              color: refreshResult === "done" ? "#22c55e" : refreshResult === "failed" ? "#ef4444" : "#94a3b8",
               fontSize: "0.72rem",
               textTransform: "none",
               fontFamily: "'IBM Plex Mono', monospace",
-              "&:hover": { color: "#475569" },
+              "&:hover": { color: refreshResult === "done" ? "#16a34a" : refreshResult === "failed" ? "#b91c1c" : "#475569" },
+              transition: "color 0.15s",
             }}
           >
-            Refresh
+            {refreshResult === "done" ? "Done" : refreshResult === "failed" ? "Failed" : "Refresh"}
           </Button>
         </Box>
       </Box>

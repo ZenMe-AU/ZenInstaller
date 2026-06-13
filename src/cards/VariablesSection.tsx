@@ -4,7 +4,7 @@ import CheckIcon from "@mui/icons-material/Check";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import type { Account, GhEnv, SecretsStatus, UpsertStatus } from "../types";
-import { AZURE_VARIABLE_KEYS, AWS_VARIABLE_KEYS, GITHUB_VARIABLE_KEYS } from "../types";
+import { AZURE_VARIABLE_KEYS, AWS_VARIABLE_KEYS, GITHUB_VARIABLE_KEYS } from "../logic/variables";
 import { createVariable, updateVariable } from "../api";
 import VariablesCard from "../components/VariablesCard";
 

@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { fetchEnvs, fetchSecrets, fetchVariables } from "../api";
+import { AZURE_SECRET_KEYS, AWS_SECRET_KEYS } from "../logic/variables";
 import {
-  AZURE_SECRET_KEYS,
-  AWS_SECRET_KEYS,
   type Account,
   type Branch,
   type CardStatus,

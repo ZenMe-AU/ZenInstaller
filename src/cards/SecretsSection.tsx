@@ -4,7 +4,7 @@ import CheckIcon from "@mui/icons-material/Check";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import type { Account, GhEnv, PendingSecret, SecretsStatus, UpsertStatus } from "../types";
-import { AZURE_SECRET_KEYS, AWS_SECRET_KEYS } from "../types";
+import { AZURE_SECRET_KEYS, AWS_SECRET_KEYS } from "../logic/variables";
 import { fetchPublicKey, upsertSecret } from "../api";
 import { encryptSecret } from "../logic/crypto";
 import SecretsCard from "../components/SecretsCard";

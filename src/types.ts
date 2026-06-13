@@ -127,14 +127,6 @@ export type Stage = {
   deployLogUrl?: string;
 };
 
-export const STAGE_STATUS_CONFIG: Record<StageStatus, { color: string; label: string }> = {
-  deployed: { color: "#22c55e", label: "Deployed" },
-  success:  { color: "#f97316", label: "Ready to deploy" },
-  failed:   { color: "#ef4444", label: "Failed" },
-  pending:  { color: "#94a3b8", label: "Not yet executed" },
-  skipped:  { color: "#94a3b8", label: "Skipped" },
-};
-
 // ─── Secrets ──────────────────────────────────────────────────────────────────
 
 export type SecretsStatus = {
@@ -147,13 +139,6 @@ export type UpsertSecretResult = {
   name: string;
   env: string;
 };
-
-export const AZURE_SECRET_KEYS = ["AZURE_CLIENT_SECRET"];
-export const AWS_SECRET_KEYS = ["AWS_CLIENT_SECRET"];
-export const AZURE_VARIABLE_KEYS = ["AZURE_CLIENT_ID", "AZURE_SUBSCRIPTION_ID", "AZURE_TENANT_ID"] as const;
-export const AWS_VARIABLE_KEYS = ["AWS_ACCOUNT_ID", "AWS_ROLE_NAME"] as const;
-export const GITHUB_VARIABLE_KEYS = ["NAME", "DNS"] as const;
-export const C01_KEYS = ["CONTACT_EMAILS"] as const;
 
 // ─── Pending secrets / upsert ─────────────────────────────────────────────────
 

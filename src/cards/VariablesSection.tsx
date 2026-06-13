@@ -1,17 +1,52 @@
 import { useState, useEffect, useRef } from "react";
-import { Box, Button, CircularProgress, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, Collapse, Typography } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import LightbulbOutlinedIcon from "@mui/icons-material/LightbulbOutlined";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import type { Account, GhEnv, SecretsStatus, UpsertStatus } from "../types";
 import { AZURE_VARIABLE_KEYS, AWS_VARIABLE_KEYS, GITHUB_VARIABLE_KEYS } from "../logic/variables";
+import { CLOUD_DOCS } from "../config/docsConfig";
 import { createVariable, updateVariable } from "../api";
 import VariablesCard from "../components/VariablesCard";
+
+function SetupGuide({ links }: { links: { label: string; href: string }[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Box>
+      <Box
+        onClick={() => setOpen((v) => !v)}
+        sx={{ display: "flex", alignItems: "center", gap: 0.4, cursor: "pointer", color: "#94a3b8", "&:hover": { color: "#2563eb" } }}
+      >
+        <LightbulbOutlinedIcon sx={{ fontSize: 13 }} />
+        <Typography sx={{ fontSize: "0.72rem", fontFamily: "'IBM Plex Mono', monospace" }}>How to set up</Typography>
+      </Box>
+      <Collapse in={open}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, mt: 0.75, pl: 0.25 }}>
+          {links.map(({ label, href }) => (
+            <Box
+              key={href}
+              component="a"
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{ display: "flex", alignItems: "center", gap: 0.25, color: "#64748b", textDecoration: "none", "&:hover": { color: "#2563eb" } }}
+            >
+              <Typography sx={{ fontSize: "0.72rem", fontFamily: "'IBM Plex Mono', monospace" }}>{label}</Typography>
+              <OpenInNewIcon sx={{ fontSize: 12 }} />
+            </Box>
+          ))}
+        </Box>
+      </Collapse>
+    </Box>
+  );
+}
 
 const sectionLabelSx = {
   fontSize: "0.7rem",
   fontWeight: 700,
-  color: "#94a3b8",
+  color: "#0f172a",
   textTransform: "uppercase" as const,
   letterSpacing: "0.1em",
   fontFamily: "'IBM Plex Mono', monospace",
@@ -20,7 +55,7 @@ const sectionLabelSx = {
 const subLabelSx = {
   fontSize: "0.67rem",
   fontWeight: 600,
-  color: "#cbd5e1",
+  color: "#94a3b8",
   textTransform: "uppercase" as const,
   letterSpacing: "0.08em",
   fontFamily: "'IBM Plex Mono', monospace",
@@ -134,18 +169,32 @@ export default function VariablesSection({
         </Box>
         <Button
           size="small"
-          onClick={() => { clickedRef.current = true; onVariableRecheck(); }}
+          onClick={() => {
+            clickedRef.current = true;
+            onVariableRecheck();
+          }}
           disabled={variablesRechecking}
           startIcon={
-            variablesRechecking
-              ? <CircularProgress size={12} sx={{ color: "#94a3b8" }} />
-              : refreshResult === "done"
-                ? <CheckIcon sx={{ fontSize: 14 }} />
-                : refreshResult === "failed"
-                  ? <ErrorOutlineIcon sx={{ fontSize: 14 }} />
-                  : <RefreshIcon sx={{ fontSize: 14 }} />
+            variablesRechecking ? (
+              <CircularProgress size={12} sx={{ color: "#94a3b8" }} />
+            ) : refreshResult === "done" ? (
+              <CheckIcon sx={{ fontSize: 14 }} />
+            ) : refreshResult === "failed" ? (
+              <ErrorOutlineIcon sx={{ fontSize: 14 }} />
+            ) : (
+              <RefreshIcon sx={{ fontSize: 14 }} />
+            )
           }
-          sx={{ ml: 2, mt: 0.25, ...refreshBtnSx, ...(refreshResult && { color: refreshResult === "done" ? "#22c55e" : "#ef4444", "&:hover": { color: refreshResult === "done" ? "#16a34a" : "#b91c1c" }, transition: "color 0.15s" }) }}
+          sx={{
+            ml: 2,
+            mt: 0.25,
+            ...refreshBtnSx,
+            ...(refreshResult && {
+              color: refreshResult === "done" ? "#22c55e" : "#ef4444",
+              "&:hover": { color: refreshResult === "done" ? "#16a34a" : "#b91c1c" },
+              transition: "color 0.15s",
+            }),
+          }}
         >
           {refreshResult === "done" ? "Done" : refreshResult === "failed" ? "Failed" : "Refresh"}
         </Button>
@@ -153,7 +202,7 @@ export default function VariablesSection({
 
       {/* Azure variable sub-section */}
       <Box sx={{ mt: 2 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.75 }}>
           <Typography sx={subLabelSx}>Azure</Typography>
           {(() => {
             const n = AZURE_VARIABLE_KEYS.filter((k) => !variableValues[k]).length;
@@ -165,20 +214,28 @@ export default function VariablesSection({
             ) : null;
           })()}
         </Box>
-        <VariablesCard
-          requiredKeys={AZURE_VARIABLE_KEYS}
-          savedValues={variableValues}
-          localValues={localVarValues}
-          upsertStatuses={varUpsertStatuses}
-          validStatus={azureSecretsStatus.valid}
-          onChange={handleVarChange}
-          onRevert={handleVarRevert}
+        <SetupGuide
+          links={[
+            { label: "How to Create a Free Azure Account", href: CLOUD_DOCS.azure.createAccount },
+            { label: "How to Set Up GitHub OIDC for Azure", href: CLOUD_DOCS.azure.setupOidc },
+          ]}
         />
+        <Box sx={{ mt: 1 }}>
+          <VariablesCard
+            requiredKeys={AZURE_VARIABLE_KEYS}
+            savedValues={variableValues}
+            localValues={localVarValues}
+            upsertStatuses={varUpsertStatuses}
+            validStatus={azureSecretsStatus.valid}
+            onChange={handleVarChange}
+            onRevert={handleVarRevert}
+          />
+        </Box>
       </Box>
 
       {/* AWS variable sub-section */}
       <Box sx={{ mt: 2 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.75 }}>
           <Typography sx={subLabelSx}>AWS</Typography>
           {(() => {
             const n = AWS_VARIABLE_KEYS.filter((k) => !variableValues[k]).length;
@@ -190,15 +247,23 @@ export default function VariablesSection({
             ) : null;
           })()}
         </Box>
-        <VariablesCard
-          requiredKeys={AWS_VARIABLE_KEYS}
-          savedValues={variableValues}
-          localValues={localVarValues}
-          upsertStatuses={varUpsertStatuses}
-          validStatus={awsSecretsStatus.valid}
-          onChange={handleVarChange}
-          onRevert={handleVarRevert}
+        <SetupGuide
+          links={[
+            { label: "How to Create a Free AWS Account", href: CLOUD_DOCS.aws.createAccount },
+            { label: "How to Set Up GitHub OIDC for AWS", href: CLOUD_DOCS.aws.setupOidc },
+          ]}
         />
+        <Box sx={{ mt: 1 }}>
+          <VariablesCard
+            requiredKeys={AWS_VARIABLE_KEYS}
+            savedValues={variableValues}
+            localValues={localVarValues}
+            upsertStatuses={varUpsertStatuses}
+            validStatus={awsSecretsStatus.valid}
+            onChange={handleVarChange}
+            onRevert={handleVarRevert}
+          />
+        </Box>
       </Box>
 
       {/* Deployment sub-section */}

@@ -8,10 +8,9 @@ type Props = {
   authLoading: boolean;
   user: User | null;
   selectedRepo: RepoOption | null;
-  onLogout: () => void;
 };
 
-export default function NavBar({ authLoading, user, selectedRepo, onLogout }: Props) {
+export default function NavBar({ authLoading, user, selectedRepo }: Props) {
   const [copied, setCopied] = useState(false);
 
   return (
@@ -50,11 +49,6 @@ export default function NavBar({ authLoading, user, selectedRepo, onLogout }: Pr
                 {copied ? "Copied!" : "Copy link"}
               </Button>
             )}
-            <Button size="small" variant="outlined" onClick={onLogout}
-              sx={{ borderColor: "#e2e8f0", color: "#94a3b8", fontSize: "0.78rem", textTransform: "none",
-                fontFamily: "'IBM Plex Mono', monospace", py: 0.5, "&:hover": { borderColor: "#fecaca", color: "#ef4444" } }}>
-              Logout
-            </Button>
           </Box>
         ) : null}
       </Box>

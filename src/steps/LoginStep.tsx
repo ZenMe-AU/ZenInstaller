@@ -14,10 +14,7 @@ type Props = {
   onLogout: () => void;
 };
 
-export default function LoginStep({
-  status, expanded, onToggle,
-  authLoading, user, onLogin, onLogout,
-}: Props) {
+export default function LoginStep({ status, expanded, onToggle, authLoading, user, onLogin, onLogout }: Props) {
   return (
     <StepWrapper
       title="Login to GitHub"
@@ -29,9 +26,7 @@ export default function LoginStep({
       {authLoading ? (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 1 }}>
           <CircularProgress size={16} sx={{ color: "#cbd5e1" }} />
-          <Typography sx={{ fontSize: "0.78rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>
-            Verifying access...
-          </Typography>
+          <Typography sx={{ fontSize: "0.78rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>Verifying access...</Typography>
         </Box>
       ) : !user ? (
         <Button
@@ -52,10 +47,13 @@ export default function LoginStep({
           Login with GitHub
         </Button>
       ) : (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <Box sx={{ width: 8, height: 8, borderRadius: "50%", background: "#22c55e" }} />
-          <Typography sx={{ fontSize: "0.85rem", color: "#0f172a", fontFamily: "'IBM Plex Mono', monospace" }}>
-            {user.login}
+        <Box>
+          <Typography sx={{ fontSize: "0.78rem", color: "#64748b", mb: 2 }}>
+            Authenticated as{" "}
+            <Box component="span" sx={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600 }}>
+              {user.login}
+            </Box>
+            . You can sign out and connect a different account below.
           </Typography>
           <Button
             size="small"
@@ -64,14 +62,14 @@ export default function LoginStep({
             sx={{
               borderColor: "#e2e8f0",
               color: "#94a3b8",
-              fontSize: "0.78rem",
+              fontSize: "0.72rem",
               textTransform: "none",
               fontFamily: "'IBM Plex Mono', monospace",
               py: 0.5,
               "&:hover": { borderColor: "#fecaca", color: "#ef4444" },
             }}
           >
-            Logout
+            Sign out
           </Button>
         </Box>
       )}

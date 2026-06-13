@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Box, Typography } from "@mui/material";
 
-import { type CardId, type CardStatus, type StageStatus } from "./types";
+import { type CardId, type CardStatus, type PendingRestore, type StageStatus } from "./types";
 import { useActiveAuth as useAuth } from "./hooks/useActiveAuth";
 import { useAccountRepo } from "./hooks/useAccountRepo";
 import { useDeploymentPlan } from "./hooks/useDeploymentPlan";
@@ -27,20 +27,32 @@ export default function AppDashboard() {
   // ── Hooks ──────────────────────────────────────────────────────────────────
   const restore = useUrlRestore();
   const auth = useAuth();
+  const isAuthed = auth.status === "complete";
+
+  // Stable empty refs — passed to sub-hooks when !isAuthed so restore never fires before login
+  const _emptyRestore = useRef<PendingRestore>({ account: null, repo: null, pr: null, env: null });
+  const _emptyApplied = useRef(false);
+  const _noop = useCallback(() => {}, []);
+
+  const pendingRestoreGated = isAuthed ? restore.pendingRestore : _emptyRestore;
+  const urlAccountAppliedGated = isAuthed ? restore.urlAccountApplied : _emptyApplied;
+  const addWarningGated = isAuthed ? restore.addRestoreWarning : _noop;
+  const checkDoneGated = isAuthed ? restore.checkRestoreDone : _noop;
+
   const repo = useAccountRepo({
     user: auth.user,
-    pendingRestore: restore.pendingRestore,
-    urlAccountApplied: restore.urlAccountApplied,
-    addRestoreWarning: restore.addRestoreWarning,
-    checkRestoreDone: restore.checkRestoreDone,
+    pendingRestore: pendingRestoreGated,
+    urlAccountApplied: urlAccountAppliedGated,
+    addRestoreWarning: addWarningGated,
+    checkRestoreDone: checkDoneGated,
   });
   const pr = usePR({
     account: repo.selectedAccount,
     repo: repo.selectedRepo,
     isCloneRepo: repo.isCloneRepo,
-    pendingRestore: restore.pendingRestore,
-    addRestoreWarning: restore.addRestoreWarning,
-    checkRestoreDone: restore.checkRestoreDone,
+    pendingRestore: pendingRestoreGated,
+    addRestoreWarning: addWarningGated,
+    checkRestoreDone: checkDoneGated,
   });
   const env = useEnv({
     account: repo.selectedAccount,
@@ -48,9 +60,9 @@ export default function AppDashboard() {
     isCloneRepo: repo.isCloneRepo,
     selectedPR: pr.selectedPR,
     branches: repo.branches,
-    pendingRestore: restore.pendingRestore,
-    addRestoreWarning: restore.addRestoreWarning,
-    checkRestoreDone: restore.checkRestoreDone,
+    pendingRestore: pendingRestoreGated,
+    addRestoreWarning: addWarningGated,
+    checkRestoreDone: checkDoneGated,
   });
   const plan = useDeploymentPlan({
     account: repo.selectedAccount,
@@ -79,23 +91,34 @@ export default function AppDashboard() {
   const [stagesExpanded, setStagesExpanded] = useState<Record<string, boolean>>({});
 
   // ── Derived card statuses ──────────────────────────────────────────────────
-  const prStatus: CardStatus = pr.selectedPR ? "complete" : env.selectedEnv ? "skipped" : repo.status === "complete" ? "loading" : "idle";
-
-  const effectiveEnvStatus: CardStatus = env.status === "idle" && repo.status === "complete" ? "loading" : env.status;
-
-  const effectiveStatusUpdateStatus: CardStatus = plan.statusUpdateStatus === "idle" && env.envReady ? "loading" : plan.statusUpdateStatus;
+  const prStatus: CardStatus = !isAuthed
+    ? "idle"
+    : pr.selectedPR
+      ? "complete"
+      : env.selectedEnv
+        ? "skipped"
+        : repo.status === "complete"
+          ? "loading"
+          : "idle";
+  const effectiveEnvStatus: CardStatus = !isAuthed ? "idle" : env.status === "idle" && repo.status === "complete" ? "loading" : env.status;
+  const effectiveStatusUpdateStatus: CardStatus = !isAuthed
+    ? "idle"
+    : plan.statusUpdateStatus === "idle" && env.envReady
+      ? "loading"
+      : plan.statusUpdateStatus;
 
   const cardStatus: Record<CardId, CardStatus> = {
-    auth: auth.status,
-    repo: repo.status,
+    auth: isAuthed ? "complete" : "loading",
+    repo: isAuthed ? repo.status : "idle",
     pr: prStatus,
     env: effectiveEnvStatus,
     status_update: effectiveStatusUpdateStatus,
-    stages: !plan.hasPlan ? "idle" : plan.stages.some((s) => s.status === "failed") ? "warning" : "complete",
+    stages: isAuthed && plan.hasPlan ? (plan.stages.some((s) => s.status === "failed") ? "warning" : "complete") : "idle",
   };
 
   // ── URL sync (persist current state; restore is handled by useUrlRestore) ──
   useEffect(() => {
+    if (!isAuthed) return;
     const p = restore.pendingRestore.current;
     if (p.account !== null || p.repo !== null || p.pr !== null || p.env !== null) return;
     const params = new URLSearchParams();
@@ -105,7 +128,7 @@ export default function AppDashboard() {
     else if (env.selectedEnv) params.set("env", env.selectedEnv.name);
     const search = params.toString();
     window.history.replaceState(null, "", search ? `?${search}` : window.location.pathname);
-  }, [repo.selectedAccount, repo.selectedRepo, pr.selectedPR, env.selectedEnv, restore.pendingRestore]);
+  }, [isAuthed, repo.selectedAccount, repo.selectedRepo, pr.selectedPR, env.selectedEnv, restore.pendingRestore]);
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -113,7 +136,7 @@ export default function AppDashboard() {
       <SessionOverlay sessionExpired={auth.sessionExpired} redirecting={auth.redirecting} onLogin={auth.onLogin} />
 
       <Box sx={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a", fontFamily: "'IBM Plex Sans', sans-serif" }}>
-        <NavBar authLoading={auth.authLoading} user={auth.user} selectedRepo={repo.selectedRepo} onLogout={auth.onLogout} />
+        <NavBar authLoading={auth.authLoading} user={auth.user} selectedRepo={repo.selectedRepo} />
 
         <Box sx={{ maxWidth: 860, mx: "auto", px: 4, py: 5 }}>
           {/* Intro */}
@@ -136,7 +159,7 @@ export default function AppDashboard() {
 
           <Connector>
             <LoginStep
-              status={auth.status}
+              status={cardStatus.auth}
               expanded={expanded.auth}
               onToggle={() => toggle("auth")}
               authLoading={auth.authLoading}
@@ -146,7 +169,7 @@ export default function AppDashboard() {
             />
 
             <RepoStep
-              status={repo.status}
+              status={cardStatus.repo}
               expanded={expanded.repo}
               onToggle={() => toggle("repo")}
               accounts={repo.accounts}
@@ -172,13 +195,14 @@ export default function AppDashboard() {
               repoRefreshFailed={repo.repoRefreshFailed}
               onRefresh={repo.onRefresh}
               repoFullName={repo.repoFullName}
+              disabled={!isAuthed}
             />
 
             <PRStep
               status={prStatus}
               expanded={expanded.pr}
               onToggle={() => toggle("pr")}
-              disabled={!repo.isCloneRepo}
+              disabled={!isAuthed || !repo.isCloneRepo}
               repoFullName={repo.repoFullName}
               pullRequests={pr.pullRequests}
               selectedPR={pr.selectedPR}
@@ -196,7 +220,7 @@ export default function AppDashboard() {
               status={effectiveEnvStatus}
               expanded={expanded.env}
               onToggle={() => toggle("env")}
-              disabled={!repo.isCloneRepo}
+              disabled={!isAuthed || !repo.isCloneRepo}
               envList={env.envList}
               selectedEnv={env.selectedEnv}
               onEnvChange={env.setSelectedEnv}
@@ -232,7 +256,7 @@ export default function AppDashboard() {
               status={effectiveStatusUpdateStatus}
               expanded={expanded.status_update}
               onToggle={() => toggle("status_update")}
-              disabled={!repo.isCloneRepo || !env.envReady}
+              disabled={!isAuthed || !repo.isCloneRepo || !env.envReady}
               running={plan.running}
               countdown={plan.countdown}
               lastRunTime={plan.lastRunTime}
@@ -300,10 +324,10 @@ export default function AppDashboard() {
               return (
                 <StageStep
                   key={stageDef.key}
-                  status={stageToCardStatus(effectiveStatus, plan.isStale, plan.stagesLoading)}
+                  status={isAuthed ? stageToCardStatus(effectiveStatus, plan.isStale, plan.stagesLoading) : "idle"}
                   expanded={!!stagesExpanded[stageDef.key]}
                   onToggle={() => setStagesExpanded((p) => ({ ...p, [stageDef.key]: !p[stageDef.key] }))}
-                  disabled={!repo.isCloneRepo}
+                  disabled={!isAuthed || !repo.isCloneRepo}
                   stageDef={stageDef}
                   stage={stage}
                   summary={summary}
@@ -325,8 +349,8 @@ export default function AppDashboard() {
       </Box>
 
       <RestoreToast
-        loading={restore.urlRestoreMsg.loading}
-        warnings={restore.urlRestoreMsg.warnings}
+        loading={isAuthed && restore.urlRestoreMsg.loading}
+        warnings={isAuthed ? restore.urlRestoreMsg.warnings : []}
         onDismiss={() => restore.setUrlRestoreMsg((p) => ({ ...p, warnings: [] }))}
       />
     </>

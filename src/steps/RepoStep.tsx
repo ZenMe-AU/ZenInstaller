@@ -9,6 +9,7 @@ type Props = {
   status: CardStatus;
   expanded: boolean;
   onToggle: () => void;
+  disabled?: boolean;
   // ── Domain ───────────────────────────────────────────────────────────────
   accounts: Account[];
   selectedAccount: Account | null;
@@ -36,7 +37,7 @@ type Props = {
 };
 
 export default function RepoStep({
-  status, expanded, onToggle,
+  status, expanded, onToggle, disabled,
   accounts, selectedAccount, onAccountChange,
   repos, selectedRepo, onRepoChange,
   templateStatus, templateName, defaultTemplateRepo,
@@ -58,6 +59,7 @@ export default function RepoStep({
       status={status}
       expanded={expanded}
       onToggle={onToggle}
+      disabled={disabled}
       action={
         repoFullName ? (
           <Button

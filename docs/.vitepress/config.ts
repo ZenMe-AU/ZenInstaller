@@ -9,8 +9,20 @@ export default defineConfig({
       {
         items: [
           {
-            text: "Creating org Microsoft account",
-            link: "/Creating_org_Microsoft_account",
+            text: "Creating AZURE account",
+            link: "/Creating_AZURE_account",
+          },
+          {
+            text: "Set up GitHub oidc for AZURE",
+            link: "/Set_up_GitHub_oidc_for_AZURE",
+          },
+          {
+            text: "Creating AWS account",
+            link: "/Creating_AWS_account",
+          },
+          {
+            text: "Set up GitHub oidc for AWS",
+            link: "/Set_up_GitHub_oidc_for_AWS",
           },
         ],
       },

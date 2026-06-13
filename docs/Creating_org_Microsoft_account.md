@@ -11,7 +11,7 @@ This guide walks through the steps required to create a Microsoft Entra ID tenan
 
 2. Select **Pay as you go**.
 
-![Azure signup page](images/image1.png)
+![Azure signup page](images/azure-account/image1.png)
 
 3. You will be prompted to sign in with an existing Microsoft account or create a new one.
 
@@ -19,7 +19,7 @@ This guide walks through the steps required to create a Microsoft Entra ID tenan
 
 ### Step 1 of 3 — Organization & Contact Information
 
-![Sign in prompt](images/image2.png)
+![Sign in prompt](images/azure-account/image2.png)
 
 This step establishes who is creating the tenant and which organization it belongs to.
 
@@ -41,7 +41,7 @@ This step establishes who is creating the tenant and which organization it belon
 
 This step collects your physical address and requires you to accept Microsoft's terms.
 
-![Address and agreements form](images/image3.png)
+![Address and agreements form](images/azure-account/image3.png)
 
 **Fields to Complete**
 
@@ -73,7 +73,7 @@ These do not affect your ability to proceed.
 
 Azure requires a valid payment method to prevent fraud and confirm identity. **You will not be charged unless you later upgrade to Pay As You Go.**
 
-![Payment verification form](images/image4.png)
+![Payment verification form](images/azure-account/image4.png)
 
 **Fields to Complete**
 
@@ -115,11 +115,11 @@ After all three steps are successfully submitted:
 
 2. Look for App registrations and click on it
 
-![Entra admin centre navigation](images/image5.png)
+![Entra admin centre navigation](images/azure-account/image5.png)
 
 3. Click on New registration
 
-![App registrations](images/image6.png)
+![App registrations](images/azure-account/image6.png)
 
 4. Give the application a name like 'corpDeployer'
 
@@ -151,7 +151,7 @@ After all three steps are successfully submitted:
 
 18. Expand the **Policy** section, check the box next to Policy.ReadWrite.AuthenticationMethod, and click **Add permissions** at the bottom
 
-![Policy permissions](images/image7.png)
+![Policy permissions](images/azure-account/image7.png)
 
 19. Click **+ Add a permission** again
 

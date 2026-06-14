@@ -18,6 +18,7 @@ type Props = {
   disabled?: boolean;
   // ── Domain ───────────────────────────────────────────────────────────────
   envList: GhEnv[];
+  validEnvs: readonly string[];
   selectedEnv: GhEnv | null;
   onEnvChange: (env: GhEnv | null) => void;
   lockedByPR: boolean;
@@ -50,7 +51,7 @@ type Props = {
 
 export default function EnvStep({
   status, expanded, onToggle, disabled,
-  envList, selectedEnv, onEnvChange,
+  envList, validEnvs, selectedEnv, onEnvChange,
   lockedByPR, branchMatchWarning, branchMatchError,
   loading, refreshFailed, onRefresh,
   presentKeys, azureSecretsStatus, awsSecretsStatus,
@@ -94,6 +95,7 @@ export default function EnvStep({
     >
       <EnvironmentCard
         envList={envList}
+        validEnvs={validEnvs}
         selectedEnv={selectedEnv}
         onEnvChange={onEnvChange}
         lockedByPR={lockedByPR}

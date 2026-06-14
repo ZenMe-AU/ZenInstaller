@@ -6,6 +6,7 @@ export const PIPELINES: Record<string, PipelineConfig> = {
     workflowId: "planChanges.yml",
     label: "ZenInstaller Setup Central Corp Environment",
     templateRepo: "ZenMe-AU/ZBCorpArchitecture",
+    validEnvs: ["PROD", "TEST"] as const,
     stages: [
       {
         key: "c01",

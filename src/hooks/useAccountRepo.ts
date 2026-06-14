@@ -7,7 +7,7 @@ import {
   fetchRepos,
   generateRepo,
 } from "../api";
-import { PIPELINES, matchPipelineByTemplate } from "../logic/pipeline";
+import { PIPELINES } from "../logic/pipeline";
 import type {
   Account,
   Branch,
@@ -38,6 +38,8 @@ export interface UseAccountRepo {
   repoFullName: string | null;
   // Pipeline
   pipeline: PipelineConfig;
+  selectedPipeline: string;
+  setSelectedPipeline: (key: string) => void;
   // Clone
   isPrivate: boolean;
   setIsPrivate: (v: boolean) => void;
@@ -112,8 +114,40 @@ export function useAccountRepo(opts: {
     : null;
   const pipeline = PIPELINES[selectedPipeline];
 
+  const pipelineRef = useRef(pipeline);
+  pipelineRef.current = pipeline;
+
   // Auto-clear clone error when a different repo is selected
   useEffect(() => { setCloneError(null); }, [selectedRepo?.id]);
+
+  // Re-evaluate template match when user switches pipeline (repo may already be selected)
+  const templateNameRef = useRef<string | null>(null);
+  templateNameRef.current = templateName;
+  useEffect(() => {
+    const tName = templateNameRef.current;
+    if (!tName) return;
+    const isMatch = tName === pipeline.templateRepo;
+    setTemplateStatus(isMatch ? "ready" : "not_clone");
+    setStatus(isMatch ? "complete" : "warning");
+    if (isMatch) {
+      const acc = selectedAccountRef.current;
+      const repo = selectedRepoRef.current;
+      if (acc && repo && !repo.isNew) {
+        setBranchesLoading(true);
+        fetchBranches(acc, repo.name)
+          .then((list) => {
+            setBranches(list);
+            const main = list.find((b) => b.name === "main");
+            setSourceBranch(main ? "main" : (list[0]?.name ?? "main"));
+          })
+          .catch((e) => console.error("Failed to fetch branches:", e))
+          .finally(() => setBranchesLoading(false));
+      }
+    } else {
+      setBranches([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPipeline]);
 
   // ── Effects ───────────────────────────────────────────────────────────────
 
@@ -197,15 +231,11 @@ export function useAccountRepo(opts: {
     if (!selectedAccount || !selectedRepo || selectedRepo.isNew) return;
     checkTemplate(selectedAccount, selectedRepo.name)
       .then((data) => {
-        const isTemplate = data.isTemplate;
+        const tName = data.templateName || null;
+        setTemplateName(tName);
+        const isTemplate = tName !== null && tName === pipelineRef.current.templateRepo;
         setTemplateStatus(isTemplate ? "ready" : "not_clone");
-        setTemplateName(data.templateName || null);
         setStatus(isTemplate ? "complete" : "warning");
-
-        if (data.templateName) {
-          const matched = matchPipelineByTemplate(data.templateName);
-          if (matched) setSelectedPipeline(matched);
-        }
 
         if (isTemplate) {
           setBranchesLoading(true);
@@ -258,6 +288,7 @@ export function useAccountRepo(opts: {
     try {
       const { repo: newRepo, envSuccess, results } = await generateRepo(
         acc, name, isPrivate, includeAllBranch, createEnvs,
+        pipeline.templateRepo, pipeline.validEnvs,
       );
       const updated = [...reposRef.current, newRepo];
       setRepos(updated);
@@ -317,7 +348,7 @@ export function useAccountRepo(opts: {
     accounts, selectedAccount, setSelectedAccount,
     repos, selectedRepo, setSelectedRepo, repoCache,
     templateStatus, templateName, isCloneRepo, repoFullName,
-    pipeline,
+    pipeline, selectedPipeline, setSelectedPipeline,
     isPrivate, setIsPrivate, includeAllBranch, setIncludeAllBranch,
     cloning, cloneError, createEnvs, setCreateEnvs, cloneEnvWarning,
     branches, branchesLoading, sourceBranch, setSourceBranch,

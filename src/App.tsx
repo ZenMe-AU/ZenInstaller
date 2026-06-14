@@ -60,6 +60,7 @@ export default function AppDashboard() {
     isCloneRepo: repo.isCloneRepo,
     selectedPR: pr.selectedPR,
     branches: repo.branches,
+    validEnvs: repo.pipeline.validEnvs,
     pendingRestore: pendingRestoreGated,
     addRestoreWarning: addWarningGated,
     checkRestoreDone: checkDoneGated,
@@ -166,6 +167,12 @@ export default function AppDashboard() {
               user={auth.user}
               onLogin={auth.onLogin}
               onLogout={auth.onLogout}
+              onPatLogin={auth.onPatLogin}
+              onDirectLogout={() => {
+                auth.onDirectLogout();
+                repo.setSelectedAccount(null);
+                repo.setSelectedRepo(null);
+              }}
             />
 
             <RepoStep
@@ -214,6 +221,7 @@ export default function AppDashboard() {
               refreshFailed={pr.prRefreshFailed}
               onRefresh={pr.onRefresh}
               envList={env.envList}
+              validEnvs={repo.pipeline.validEnvs}
             />
 
             <EnvStep
@@ -222,6 +230,7 @@ export default function AppDashboard() {
               onToggle={() => toggle("env")}
               disabled={!isAuthed || !repo.isCloneRepo}
               envList={env.envList}
+              validEnvs={repo.pipeline.validEnvs}
               selectedEnv={env.selectedEnv}
               onEnvChange={env.setSelectedEnv}
               lockedByPR={!!pr.selectedPR}

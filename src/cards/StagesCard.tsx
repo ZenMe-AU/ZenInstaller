@@ -225,8 +225,20 @@ export function StageItem({
   const [planError, setPlanError]   = useState<string | null>(null);
   const onPlanSummaryRef = useRef(onPlanSummary);
   useLayoutEffect(() => { onPlanSummaryRef.current = onPlanSummary; });
+  const prevRepoName = useRef(repoName);
+  const lastPlanFetchKey = useRef<string | null>(null);
   useEffect(() => {
-    if (!stage.planJsonId || !account) return;
+    if (!stage.planJsonId || stage.status !== "success" || !account) {
+      // planJsonId cleared or stage not ready — sync repoName so the next valid ID is accepted
+      prevRepoName.current = repoName;
+      return;
+    }
+    // repoName already changed but planJsonId is still from the old repo — stale, skip
+    if (repoName !== prevRepoName.current) return;
+    const key = `${account.id}_${repoName}_${stage.planJsonId}`;
+    if (key === lastPlanFetchKey.current) return;
+    lastPlanFetchKey.current = key;
+    prevRepoName.current = repoName;
     setPlanLoading(true);
     fetchPlan(stage.planJsonId, account, repoName)
       .then((data) => {
@@ -239,7 +251,7 @@ export function StageItem({
       })
       .catch((err: Error) => setPlanError(err.message))
       .finally(() => setPlanLoading(false));
-  }, [stage.planJsonId, account, repoName]);
+  }, [stage.planJsonId, stage.status, account, repoName]);
 
   // Deploy log — fetched lazily when deployStatus is "failed" and logId is available
   const [deployLog, setDeployLog] = useState<string | null>(null);

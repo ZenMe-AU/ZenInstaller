@@ -7,7 +7,7 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { Account, Branch, GhEnv, SecretsStatus } from "../types";
-import { VALID_ENV_NAMES, isValidEnvName } from "../logic/env";
+import { isValidEnvName } from "../logic/env";
 import BranchSection from "./BranchSection";
 import SecretsSection from "./SecretsSection";
 import VariablesSection from "./VariablesSection";
@@ -27,6 +27,7 @@ const refreshBtnSx = {
 
 type Props = {
   envList: GhEnv[];
+  validEnvs: readonly string[];
   selectedEnv: GhEnv | null;
   onEnvChange: (env: GhEnv | null) => void;
   lockedByPR: boolean;
@@ -64,6 +65,7 @@ type Props = {
 
 export default function EnvironmentCard({
   envList,
+  validEnvs,
   selectedEnv,
   onEnvChange,
   lockedByPR,
@@ -107,7 +109,7 @@ export default function EnvironmentCard({
     }
   }, [loading, refreshFailed]);
 
-  const validEnvs = envList.filter((e) => isValidEnvName(e.name));
+  const filteredEnvs = envList.filter((e) => isValidEnvName(e.name, validEnvs));
   const secretsReady = !!selectedEnv && !branchMatchError;
   // Show BranchSection only when the error is "no branch found" (not PR mismatch / multiple)
   const showBranchCreate = !!selectedEnv && !!branchMatchError && branchMatchError.startsWith("No branch found");
@@ -123,7 +125,7 @@ export default function EnvironmentCard({
         <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
           Select the target environment. Supported:{" "}
           <Box component="span" sx={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600 }}>
-            {VALID_ENV_NAMES.join(", ")}
+            {validEnvs.join(", ")}
           </Box>
         </Typography>
         {!lockedByPR && (
@@ -182,13 +184,13 @@ export default function EnvironmentCard({
           <CircularProgress size={14} sx={{ color: "#cbd5e1" }} />
           <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>Loading environments...</Typography>
         </Box>
-      ) : validEnvs.length === 0 ? (
+      ) : filteredEnvs.length === 0 ? (
         <Box sx={{ py: 2, textAlign: "center" }}>
           <Typography sx={{ fontSize: "0.78rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>No environment found.</Typography>
         </Box>
       ) : (
         <Box sx={{ display: !selectedEnv && lockedByPR ? "none" : "flex", gap: 1.5, mt: showBranchCreate ? 2.5 : 0 }}>
-          {validEnvs.map((env) => {
+          {filteredEnvs.map((env) => {
             const isSelected = selectedEnv?.id === env.id;
             return (
               <Box

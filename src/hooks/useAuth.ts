@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { verifyAuth } from "../api";
+import { verifyAuth, switchToDirect, switchToBackend } from "../api";
 import type { CardStatus, User } from "../types";
 
 const url = import.meta.env.VITE_API_URL;
+const PAT_SESSION = "pat_token";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -15,6 +16,10 @@ export interface UseAuth {
   status: CardStatus;
   onLogin: () => void;
   onLogout: () => void;
+  /** Direct/PAT mode: token is already stored in api/mode.ts; just re-verify and update state. */
+  onPatLogin: (token: string) => void;
+  /** Direct/PAT mode: clear user state locally without redirecting to backend logout. */
+  onDirectLogout: () => void;
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -25,12 +30,24 @@ export function useAuth(): UseAuth {
   const [sessionExpired, setSessionExpired] = useState(false);
   const [redirecting, setRedirecting] = useState<"login" | "logout" | null>(null);
 
-  // Verify session on mount
+  // Verify session on mount — restore PAT if one was saved
   useEffect(() => {
-    verifyAuth()
-      .then((data) => setUser({ login: data.login }))
-      .catch(() => setUser(null))
-      .finally(() => setAuthLoading(false));
+    async function init() {
+      const savedPat = sessionStorage.getItem(PAT_SESSION);
+      if (savedPat) {
+        switchToDirect(savedPat);
+      }
+      try {
+        const data = await verifyAuth();
+        setUser({ login: data.login });
+      } catch {
+        if (savedPat) sessionStorage.removeItem(PAT_SESSION);
+        setUser(null);
+      } finally {
+        setAuthLoading(false);
+      }
+    }
+    init();
   }, []);
 
   // Listen for server-side session expiry events
@@ -50,7 +67,22 @@ export function useAuth(): UseAuth {
     window.location.href = `${url}/auth/logout?post_logout_redirect_uri=${encodeURIComponent(window.location.href)}`;
   }, []);
 
+  const onPatLogin = useCallback((_token: string) => {
+    setAuthLoading(true);
+    verifyAuth()
+      .then((data) => { sessionStorage.setItem(PAT_SESSION, _token); setUser({ login: data.login }); })
+      .catch(() => setUser(null))
+      .finally(() => setAuthLoading(false));
+  }, []);
+
+  const onDirectLogout = useCallback(() => {
+    sessionStorage.removeItem(PAT_SESSION);
+    switchToBackend();
+    setUser(null);
+    setAuthLoading(false);
+  }, []);
+
   const status: CardStatus = authLoading ? "loading" : user ? "complete" : "idle";
 
-  return { authLoading, user, sessionExpired, redirecting, status, onLogin, onLogout };
+  return { authLoading, user, sessionExpired, redirecting, status, onLogin, onLogout, onPatLogin, onDirectLogout };
 }

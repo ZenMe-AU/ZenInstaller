@@ -49,6 +49,7 @@ export function useEnv(opts: {
   isCloneRepo: boolean;
   selectedPR: PullRequest | null;
   branches: Branch[];
+  validEnvs: readonly string[];
   pendingRestore: React.MutableRefObject<PendingRestore>;
   addRestoreWarning: (msg: string) => void;
   checkRestoreDone: () => void;
@@ -172,7 +173,7 @@ export function useEnv(opts: {
   // When PR selected: auto-match env from PR's base branch
   useEffect(() => {
     if (!opts.selectedPR) return;
-    const result = matchEnv(opts.selectedPR.base_branch, envList);
+    const result = matchEnv(opts.selectedPR.base_branch, envList, opts.validEnvs);
     if (result.status === "exact") {
       setSelectedEnv(result.env); setBranchMatchWarning(null); setBranchMatchError(null); setStatus("complete");
     } else if (result.status === "case") {

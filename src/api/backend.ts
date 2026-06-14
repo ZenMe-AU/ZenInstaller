@@ -1,6 +1,6 @@
 import { parse } from "dotenv";
 import JSZip from "jszip";
-import type { Account, Branch, GhEnv, PullRequest, Repo, WorkflowRun, UpsertSecretResult } from "./types";
+import type { Account, Branch, GhEnv, PullRequest, Repo, WorkflowRun, UpsertSecretResult } from "../types";
 
 const url = import.meta.env.VITE_API_URL;
 
@@ -50,14 +50,6 @@ export async function exchangePkceCode(
   return data.access_token;
 }
 
-export async function fetchGithubUser(token: string): Promise<{ login: string }> {
-  const res = await fetch("https://api.github.com/user", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) throw new Error("Unauthorized");
-  return res.json();
-}
-
 // ─── Orgs & Repos ─────────────────────────────────────────────────────────────
 
 export async function fetchOrgList(): Promise<Account[]> {
@@ -96,6 +88,8 @@ export async function generateRepo(
   isPrivate: boolean,
   includeAllBranch: boolean,
   createEnvs: boolean,
+  templateRepo?: string,
+  validEnvs?: readonly string[],
 ): Promise<{ repo: Repo; envSuccess: boolean; results: { envs: { name: string; success: boolean; error?: string }[] } }> {
   const res = await fetchWithAuth(`${url}/generateRepo`, {
     method: "POST",
@@ -106,6 +100,8 @@ export async function generateRepo(
       owner: account.login,
       type: account.type,
       repo: targetName,
+      templateRepo,
+      envNames: validEnvs,
     }),
   });
   if (!res.ok) throw new Error(`Failed to clone repo: ${res.status}`);

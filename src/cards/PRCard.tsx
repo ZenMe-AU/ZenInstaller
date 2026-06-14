@@ -20,12 +20,13 @@ type Props = {
   refreshFailed?: boolean;
   onRefresh: () => void;
   envList: GhEnv[];
+  validEnvs: readonly string[];
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function PRCard({
-  pullRequests, selectedPR, onSelectPR, loading, refreshFailed, onRefresh, envList,
+  pullRequests, selectedPR, onSelectPR, loading, refreshFailed, onRefresh, envList, validEnvs,
 }: Props) {
   const prevLoadingRef = useRef(false);
   const clickedRef = useRef(false);
@@ -109,7 +110,7 @@ export default function PRCard({
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
           {pullRequests.map((pr) => {
             const isSelected = selectedPR?.id === pr.id;
-            const matchResult = matchEnv(pr.base_branch, envList);
+            const matchResult = matchEnv(pr.base_branch, envList, validEnvs);
             const hasEnv = matchResult.status !== "none" && matchResult.status !== "multiple";
 
             return (

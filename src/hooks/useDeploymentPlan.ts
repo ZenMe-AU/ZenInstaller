@@ -1,24 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import {
-  deployChangeset,
-  fetchRuns,
-  fetchStatus,
-  getPlanEnv,
-  triggerWorkflow,
-  triggerWorkflowFromPR,
-} from "../api";
+import { deployChangeset, fetchRuns, fetchStatus, getPlanEnv, triggerWorkflow, triggerWorkflowFromPR } from "../api";
 import { isPlanStale } from "../logic/stage";
-import type {
-  Account,
-  Branch,
-  CardStatus,
-  GhEnv,
-  PipelineConfig,
-  PlanSummary,
-  PullRequest,
-  Stage,
-  StageDefinition,
-} from "../types";
+import type { Account, Branch, CardStatus, GhEnv, PipelineConfig, PlanSummary, PullRequest, Stage, StageDefinition } from "../types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -128,7 +111,9 @@ export function useDeploymentPlan(opts: {
   // ── State ─────────────────────────────────────────────────────────────────
   const [stages, setStages] = useState<Stage[]>([]);
   const stagesRef = useRef<Stage[]>([]);
-  useLayoutEffect(() => { stagesRef.current = stages; });
+  useLayoutEffect(() => {
+    stagesRef.current = stages;
+  });
 
   const [stageSummaries, setStageSummariesState] = useState<Record<string, PlanSummary>>({});
   const [hasPlan, setHasPlan] = useState(true);
@@ -142,6 +127,7 @@ export function useDeploymentPlan(opts: {
   const [retryCount, setRetryCount] = useState(0);
   const [deployedEnv, setDeployedEnv] = useState<Record<string, string> | null>(null);
   const [statusUpdateStatus, setStatusUpdateStatus] = useState<CardStatus>("idle");
+  const lastFetchedEnvId = useRef<number | null>(null);
 
   // ── Mutual-recursion bridge ────────────────────────────────────────────────
   // loadPlanImpl calls startPollingImpl and vice-versa. Using a ref avoids
@@ -192,10 +178,7 @@ export function useDeploymentPlan(opts: {
         const statusData = data as Record<string, unknown>;
         // updatedAt from the server is UNIX seconds; normalise to ms for all comparisons.
         const fileUpdatedAt = typeof statusData.updatedAt === "number" ? statusData.updatedAt * 1000 : null;
-        const fetchedRunId =
-          (statusData.runId as string | undefined) ??
-          (statusData.stages as Stage[] | undefined)?.[0]?.runId ??
-          null;
+        const fetchedRunId = (statusData.runId as string | undefined) ?? (statusData.stages as Stage[] | undefined)?.[0]?.runId ?? null;
         const envId = typeof statusData.envId === "number" ? statusData.envId : null;
 
         // ── Staleness check (only during an active poll) ────────────────
@@ -216,11 +199,10 @@ export function useDeploymentPlan(opts: {
           }
         }
 
-        // Refresh the deployed env snapshot when we have a valid envId
-        if (envId && acc && repo) {
-          getPlanEnv(acc, repo, envId)
-            .then(setDeployedEnv)
-            .catch(console.error);
+        // Refresh the deployed env snapshot only when envId changes
+        if (envId && acc && repo && envId !== lastFetchedEnvId.current) {
+          lastFetchedEnvId.current = envId;
+          getPlanEnv(acc, repo, envId).then(setDeployedEnv).catch(console.error);
         }
 
         if (fileUpdatedAt) setLastRunTime(fileUpdatedAt);
@@ -234,10 +216,8 @@ export function useDeploymentPlan(opts: {
         setHasPlan(true);
 
         // Notify caller about secret validity from the status file
-        if (statusData.azure)
-          onAzureValidRef.current?.((statusData.azure as { valid: boolean | null }).valid ?? null);
-        if (statusData.aws)
-          onAwsValidRef.current?.((statusData.aws as { valid: boolean | null }).valid ?? null);
+        if (statusData.azure) onAzureValidRef.current?.((statusData.azure as { valid: boolean | null }).valid ?? null);
+        if (statusData.aws) onAwsValidRef.current?.((statusData.aws as { valid: boolean | null }).valid ?? null);
 
         setStatusUpdateStatus("complete");
       })
@@ -273,14 +253,13 @@ export function useDeploymentPlan(opts: {
     setStatusUpdateStatus("idle");
     setDeployedEnv(null);
     setStagesLoading(false);
+    lastFetchedEnvId.current = null;
   }, [opts.selectedEnv?.id]);
 
   // Auto-load plan when env is confirmed (env selected + no branch mismatch).
   useEffect(() => {
     if (!opts.selectedEnv || opts.branchMatchError) return;
-    const branch = branchesRef.current.find(
-      (b) => b.name.toLowerCase() === opts.selectedEnv!.name.toLowerCase(),
-    );
+    const branch = branchesRef.current.find((b) => b.name.toLowerCase() === opts.selectedEnv!.name.toLowerCase());
     if (branch) implRef.current.loadPlanImpl(branch.name);
   }, [opts.selectedEnv?.id, opts.branchMatchError]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -309,7 +288,9 @@ export function useDeploymentPlan(opts: {
         await triggerWorkflowFromPR(acc, repo, params.workflowId, params.envName, params.pr.head_sha);
         // Fetch the run ID asynchronously for the "view run" link
         fetchRuns(acc, repo, params.pr.head_sha)
-          .then((runs) => { if (runs.length > 0) setLastRunId(runs[0].id); })
+          .then((runs) => {
+            if (runs.length > 0) setLastRunId(runs[0].id);
+          })
           .catch(console.error);
       } else {
         await triggerWorkflow(acc, repo, params.workflowId, params.envName, params.triggerRef);
@@ -323,9 +304,7 @@ export function useDeploymentPlan(opts: {
     }
 
     // Polling always uses the branch that matches the env name
-    const matchedBranch = params.branches.find(
-      (b) => b.name.toLowerCase() === params.envName.toLowerCase(),
-    );
+    const matchedBranch = params.branches.find((b) => b.name.toLowerCase() === params.envName.toLowerCase());
     if (!matchedBranch) {
       console.error(`No branch found matching env "${params.envName}"`);
       return;
@@ -339,14 +318,7 @@ export function useDeploymentPlan(opts: {
     if (!acc || !repo || !params.stage.runId) return;
 
     try {
-      await deployChangeset(
-        acc,
-        repo,
-        params.stage.runId,
-        params.stageDef.label,
-        params.envName,
-        params.envName,
-      );
+      await deployChangeset(acc, repo, params.stage.runId, params.stageDef.label, params.envName, params.envName);
     } catch (e) {
       console.error("Failed to trigger deploy:", e);
       return;
@@ -359,7 +331,7 @@ export function useDeploymentPlan(opts: {
 
     const ref = params.pr
       ? params.pr.head_sha
-      : params.branches.find((b) => b.name.toLowerCase() === params.envName.toLowerCase())?.name ?? params.envName;
+      : (params.branches.find((b) => b.name.toLowerCase() === params.envName.toLowerCase())?.name ?? params.envName);
     implRef.current.startPollingImpl(ref, 0, triggerTime, prevRunId);
   }, []); // stable — reads latest state via refs
 

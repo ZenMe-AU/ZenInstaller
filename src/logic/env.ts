@@ -1,9 +1,7 @@
 import type { Branch, GhEnv } from "../types";
 
-export const VALID_ENV_NAMES = ["PROD", "TEST"] as const;
-
-export function isValidEnvName(name: string): boolean {
-  return VALID_ENV_NAMES.some((v) => v.toLowerCase() === name.toLowerCase());
+export function isValidEnvName(name: string, validEnvs: readonly string[]): boolean {
+  return validEnvs.some((v) => v.toLowerCase() === name.toLowerCase());
 }
 
 export type EnvMatchResult =
@@ -12,8 +10,8 @@ export type EnvMatchResult =
   | { status: "multiple"; envs: GhEnv[] }
   | { status: "none" };
 
-export function matchEnv(name: string, envList: GhEnv[]): EnvMatchResult {
-  const filtered = envList.filter((e) => isValidEnvName(e.name));
+export function matchEnv(name: string, envList: GhEnv[], validEnvs: readonly string[]): EnvMatchResult {
+  const filtered = envList.filter((e) => isValidEnvName(e.name, validEnvs));
   const matches  = filtered.filter((e) => e.name.toLowerCase() === name.toLowerCase());
   if (matches.length === 0) return { status: "none" };
   if (matches.length > 1)  return { status: "multiple", envs: matches };

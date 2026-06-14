@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { exchangePkceCode, fetchGithubUser } from "../api";
+import { exchangePkceCode, fetchGithubUser, switchToDirect, switchToBackend } from "../api";
 import { generateCodeChallenge, generateRandomString } from "../logic/pkce";
 import type { CardStatus, User } from "../types";
 
@@ -12,6 +12,7 @@ const CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID as string;
 
 const SESSION_TOKEN    = "access_token";
 const SESSION_VERIFIER = "pkce_verifier";
+const PAT_SESSION      = "pat_token";
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
@@ -49,6 +50,8 @@ export interface UsePkceAuth {
   status: CardStatus;
   onLogin: () => void;
   onLogout: () => void;
+  onPatLogin: (token: string) => void;
+  onDirectLogout: () => void;
 }
 
 export function usePkceAuth(): UsePkceAuth {
@@ -85,7 +88,23 @@ export function usePkceAuth(): UsePkceAuth {
         return;
       }
 
-      // ── Normal load: verify existing token ──
+      // ── PAT restore ──
+      const savedPat = sessionStorage.getItem(PAT_SESSION);
+      if (savedPat) {
+        switchToDirect(savedPat);
+        try {
+          const data = await fetchGithubUser(savedPat);
+          setUser({ login: data.login });
+        } catch {
+          sessionStorage.removeItem(PAT_SESSION);
+          setUser(null);
+        } finally {
+          setAuthLoading(false);
+        }
+        return;
+      }
+
+      // ── PKCE token restore ──
       const token = sessionStorage.getItem(SESSION_TOKEN);
       if (!token) { setAuthLoading(false); return; }
       try {
@@ -115,7 +134,22 @@ export function usePkceAuth(): UsePkceAuth {
     setRedirecting(null);
   }, []);
 
+  const onPatLogin = useCallback((_token: string) => {
+    setAuthLoading(true);
+    fetchGithubUser(_token)
+      .then((data) => { sessionStorage.setItem(PAT_SESSION, _token); setUser({ login: data.login }); })
+      .catch(() => setUser(null))
+      .finally(() => setAuthLoading(false));
+  }, []);
+
+  const onDirectLogout = useCallback(() => {
+    sessionStorage.removeItem(PAT_SESSION);
+    switchToBackend();
+    setUser(null);
+    setAuthLoading(false);
+  }, []);
+
   const status: CardStatus = authLoading ? "loading" : user ? "complete" : "idle";
 
-  return { authLoading, user, sessionExpired, redirecting, status, onLogin, onLogout };
+  return { authLoading, user, sessionExpired, redirecting, status, onLogin, onLogout, onPatLogin, onDirectLogout };
 }

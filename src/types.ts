@@ -106,6 +106,7 @@ export type PipelineConfig = {
   workflowId: string;
   label: string;
   templateRepo: string;
+  validEnvs: readonly string[];
   stages: StageDefinition[];
 };
 

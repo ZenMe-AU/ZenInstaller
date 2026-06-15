@@ -50,7 +50,7 @@ export default function RepoStep({
   const isNewRepo = selectedRepo?.isNew ?? false;
   const subtitle = selectedAccount && selectedRepo && !isNewRepo
     ? `${selectedAccount.login} / ${selectedRepo.name}`
-    : "Choose an organisation and target repository to install the corp environment into.";
+    : "Type the name of the target repository where the corp environment source code will be installed.";
 
   return (
     <StepWrapper

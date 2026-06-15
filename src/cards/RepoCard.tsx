@@ -159,8 +159,8 @@ export default function RepoCard({
       {/* ── Description + Refresh ── */}
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
-          Type the name of the target repository whereto we can copy the corp environment into. 
-          This will be the location where you can manage and configure your environment settings.
+          We use GitHub repositories to store your custom configuration and settings. 
+          That repository will also run GitHub actions to deploy your configuration into the target cloud environments. <br />
         </Typography>
         <Button
           size="small"

@@ -159,7 +159,8 @@ export default function RepoCard({
       {/* ── Description + Refresh ── */}
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
-          Select a user or organisation, then choose a repo cloned from the <b>{defaultTemplateRepo}</b> template, or type a new name to clone one.
+          We use GitHub repositories to store your custom configuration and settings. 
+          That repository will also run GitHub actions to deploy your configuration into the target cloud environments. <br />
         </Typography>
         <Button
           size="small"
@@ -189,7 +190,7 @@ export default function RepoCard({
             }),
           }}
         >
-          {refreshResult === "done" ? "Done" : refreshResult === "failed" ? "Failed" : "Refresh"}
+          {refreshResult === "done" ? "Done" : refreshResult === "failed" ? "Failed" : "Refresh List"}
         </Button>
       </Box>
 
@@ -265,7 +266,7 @@ export default function RepoCard({
           <TemplateBadge status={templateStatus} />
           {templateName && (
             <>
-              <Typography sx={{ fontSize: "0.72rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>template:</Typography>
+              <Typography sx={{ fontSize: "0.72rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>origin template:</Typography>
               <Box
                 sx={{
                   px: 1,

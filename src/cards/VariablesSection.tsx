@@ -266,10 +266,10 @@ export default function VariablesSection({
         </Box>
       </Box>
 
-      {/* Deployment sub-section */}
+      {/* Company & Domain sub-section */}
       <Box sx={{ mt: 2 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
-          <Typography sx={subLabelSx}>Deployment</Typography>
+          <Typography sx={subLabelSx}>Company & Domain</Typography>
           {(() => {
             const n = GITHUB_VARIABLE_KEYS.filter((k) => !variableValues[k]).length;
             return n > 0 ? (
@@ -314,7 +314,7 @@ export default function VariablesSection({
               Updating...
             </>
           ) : (
-            `Update ${dirtyVarKeys.length > 0 ? dirtyVarKeys.length : ""} variable${dirtyVarKeys.length !== 1 ? "s" : ""}`.trim()
+            `Save ${dirtyVarKeys.length > 0 ? dirtyVarKeys.length : ""} variable${dirtyVarKeys.length !== 1 ? "s" : ""}`.trim()
           )}
         </Button>
       </Box>

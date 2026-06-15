@@ -65,3 +65,5 @@
 > **Tip:** Save the login page URL so you can access it later.
 >
 > **Tip:** Save your email address and password in a secure place.
+>
+> **Tip:** Create a EC2 micro instance and run it for 30 mins, this wil by pass any account verification errors.

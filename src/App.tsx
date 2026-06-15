@@ -274,6 +274,7 @@ export default function AppDashboard() {
               onRun={plan.onRun}
               runError={plan.runError}
               lastRunId={plan.lastRunId}
+              statusFileRunId={plan.statusFileRunId}
               repoFullName={repo.repoFullName}
               workflowId={repo.pipeline.workflowId}
             />
@@ -339,6 +340,7 @@ export default function AppDashboard() {
                   disabled={!isAuthed || !repo.isCloneRepo}
                   stageDef={stageDef}
                   stage={stage}
+                  effectiveStatus={effectiveStatus}
                   summary={summary}
                   deployDisabled={plan.isStale || varsMismatch}
                   deployedEnv={plan.deployedEnv}

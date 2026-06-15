@@ -24,7 +24,7 @@ export function isNoChanges(summary?: PlanSummary): boolean {
  *  4. raw stage status
  */
 export function getEffectiveStatus(stage: Stage, summary?: PlanSummary, isOptional?: boolean): StageStatus {
-  if (stage.deployStatus === "success") return "deployed";
+  if (stage.deployPlanRunId && stage.runId && stage.deployPlanRunId === stage.runId) return "deployed";
   if (isNoChanges(summary)) return "deployed";
   if (isOptional && stage.status === "pending") return "skipped";
   return stage.status;

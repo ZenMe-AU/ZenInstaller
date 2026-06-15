@@ -42,6 +42,8 @@ export interface UseDeploymentPlan {
   lastRunTime: number | null;
   /** GitHub workflow run ID for the "view run" link. */
   lastRunId: number | null;
+  /** runId field from the status file — persists across page reloads. */
+  statusFileRunId: string | null;
   /** Timestamp (ms) when the user last pressed Run — null once fresh data arrives. */
   lastTriggeredAt: number | null;
   retryCount: number;
@@ -127,6 +129,7 @@ export function useDeploymentPlan(opts: {
   const [retryCount, setRetryCount] = useState(0);
   const [deployedEnv, setDeployedEnv] = useState<Record<string, string> | null>(null);
   const [statusUpdateStatus, setStatusUpdateStatus] = useState<CardStatus>("idle");
+  const [statusFileRunId, setStatusFileRunId] = useState<string | null>(null);
   const lastFetchedEnvId = useRef<number | null>(null);
 
   // ── Mutual-recursion bridge ────────────────────────────────────────────────
@@ -180,6 +183,7 @@ export function useDeploymentPlan(opts: {
         const fileUpdatedAt = typeof statusData.updatedAt === "number" ? statusData.updatedAt * 1000 : null;
         const fetchedRunId = (statusData.runId as string | undefined) ?? (statusData.stages as Stage[] | undefined)?.[0]?.runId ?? null;
         const envId = typeof statusData.envId === "number" ? statusData.envId : null;
+        if (fetchedRunId) setStatusFileRunId(fetchedRunId);
 
         // ── Staleness check (only during an active poll) ────────────────
         if (poll) {
@@ -253,6 +257,7 @@ export function useDeploymentPlan(opts: {
     setStatusUpdateStatus("idle");
     setDeployedEnv(null);
     setStagesLoading(false);
+    setStatusFileRunId(null);
     lastFetchedEnvId.current = null;
   }, [opts.selectedEnv?.id]);
 
@@ -381,6 +386,7 @@ export function useDeploymentPlan(opts: {
     countdown,
     lastRunTime,
     lastRunId,
+    statusFileRunId,
     lastTriggeredAt,
     retryCount,
     deployedEnv,

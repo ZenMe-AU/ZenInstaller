@@ -121,6 +121,7 @@ export type Stage = {
   planJsonId?: string;
   planJsonUrl?: string;
   runId?: string;
+  deployPlanRunId?: string;
   deployStatus?: string;
   deployRunId?: string;
   deployedAt?: number;

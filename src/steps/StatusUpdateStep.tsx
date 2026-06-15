@@ -17,6 +17,7 @@ type Props = {
   onRun: () => void;
   runError: string | null;
   lastRunId: number | null;
+  statusFileRunId: string | null;
   repoFullName: string | null;
   workflowId: string;
 };
@@ -24,12 +25,12 @@ type Props = {
 export default function StatusUpdateStep({
   status, expanded, onToggle, disabled,
   running, countdown, lastRunTime, lastTriggeredAt, retryCount,
-  onRun, runError, lastRunId, repoFullName, workflowId,
+  onRun, runError, lastRunId, statusFileRunId, repoFullName, workflowId,
 }: Props) {
   return (
     <StepWrapper
       title="Run Status Update"
-      subtitle="Trigger the GitHub Actions workflow to check deployment state"
+      subtitle={statusFileRunId ? `Last run #${statusFileRunId}` : "Trigger the GitHub Actions workflow to check deployment state"}
       status={status}
       expanded={expanded}
       onToggle={onToggle}
@@ -44,6 +45,7 @@ export default function StatusUpdateStep({
         onRun={onRun}
         runError={runError}
         lastRunId={lastRunId}
+        statusFileRunId={statusFileRunId}
         repoFullName={repoFullName}
         workflowId={workflowId}
       />

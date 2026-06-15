@@ -1,6 +1,29 @@
-import { Box, Button, CircularProgress, Typography } from "@mui/material";
+import { useState } from "react";
+import { Box, Button, CircularProgress, IconButton, Typography } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function relativeTime(ms: number): string {
+  const mins = Math.floor((Date.now() - ms) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function absoluteTime(ms: number): string {
+  return new Date(ms).toLocaleString(undefined, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -14,6 +37,7 @@ type Props = {
   runError: string | null;
   // Workflow run link
   lastRunId: number | null;
+  statusFileRunId: string | null;
   repoFullName: string | null;
   workflowId: string;
 };
@@ -29,11 +53,13 @@ export default function StatusCard({
   onRun,
   runError,
   lastRunId,
+  statusFileRunId,
   repoFullName,
   workflowId,
 }: Props) {
+  const [showAbsolute, setShowAbsolute] = useState(false);
   const isStale = lastTriggeredAt !== null && (lastRunTime === null || lastTriggeredAt > lastRunTime);
-  const runUrl = lastRunId && repoFullName ? `https://github.com/${repoFullName}/actions/runs/${lastRunId}` : null;
+  const actionRunUrl = repoFullName ? `https://github.com/${repoFullName}/actions/runs/${statusFileRunId ?? lastRunId}` : null;
 
   return (
     <Box>
@@ -75,28 +101,50 @@ export default function StatusCard({
         {isStale && (retryCount > 0 || running) && (
           <Typography sx={{ fontSize: "0.72rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>just updated</Typography>
         )}
-        {!isStale && lastRunTime && (
-          <Typography sx={{ fontSize: "0.72rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>
-            last run {new Date(lastRunTime).toLocaleTimeString()}
-          </Typography>
-        )}
 
-        {/* Workflow run link */}
-        {runUrl && (
-          <Button
-            size="small"
-            endIcon={<OpenInNewIcon sx={{ fontSize: 13 }} />}
-            onClick={() => window.open(runUrl, "_blank")}
-            sx={{
-              color: "#64748b",
-              fontSize: "0.72rem",
-              textTransform: "none",
-              fontFamily: "'IBM Plex Mono', monospace",
-              "&:hover": { color: "#0f172a" },
-            }}
-          >
-            View run #{lastRunId}
-          </Button>
+        {!isStale && lastRunTime && (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
+            <Typography
+              sx={{
+                fontSize: "0.68rem",
+                color: "#94a3b8",
+                fontFamily: "'IBM Plex Mono', monospace",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+              }}
+            >
+              Last Run
+            </Typography>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <Typography
+                component="span"
+                onClick={() => setShowAbsolute((v) => !v)}
+                sx={{
+                  fontSize: "0.72rem",
+                  color: "#94a3b8",
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  cursor: "pointer",
+                  "&:hover": { color: "#475569" },
+                }}
+              >
+                {showAbsolute ? absoluteTime(lastRunTime) : relativeTime(lastRunTime)}
+              </Typography>
+              {statusFileRunId && (
+                <Typography component="span" sx={{ fontSize: "0.72rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>
+                  · run #{statusFileRunId}
+                </Typography>
+              )}
+              {actionRunUrl && (
+                <IconButton
+                  size="small"
+                  onClick={() => window.open(actionRunUrl, "_blank")}
+                  sx={{ p: 0.25, color: "#94a3b8", "&:hover": { color: "#475569" } }}
+                >
+                  <OpenInNewIcon sx={{ fontSize: 12 }} />
+                </IconButton>
+              )}
+            </Box>
+          </Box>
         )}
       </Box>
 

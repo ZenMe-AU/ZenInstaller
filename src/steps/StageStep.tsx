@@ -1,5 +1,5 @@
 import { Box, Button } from "@mui/material";
-import type { Account, CardId, CardStatus, GhEnv, PlanSummary, Stage, StageDefinition } from "../types";
+import type { Account, CardId, CardStatus, GhEnv, PlanSummary, Stage, StageDefinition, StageStatus } from "../types";
 import { isNoChanges } from "../logic/stage";
 import SummaryChip from "../components/SummaryChip";
 import StepWrapper from "../components/StepWrapper";
@@ -12,6 +12,7 @@ type Props = {
   disabled?: boolean;
   stageDef: StageDefinition;
   stage: Stage;
+  effectiveStatus: StageStatus;
   summary?: PlanSummary;
   deployDisabled: boolean;
   deployedEnv: Record<string, string> | null;
@@ -32,6 +33,7 @@ export default function StageStep({
   disabled,
   stageDef,
   stage,
+  effectiveStatus,
   summary,
   deployDisabled,
   deployedEnv,
@@ -46,10 +48,8 @@ export default function StageStep({
 }: Props) {
   const noChanges = isNoChanges(summary);
 
-  // Subtitle: domain-derived label for this stage's state
   const subtitle = (() => {
     if (noChanges) return "No changes";
-    const effectiveStatus = stage.deployStatus === "success" ? "deployed" : stage.status;
     const labels: Record<string, string> = {
       deployed: "Deployed",
       success: "Ready to deploy",
@@ -78,13 +78,14 @@ export default function StageStep({
               onDeploy();
             }}
             sx={{
-              background: "#f97316",
+              background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
               fontFamily: "'IBM Plex Mono', monospace",
               fontSize: "0.72rem",
               textTransform: "none",
               py: 0.4,
               px: 1.5,
-              "&:hover": { background: "#ea6c0a" },
+              boxShadow: "0 2px 6px #2563eb33",
+              "&:hover": { background: "linear-gradient(135deg, #1d4ed8, #1e40af)", boxShadow: "0 3px 8px #2563eb44" },
               "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
             }}
           >

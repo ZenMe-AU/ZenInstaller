@@ -50,11 +50,11 @@ export default function RepoStep({
   const isNewRepo = selectedRepo?.isNew ?? false;
   const subtitle = selectedAccount && selectedRepo && !isNewRepo
     ? `${selectedAccount.login} / ${selectedRepo.name}`
-    : "Choose an organisation and repository to work with";
+    : "Choose an organisation and target repository to install the corp environment into.";
 
   return (
     <StepWrapper
-      title="Select Repository"
+      title="Select Target Repository"
       subtitle={subtitle}
       status={status}
       expanded={expanded}

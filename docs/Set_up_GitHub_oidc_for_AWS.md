@@ -34,13 +34,13 @@ GitHub OIDC lets GitHub Actions authenticate to AWS **without storing any long-l
 3. Under **Trusted entity type**, select **Web identity**.
 4. Fill in:
 
-   | Field                          | Value                                                                                                 |
-   | ------------------------------ | ----------------------------------------------------------------------------------------------------- |
-   | Identity provider              | `token.actions.githubusercontent.com`                                                                 |
-   | Audience                       | `sts.amazonaws.com`                                                                                   |
-   | GitHub organisation            | Your GitHub org or username (e.g. `my-org`)                                                           |
-   | GitHub repository _(optional)_ | Your repository name (e.g. `ZBCorpArchitecture`), or leave blank to allow all repositories in the org |
-   | GitHub branch _(optional)_     | The branch to restrict access to (e.g. `main`), or enter `*` to allow all branches                    |
+   | Field                          | Value                                                                                               |
+   | ------------------------------ | --------------------------------------------------------------------------------------------------- |
+   | Identity provider              | `token.actions.githubusercontent.com`                                                               |
+   | Audience                       | `sts.amazonaws.com`                                                                                 |
+   | GitHub organisation            | Your GitHub org or username (e.g. `my-org`)                                                         |
+   | GitHub repository _(optional)_ | Your repository name (e.g. `ZBCorpArchitecture`), or enter `*` to allow all repositories in the org |
+   | GitHub branch _(optional)_     | The branch to restrict access to (e.g. `main`), or enter `*` to allow all branches                  |
 
 5. Click **Next**.
 6. Search for and select the following managed policies, then click **Next**:
@@ -150,9 +150,8 @@ arn:aws:iam::<ACCOUNT_ID>:role/<ROLE_NAME>
 
 Return to the ZenInstaller page and open the **Environment** step. In the **AWS** section, enter:
 
-| Field            | Where to find it                                              |
-| ---------------- | ------------------------------------------------------------- |
-| `AWS_ACCOUNT_ID` | The 12-digit number in the ARN (e.g. `123456789012`)          |
-| `AWS_ROLE_NAME`  | The name after `/role/` in the ARN (e.g. `GitHubActionsRole`) |
+| Field          | Where to find it                                                                                      |
+| -------------- | ----------------------------------------------------------------------------------------------------- |
+| `AWS_ROLE_ARN` | The full ARN from the role summary page (e.g. `arn:aws:iam::123456789012:role/GitHubActionsRole`) |
 
-ZenInstaller will save these as GitHub Actions variables in your repository automatically.
+ZenInstaller will save this as a GitHub Actions variable in your repository automatically.

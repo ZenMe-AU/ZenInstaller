@@ -7,13 +7,21 @@ app.http("generateRepo", {
   methods: ["POST"],
   authLevel: "anonymous",
   handler: corsWrapper(async (request, context) => {
-    const template_owner = "ZenMe-AU";
-    const template_repo = "ZBCorpArchitecture";
-
     const accessToken = getAccessToken(request);
 
     const body = await request.json();
-    const { isPrivate = true, includeAllBranch = false, owner, type, repo = template_repo, createEnvs = true } = body;
+    const {
+      isPrivate = true,
+      includeAllBranch = false,
+      owner,
+      type,
+      repo,
+      createEnvs = true,
+      templateRepo = "ZenMe-AU/ZBCorpArchitecture",
+      envNames = ["PROD", "TEST"],
+    } = body;
+
+    const [template_owner, template_repo] = templateRepo.split("/");
 
     const octokit = new Octokit({ auth: accessToken });
     const { data } = await octokit.request(`POST /repos/{template_owner}/{template_repo}/generate`, {
@@ -31,7 +39,7 @@ app.http("generateRepo", {
     const repoResult = { name: data.name, id: data.id, full_name: data.full_name };
     const results = { repo: { name: data.full_name, success: true }, envs: [] };
     if (createEnvs) {
-      const envs = ["PROD", "TEST"];
+      const envs = Array.isArray(envNames) ? envNames : ["PROD", "TEST"];
       for (const envName of envs) {
         try {
           await octokit.request("PUT /repos/{owner}/{repo}/environments/{environment_name}", { owner, repo: data.name, environment_name: envName });

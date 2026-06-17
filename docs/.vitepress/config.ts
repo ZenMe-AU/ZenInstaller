@@ -4,6 +4,7 @@ export default defineConfig({
   title: "ZenInstaller Docs",
   description: "ZenInstaller documentation and guides",
   base: "/docs/",
+  ignoreDeadLinks: [/^\/scripts\//],
   themeConfig: {
     sidebar: [
       {

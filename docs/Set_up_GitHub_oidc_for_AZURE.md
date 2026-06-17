@@ -13,7 +13,7 @@ GitHub OIDC lets GitHub Actions authenticate to Azure **without storing any secr
 
 ---
 
-> **Prefer the CLI?** [Jump to Quick Setup — Azure CLI](#quick-setup-azure-cli-covers-steps-1-4) to complete Steps 1–4 with a single script.
+> **Prefer the CLI?** [Jump to Quick Setup — Azure CLI](#quick-setup-azure-cli) to complete Steps 1–4 with a single script.
 
 ---
 
@@ -224,7 +224,7 @@ ZenInstaller will save these as GitHub Actions variables in your repository auto
 
 ---
 
-## Quick Setup — Azure CLI (covers Steps 1 – 4)
+## Quick Setup — Azure CLI (covers Steps 1 – 4) {#quick-setup-azure-cli}
 
 The script creates the app, adds federated credentials for each environment, assigns RBAC roles, and grants admin consent. Re-running it is safe — it skips any resources that already exist.
 
@@ -243,7 +243,7 @@ The script creates the app, adds federated credentials for each environment, ass
 
 **Option A — Download and upload to Cloud Shell**
 
-1. **Download** [azure-github-oidc-setup.sh](/scripts/azure-github-oidc-setup.sh)
+1. **Download** <a href="/docs/scripts/azure-github-oidc-setup.sh" download>azure-github-oidc-setup.sh</a>
 2. **Edit** the four variables at the top of the file
 3. **Upload** to [Azure Cloud Shell](https://shell.azure.com): in the toolbar click **Manage files → Upload** and select the file
    > If this is your first time opening Cloud Shell: select **Bash** when prompted to choose a shell, then select your **Subscription** in the Getting started screen and click **Apply**.

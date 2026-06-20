@@ -271,7 +271,7 @@ export default function AzureAppCard({
               <Button
                 variant="contained"
                 onClick={run}
-                disabled={selectedSubs.length === 0 || environments.length === 0 || !appName.trim()}
+                disabled={disabled || selectedSubs.length === 0 || environments.length === 0 || !appName.trim()}
                 sx={{
                   alignSelf: "flex-start",
                   background: "linear-gradient(135deg, #2563eb, #1d4ed8)",

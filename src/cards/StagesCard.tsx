@@ -44,6 +44,7 @@ function prereqLabel(prereq: Prerequisite, variableValues: Record<string, string
       const labels: Record<CardId, string> = {
         auth: "Authenticated",
         repo: "Repo selected",
+        azure_setup: "Azure setup",
         pr: "PR selected",
         env: "Env configured",
         status_update: "Status update run",

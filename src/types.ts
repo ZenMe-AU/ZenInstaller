@@ -1,6 +1,6 @@
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
-export type CardId = "auth" | "repo" | "pr" | "env" | "status_update" | "stages";
+export type CardId = "auth" | "repo" | "azure_setup" | "pr" | "env" | "status_update" | "stages";
 export type CardStatus = "idle" | "loading" | "complete" | "warning" | "error" | "skipped";
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -100,6 +100,8 @@ export type StageDefinition = {
   prerequisites: Prerequisite[];
   /** When true, a pending stage is treated as skipped rather than waiting. */
   optional?: boolean;
+  /** Microsoft Graph application permission IDs required by this stage. */
+  azurePermissions?: readonly string[];
 };
 
 export type PipelineConfig = {

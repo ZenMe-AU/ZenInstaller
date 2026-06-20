@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@azure/msal-browser':
+        specifier: ^5.14.0
+        version: 5.14.0
       libsodium-wrappers:
         specifier: ^0.8.4
         version: 0.8.4
@@ -156,6 +159,14 @@ packages:
   '@algolia/requester-node-http@5.53.0':
     resolution: {integrity: sha512-6mF9LZMUk0QqWvrnxkxBqhswwz6Xfiwy6/gmTzL5HrlhdVG3ITAqGV2k3XmVThP1h0Ulc3VQwiNCD7/Nr4JNlQ==}
     engines: {node: '>= 14.0.0'}
+
+  '@azure/msal-browser@5.14.0':
+    resolution: {integrity: sha512-Dfl7hPZe9/JJwRhFFXHq2z1oHYBuGubmff3kWXOsd1AGgyXlqjNYAWuN/1JL/ZrcZBs8TKMjGSil6Rcc7E8VPQ==}
+    engines: {node: '>=0.8.0'}
+
+  '@azure/msal-common@16.9.0':
+    resolution: {integrity: sha512-1MWGjqgUCRAYgLmVFZKp7fs3Rg1TFvIMgywY8ze2olNVvLlJoRThuoziWSDJuwwyJI5L4rnLb9Tyt5D9GvSLPw==}
+    engines: {node: '>=0.8.0'}
 
   '@babel/code-frame@7.29.0':
     resolution: {integrity: sha512-9NhCeYjq9+3uxgdtp20LSiJXJvN0FeCtNGpJxuMFZ1Kv3cWUNb6DOhJwUvcVCzKGR66cw4njwM6hrJLqgOwbcw==}
@@ -2188,6 +2199,12 @@ snapshots:
   '@algolia/requester-node-http@5.53.0':
     dependencies:
       '@algolia/client-common': 5.53.0
+
+  '@azure/msal-browser@5.14.0':
+    dependencies:
+      '@azure/msal-common': 16.9.0
+
+  '@azure/msal-common@16.9.0': {}
 
   '@babel/code-frame@7.29.0':
     dependencies:

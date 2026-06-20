@@ -1,4 +1,5 @@
 import type { PipelineConfig } from "../types";
+import { GRAPH_PERMISSIONS } from "../config/azureConfig";
 import { AZURE_VARIABLE_KEYS, AWS_VARIABLE_KEYS, C01_KEYS } from "./variables";
 
 export const PIPELINES: Record<string, PipelineConfig> = {
@@ -11,10 +12,10 @@ export const PIPELINES: Record<string, PipelineConfig> = {
       {
         key: "c01",
         label: "c01subscription",
+        azurePermissions: [],
         prerequisites: [
           { type: "var", key: "NAME" },
           { type: "varGroup", keys: AZURE_VARIABLE_KEYS, label: "Azure variables configured" },
-
           {
             type: "stageVar",
             keys: C01_KEYS,
@@ -28,6 +29,12 @@ export const PIPELINES: Record<string, PipelineConfig> = {
       {
         key: "c02",
         label: "c02globalGroups",
+        azurePermissions: [
+          GRAPH_PERMISSIONS.GroupReadWriteAll,
+          GRAPH_PERMISSIONS.GroupMemberReadWriteAll,
+          // TODO: confirm if PIM-managed group membership is needed (azuread_role_eligibility_schedule in c02 is commented out)
+          // GRAPH_PERMISSIONS.PrivilegedAccessReadWriteAzureADGroup,
+        ],
         prerequisites: [
           { type: "var", key: "NAME" },
           { type: "varGroup", keys: AZURE_VARIABLE_KEYS, label: "Azure variables configured" },
@@ -36,6 +43,7 @@ export const PIPELINES: Record<string, PipelineConfig> = {
       {
         key: "c05",
         label: "c05rootrg",
+        azurePermissions: [],
         prerequisites: [
           { type: "var", key: "NAME" },
           { type: "var", key: "DNS" },
@@ -45,6 +53,14 @@ export const PIPELINES: Record<string, PipelineConfig> = {
       {
         key: "c07",
         label: "c07userAccounts",
+        azurePermissions: [
+          GRAPH_PERMISSIONS.GroupReadWriteAll,
+          GRAPH_PERMISSIONS.GroupMemberReadWriteAll,
+          GRAPH_PERMISSIONS.UserReadWriteAll,
+          GRAPH_PERMISSIONS.RoleManagementReadWriteDirectory,
+          GRAPH_PERMISSIONS.UserAuthenticationMethodReadWriteAll,
+          GRAPH_PERMISSIONS.PolicyReadWriteAuthenticationMethod,
+        ],
         prerequisites: [
           { type: "var", key: "NAME" },
           { type: "var", key: "DNS" },
@@ -54,6 +70,7 @@ export const PIPELINES: Record<string, PipelineConfig> = {
       {
         key: "c20",
         label: "c20awsentrasso",
+        azurePermissions: [GRAPH_PERMISSIONS.ApplicationReadWriteAll],
         prerequisites: [
           { type: "var", key: "NAME" },
           { type: "var", key: "DNS" },
@@ -63,6 +80,7 @@ export const PIPELINES: Record<string, PipelineConfig> = {
       {
         key: "c21",
         label: "c21awsentrassoP2",
+        azurePermissions: [GRAPH_PERMISSIONS.AppRoleAssignmentReadWriteAll, GRAPH_PERMISSIONS.PolicyReadWriteApplicationConfiguration],
         prerequisites: [
           { type: "var", key: "NAME" },
           { type: "var", key: "DNS" },
@@ -73,6 +91,7 @@ export const PIPELINES: Record<string, PipelineConfig> = {
       {
         key: "c25",
         label: "c25cloudfront",
+        azurePermissions: [GRAPH_PERMISSIONS.ApplicationReadWriteAll],
         prerequisites: [
           { type: "var", key: "NAME" },
           { type: "var", key: "DNS" },

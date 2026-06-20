@@ -4,6 +4,7 @@ import { Box, Typography } from "@mui/material";
 import { type CardId, type CardStatus, type PendingRestore, type StageStatus } from "./types";
 import { useActiveAuth as useAuth } from "./hooks/useActiveAuth";
 import { useAccountRepo } from "./hooks/useAccountRepo";
+import { useAzureSetup } from "./hooks/useAzureSetup";
 import { useDeploymentPlan } from "./hooks/useDeploymentPlan";
 import { useEnv } from "./hooks/useEnv";
 import { usePR } from "./hooks/usePR";
@@ -20,6 +21,7 @@ import PRStep from "./steps/PRStep";
 import EnvStep from "./steps/EnvStep";
 import StatusUpdateStep from "./steps/StatusUpdateStep";
 import StageStep from "./steps/StageStep";
+import AzureSetupStep from "./steps/AzureSetupStep";
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
@@ -65,6 +67,13 @@ export default function AppDashboard() {
     addRestoreWarning: addWarningGated,
     checkRestoreDone: checkDoneGated,
   });
+  const azureSetup = useAzureSetup({
+    githubAccount: repo.selectedAccount,
+    githubRepo: repo.selectedRepo?.name ?? "",
+    validEnvs: repo.pipeline.validEnvs,
+    stages: repo.pipeline.stages,
+  });
+
   const plan = useDeploymentPlan({
     account: repo.selectedAccount,
     repoName: repo.selectedRepo?.name ?? null,
@@ -83,6 +92,7 @@ export default function AppDashboard() {
   const [expanded, setExpanded] = useState<Record<CardId, boolean>>({
     auth: true,
     repo: true,
+    azure_setup: true,
     pr: true,
     env: true,
     status_update: true,
@@ -114,6 +124,7 @@ export default function AppDashboard() {
     pr: prStatus,
     env: effectiveEnvStatus,
     status_update: effectiveStatusUpdateStatus,
+    azure_setup: isAuthed && repo.isCloneRepo ? "loading" : "idle",
     stages: isAuthed && plan.hasPlan ? (plan.stages.some((s) => s.status === "failed") ? "warning" : "complete") : "idle",
   };
 
@@ -203,6 +214,15 @@ export default function AppDashboard() {
               onRefresh={repo.onRefresh}
               repoFullName={repo.repoFullName}
               disabled={!isAuthed}
+            />
+
+            <AzureSetupStep
+              {...azureSetup}
+              status={cardStatus.azure_setup}
+              expanded={expanded.azure_setup}
+              onToggle={() => toggle("azure_setup")}
+              disabled={!isAuthed || !repo.isCloneRepo}
+              validEnvs={repo.pipeline.validEnvs}
             />
 
             <PRStep

@@ -20,6 +20,7 @@ import type {
 } from "../types.ts";
 import { createVariable, fetchDeployLog, fetchPlan, updateVariable } from "../api";
 import { computePlanSummary } from "../logic/plan";
+import { getVariableDisplayName } from "../logic/variables";
 import PlanCard from "./PlanCard";
 import VariablesCard from "../components/VariablesCard";
 
@@ -53,8 +54,9 @@ function prereqLabel(prereq: Prerequisite, variableValues: Record<string, string
       return labels[prereq.cardId];
     }
     case "var": {
+      const label = getVariableDisplayName(prereq.key);
       const val = variableValues[prereq.key]?.trim();
-      return val ? `${prereq.key}: ${val}` : `${prereq.key} not set`;
+      return val ? `${label}: ${val}` : `${label} not set`;
     }
     case "varGroup":
       return prereq.label;

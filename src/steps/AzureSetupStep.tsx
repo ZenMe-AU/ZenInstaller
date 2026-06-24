@@ -10,9 +10,10 @@ type Props = ReturnType<typeof useAzureSetup> & {
   onToggle: () => void;
   disabled: boolean;
   validEnvs: readonly string[];
+  onComplete: (done: boolean) => void;
 };
 
-export default function AzureSetupStep({ status, expanded, onToggle, disabled, validEnvs, ...azureSetup }: Props) {
+export default function AzureSetupStep({ status, expanded, onToggle, disabled, validEnvs, onComplete, ...azureSetup }: Props) {
   if (!AZURE_CLIENT_ID) return null;
 
   const subtitle = azureSetup.result
@@ -23,7 +24,7 @@ export default function AzureSetupStep({ status, expanded, onToggle, disabled, v
 
   return (
     <StepWrapper title="Azure App Registration" subtitle={subtitle} status={status} expanded={expanded} onToggle={onToggle}>
-      <AzureAppCard {...azureSetup} disabled={disabled} validEnvs={validEnvs} />
+      <AzureAppCard {...azureSetup} disabled={disabled} validEnvs={validEnvs} onComplete={onComplete} />
     </StepWrapper>
   );
 }

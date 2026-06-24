@@ -1,6 +1,6 @@
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
-export type CardId = "auth" | "repo" | "azure_setup" | "azure_access_pass" | "pr" | "env" | "status_update" | "stages";
+export type CardId = "auth" | "repo" | "azure_setup" | "azure_access_pass" | "aws_setup" | "pr" | "env" | "status_update" | "stages";
 export type CardStatus = "idle" | "loading" | "complete" | "warning" | "error" | "skipped";
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────

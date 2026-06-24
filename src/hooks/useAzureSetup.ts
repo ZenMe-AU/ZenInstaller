@@ -50,7 +50,7 @@ export function useAzureSetup({
   const [azureAccount, setAzureAccount] = useState<AccountInfo | null>(null);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [selectedSubs, setSelectedSubs] = useState<string[]>([]);
-  const [appName, setAppName] = useState("github-actions-deployer");
+  const [appName, setAppName] = useState("zeninstaller-github");
   const defaultSelected = ["PROD", "TEST"].filter((e) => validEnvs.includes(e));
   const [environments, setEnvironments] = useState<string[]>(defaultSelected.length > 0 ? defaultSelected : ["PROD", "TEST"]);
   const [steps, setSteps] = useState<SetupStep[]>([]);

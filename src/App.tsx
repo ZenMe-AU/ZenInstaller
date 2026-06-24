@@ -5,6 +5,7 @@ import { type CardId, type CardStatus, type PendingRestore, type StageStatus } f
 import { useActiveAuth as useAuth } from "./hooks/useActiveAuth";
 import { useAccountRepo } from "./hooks/useAccountRepo";
 import { useAzureSetup } from "./hooks/useAzureSetup";
+import { useAwsSetup } from "./hooks/useAwsSetup";
 import { useAzureAccessPass } from "./hooks/useAzureAccessPass";
 import { useDeploymentPlan } from "./hooks/useDeploymentPlan";
 import { useEnv } from "./hooks/useEnv";
@@ -23,6 +24,7 @@ import EnvStep from "./steps/EnvStep";
 import StatusUpdateStep from "./steps/StatusUpdateStep";
 import StageStep from "./steps/StageStep";
 import AzureSetupStep from "./steps/AzureSetupStep";
+import AwsSetupStep from "./steps/AwsSetupStep";
 import AzureAccessPass from "./steps/AzureAccessPass";
 
 // ─── App ──────────────────────────────────────────────────────────────────────
@@ -75,6 +77,11 @@ export default function AppDashboard() {
     validEnvs: repo.pipeline.validEnvs,
     stages: repo.pipeline.stages,
   });
+  const awsSetup = useAwsSetup({
+    org: repo.selectedAccount?.login ?? "",
+    repo: repo.selectedRepo?.name ?? "",
+    validEnvs: repo.pipeline.validEnvs,
+  });
   const azureAccessPass = useAzureAccessPass({
     githubAccount: repo.selectedAccount,
     githubRepo: repo.selectedRepo?.name ?? "",
@@ -102,6 +109,7 @@ export default function AppDashboard() {
     repo: true,
     azure_setup: true,
     azure_access_pass: true,
+    aws_setup: true,
     pr: true,
     env: true,
     status_update: true,
@@ -109,6 +117,8 @@ export default function AppDashboard() {
   });
   const toggle = (id: CardId) => setExpanded((p) => ({ ...p, [id]: !p[id] }));
   const [stagesExpanded, setStagesExpanded] = useState<Record<string, boolean>>({});
+  const [azureSetupDone, setAzureSetupDone] = useState(false);
+  const [awsSetupDone, setAwsSetupDone] = useState(false);
 
   // ── Derived card statuses ──────────────────────────────────────────────────
   const prStatus: CardStatus = !isAuthed
@@ -133,8 +143,9 @@ export default function AppDashboard() {
     pr: prStatus,
     env: effectiveEnvStatus,
     status_update: effectiveStatusUpdateStatus,
-    azure_setup: isAuthed && repo.isCloneRepo ? "loading" : "idle",
+    azure_setup: isAuthed && repo.isCloneRepo ? (azureSetupDone ? "complete" : "loading") : "idle",
     azure_access_pass: !isAuthed || !repo.isCloneRepo ? "idle" : azureAccessPass.result ? "complete" : "loading",
+    aws_setup: isAuthed && repo.isCloneRepo ? (awsSetupDone ? "complete" : "loading") : "idle",
     stages: isAuthed && plan.hasPlan ? (plan.stages.some((s) => s.status === "failed") ? "warning" : "complete") : "idle",
   };
 
@@ -233,6 +244,7 @@ export default function AppDashboard() {
               onToggle={() => toggle("azure_setup")}
               disabled={!isAuthed || !repo.isCloneRepo}
               validEnvs={repo.pipeline.validEnvs}
+              onComplete={setAzureSetupDone}
             />
 
             <AzureAccessPass
@@ -243,6 +255,16 @@ export default function AppDashboard() {
               disabled={!isAuthed || !repo.isCloneRepo}
               validEnvs={repo.pipeline.validEnvs}
               onComplete={() => {}}
+            />
+
+            <AwsSetupStep
+              {...awsSetup}
+              status={cardStatus.aws_setup}
+              expanded={expanded.aws_setup}
+              onToggle={() => toggle("aws_setup")}
+              disabled={!isAuthed || !repo.isCloneRepo}
+              validEnvs={repo.pipeline.validEnvs}
+              onComplete={setAwsSetupDone}
             />
 
             <PRStep

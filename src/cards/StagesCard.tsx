@@ -46,6 +46,7 @@ function prereqLabel(prereq: Prerequisite, variableValues: Record<string, string
         auth: "Authenticated",
         repo: "Repo selected",
         azure_setup: "Azure setup",
+        aws_setup: "AWS setup",
         pr: "PR selected",
         env: "Env configured",
         status_update: "Status update run",

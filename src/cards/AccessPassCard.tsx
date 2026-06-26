@@ -12,7 +12,7 @@ import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import type { useAzureAccessPass, SetupStep } from "../hooks/useAzureAccessPass";
+import type { useAzureAccessPass, SetupStep } from "../hooks/useAccessPass";
 import { CLOUD_DOCS } from "../config/docsConfig";
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };

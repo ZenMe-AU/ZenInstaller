@@ -1,8 +1,8 @@
 import type { CardStatus } from "../types";
-import { AZURE_CLIENT_ID } from "../config/azureConfig";
-import type { useAzureAccessPass } from "../hooks/useAzureAccessPass";
+import { AZURE_CLIENT_ID } from "../config/accessPassConfig";
+import type { useAzureAccessPass } from "../hooks/useAccessPass";
 import StepWrapper from "../components/StepWrapper";
-import AzureAccessPassCard from "../cards/AzureAccessPassCard";
+import AzureAccessPassCard from "../cards/AccessPassCard";
 
 type Props = ReturnType<typeof useAzureAccessPass> & {
   status: CardStatus;

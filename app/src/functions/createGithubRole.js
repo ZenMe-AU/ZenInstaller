@@ -1,11 +1,13 @@
 import { app } from "@azure/functions";
-import { IAMClient, CreateRoleCommand, AttachRolePolicyCommand, CreateOpenIDConnectProviderCommand } from "@aws-sdk/client-iam";
+import { IAMClient, CreateRoleCommand, AttachRolePolicyCommand, CreateOpenIDConnectProviderCommand, GetRoleCommand, UpdateAssumeRolePolicyCommand } from "@aws-sdk/client-iam";
 import { STSClient, GetCallerIdentityCommand } from "@aws-sdk/client-sts";
 import { corsWrapper } from "../utils/cors.js";
 import { HttpError } from "../error/index.js";
 
 const GITHUB_OIDC_URL = "https://token.actions.githubusercontent.com";
 const GITHUB_THUMBPRINTS = ["6938fd4d98bab03faadb97b34396831e3780aea1", "1c58a3a8518e8759bf075b76b750d4f2df264fcd"];
+const GITHUB_AUD_KEY = "token.actions.githubusercontent.com:aud";
+const GITHUB_SUB_KEY = "token.actions.githubusercontent.com:sub";
 
 app.http("createGithubRole", {
   methods: ["POST", "OPTIONS"],
@@ -44,39 +46,69 @@ app.http("createGithubRole", {
       }
 
       const oidcProviderArn = `arn:aws:iam::${accountId}:oidc-provider/token.actions.githubusercontent.com`;
-      const subjectConditions = environments.map((env) => `repo:${org}/${repo}:environment:${env}`);
+      const newSubs = environments.map((env) => `repo:${org}/${repo}:environment:${env}`);
 
-      const trustPolicy = {
-        Version: "2012-10-17",
-        Statement: [
-          {
-            Effect: "Allow",
-            Principal: { Federated: oidcProviderArn },
-            Action: "sts:AssumeRoleWithWebIdentity",
-            Condition: {
-              StringEquals: { "token.actions.githubusercontent.com:aud": "sts.amazonaws.com" },
-              StringLike: { "token.actions.githubusercontent.com:sub": subjectConditions },
-            },
-          },
-        ],
+      const newStatement = {
+        Effect: "Allow",
+        Principal: { Federated: oidcProviderArn },
+        Action: "sts:AssumeRoleWithWebIdentity",
+        Condition: {
+          StringEquals: { [GITHUB_AUD_KEY]: "sts.amazonaws.com" },
+          StringLike: { [GITHUB_SUB_KEY]: newSubs },
+        },
       };
 
-      const createRoleRes = await iam.send(
-        new CreateRoleCommand({
-          RoleName: roleName,
-          AssumeRolePolicyDocument: JSON.stringify(trustPolicy),
-          Description: `GitHub Actions OIDC role for ${org}/${repo}`,
-        }),
-      );
+      let roleArn;
+      let updated = false;
 
-      await iam.send(
-        new AttachRolePolicyCommand({
-          RoleName: roleName,
-          PolicyArn: "arn:aws:iam::aws:policy/AdministratorAccess",
-        }),
-      );
+      try {
+        const createRes = await iam.send(
+          new CreateRoleCommand({
+            RoleName: roleName,
+            AssumeRolePolicyDocument: JSON.stringify({ Version: "2012-10-17", Statement: [newStatement] }),
+            Description: `GitHub Actions OIDC role for ${org}/${repo}`,
+          }),
+        );
+        roleArn = createRes.Role.Arn;
+      } catch (err) {
+        if (err.name !== "EntityAlreadyExistsException") throw err;
 
-      return { jsonBody: { roleArn: createRoleRes.Role.Arn } };
+        // Role exists — merge selected environments into the trust policy.
+        const existing = await iam.send(new GetRoleCommand({ RoleName: roleName }));
+        roleArn = existing.Role.Arn;
+
+        let mergedPolicy;
+        let existingPolicyObj;
+        try {
+          existingPolicyObj = JSON.parse(decodeURIComponent(existing.Role.AssumeRolePolicyDocument));
+        } catch (_e) {
+          existingPolicyObj = null;
+        }
+
+        if (existingPolicyObj) {
+          // Find an existing GitHub OIDC statement to merge subs into.
+          const githubStmt = existingPolicyObj.Statement?.find((s) => s.Condition?.StringLike?.[GITHUB_SUB_KEY] !== undefined);
+          if (githubStmt) {
+            const existingSubs = [].concat(githubStmt.Condition.StringLike[GITHUB_SUB_KEY]);
+            githubStmt.Condition.StringLike[GITHUB_SUB_KEY] = [...new Set([...existingSubs, ...newSubs])];
+          } else {
+            // Unrecognized trust policy structure — append a new statement.
+            existingPolicyObj.Statement = [...(existingPolicyObj.Statement ?? []), newStatement];
+          }
+          mergedPolicy = existingPolicyObj;
+        } else {
+          // Unparseable document — replace with minimal policy containing our statement.
+          mergedPolicy = { Version: "2012-10-17", Statement: [newStatement] };
+        }
+
+        await iam.send(new UpdateAssumeRolePolicyCommand({ RoleName: roleName, PolicyDocument: JSON.stringify(mergedPolicy) }));
+        updated = true;
+      }
+
+      // Idempotent — safe to call even if the policy is already attached.
+      await iam.send(new AttachRolePolicyCommand({ RoleName: roleName, PolicyArn: "arn:aws:iam::aws:policy/AdministratorAccess" }));
+
+      return { jsonBody: { roleArn, updated } };
     } catch (err) {
       // Surface AWS SDK errors (InvalidClientTokenId, AccessDenied, EntityAlreadyExists, ...)
       // with their real status/message instead of a generic 500.

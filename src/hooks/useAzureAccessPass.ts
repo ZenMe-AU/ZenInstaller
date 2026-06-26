@@ -10,7 +10,7 @@ import {
   MSA_TENANT,
   type EntraUser,
   type Subscription,
-} from "../api/azureGraph2";
+} from "../api/accessPassGraph";
 import type { Account, StageDefinition } from "../types";
 
 export type StepStatus = "pending" | "running" | "done" | "skipped" | "error";

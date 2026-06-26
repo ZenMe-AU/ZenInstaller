@@ -5,12 +5,14 @@ import { useState } from "react";
 import type { RepoOption, User } from "../types";
 
 type Props = {
-  authLoading: boolean;
-  user: User | null;
-  selectedRepo: RepoOption | null;
+  authLoading?: boolean;
+  user?: User | null;
+  selectedRepo?: RepoOption | null;
+  title?: string;
+  siblingPage?: { label: string; href: string };
 };
 
-export default function NavBar({ authLoading, user, selectedRepo }: Props) {
+export default function NavBar({ authLoading = false, user = null, selectedRepo = null, title, siblingPage }: Props) {
   const [copied, setCopied] = useState(false);
 
   return (
@@ -24,11 +26,27 @@ export default function NavBar({ authLoading, user, selectedRepo }: Props) {
           ZB
         </Box>
         <Typography sx={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a", letterSpacing: "-0.01em" }}>
-          ZenInstaller Setup Central Corp Environment
+          {title ?? "ZenInstaller Setup Central Corp Environment"}
         </Typography>
       </Box>
 
       <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        {siblingPage && (
+          <Button
+            size="small"
+            component="a"
+            href={siblingPage.href}
+            sx={{
+              fontSize: "0.72rem",
+              textTransform: "none",
+              color: "#64748b",
+              fontFamily: "'IBM Plex Mono', monospace",
+              "&:hover": { color: "#0f172a" },
+            }}
+          >
+            {siblingPage.label}
+          </Button>
+        )}
         {authLoading ? (
           <CircularProgress size={16} sx={{ color: "#cbd5e1" }} />
         ) : user ? (

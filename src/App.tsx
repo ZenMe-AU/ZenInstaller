@@ -25,7 +25,6 @@ import StatusUpdateStep from "./steps/StatusUpdateStep";
 import StageStep from "./steps/StageStep";
 import AzureSetupStep from "./steps/AzureSetupStep";
 import AwsSetupStep from "./steps/AwsSetupStep";
-import AzureAccessPass from "./steps/AzureAccessPass";
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
@@ -169,7 +168,7 @@ export default function AppDashboard() {
       <SessionOverlay sessionExpired={auth.sessionExpired} redirecting={auth.redirecting} onLogin={auth.onLogin} />
 
       <Box sx={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a", fontFamily: "'IBM Plex Sans', sans-serif" }}>
-        <NavBar authLoading={auth.authLoading} user={auth.user} selectedRepo={repo.selectedRepo} />
+        <NavBar authLoading={auth.authLoading} user={auth.user} selectedRepo={repo.selectedRepo} siblingPage={{ label: "Access Pass", href: "/accessPass.html" }} />
 
         <Box sx={{ maxWidth: 860, mx: "auto", px: 4, py: 5 }}>
           {/* Intro */}
@@ -235,16 +234,6 @@ export default function AppDashboard() {
               onRefresh={repo.onRefresh}
               repoFullName={repo.repoFullName}
               disabled={!isAuthed}
-            />
-
-            <AzureAccessPass
-              {...azureAccessPass}
-              status={cardStatus.azure_access_pass}
-              expanded={expanded.azure_access_pass}
-              onToggle={() => toggle("azure_access_pass")}
-              disabled={!isAuthed || !repo.isCloneRepo}
-              validEnvs={repo.pipeline.validEnvs}
-              onComplete={() => {}}
             />
 
             <PRStep

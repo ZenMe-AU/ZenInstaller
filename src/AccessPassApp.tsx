@@ -7,7 +7,7 @@ import AzureAccessPass from "./steps/AccessPass";
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
-export default function AppDashboard() {
+export default function AccessPassApp() {
   const azureAccessPass = useAzureAccessPass({
     githubAccount: null,
     githubRepo: "",

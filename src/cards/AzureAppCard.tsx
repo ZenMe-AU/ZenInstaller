@@ -1,5 +1,18 @@
 import { useState } from "react";
-import { Autocomplete, Box, Button, Checkbox, Chip, CircularProgress, ListItemText, MenuItem, Select, TextField, Typography } from "@mui/material";
+import {
+  Autocomplete,
+  Box,
+  Button,
+  Checkbox,
+  Chip,
+  CircularProgress,
+  FormControlLabel,
+  ListItemText,
+  MenuItem,
+  Select,
+  TextField,
+  Typography,
+} from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import CheckIcon from "@mui/icons-material/Check";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
@@ -59,16 +72,45 @@ function CopyRow({ label, value }: { label: string; value: string }) {
 type Props = ReturnType<typeof useAzureSetup> & {
   disabled: boolean;
   validEnvs: readonly string[];
+  onComplete: (done: boolean) => void;
 };
 
 export default function AzureAppCard({
-  azureAccount, subscriptions, selectedSubs, setSelectedSubs,
-  appName, setAppName, environments, setEnvironments,
-  steps, result, running, loggingIn, consentFailed, loginError, subsError,
-  needsTenantId, availableTenants, manualTenantId, setManualTenantId, tenantIdError, confirmTenantId,
-  login, logout, reset, run, changeTenant,
-  disabled, validEnvs,
+  azureAccount,
+  subscriptions,
+  selectedSubs,
+  setSelectedSubs,
+  appName,
+  setAppName,
+  environments,
+  setEnvironments,
+  steps,
+  result,
+  running,
+  loggingIn,
+  consentFailed,
+  loginError,
+  subsError,
+  needsTenantId,
+  availableTenants,
+  manualTenantId,
+  setManualTenantId,
+  tenantIdError,
+  confirmTenantId,
+  login,
+  logout,
+  reset,
+  run,
+  changeTenant,
+  disabled,
+  validEnvs,
+  onComplete,
 }: Props) {
+  const [done, setDone] = useState(false);
+  const handleDone = (checked: boolean) => {
+    setDone(checked);
+    onComplete(checked);
+  };
   const toggleEnv = (env: string) => {
     setEnvironments((prev) => (prev.includes(env) ? prev.filter((e) => e !== env) : [...prev, env]));
   };
@@ -333,6 +375,26 @@ export default function AzureAppCard({
           )}
         </Box>
       )}
+
+      {/* Done checkbox — always visible regardless of login state */}
+      <FormControlLabel
+        sx={{ mt: 1 }}
+        control={
+          <Checkbox
+            checked={done}
+            onChange={(e) => handleDone(e.target.checked)}
+            size="small"
+            sx={{ color: "#94a3b8", "&.Mui-checked": { color: "#16a34a" }, py: 0.5 }}
+          />
+        }
+        label={
+          <Typography
+            sx={{ fontSize: "0.75rem", color: done ? "#16a34a" : "#475569", fontFamily: "'IBM Plex Mono', monospace", fontWeight: done ? 600 : 400 }}
+          >
+            I've copied the values to GitHub Actions environment variables
+          </Typography>
+        }
+      />
     </>
   );
 }

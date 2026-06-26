@@ -46,6 +46,7 @@ function prereqLabel(prereq: Prerequisite, variableValues: Record<string, string
         auth: "Authenticated",
         repo: "Repo selected",
         azure_setup: "Azure setup",
+        azure_access_pass: "Azure access pass",
         aws_setup: "AWS setup",
         pr: "PR selected",
         env: "Env configured",
@@ -243,7 +244,7 @@ export function StageItem({
     if (key === lastPlanFetchKey.current) return;
     lastPlanFetchKey.current = key;
     prevRepoName.current = repoName;
-    setPlanLoading(true);
+    const t = setTimeout(() => setPlanLoading(true), 0);
     fetchPlan(stage.planJsonId, account, repoName)
       .then((data) => {
         const fetched: PlanItem[] = data.resource_changes || [];
@@ -254,7 +255,8 @@ export function StageItem({
         onPlanSummaryRef.current?.(s);
       })
       .catch((err: Error) => setPlanError(err.message))
-      .finally(() => setPlanLoading(false));
+      .finally(() => { clearTimeout(t); setPlanLoading(false); });
+    return () => clearTimeout(t);
   }, [stage.planJsonId, stage.status, account, repoName]);
 
   // Deploy log — fetched lazily when deployStatus is "failed" and logId is available

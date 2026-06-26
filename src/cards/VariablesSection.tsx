@@ -1,47 +1,13 @@
 import { useState, useEffect, useRef } from "react";
-import { Box, Button, CircularProgress, Collapse, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
-import LightbulbOutlinedIcon from "@mui/icons-material/LightbulbOutlined";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import type { Account, GhEnv, SecretsStatus, UpsertStatus } from "../types";
-import { AZURE_VARIABLE_KEYS, AWS_VARIABLE_KEYS, GITHUB_VARIABLE_KEYS } from "../logic/variables";
-import { CLOUD_DOCS } from "../config/docsConfig";
+import type { Account, GhEnv, UpsertStatus } from "../types";
+import { GITHUB_VARIABLE_KEYS } from "../logic/variables";
 import { createVariable, updateVariable } from "../api";
 import VariablesCard from "../components/VariablesCard";
-
-function SetupGuide({ links }: { links: { label: string; href: string }[] }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <Box>
-      <Box
-        onClick={() => setOpen((v) => !v)}
-        sx={{ display: "flex", alignItems: "center", gap: 0.4, cursor: "pointer", color: "#94a3b8", "&:hover": { color: "#2563eb" } }}
-      >
-        <LightbulbOutlinedIcon sx={{ fontSize: 13 }} />
-        <Typography sx={{ fontSize: "0.72rem", fontFamily: "'IBM Plex Mono', monospace" }}>How to set up</Typography>
-      </Box>
-      <Collapse in={open}>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, mt: 0.75, pl: 0.25 }}>
-          {links.map(({ label, href }) => (
-            <Box
-              key={href}
-              component="a"
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              sx={{ display: "flex", alignItems: "center", gap: 0.25, color: "#64748b", textDecoration: "none", "&:hover": { color: "#2563eb" } }}
-            >
-              <Typography sx={{ fontSize: "0.72rem", fontFamily: "'IBM Plex Mono', monospace" }}>{label}</Typography>
-              <OpenInNewIcon sx={{ fontSize: 12 }} />
-            </Box>
-          ))}
-        </Box>
-      </Collapse>
-    </Box>
-  );
-}
 
 const sectionLabelSx = {
   fontSize: "0.7rem",
@@ -49,15 +15,6 @@ const sectionLabelSx = {
   color: "#0f172a",
   textTransform: "uppercase" as const,
   letterSpacing: "0.1em",
-  fontFamily: "'IBM Plex Mono', monospace",
-};
-
-const subLabelSx = {
-  fontSize: "0.67rem",
-  fontWeight: 600,
-  color: "#94a3b8",
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.08em",
   fontFamily: "'IBM Plex Mono', monospace",
 };
 
@@ -81,11 +38,13 @@ type Props = {
   variablesRechecking: boolean;
   varRecheckFailed?: boolean;
   onVariableConfirmed: (key: string, value: string) => void;
-  azureSecretsStatus: SecretsStatus;
-  awsSecretsStatus: SecretsStatus;
+  githubUrl?: string;
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
+// Azure/AWS infrastructure variables (AZURE_CLIENT_ID, AWS_ROLE_ARN, …) are saved
+// from their own setup cards. This section only manages deployment variables
+// (Company & Domain).
 
 export default function VariablesSection({
   account,
@@ -96,8 +55,7 @@ export default function VariablesSection({
   variablesRechecking,
   varRecheckFailed,
   onVariableConfirmed,
-  azureSecretsStatus,
-  awsSecretsStatus,
+  githubUrl,
 }: Props) {
   const prevRecheckingRef = useRef(false);
   const clickedRef = useRef(false);
@@ -107,9 +65,13 @@ export default function VariablesSection({
     prevRecheckingRef.current = variablesRechecking;
     if (was && !variablesRechecking && clickedRef.current) {
       clickedRef.current = false;
-      setRefreshResult(varRecheckFailed ? "failed" : "done");
-      const t = setTimeout(() => setRefreshResult(null), 1500);
-      return () => clearTimeout(t);
+      const result: "done" | "failed" = varRecheckFailed ? "failed" : "done";
+      const t1 = setTimeout(() => setRefreshResult(result), 0);
+      const t2 = setTimeout(() => setRefreshResult(null), 1500);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
     }
   }, [variablesRechecking, varRecheckFailed]);
 
@@ -126,8 +88,7 @@ export default function VariablesSection({
     setVarUpsertStatuses([]);
   }
 
-  const allVariableKeys = [...AZURE_VARIABLE_KEYS, ...AWS_VARIABLE_KEYS, ...GITHUB_VARIABLE_KEYS];
-  const dirtyVarKeys = allVariableKeys.filter((k) => (localVarValues[k] ?? "") !== (variableValues[k] ?? ""));
+  const dirtyVarKeys = GITHUB_VARIABLE_KEYS.filter((k) => (localVarValues[k] ?? "") !== (variableValues[k] ?? ""));
 
   const handleVarChange = (key: string, value: string) => {
     setLocalVarValues((prev) => ({ ...prev, [key]: value }));
@@ -164,8 +125,22 @@ export default function VariablesSection({
       {/* Header */}
       <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", mb: 1 }}>
         <Box>
-          <Typography sx={{ ...sectionLabelSx, mb: 0.75 }}>Variables</Typography>
-          <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>GitHub Actions environment variables for this environment.</Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.75 }}>
+            <Typography sx={sectionLabelSx}>Company & Domain</Typography>
+            {(() => {
+              const n = GITHUB_VARIABLE_KEYS.filter((k) => !variableValues[k]).length;
+              return n > 0 ? (
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <ErrorOutlineIcon sx={{ fontSize: 12, color: "#ea580c" }} />
+                  <Typography sx={{ fontSize: "0.65rem", color: "#ea580c" }}>{n} not configured</Typography>
+                </Box>
+              ) : null;
+            })()}
+          </Box>
+          <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
+            {" "}
+            Variables used by GitHub Actions when building and deploying this environment.
+          </Typography>
         </Box>
         <Button
           size="small"
@@ -200,86 +175,8 @@ export default function VariablesSection({
         </Button>
       </Box>
 
-      {/* Azure variable sub-section */}
-      <Box sx={{ mt: 2 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.75 }}>
-          <Typography sx={subLabelSx}>Azure</Typography>
-          {(() => {
-            const n = AZURE_VARIABLE_KEYS.filter((k) => !variableValues[k]).length;
-            return n > 0 ? (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                <ErrorOutlineIcon sx={{ fontSize: 12, color: "#ea580c" }} />
-                <Typography sx={{ fontSize: "0.65rem", color: "#ea580c" }}>{n} not configured</Typography>
-              </Box>
-            ) : null;
-          })()}
-        </Box>
-        <SetupGuide
-          links={[
-            { label: "How to Create a Free Azure Account", href: CLOUD_DOCS.azure.createAccount },
-            { label: "How to Set Up GitHub OIDC for Azure", href: CLOUD_DOCS.azure.setupOidc },
-          ]}
-        />
-        <Box sx={{ mt: 1 }}>
-          <VariablesCard
-            requiredKeys={AZURE_VARIABLE_KEYS}
-            savedValues={variableValues}
-            localValues={localVarValues}
-            upsertStatuses={varUpsertStatuses}
-            validStatus={azureSecretsStatus.valid}
-            onChange={handleVarChange}
-            onRevert={handleVarRevert}
-          />
-        </Box>
-      </Box>
-
-      {/* AWS variable sub-section */}
-      <Box sx={{ mt: 2 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.75 }}>
-          <Typography sx={subLabelSx}>AWS</Typography>
-          {(() => {
-            const n = AWS_VARIABLE_KEYS.filter((k) => !variableValues[k]).length;
-            return n > 0 ? (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                <ErrorOutlineIcon sx={{ fontSize: 12, color: "#ea580c" }} />
-                <Typography sx={{ fontSize: "0.65rem", color: "#ea580c" }}>{n} not configured</Typography>
-              </Box>
-            ) : null;
-          })()}
-        </Box>
-        <SetupGuide
-          links={[
-            { label: "How to Create a Free AWS Account", href: CLOUD_DOCS.aws.createAccount },
-            { label: "How to Set Up GitHub OIDC for AWS", href: CLOUD_DOCS.aws.setupOidc },
-          ]}
-        />
-        <Box sx={{ mt: 1 }}>
-          <VariablesCard
-            requiredKeys={AWS_VARIABLE_KEYS}
-            savedValues={variableValues}
-            localValues={localVarValues}
-            upsertStatuses={varUpsertStatuses}
-            validStatus={awsSecretsStatus.valid}
-            onChange={handleVarChange}
-            onRevert={handleVarRevert}
-          />
-        </Box>
-      </Box>
-
-      {/* Company & Domain sub-section */}
-      <Box sx={{ mt: 2 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
-          <Typography sx={subLabelSx}>Company & Domain</Typography>
-          {(() => {
-            const n = GITHUB_VARIABLE_KEYS.filter((k) => !variableValues[k]).length;
-            return n > 0 ? (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                <ErrorOutlineIcon sx={{ fontSize: 12, color: "#ea580c" }} />
-                <Typography sx={{ fontSize: "0.65rem", color: "#ea580c" }}>{n} not configured</Typography>
-              </Box>
-            ) : null;
-          })()}
-        </Box>
+      {/* Variable rows */}
+      <Box sx={{ mt: 1 }}>
         <VariablesCard
           requiredKeys={GITHUB_VARIABLE_KEYS}
           savedValues={variableValues}
@@ -290,8 +187,8 @@ export default function VariablesSection({
         />
       </Box>
 
-      {/* Shared Update button */}
-      <Box sx={{ mt: 2 }}>
+      {/* Save button row */}
+      <Box sx={{ mt: 2, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
         <Button
           onClick={handleUpdateVars}
           disabled={updatingVars || dirtyVarKeys.length === 0}
@@ -317,6 +214,23 @@ export default function VariablesSection({
             `Save ${dirtyVarKeys.length > 0 ? dirtyVarKeys.length : ""} variable${dirtyVarKeys.length !== 1 ? "s" : ""}`.trim()
           )}
         </Button>
+        {githubUrl && (
+          <Button
+            size="small"
+            endIcon={<OpenInNewIcon sx={{ fontSize: 12 }} />}
+            onClick={() => window.open(githubUrl, "_blank")}
+            sx={{
+              flexShrink: 0,
+              fontSize: "0.7rem",
+              color: "#64748b",
+              textTransform: "none",
+              fontFamily: "'IBM Plex Mono', monospace",
+              "&:hover": { color: "#0f172a" },
+            }}
+          >
+            Manage on GitHub
+          </Button>
+        )}
       </Box>
     </Box>
   );

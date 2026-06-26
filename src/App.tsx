@@ -237,16 +237,6 @@ export default function AppDashboard() {
               disabled={!isAuthed}
             />
 
-            <AzureSetupStep
-              {...azureSetup}
-              status={cardStatus.azure_setup}
-              expanded={expanded.azure_setup}
-              onToggle={() => toggle("azure_setup")}
-              disabled={!isAuthed || !repo.isCloneRepo}
-              validEnvs={repo.pipeline.validEnvs}
-              onComplete={setAzureSetupDone}
-            />
-
             <AzureAccessPass
               {...azureAccessPass}
               status={cardStatus.azure_access_pass}
@@ -255,16 +245,6 @@ export default function AppDashboard() {
               disabled={!isAuthed || !repo.isCloneRepo}
               validEnvs={repo.pipeline.validEnvs}
               onComplete={() => {}}
-            />
-
-            <AwsSetupStep
-              {...awsSetup}
-              status={cardStatus.aws_setup}
-              expanded={expanded.aws_setup}
-              onToggle={() => toggle("aws_setup")}
-              disabled={!isAuthed || !repo.isCloneRepo}
-              validEnvs={repo.pipeline.validEnvs}
-              onComplete={setAwsSetupDone}
             />
 
             <PRStep
@@ -321,6 +301,34 @@ export default function AppDashboard() {
               creatingBranch={repo.creatingBranch}
               createBranchError={repo.createBranchError}
               onCreateBranch={repo.onCreateBranch}
+            />
+
+            <AzureSetupStep
+              {...azureSetup}
+              status={cardStatus.azure_setup}
+              expanded={expanded.azure_setup}
+              onToggle={() => toggle("azure_setup")}
+              disabled={!isAuthed || !repo.isCloneRepo || !env.selectedEnv}
+              validEnvs={repo.pipeline.validEnvs}
+              account={repo.selectedAccount}
+              repoName={repo.selectedRepo?.name ?? ""}
+              repoFullName={repo.repoFullName}
+              selectedEnv={env.selectedEnv}
+              onComplete={setAzureSetupDone}
+            />
+
+            <AwsSetupStep
+              {...awsSetup}
+              status={cardStatus.aws_setup}
+              expanded={expanded.aws_setup}
+              onToggle={() => toggle("aws_setup")}
+              disabled={!isAuthed || !repo.isCloneRepo || !env.selectedEnv}
+              validEnvs={repo.pipeline.validEnvs}
+              account={repo.selectedAccount}
+              repoName={repo.selectedRepo?.name ?? ""}
+              repoFullName={repo.repoFullName}
+              selectedEnv={env.selectedEnv}
+              onComplete={setAwsSetupDone}
             />
 
             <StatusUpdateStep

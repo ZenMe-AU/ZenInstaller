@@ -12,7 +12,7 @@ export type CreateGithubRoleParams = {
   createOidcProvider: boolean;
 };
 
-export async function createGithubRole({ accessKeyId, secretAccessKey, ...rest }: CreateGithubRoleParams): Promise<string> {
+export async function createGithubRole({ accessKeyId, secretAccessKey, ...rest }: CreateGithubRoleParams): Promise<{ roleArn: string; updated: boolean }> {
   const sts = new STSClient({ region: "us-east-1", credentials: { accessKeyId, secretAccessKey } });
   const session = await sts.send(new GetSessionTokenCommand({ DurationSeconds: 900 }));
   const { AccessKeyId, SecretAccessKey, SessionToken } = session.Credentials ?? {};
@@ -27,5 +27,5 @@ export async function createGithubRole({ accessKeyId, secretAccessKey, ...rest }
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status})`);
-  return data.roleArn as string;
+  return { roleArn: data.roleArn as string, updated: data.updated as boolean };
 }

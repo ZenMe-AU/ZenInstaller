@@ -3,7 +3,6 @@ import { Box, Button, CircularProgress, Divider, Typography } from "@mui/materia
 import CheckIcon from "@mui/icons-material/Check";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import LockIcon from "@mui/icons-material/Lock";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { Account, Branch, GhEnv, SecretsStatus } from "../types";
@@ -103,9 +102,10 @@ export default function EnvironmentCard({
     prevLoadingRef.current = loading;
     if (was && !loading && clickedRef.current) {
       clickedRef.current = false;
-      setRefreshResult(refreshFailed ? "failed" : "done");
-      const t = setTimeout(() => setRefreshResult(null), 1500);
-      return () => clearTimeout(t);
+      const result: "done" | "failed" = refreshFailed ? "failed" : "done";
+      const t1 = setTimeout(() => setRefreshResult(result), 0);
+      const t2 = setTimeout(() => setRefreshResult(null), 1500);
+      return () => { clearTimeout(t1); clearTimeout(t2); };
     }
   }, [loading, refreshFailed]);
 
@@ -122,11 +122,12 @@ export default function EnvironmentCard({
 
       {/* Header row */}
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.5 }}>
-        <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
-          Select the target environment. Supported:{" "}
+        <Typography sx={{ fontSize: "0.78rem", color: "#64748b", lineHeight: 1.6 }}>
+          Pick the environment to configure.{" "}
           <Box component="span" sx={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600 }}>
             {validEnvs.join(", ")}
-          </Box>
+          </Box>{" "}
+          are set up separately — everything below applies to the one you pick.
         </Typography>
         {!lockedByPR && (
           <Button
@@ -232,38 +233,7 @@ export default function EnvironmentCard({
       {/* ── Sections — shown once env is selected and valid ── */}
       {secretsReady && (
         <>
-          {/* Context header: env name + Manage on GitHub */}
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 2.5, mb: 2 }}>
-            <Typography sx={{ fontSize: "0.72rem", color: "#64748b" }}>
-              Configure GitHub Actions for the{" "}
-              <Box component="span" sx={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600 }}>
-                {selectedEnv.name}
-              </Box>{" "}
-              environment.
-            </Typography>
-            {githubSecretsUrl && (
-              <Button
-                size="small"
-                variant="outlined"
-                endIcon={<OpenInNewIcon sx={{ fontSize: 13 }} />}
-                onClick={() => window.open(githubSecretsUrl, "_blank")}
-                sx={{
-                  ml: 2,
-                  flexShrink: 0,
-                  borderColor: "#e2e8f0",
-                  color: "#475569",
-                  fontSize: "0.72rem",
-                  textTransform: "none",
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  "&:hover": { borderColor: "#cbd5e1", color: "#0f172a", background: "#f8fafc" },
-                }}
-              >
-                Manage on GitHub
-              </Button>
-            )}
-          </Box>
-
-          <Divider sx={{ mb: 2.5, borderColor: "#f1f5f9" }} />
+          <Divider sx={{ mt: 2.5, mb: 2.5, borderColor: "#f1f5f9" }} />
 
           {/* ── Secrets section (hidden) ── */}
           {secretsVisible && (
@@ -292,8 +262,7 @@ export default function EnvironmentCard({
             variablesRechecking={variablesRechecking}
             varRecheckFailed={varRecheckFailed}
             onVariableConfirmed={onVariableConfirmed}
-            azureSecretsStatus={azureSecretsStatus}
-            awsSecretsStatus={awsSecretsStatus}
+            githubUrl={githubSecretsUrl ?? undefined}
           />
         </>
       )}

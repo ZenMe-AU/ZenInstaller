@@ -42,6 +42,7 @@ function VariableRow({
   validStatus,
   description,
   deployedValues,
+  overwriteWarning,
   onChange,
   onRevert,
 }: {
@@ -53,6 +54,7 @@ function VariableRow({
   validStatus?: boolean | null;
   description?: string;
   deployedValues?: Record<string, string>;
+  overwriteWarning?: boolean;
   onChange: (key: string, value: string) => void;
   onRevert: (key: string) => void;
 }) {
@@ -60,6 +62,8 @@ function VariableRow({
   const isError = upsertStatus?.status === "error";
   // Value differs from what was last planned (corp.env snapshot)
   const isDeployedDiff = deployedValues !== undefined && (savedValue ?? "") !== (deployedValues[varKey] ?? "");
+  // A pending edit will replace a non-empty value already saved on GitHub
+  const willOverwrite = !!overwriteWarning && isDirty && !!savedValue;
 
   return (
     <Box
@@ -139,6 +143,15 @@ function VariableRow({
         </Tooltip>
       )}
 
+      {willOverwrite && !isError && (
+        <Tooltip title={`Replaces saved value: ${savedValue}`} placement="top" arrow>
+          <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.4, px: 0.875, py: 0.2, borderRadius: "4px", background: "#fffbeb", border: "1px solid #fde68a", fontSize: "0.62rem", fontFamily: "'IBM Plex Mono', monospace", color: "#b45309", flexShrink: 0, cursor: "help" }}>
+            <WarningAmberIcon sx={{ fontSize: 10 }} />
+            overwrites
+          </Box>
+        </Tooltip>
+      )}
+
       {isError && (
         <Tooltip title={upsertStatus!.error ?? "Update failed"}>
           <ErrorOutlineIcon sx={{ fontSize: 14, color: "#ef4444", flexShrink: 0 }} />
@@ -180,6 +193,8 @@ type Props = {
   descriptions?: Partial<Record<string, string>>;
   /** Values from the last deployed corp.env snapshot — used to highlight changed rows */
   deployedValues?: Record<string, string>;
+  /** When true, dirty rows that replace a non-empty saved value show an "overwrites" warning */
+  overwriteWarning?: boolean;
   onChange: (key: string, value: string) => void;
   onRevert: (key: string) => void;
 };
@@ -194,6 +209,7 @@ export default function VariablesCard({
   validStatus,
   descriptions,
   deployedValues,
+  overwriteWarning,
   onChange,
   onRevert,
 }: Props) {
@@ -210,6 +226,7 @@ export default function VariablesCard({
           validStatus={validStatus}
           description={descriptions?.[key]}
           deployedValues={deployedValues}
+          overwriteWarning={overwriteWarning}
           onChange={onChange}
           onRevert={onRevert}
         />

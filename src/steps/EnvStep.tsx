@@ -63,8 +63,8 @@ export default function EnvStep({
 }: Props) {
   return (
     <StepWrapper
-      title="Environment"
-      subtitle={selectedEnv ? selectedEnv.name : "Select target environment"}
+      title="Choose the environment to set up"
+      subtitle={selectedEnv ? selectedEnv.name : `${validEnvs.length === 2 ? validEnvs.join(" and ") : validEnvs.join(", ")} are set up separately`}
       status={status}
       expanded={expanded}
       onToggle={onToggle}

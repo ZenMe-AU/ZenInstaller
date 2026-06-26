@@ -18,6 +18,7 @@ export function useAwsSetup({
   const [createOidcProvider, setCreateOidcProvider] = useState(true);
   const [loading, setLoading] = useState(false);
   const [roleArn, setRoleArn] = useState<string | null>(null);
+  const [wasUpdated, setWasUpdated] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const toggleEnv = (env: string) =>
@@ -30,8 +31,9 @@ export function useAwsSetup({
     setLoading(true);
     setError(null);
     try {
-      const arn = await createGithubRole({ accessKeyId, secretAccessKey, org, repo, environments, roleName, createOidcProvider });
+      const { roleArn: arn, updated } = await createGithubRole({ accessKeyId, secretAccessKey, org, repo, environments, roleName, createOidcProvider });
       setRoleArn(arn);
+      setWasUpdated(updated);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -53,6 +55,7 @@ export function useAwsSetup({
     setCreateOidcProvider,
     loading,
     roleArn,
+    wasUpdated,
     error,
     canCreate,
     create,

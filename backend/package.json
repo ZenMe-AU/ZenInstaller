@@ -9,6 +9,8 @@
     "test": "echo \"No tests yet...\""
   },
   "dependencies": {
+    "@aws-sdk/client-iam": "^3.0.0",
+    "@aws-sdk/client-sts": "^3.0.0",
     "@azure/functions": "^4.0.0",
     "octokit": "^5.0.5"
   },

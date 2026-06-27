@@ -223,3 +223,15 @@ export async function grantAdminConsent(
     });
   }
 }
+
+// ── Revoke delegated permission grants ────────────────────────────────────────
+
+export async function revokeOAuth2Grants(account: AccountInfo, appClientId: string, overrideTenantId?: string): Promise<void> {
+  const token = await getToken(account, GRAPH_SCOPES, overrideTenantId);
+  const spRes = await gFetch(token, GRAPH, `/servicePrincipals?$filter=appId eq '${appClientId}'&$select=id`);
+  const spId: string | undefined = spRes?.value?.[0]?.id;
+  if (!spId) return;
+  const grantsRes = await gFetch(token, GRAPH, `/oauth2PermissionGrants?$filter=clientId eq '${spId}'`);
+  const ids: string[] = (grantsRes?.value ?? []).map((g: { id: string }) => g.id);
+  await Promise.all(ids.map((id) => gFetch(token, GRAPH, `/oauth2PermissionGrants/${id}`, { method: "DELETE" }).catch(() => {})));
+}

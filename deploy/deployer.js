@@ -9,7 +9,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // Load .env from deploy/
 config({ path: resolve(__dirname, ".env") });
 
-const appCwd = resolve(__dirname, "../app");
+const appCwd = resolve(__dirname, "../backend");
 const tfvars = JSON.parse(fs.readFileSync(resolve(__dirname, "env/terraform.auto.tfvars.json"), "utf8"));
 
 await runDeploy({

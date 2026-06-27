@@ -35,7 +35,7 @@ export default function AwsSetupStep({
       : undefined;
 
   return (
-    <StepWrapper title="Let GitHub deploy to AWS" subtitle={subtitle} status={status} expanded={expanded} onToggle={onToggle}>
+    <StepWrapper title="Let GitHub deploy to AWS" subtitle={subtitle} status={status} expanded={expanded} onToggle={onToggle} disabled={disabled}>
       <AwsCfnCard
         {...awsSetup}
         account={account}

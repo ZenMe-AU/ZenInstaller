@@ -42,7 +42,7 @@ export default function AzureSetupStep({
       : undefined;
 
   return (
-    <StepWrapper title="Let GitHub deploy to Azure" subtitle={subtitle} status={status} expanded={expanded} onToggle={onToggle}>
+    <StepWrapper title="Let GitHub deploy to Azure" subtitle={subtitle} status={status} expanded={expanded} onToggle={onToggle} disabled={disabled}>
       <AzureAppCard
         {...azureSetup}
         disabled={disabled}

@@ -1,41 +1,22 @@
-import { useState } from "react";
-import { Box, Button, Checkbox, Chip, CircularProgress, FormControlLabel, IconButton, InputAdornment, TextField, Typography } from "@mui/material";
+import { useState, useEffect, useRef } from "react";
+import { Box, Button, Checkbox, CircularProgress, Collapse, FormControlLabel, IconButton, InputAdornment, TextField, Typography } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import CheckIcon from "@mui/icons-material/Check";
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { Account, GhEnv } from "../types";
 import type { useAwsSetup } from "../hooks/useAwsSetup";
 import { AWS_VARIABLE_KEYS } from "../logic/variables";
 import { CLOUD_DOCS } from "../config/docsConfig";
 import VariableEditor from "./VariableEditor";
+
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 const labelSx = { fontSize: "0.68rem", color: "#94a3b8", textTransform: "uppercase" as const, letterSpacing: "0.08em", ...mono };
 
-function CopyRow({ label, value }: { label: string; value: string }) {
-  const [copied, setCopied] = useState(false);
-  const copy = () => {
-    navigator.clipboard.writeText(value).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    });
-  };
-  return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0.5 }}>
-      <Typography sx={{ ...labelSx, minWidth: 120 }}>{label}</Typography>
-      <Typography sx={{ fontSize: "0.78rem", color: "#1e293b", ...mono, flex: 1, wordBreak: "break-all" }}>{value}</Typography>
-      <Button size="small" onClick={copy} sx={{ minWidth: 0, p: 0.5, color: "#94a3b8", "&:hover": { color: "#2563eb" } }}>
-        <ContentCopyIcon sx={{ fontSize: 13 }} />
-        <Typography sx={{ fontSize: "0.65rem", ml: 0.5, ...mono }}>{copied ? "Copied" : "Copy"}</Typography>
-      </Button>
-    </Box>
-  );
-}
-
 type Props = ReturnType<typeof useAwsSetup> & {
-  validEnvs: readonly string[];
   account: Account | null;
   repoName: string;
   selectedEnv: GhEnv | null;
@@ -51,8 +32,7 @@ export default function AwsCfnCard({
   setSecretAccessKey,
   roleName,
   setRoleName,
-  environments,
-  toggleEnv,
+  setEnvironments,
   createOidcProvider,
   setCreateOidcProvider,
   loading,
@@ -61,7 +41,6 @@ export default function AwsCfnCard({
   error,
   canCreate,
   create,
-  validEnvs,
   account,
   repoName,
   selectedEnv,
@@ -70,99 +49,81 @@ export default function AwsCfnCard({
   githubUrl,
 }: Props) {
   const [showSecret, setShowSecret] = useState(false);
-  const [fillKey, setFillKey] = useState(0);
+  const [varExpanded, setVarExpanded] = useState(false);
+  const [loadedVars, setLoadedVars] = useState<Record<string, string> | null>(null);
+  const [autoSaveCounter, setAutoSaveCounter] = useState(0);
+  const [bannerState, setBannerState] = useState<"none" | "saved" | "no-changes" | "error">("none");
+  const prevRoleArnRef = useRef<string | null>(null);
+  const prefilledRoleRef = useRef(false);
+
+  const varHasAny = !!loadedVars && Object.keys(loadedVars).length > 0;
+
+  // Create action also dismisses the banner.
+  const handleCreate = () => { setBannerState("none"); create(); };
+
+  // Keep environments in sync with the selected env from parent.
+  useEffect(() => {
+    if (selectedEnv?.name) setEnvironments([selectedEnv.name]);
+  }, [selectedEnv?.name, setEnvironments]);
+
+  // Reset prefill guard when the target env changes.
+  useEffect(() => {
+    prefilledRoleRef.current = false;
+  }, [selectedEnv?.name]);
+
+  // (6) Prefill IAM role name from the saved AWS_ROLE_ARN (arn:…:role/<name>).
+  useEffect(() => {
+    if (prefilledRoleRef.current || roleArn) return;
+    const savedArn = loadedVars?.[AWS_VARIABLE_KEYS[0]];
+    const name = savedArn?.split("/").pop();
+    if (name) {
+      prefilledRoleRef.current = true;
+      setRoleName(name);
+    }
+  }, [loadedVars, roleArn, setRoleName]);
+
+  // Trigger auto-save + expand once when roleArn first becomes available.
+  useEffect(() => {
+    if (roleArn && !prevRoleArnRef.current) {
+      const t = setTimeout(() => {
+        setAutoSaveCounter((c) => c + 1);
+        setVarExpanded(true);
+      }, 0);
+      prevRoleArnRef.current = roleArn;
+      return () => clearTimeout(t);
+    }
+    prevRoleArnRef.current = roleArn ?? null;
+  }, [roleArn]);
 
   const populate = roleArn ? { [AWS_VARIABLE_KEYS[0]]: roleArn } : undefined;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      {/* ── Intro / success banner ── */}
-      {roleArn ? (
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-            background: "#f0fdf4",
-            border: "1px solid #bbf7d0",
-            borderRadius: "8px",
-            px: 1.5,
-            py: 1,
-          }}
-        >
-          <CheckCircleOutlineIcon sx={{ fontSize: 16, color: "#16a34a" }} />
-          <Typography sx={{ fontSize: "0.75rem", color: "#15803d" }}>
-            {wasUpdated
-              ? "Updated the role's trust policy and filled AWS_ROLE_ARN below — review and save."
-              : "Created the IAM role and filled AWS_ROLE_ARN below — review and save."}
+      {/* ── Result banner (shown after create+auto-save completes) ── */}
+      {bannerState !== "none" && (
+        <Box sx={{
+          display: "flex", alignItems: "center", gap: 1,
+          background: bannerState === "error" ? "#fef9c3" : "#f0fdf4",
+          border: `1px solid ${bannerState === "error" ? "#fde047" : "#bbf7d0"}`,
+          borderRadius: "8px", px: 1.5, py: 1,
+        }}>
+          {bannerState === "error"
+            ? <WarningAmberIcon sx={{ fontSize: 16, color: "#d97706" }} />
+            : <CheckCircleOutlineIcon sx={{ fontSize: 16, color: "#16a34a" }} />
+          }
+          <Typography sx={{ fontSize: "0.75rem", color: bannerState === "error" ? "#713f12" : "#15803d" }}>
+            {bannerState === "saved" && "Connection details saved."}
+            {bannerState === "no-changes" && "Connection details saved — no changes needed."}
+            {bannerState === "error" && "Some connection details failed to save — check below."}
           </Typography>
         </Box>
-      ) : (
-        <Typography sx={{ fontSize: "0.75rem", color: "#64748b", lineHeight: 1.7 }}>
-          GitHub Actions signs in to AWS to deploy your app — no long-term access keys are stored. It needs the value below. Paste it if you already
-          have it, or create the role automatically below.
-        </Typography>
       )}
 
-      {/* ── Values GitHub needs (the goal) ── */}
-      <VariableEditor
-        account={account}
-        repo={repoName}
-        envName={selectedEnv?.name ?? null}
-        keys={AWS_VARIABLE_KEYS}
-        populate={populate}
-        fillKey={fillKey}
-        title="Values GitHub needs"
-        disabled={disabled}
-        onComplete={onComplete}
-        githubUrl={githubUrl}
-      />
-
-      {/* ── Divider ── */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-        <Box sx={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
-        <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono }}>
-          {roleArn ? "✓ created automatically" : "don't have this value?"}
+      {/* ── Create section ── */}
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+          Provide temporary IAM credentials and we'll create an IAM role GitHub can assume via OIDC, then save the connection details automatically.
         </Typography>
-        <Box sx={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
-      </Box>
-
-      {/* ── Helper: create automatically ── */}
-      <Box
-        sx={{
-          background: "#f8fafc",
-          border: "1px solid #f1f5f9",
-          borderRadius: "8px",
-          px: 2,
-          py: 1.75,
-          display: "flex",
-          flexDirection: "column",
-          gap: 2,
-        }}
-      >
-        <Box>
-          <Typography sx={{ fontSize: "0.82rem", color: "#0f172a", fontWeight: 600 }}>Create it automatically</Typography>
-          <Typography sx={{ fontSize: "0.72rem", color: "#64748b", mt: 0.5, lineHeight: 1.6 }}>
-            Provide temporary IAM credentials and we'll create an IAM role GitHub can assume via OIDC, then fill AWS_ROLE_ARN above.{" "}
-            <Box
-              component="a"
-              href={CLOUD_DOCS.aws.setupOidc}
-              target="_blank"
-              rel="noopener noreferrer"
-              sx={{
-                display: "none",
-                alignItems: "center",
-                gap: 0.25,
-                color: "#2563eb",
-                textDecoration: "none",
-                "&:hover": { textDecoration: "underline" },
-              }}
-            >
-              How this works
-              <OpenInNewIcon sx={{ fontSize: 11 }} />
-            </Box>
-          </Typography>
-        </Box>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
           <Typography sx={{ fontSize: "0.7rem", color: "#94a3b8" }}>No AWS account?</Typography>
@@ -239,39 +200,6 @@ export default function AwsCfnCard({
           />
         </Box>
 
-        {/* Environments */}
-        <Box>
-          <Typography sx={{ ...labelSx, mb: 0.75 }}>Which environments can deploy</Typography>
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
-            {validEnvs.map((env) => {
-              const selected = environments.includes(env);
-              return (
-                <Chip
-                  key={env}
-                  size="small"
-                  onClick={() => toggleEnv(env)}
-                  icon={selected ? <CheckIcon sx={{ fontSize: "12px !important", color: "#2563eb !important" }} /> : undefined}
-                  label={env}
-                  sx={{
-                    ...mono,
-                    fontSize: "0.72rem",
-                    cursor: "pointer",
-                    background: selected ? "#eff6ff" : "#f1f5f9",
-                    color: selected ? "#2563eb" : "#64748b",
-                    border: `1px solid ${selected ? "#93c5fd" : "#e2e8f0"}`,
-                    fontWeight: selected ? 600 : 400,
-                    "&:hover": { background: selected ? "#dbeafe" : "#e2e8f0" },
-                    "& .MuiChip-icon": { ml: "6px" },
-                  }}
-                />
-              );
-            })}
-          </Box>
-          {environments.length === 0 && (
-            <Typography sx={{ fontSize: "0.68rem", color: "#ef4444", mt: 0.5 }}>Select at least one environment</Typography>
-          )}
-        </Box>
-
         {/* OIDC provider toggle */}
         <FormControlLabel
           control={
@@ -292,11 +220,11 @@ export default function AwsCfnCard({
           }
         />
 
-        {/* Create Role button */}
-        <Box>
+        {/* Create button + overwrite warning */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
           <Button
             variant="contained"
-            onClick={create}
+            onClick={handleCreate}
             disabled={disabled || !canCreate || loading}
             startIcon={loading ? <CircularProgress size={14} sx={{ color: "inherit" }} /> : roleArn ? <CheckIcon sx={{ fontSize: 16 }} /> : undefined}
             sx={{
@@ -315,43 +243,64 @@ export default function AwsCfnCard({
           >
             {loading ? (roleArn ? "Updating..." : "Creating role...") : roleArn ? "Update trust policy" : "Create IAM Role"}
           </Button>
+          {varHasAny && !roleArn && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+              <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
+              <Typography sx={{ fontSize: "0.68rem", color: "#d97706" }}>
+                This will overwrite your current connection details
+              </Typography>
+            </Box>
+          )}
         </Box>
 
-        {/* Error */}
         {error && <Typography sx={{ fontSize: "0.72rem", color: "#ef4444" }}>{error}</Typography>}
 
-        {/* Success: role ARN */}
         {roleArn && (
-          <Box sx={{ background: "#f0fdf4", border: "1px solid #86efac", borderRadius: "8px", px: 2, py: 1.5 }}>
-            <Typography sx={{ ...labelSx, color: "#16a34a", mb: 0.75 }}>
-              {wasUpdated ? "Trust policy updated" : "Role created successfully"}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <CheckCircleOutlineIcon sx={{ fontSize: 15, color: "#16a34a" }} />
+            <Typography sx={{ fontSize: "0.72rem", color: "#15803d" }}>
+              {wasUpdated ? "Trust policy updated" : "IAM role created"} — connection details saved to GitHub automatically.
             </Typography>
-            <CopyRow label="AWS_ROLE_ARN" value={roleArn} />
-            <Box
-              sx={{ mt: 1, pt: 1, borderTop: "1px solid #86efac", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}
-            >
-              <Typography sx={{ fontSize: "0.72rem", color: "#15803d" }}>
-                This value is filled into the field above — scroll up to review and save it.
-              </Typography>
-              <Button
-                size="small"
-                onClick={() => setFillKey((k) => k + 1)}
-                sx={{
-                  flexShrink: 0,
-                  fontSize: "0.68rem",
-                  color: "#15803d",
-                  textTransform: "none",
-                  ...mono,
-                  py: 0.25,
-                  "&:hover": { color: "#166534", background: "#dcfce7" },
-                }}
-              >
-                Fill again
-              </Button>
-            </Box>
           </Box>
         )}
       </Box>
+
+      {/* ── Divider (clickable toggle) ── */}
+      <Box
+        onClick={() => setVarExpanded((e) => !e)}
+        sx={{ display: "flex", alignItems: "center", gap: 1.5, cursor: "pointer", userSelect: "none", py: 0.25 }}
+      >
+        <Box sx={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
+        <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, whiteSpace: "nowrap" }}>
+          {varExpanded ? "collapse" : "open to enter application connection detail"}
+        </Typography>
+        <KeyboardArrowDownIcon
+          sx={{ fontSize: 14, color: "#94a3b8", transform: varExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}
+        />
+        <Box sx={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
+      </Box>
+
+      {/* ── Variable editor (Collapse keeps it mounted so onLoaded fires) ── */}
+      <Collapse in={varExpanded} timeout={300} unmountOnExit={false}>
+        <VariableEditor
+          account={account}
+          repo={repoName}
+          envName={selectedEnv?.name ?? null}
+          keys={AWS_VARIABLE_KEYS}
+          populate={populate}
+          title="Connection details"
+          disabled={disabled}
+          onComplete={onComplete}
+          onAutoSaveResult={(result) => setBannerState(result)}
+          githubUrl={githubUrl}
+          onLoaded={(saved) => {
+            setLoadedVars(saved);
+            // Any saved value → expand; none → collapse.
+            setVarExpanded(Object.keys(saved).length > 0);
+          }}
+          autoSaveCounter={autoSaveCounter}
+        />
+      </Collapse>
     </Box>
   );
 }

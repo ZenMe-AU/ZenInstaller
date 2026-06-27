@@ -298,7 +298,6 @@ export default function AppDashboard() {
               expanded={expanded.azure_setup}
               onToggle={() => toggle("azure_setup")}
               disabled={!isAuthed || !repo.isCloneRepo || !env.selectedEnv}
-              validEnvs={repo.pipeline.validEnvs}
               account={repo.selectedAccount}
               repoName={repo.selectedRepo?.name ?? ""}
               repoFullName={repo.repoFullName}
@@ -312,7 +311,6 @@ export default function AppDashboard() {
               expanded={expanded.aws_setup}
               onToggle={() => toggle("aws_setup")}
               disabled={!isAuthed || !repo.isCloneRepo || !env.selectedEnv}
-              validEnvs={repo.pipeline.validEnvs}
               account={repo.selectedAccount}
               repoName={repo.selectedRepo?.name ?? ""}
               repoFullName={repo.repoFullName}

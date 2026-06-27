@@ -78,6 +78,13 @@ export async function getExistingApp(
   return data.value?.[0] ? { appId: data.value[0].appId, id: data.value[0].id } : null;
 }
 
+/** Reverse lookup: resolve an app registration's display name from its client (app) id. */
+export async function getAppNameByAppId(account: AccountInfo, appId: string, overrideTenantId?: string): Promise<string | null> {
+  const token = await getToken(account, GRAPH_SCOPES, overrideTenantId);
+  const data = await gFetch(token, GRAPH, `/applications?$filter=appId eq '${appId}'&$select=displayName`);
+  return data.value?.[0]?.displayName ?? null;
+}
+
 export async function createAppRegistration(
   account: AccountInfo,
   displayName: string,

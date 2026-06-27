@@ -5,6 +5,7 @@ import { GRAPH_SCOPES, ARM_SCOPES } from "../config/azureConfig";
 import {
   listSubscriptions,
   getExistingApp,
+  getAppNameByAppId,
   createAppRegistration,
   getExistingSP,
   createServicePrincipal,
@@ -231,6 +232,20 @@ export function useAzureSetup({
     setTenantIdError(null);
   }, []);
 
+  // Resolve the app registration's display name from a known client id and prefill appName.
+  const prefillAppName = useCallback(
+    async (appId: string) => {
+      if (!azureAccount || !appId) return;
+      try {
+        const name = await getAppNameByAppId(azureAccount, appId, effectiveTenantId);
+        if (name) setAppName(name);
+      } catch {
+        /* keep default name */
+      }
+    },
+    [azureAccount, effectiveTenantId],
+  );
+
   const reset = useCallback(() => {
     setSteps([]);
     setResult(null);
@@ -370,5 +385,6 @@ export function useAzureSetup({
     reset,
     run,
     changeTenant,
+    prefillAppName,
   };
 }

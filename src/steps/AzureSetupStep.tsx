@@ -9,7 +9,6 @@ type Props = ReturnType<typeof useAzureSetup> & {
   expanded: boolean;
   onToggle: () => void;
   disabled: boolean;
-  validEnvs: readonly string[];
   account: Account | null;
   repoName: string;
   repoFullName: string | null;
@@ -22,7 +21,6 @@ export default function AzureSetupStep({
   expanded,
   onToggle,
   disabled,
-  validEnvs,
   account,
   repoName,
   repoFullName,
@@ -48,7 +46,6 @@ export default function AzureSetupStep({
       <AzureAppCard
         {...azureSetup}
         disabled={disabled}
-        validEnvs={validEnvs}
         account={account}
         repoName={repoName}
         selectedEnv={selectedEnv}

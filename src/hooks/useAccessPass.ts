@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AccountInfo } from "@azure/msal-browser";
 import { getMsal } from "../api/accessPassMsal";
-import { GRAPH_SCOPES, ARM_SCOPES, AZURE_TENANT_ID } from "../config/accessPassConfig";
+import { GRAPH_SCOPES, ARM_SCOPES } from "../config/accessPassConfig";
 import {
   listSubscriptions,
   listUsersManagedBySignedInUser,
@@ -57,13 +57,6 @@ function extractTenantFromHomeAccountId(homeAccountId?: string): string | undefi
   const candidate = parts.length > 1 ? parts[1] : undefined;
   if (!candidate || candidate === MSA_TENANT) return undefined;
   return candidate;
-}
-
-// Determine the configured tenant ID from environment variables, if present. This is used to enforce a specific tenant context for the app.
-function getConfiguredTenantId(): string | undefined {
-  const tid = AZURE_TENANT_ID?.trim();
-  if (!tid || tid === MSA_TENANT) return undefined;
-  return tid;
 }
 
 // Convert known error messages from the TAP creation API into user-friendly messages.
@@ -163,8 +156,12 @@ export function useAzureAccessPass(props: {
     return Array.from(azureAccount.tenantProfiles.keys()).filter((id) => id !== MSA_TENANT);
   }, [azureAccount]);
 
+  const normalizedTenantId = manualTenantId.trim();
   const needsTenantId = (azureAccount?.tenantId === MSA_TENANT || manualTenantId !== "") && subscriptions.length === 0;
-  const effectiveTenantId = needsTenantId ? manualTenantId.trim() : undefined;
+  // Always carry the resolved tenant for MSA flows; do not tie this to UI gating state.
+  const effectiveTenantId =
+    normalizedTenantId ||
+    (azureAccount?.tenantId === MSA_TENANT ? loadResult()?.tenantId ?? loadTenantIdFromStorage(AZURE_SETUP_RESULT_KEY) : undefined);
 
   const updateStep = useCallback((id: string, status: StepStatus, detail?: string) => {
     setSteps((prev) => prev.map((s) => (s.id === id ? { ...s, status, detail } : s)));
@@ -192,8 +189,6 @@ export function useAzureAccessPass(props: {
       const savedTenantId = loadResult()?.tenantId;
       const setupTenantId = loadTenantIdFromStorage(AZURE_SETUP_RESULT_KEY);
       const sessionTenantId = sessionStorage.getItem(SESSION_KEY) || undefined;
-      const configuredTenantId = getConfiguredTenantId();
-
       const candidates = Array.from(
         new Set(
           [
@@ -201,7 +196,6 @@ export function useAzureAccessPass(props: {
             ...(sessionTenantId ? [sessionTenantId] : []),
             ...(savedTenantId ? [savedTenantId] : []),
             ...(setupTenantId ? [setupTenantId] : []),
-            ...(configuredTenantId ? [configuredTenantId] : []),
             ...(claimTid ? [claimTid] : []),
             ...(homeTid ? [homeTid] : []),
             ...cachedTenantIds,
@@ -277,6 +271,11 @@ export function useAzureAccessPass(props: {
 
   useEffect(() => {
     if (!azureAccount) return;
+    if (azureAccount.tenantId === MSA_TENANT && needsTenantId) {
+      setManagerUsers([]);
+      setSelectedManagerUserId("");
+      return;
+    }
     // Try all plausible tenant contexts and pick the one that returns direct reports.
     const tenantCandidates =
       azureAccount.tenantId === MSA_TENANT
@@ -285,7 +284,7 @@ export function useAzureAccessPass(props: {
     loadManagerUsers(azureAccount, tenantCandidates).catch(() => {
       /* handled by state */
     });
-  }, [azureAccount, availableTenants, manualTenantId, loadManagerUsers]);
+  }, [azureAccount, availableTenants, loadManagerUsers, manualTenantId, needsTenantId]);
 
   // On mount: handle redirect callback OR restore existing session
   useEffect(() => {
@@ -299,7 +298,6 @@ export function useAzureAccessPass(props: {
 
         const savedTenant = sessionStorage.getItem(SESSION_KEY) || undefined;
         const setupTenant = loadTenantIdFromStorage(AZURE_SETUP_RESULT_KEY);
-        const configuredTenant = getConfiguredTenantId();
 
         const tryLoadSubs = async (account: AccountInfo, tenant: string | undefined) => {
           try {
@@ -318,19 +316,19 @@ export function useAzureAccessPass(props: {
         };
 
         const msaTenant = (acc: AccountInfo) =>
-          acc.tenantId === MSA_TENANT ? loadResult()?.tenantId ?? setupTenant ?? configuredTenant ?? undefined : undefined;
+          acc.tenantId === MSA_TENANT ? loadResult()?.tenantId ?? setupTenant ?? undefined : undefined;
 
         if (result?.account) {
           console.log("MSAL accounts on init:", msal.getAllAccounts());
           setAzureAccount(result.account);
-          const tenant = savedTenant ?? msaTenant(result.account) ?? configuredTenant;
+          const tenant = savedTenant ?? msaTenant(result.account);
           if (tenant) setManualTenantId(tenant);
           await tryLoadSubs(result.account, tenant);
         } else {
           const accounts = msal.getAllAccounts();
           console.log("MSAL accounts on init:", accounts);
           if (accounts.length > 0) {
-            const preferredTid = savedTenant ?? loadResult()?.tenantId ?? setupTenant ?? configuredTenant;
+            const preferredTid = savedTenant ?? loadResult()?.tenantId ?? setupTenant;
             const account =
               (preferredTid ? accounts.find((a) => a.tenantId === preferredTid) : undefined) ??
               accounts.find((a) => a.tenantId !== MSA_TENANT) ??
@@ -356,12 +354,12 @@ export function useAzureAccessPass(props: {
   const login = useCallback(async () => {
     setLoginError(null);
     setSubsError(null);
+    setTenantIdError(null);
     try {
       const msal = await getMsal();
       if (!msal) return;
-      const configuredTenant = getConfiguredTenantId();
       const setupTenant = loadTenantIdFromStorage(AZURE_SETUP_RESULT_KEY);
-      const preferredTenant = manualTenantId.trim() || loadResult()?.tenantId || setupTenant || configuredTenant;
+      const preferredTenant = manualTenantId.trim() || loadResult()?.tenantId || setupTenant;
       await msal.loginRedirect({
         scopes: GRAPH_SCOPES,
         authority: preferredTenant ? `https://login.microsoftonline.com/${preferredTenant}` : "https://login.microsoftonline.com/common",
@@ -375,14 +373,9 @@ export function useAzureAccessPass(props: {
 
   const confirmTenantId = useCallback(async () => {
     if (!azureAccount) return;
-    const tid = manualTenantId.trim() || availableTenants[0] || "";
+    const tid = manualTenantId.trim();
     if (!tid) {
-      setTenantIdError("No Azure tenant found for this account.");
-      return;
-    }
-    if (!selectedManagerUserId) {
-      // Require a dropdown choice so users explicitly confirm the manager-matched account set.
-      setTenantIdError("Please select a user from the Entra list.");
+      setTenantIdError("Please enter your Tenant ID");
       return;
     }
     setTenantIdError(null);
@@ -429,7 +422,7 @@ export function useAzureAccessPass(props: {
       sessionStorage.removeItem(SESSION_KEY);
       setTenantIdError(err instanceof Error ? err.message : "Failed to redirect");
     }
-  }, [azureAccount, manualTenantId, availableTenants, selectedManagerUserId, loadSubs]);
+  }, [azureAccount, manualTenantId, loadSubs]);
 
   const changeTenant = useCallback(() => {
     setSubscriptions([]);
@@ -439,9 +432,8 @@ export function useAzureAccessPass(props: {
     setManagerUsers([]);
     setSelectedManagerUserId("");
     setManagerUsersError(null);
-    const fallbackTenant = availableTenants[0] ?? "";
-    setManualTenantId(fallbackTenant);
-  }, [availableTenants]);
+    setManualTenantId("");
+  }, []);
 
   const reset = useCallback(() => {
     setSteps([]);
@@ -472,11 +464,15 @@ export function useAzureAccessPass(props: {
     await clearSession();
   }, [clearSession]);
 
-  const run = useCallback(async () => {
-    if (!azureAccount || !selectedManagerUserId) return;
+  const runForUser = useCallback(async (targetUserId: string): Promise<AzureSetupResult | null> => {
+    if (!azureAccount || !targetUserId) return null;
+    setSelectedManagerUserId(targetUserId);
     setRunning(true);
     setConsentFailed(false);
-    const resolvedTenantId = effectiveTenantId ?? azureAccount.tenantId;
+    const msal = await getMsal();
+    const tenantScopedAccount =
+      (effectiveTenantId ? msal?.getAllAccounts().find((a) => a.tenantId === effectiveTenantId) : undefined) ?? azureAccount;
+    const resolvedTenantId = effectiveTenantId ?? tenantScopedAccount.tenantId;
 
     const initialSteps: SetupStep[] = [
       { id: "tap", label: "Create Temporary Access Pass", status: "pending" },
@@ -485,24 +481,31 @@ export function useAzureAccessPass(props: {
 
     try {
       updateStep("tap", "running");
-      const tap = await createTemporaryAccessPassForUser(azureAccount, selectedManagerUserId, effectiveTenantId);
+      const tap = await createTemporaryAccessPassForUser(tenantScopedAccount, targetUserId, effectiveTenantId);
       updateStep("tap", "done", "Temporary Access Pass created");
 
       const r = {
         accessPassValue: tap.temporaryAccessPass,
         tenantId: resolvedTenantId,
         subscriptionIds: [],
-        targetUserId: selectedManagerUserId,
+        targetUserId,
         tapMethodId: tap.id,
       };
       setResult(r);
       saveResult(r);
+      return r;
     } catch (err) {
       updateStep("tap", "error", toTapErrorMessage(err));
+      return null;
     } finally {
       setRunning(false);
     }
-  }, [azureAccount, selectedManagerUserId, effectiveTenantId, updateStep]);
+  }, [azureAccount, effectiveTenantId, updateStep]);
+
+  const run = useCallback(async () => {
+    if (!selectedManagerUserId) return;
+    await runForUser(selectedManagerUserId);
+  }, [runForUser, selectedManagerUserId]);
 
   return {
     azureAccount,
@@ -526,11 +529,15 @@ export function useAzureAccessPass(props: {
     setSelectedManagerUserId,
     managerUsersLoading,
     managerUsersError,
+    availableTenants,
+    manualTenantId,
+    setManualTenantId,
     tenantIdError,
     confirmTenantId,
     login,
     logout,
     reset,
+    runForUser,
     run,
     changeTenant,
   };

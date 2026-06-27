@@ -3,7 +3,6 @@ import type { StageDefinition } from "../types";
 // ── App registration client ID (ZenInstaller SPA) ─────────────────────────────
 
 export const AZURE_CLIENT_ID = import.meta.env.VITE_AZURE_CLIENT_ID as string | undefined;
-export const AZURE_TENANT_ID = import.meta.env.VITE_AZURE_TENANT_ID as string | undefined;
 
 // ── OAuth scopes ───────────────────────────────────────────────────────────────
 

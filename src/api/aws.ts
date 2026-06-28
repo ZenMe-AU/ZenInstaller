@@ -1,31 +1,21 @@
 import { STSClient, GetSessionTokenCommand } from "@aws-sdk/client-sts";
 
-const apiUrl = import.meta.env.VITE_API_URL;
+// AWS-specific prerequisite work for backend calls. The backend's IAM operations run
+// with short-lived session credentials rather than the user's long-lived access keys,
+// so we exchange them client-side via STS before handing them to the backend.
 
-export type CreateGithubRoleParams = {
+export type AwsSessionCredentials = {
   accessKeyId: string;
   secretAccessKey: string;
-  org: string;
-  repo: string;
-  environments: string[];
-  roleName: string;
-  createOidcProvider: boolean;
+  sessionToken: string;
 };
 
-export async function createGithubRole({ accessKeyId, secretAccessKey, ...rest }: CreateGithubRoleParams): Promise<{ roleArn: string; updated: boolean }> {
+export async function getAwsSessionCredentials(accessKeyId: string, secretAccessKey: string): Promise<AwsSessionCredentials> {
   const sts = new STSClient({ region: "us-east-1", credentials: { accessKeyId, secretAccessKey } });
   const session = await sts.send(new GetSessionTokenCommand({ DurationSeconds: 900 }));
   const { AccessKeyId, SecretAccessKey, SessionToken } = session.Credentials ?? {};
   if (!AccessKeyId || !SecretAccessKey || !SessionToken) {
     throw new Error("Failed to obtain temporary credentials from AWS STS");
   }
-
-  const res = await fetch(`${apiUrl}/api/aws/create-github-role`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ accessKeyId: AccessKeyId, secretAccessKey: SecretAccessKey, sessionToken: SessionToken, ...rest }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status})`);
-  return { roleArn: data.roleArn as string, updated: data.updated as boolean };
+  return { accessKeyId: AccessKeyId, secretAccessKey: SecretAccessKey, sessionToken: SessionToken };
 }

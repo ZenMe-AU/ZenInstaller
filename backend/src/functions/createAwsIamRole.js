@@ -1,5 +1,12 @@
 import { app } from "@azure/functions";
-import { IAMClient, CreateRoleCommand, AttachRolePolicyCommand, CreateOpenIDConnectProviderCommand, GetRoleCommand, UpdateAssumeRolePolicyCommand } from "@aws-sdk/client-iam";
+import {
+  IAMClient,
+  CreateRoleCommand,
+  AttachRolePolicyCommand,
+  CreateOpenIDConnectProviderCommand,
+  GetRoleCommand,
+  UpdateAssumeRolePolicyCommand,
+} from "@aws-sdk/client-iam";
 import { STSClient, GetCallerIdentityCommand } from "@aws-sdk/client-sts";
 import { corsWrapper } from "../utils/cors.js";
 import { HttpError } from "../error/index.js";
@@ -9,10 +16,10 @@ const GITHUB_THUMBPRINTS = ["6938fd4d98bab03faadb97b34396831e3780aea1", "1c58a3a
 const GITHUB_AUD_KEY = "token.actions.githubusercontent.com:aud";
 const GITHUB_SUB_KEY = "token.actions.githubusercontent.com:sub";
 
-app.http("createGithubRole", {
+app.http("createAwsIamRole", {
   methods: ["POST", "OPTIONS"],
   authLevel: "anonymous",
-  route: "api/aws/create-github-role",
+  route: "createAwsIamRole",
   handler: corsWrapper(async (request) => {
     const { accessKeyId, secretAccessKey, sessionToken, org, repo, environments, roleName, createOidcProvider } = await request.json();
 

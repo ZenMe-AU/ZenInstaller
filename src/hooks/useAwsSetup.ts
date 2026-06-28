@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createGithubRole } from "../api/aws";
+import { createAwsIamRole } from "../api";
 
 export function useAwsSetup({
   org,
@@ -31,7 +31,7 @@ export function useAwsSetup({
     setLoading(true);
     setError(null);
     try {
-      const { roleArn: arn, updated } = await createGithubRole({ accessKeyId, secretAccessKey, org, repo, environments, roleName, createOidcProvider });
+      const { roleArn: arn, updated } = await createAwsIamRole({ accessKeyId, secretAccessKey, org, repo, environments, roleName, createOidcProvider });
       setRoleArn(arn);
       setWasUpdated(updated);
     } catch (err) {

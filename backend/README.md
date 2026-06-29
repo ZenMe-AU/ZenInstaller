@@ -7,6 +7,9 @@ For Development purposes easy auth is not available and the github API token mus
 
 # Quick start
 
-Login to github.
+1. To start the backend, in the terminal run:
+`func start`
+
+2. Login to github.
 Go to your personal settings > Develoer Settings > Personal Access Tokens > Fine-grained personal access tokens
 Generate a new token and call it zeninstallerLocal or similar.

@@ -59,7 +59,16 @@ function CopyRow({ label, value, masked = false }: { label: string; value: strin
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0.5 }}>
       <Typography sx={{ ...labelSx, minWidth: 180 }}>{label}</Typography>
-      <Typography sx={{ fontSize: "0.78rem", color: "#1e293b", ...mono, flex: 1, wordBreak: "break-all" }}>{displayValue}</Typography>
+      <Typography
+        sx={{
+          fontSize: "0.78rem",
+          color: "#1e293b",
+          ...mono,
+          ...(masked ? { flex: "0 0 auto" } : { flex: 1, wordBreak: "break-all" }),
+        }}
+      >
+        {displayValue}
+      </Typography>
       <Button size="small" onClick={copy} sx={{ minWidth: 0, p: 0.5, color: "#94a3b8", "&:hover": { color: "#2563eb" } }}>
         <ContentCopyIcon sx={{ fontSize: 13 }} />
         <Typography sx={{ fontSize: "0.65rem", ml: 0.5, ...mono }}>{copied ? "Copied" : "Copy"}</Typography>
@@ -101,7 +110,7 @@ export default function AzureAccessPassCard({
   changeTenant,
   disabled,
 }: Props) {
-  const PAGE_SIZE = 15;
+  const PAGE_SIZE = 200;
   const [creatingUserId, setCreatingUserId] = useState<string | null>(null);
   const [passValuesByUserId, setPassValuesByUserId] = useState<Record<string, string>>({});
   const [currentPage, setCurrentPage] = useState(1);
@@ -289,8 +298,8 @@ export default function AzureAccessPassCard({
           {!needsTenantId && (
             <Box
               sx={{
-                background: "#fef9c3",
-                border: "1px solid #fde047",
+                background: "#f8fafc",
+                border: "1px solid #e2e8f0",
                 borderRadius: "8px",
                 px: 2,
                 py: 1.5,
@@ -300,27 +309,27 @@ export default function AzureAccessPassCard({
               }}
             >
               <Box>
-                <Typography sx={{ fontSize: "0.78rem", color: "#713f12", ...mono, fontWeight: 600 }}>Select Entra user</Typography>
-                <Typography sx={{ fontSize: "0.72rem", color: "#854d0e", ...mono, mt: 0.25 }}>
+                <Typography sx={{ fontSize: "0.78rem", color: "#0f172a", ...mono, fontWeight: 600 }}>Select Entra user</Typography>
+                <Typography sx={{ fontSize: "0.72rem", color: "#475569", ...mono, mt: 0.25 }}>
                   Choose a user and create an access pass directly from the table.
                 </Typography>
               </Box>
               <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start", flexDirection: "column", width: "100%" }}>
                 {managerUsersLoading && (
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <CircularProgress size={14} sx={{ color: "#d97706" }} />
-                    <Typography sx={{ fontSize: "0.72rem", color: "#854d0e", ...mono }}>Loading users...</Typography>
+                    <CircularProgress size={14} sx={{ color: "#2563eb" }} />
+                    <Typography sx={{ fontSize: "0.72rem", color: "#475569", ...mono }}>Loading users...</Typography>
                   </Box>
                 )}
 
                 {!managerUsersLoading && managerUsers.length > 0 && (
-                  <TableContainer sx={{ border: "1px solid #fde68a", borderRadius: "8px", background: "#fffef3", width: "100%", overflowX: "auto" }}>
+                  <TableContainer sx={{ border: "1px solid #e2e8f0", borderRadius: "8px", background: "#ffffff", width: "100%", overflowX: "auto" }}>
                     <Table size="small" sx={{ minWidth: 640 }}>
                       <TableHead>
                         <TableRow>
-                          <TableCell sx={{ ...mono, fontSize: "0.68rem", color: "#92400e", fontWeight: 700 }}>Name</TableCell>
-                          <TableCell sx={{ ...mono, fontSize: "0.68rem", color: "#92400e", fontWeight: 700 }}>UPN</TableCell>
-                          <TableCell align="right" sx={{ ...mono, fontSize: "0.68rem", color: "#92400e", fontWeight: 700 }}>Action</TableCell>
+                          <TableCell sx={{ ...mono, fontSize: "0.68rem", color: "#334155", fontWeight: 700 }}>Name</TableCell>
+                          <TableCell sx={{ ...mono, fontSize: "0.68rem", color: "#334155", fontWeight: 700 }}>UPN</TableCell>
+                          <TableCell align="right" sx={{ ...mono, fontSize: "0.68rem", color: "#334155", fontWeight: 700 }}>Action</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
@@ -410,7 +419,7 @@ export default function AzureAccessPassCard({
                     </Box>
 
                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                      <Typography sx={{ fontSize: "0.7rem", color: "#854d0e", ...mono }}>
+                      <Typography sx={{ fontSize: "0.7rem", color: "#475569", ...mono }}>
                         Page {currentPage} of {totalPages}
                       </Typography>
                       <TextField
@@ -429,7 +438,7 @@ export default function AzureAccessPassCard({
                 )}
 
                 {!managerUsersLoading && managerUsers.length === 0 && !managerUsersError && (
-                  <Typography sx={{ fontSize: "0.72rem", color: "#854d0e", ...mono }}>
+                  <Typography sx={{ fontSize: "0.72rem", color: "#475569", ...mono }}>
                     No users found that are managed by your signed-in account.
                   </Typography>
                 )}

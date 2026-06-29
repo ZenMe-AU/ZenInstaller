@@ -8,7 +8,6 @@ type Props = ReturnType<typeof useAwsSetup> & {
   expanded: boolean;
   onToggle: () => void;
   disabled: boolean;
-  validEnvs: readonly string[];
   account: Account | null;
   repoName: string;
   repoFullName: string | null;
@@ -21,7 +20,6 @@ export default function AwsSetupStep({
   expanded,
   onToggle,
   disabled,
-  validEnvs,
   account,
   repoName,
   repoFullName,
@@ -37,10 +35,9 @@ export default function AwsSetupStep({
       : undefined;
 
   return (
-    <StepWrapper title="Let GitHub deploy to AWS" subtitle={subtitle} status={status} expanded={expanded} onToggle={onToggle}>
+    <StepWrapper title="Let GitHub deploy to AWS" subtitle={subtitle} status={status} expanded={expanded} onToggle={onToggle} disabled={disabled}>
       <AwsCfnCard
         {...awsSetup}
-        validEnvs={validEnvs}
         account={account}
         repoName={repoName}
         selectedEnv={selectedEnv}

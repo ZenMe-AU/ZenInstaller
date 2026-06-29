@@ -9,6 +9,7 @@ export const AZURE_CLIENT_ID = import.meta.env.VITE_AZURE_CLIENT_ID as string | 
 export const GRAPH_SCOPES = [
   "https://graph.microsoft.com/Application.ReadWrite.All",
   "https://graph.microsoft.com/AppRoleAssignment.ReadWrite.All",
+  "https://graph.microsoft.com/DelegatedPermissionGrant.ReadWrite.All",
   "https://graph.microsoft.com/RoleManagement.ReadWrite.Directory",
   "https://graph.microsoft.com/User.ReadWrite.All",
   "https://graph.microsoft.com/Group.ReadWrite.All",
@@ -32,6 +33,7 @@ export const GRAPH_PERMISSIONS = {
   PolicyReadWriteAuthenticationMethod: "29c18626-4985-4dcd-85c0-193eef327366",
   PrivilegedAccessReadWriteAzureADGroup: "2f6817f8-7b12-4f0f-bc18-eeaf60705a9e",
   PolicyReadWriteApplicationConfiguration: "be74164b-cff1-491c-8741-e671cb536e13",
+  DomainReadWriteAll: "7e05723c-0bb0-42da-be95-ae9f08a6e53c",
 } as const;
 
 export type GraphPermissionKey = keyof typeof GRAPH_PERMISSIONS;

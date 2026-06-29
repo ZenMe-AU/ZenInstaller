@@ -1,0 +1,9 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "AzureWebJobsStorage": "",
+    "ALLOWED_ORIGINS": "http://localhost:5173,https://www.zeninstaller.com",
+    "GITHUB_TOKEN": ""
+  }
+}

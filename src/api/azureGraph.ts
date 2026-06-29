@@ -78,6 +78,13 @@ export async function getExistingApp(
   return data.value?.[0] ? { appId: data.value[0].appId, id: data.value[0].id } : null;
 }
 
+/** Reverse lookup: resolve an app registration's display name from its client (app) id. */
+export async function getAppNameByAppId(account: AccountInfo, appId: string, overrideTenantId?: string): Promise<string | null> {
+  const token = await getToken(account, GRAPH_SCOPES, overrideTenantId);
+  const data = await gFetch(token, GRAPH, `/applications?$filter=appId eq '${appId}'&$select=displayName`);
+  return data.value?.[0]?.displayName ?? null;
+}
+
 export async function createAppRegistration(
   account: AccountInfo,
   displayName: string,
@@ -215,4 +222,16 @@ export async function grantAdminConsent(
       if (!err.message.includes("already exists") && !err.message.includes("409")) throw err;
     });
   }
+}
+
+// ── Revoke delegated permission grants ────────────────────────────────────────
+
+export async function revokeOAuth2Grants(account: AccountInfo, appClientId: string, overrideTenantId?: string): Promise<void> {
+  const token = await getToken(account, GRAPH_SCOPES, overrideTenantId);
+  const spRes = await gFetch(token, GRAPH, `/servicePrincipals?$filter=appId eq '${appClientId}'&$select=id`);
+  const spId: string | undefined = spRes?.value?.[0]?.id;
+  if (!spId) return;
+  const grantsRes = await gFetch(token, GRAPH, `/oauth2PermissionGrants?$filter=clientId eq '${spId}'`);
+  const ids: string[] = (grantsRes?.value ?? []).map((g: { id: string }) => g.id);
+  await Promise.all(ids.map((id) => gFetch(token, GRAPH, `/oauth2PermissionGrants/${id}`, { method: "DELETE" }).catch(() => {})));
 }

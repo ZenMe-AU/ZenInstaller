@@ -60,6 +60,7 @@ export const PIPELINES: Record<string, PipelineConfig> = {
           GRAPH_PERMISSIONS.RoleManagementReadWriteDirectory,
           GRAPH_PERMISSIONS.UserAuthenticationMethodReadWriteAll,
           GRAPH_PERMISSIONS.PolicyReadWriteAuthenticationMethod,
+          GRAPH_PERMISSIONS.DomainReadWriteAll,
         ],
         prerequisites: [
           { type: "var", key: "NAME" },

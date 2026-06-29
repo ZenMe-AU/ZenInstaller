@@ -1,26 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Autocomplete,
   Box,
   Button,
-  Checkbox,
-  Chip,
   CircularProgress,
-  FormControlLabel,
-  ListItemText,
+  Collapse,
   MenuItem,
-  Radio,
-  RadioGroup,
   Select,
   TextField,
   Typography,
 } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
-import CheckIcon from "@mui/icons-material/Check";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { Account, GhEnv } from "../types";
 import type { useAzureSetup } from "../hooks/useAzureSetup";
 import type { SetupStep } from "../hooks/useAzureSetup";
@@ -54,29 +49,8 @@ function StepRow({ step }: { step: SetupStep }) {
   );
 }
 
-function CopyRow({ label, value }: { label: string; value: string }) {
-  const [copied, setCopied] = useState(false);
-  const copy = () => {
-    navigator.clipboard.writeText(value).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    });
-  };
-  return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0.5 }}>
-      <Typography sx={{ ...labelSx, minWidth: 180 }}>{label}</Typography>
-      <Typography sx={{ fontSize: "0.78rem", color: "#1e293b", ...mono, flex: 1, wordBreak: "break-all" }}>{value}</Typography>
-      <Button size="small" onClick={copy} sx={{ minWidth: 0, p: 0.5, color: "#94a3b8", "&:hover": { color: "#2563eb" } }}>
-        <ContentCopyIcon sx={{ fontSize: 13 }} />
-        <Typography sx={{ fontSize: "0.65rem", ml: 0.5, ...mono }}>{copied ? "Copied" : "Copy"}</Typography>
-      </Button>
-    </Box>
-  );
-}
-
 type Props = ReturnType<typeof useAzureSetup> & {
   disabled: boolean;
-  validEnvs: readonly string[];
   account: Account | null;
   repoName: string;
   selectedEnv: GhEnv | null;
@@ -91,7 +65,6 @@ export default function AzureAppCard({
   setSelectedSubs,
   appName,
   setAppName,
-  environments,
   setEnvironments,
   steps,
   result,
@@ -111,22 +84,85 @@ export default function AzureAppCard({
   reset,
   run,
   changeTenant,
+  prefillAppName,
   disabled,
-  validEnvs,
   account,
   repoName,
   selectedEnv,
   onComplete,
   githubUrl,
 }: Props) {
-  const [subForVar, setSubForVar] = useState<string>("");
-  const [fillKey, setFillKey] = useState(0);
-  const toggleEnv = (env: string) => {
-    setEnvironments((prev) => (prev.includes(env) ? prev.filter((e) => e !== env) : [...prev, env]));
-  };
+  const [varExpanded, setVarExpanded] = useState(false);
+  const [loadedVars, setLoadedVars] = useState<Record<string, string> | null>(null);
+  const [autoSaveCounter, setAutoSaveCounter] = useState(0);
+  const [bannerState, setBannerState] = useState<"none" | "saved" | "no-changes" | "error">("none");
+  const prevResultRef = useRef(result);
+  const prefilledNameRef = useRef(false);
+  const tenantPrefillDoneRef = useRef(false);
 
-  // Which subscription's id flows into AZURE_SUBSCRIPTION_ID (defaults to the first).
-  const chosenSub = subForVar || result?.subscriptionIds[0] || "";
+  const varHasAny = !!loadedVars && Object.keys(loadedVars).length > 0;
+
+  // Action handlers that also dismiss the banner.
+  const handleLogout = () => { setBannerState("none"); logout(); };
+  const handleRetry = () => { setBannerState("none"); reset(); };
+  const handleRun = () => { setBannerState("none"); run(); };
+
+  // Keep environments in sync with the selected env from parent.
+  useEffect(() => {
+    if (selectedEnv?.name) setEnvironments([selectedEnv.name]);
+  }, [selectedEnv?.name, setEnvironments]);
+
+  // Trigger auto-save + expand once when result first becomes available.
+  useEffect(() => {
+    if (result && !prevResultRef.current) {
+      const t = setTimeout(() => {
+        setAutoSaveCounter((c) => c + 1);
+        setVarExpanded(true);
+      }, 0);
+      prevResultRef.current = result;
+      return () => clearTimeout(t);
+    }
+    prevResultRef.current = result;
+  }, [result]);
+
+  // Reset per-env guards when the target env changes.
+  useEffect(() => {
+    prefilledNameRef.current = false;
+    tenantPrefillDoneRef.current = false;
+  }, [selectedEnv?.name]);
+
+  // Allow app name prefill to retry when subscriptions first load
+  // (MSA accounts need effectiveTenantId, which only becomes available after tenant confirmation).
+  useEffect(() => {
+    if (subscriptions.length > 0) prefilledNameRef.current = false;
+  }, [subscriptions.length]);
+
+  // Pre-fill tenant id once on first load. Use a ref so clearing the field doesn't re-trigger.
+  useEffect(() => {
+    if (tenantPrefillDoneRef.current) return;
+    const savedTid = loadedVars?.AZURE_TENANT_ID;
+    if (!savedTid) return;
+    tenantPrefillDoneRef.current = true;
+    setManualTenantId(savedTid);
+  }, [loadedVars, setManualTenantId]);
+
+  // Auto-select the saved subscription if present in the loaded list.
+  useEffect(() => {
+    if (subscriptions.length === 0 || selectedSubs.length > 0) return;
+    const savedSub = loadedVars?.AZURE_SUBSCRIPTION_ID;
+    if (savedSub && subscriptions.some((s) => s.id === savedSub)) setSelectedSubs([savedSub]);
+  }, [subscriptions, selectedSubs.length, loadedVars, setSelectedSubs]);
+
+  // Prefill App registration name from the saved client id (falls back silently if not found).
+  useEffect(() => {
+    if (prefilledNameRef.current || !azureAccount) return;
+    const savedClientId = loadedVars?.AZURE_CLIENT_ID;
+    if (!savedClientId) return;
+    prefilledNameRef.current = true;
+    void prefillAppName(savedClientId);
+  }, [azureAccount, loadedVars, prefillAppName]);
+
+  const chosenSub = result?.subscriptionIds[0] ?? "";
   const populate = result
     ? {
         AZURE_CLIENT_ID: result.clientId,
@@ -138,95 +174,34 @@ export default function AzureAppCard({
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      {/* ── Intro / success banner ── */}
-      {result ? (
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-            background: "#f0fdf4",
-            border: "1px solid #bbf7d0",
-            borderRadius: "8px",
-            px: 1.5,
-            py: 1,
-          }}
-        >
-          <CheckCircleOutlineIcon sx={{ fontSize: 16, color: "#16a34a" }} />
-          <Typography sx={{ fontSize: "0.75rem", color: "#15803d" }}>
-            Created the Azure identity and filled the values below — review and save.
+      {/* ── Result banner (shown after create+auto-save completes) ── */}
+      {bannerState !== "none" && (
+        <Box sx={{
+          display: "flex", alignItems: "center", gap: 1,
+          background: bannerState === "error" ? "#fef9c3" : "#f0fdf4",
+          border: `1px solid ${bannerState === "error" ? "#fde047" : "#bbf7d0"}`,
+          borderRadius: "8px", px: 1.5, py: 1,
+        }}>
+          {bannerState === "error"
+            ? <WarningAmberIcon sx={{ fontSize: 16, color: "#d97706" }} />
+            : <CheckCircleOutlineIcon sx={{ fontSize: 16, color: "#16a34a" }} />
+          }
+          <Typography sx={{ fontSize: "0.75rem", color: bannerState === "error" ? "#713f12" : "#15803d" }}>
+            {bannerState === "saved" && "Connection details saved."}
+            {bannerState === "no-changes" && "Connection details saved — no changes needed."}
+            {bannerState === "error" && "Some connection details failed to save — check below."}
           </Typography>
         </Box>
-      ) : (
-        <Typography sx={{ fontSize: "0.75rem", color: "#64748b", lineHeight: 1.7 }}>
-          GitHub Actions signs in to Azure to deploy your app — no passwords are stored. It needs the values below. Paste them if you already have
-          them, or create them automatically below.
-        </Typography>
       )}
 
-      {/* ── Values GitHub needs (the goal) ── */}
-      <VariableEditor
-        account={account}
-        repo={repoName}
-        envName={selectedEnv?.name ?? null}
-        keys={AZURE_VARIABLE_KEYS}
-        populate={populate}
-        fillKey={fillKey}
-        title="Values GitHub needs"
-        disabled={disabled}
-        onComplete={onComplete}
-        githubUrl={githubUrl}
-      />
-
-      {/* ── Divider ── */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-        <Box sx={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
-        <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono }}>
-          {result ? "✓ created automatically" : "don't have these values?"}
-        </Typography>
-        <Box sx={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
-      </Box>
-
-      {/* ── Helper: create automatically ── */}
-      <Box
-        sx={{
-          background: "#f8fafc",
-          border: "1px solid #f1f5f9",
-          borderRadius: "8px",
-          px: 2,
-          py: 1.75,
-          display: "flex",
-          flexDirection: "column",
-          gap: 2,
-        }}
-      >
-        <Box>
-          <Typography sx={{ fontSize: "0.82rem", color: "#0f172a", fontWeight: 600 }}>Create them automatically</Typography>
-          <Typography sx={{ fontSize: "0.72rem", color: "#64748b", mt: 0.5, lineHeight: 1.6 }}>
-            Sign in with Azure and we’ll create an app registration for GitHub Actions and populate the values above automatically.{" "}
-            <Box
-              component="a"
-              href={CLOUD_DOCS.azure.setupOidc}
-              target="_blank"
-              rel="noopener noreferrer"
-              sx={{
-                display: "none",
-                alignItems: "center",
-                gap: 0.25,
-                color: "#2563eb",
-                textDecoration: "none",
-                "&:hover": { textDecoration: "underline" },
-              }}
-            >
-              How this works
-              <OpenInNewIcon sx={{ fontSize: 11 }} />
-            </Box>
-          </Typography>
-        </Box>
-
+      {/* ── Login / Create section ── */}
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {/* Not signed in */}
         {!azureAccount && (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>
+            <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+              Sign in with Azure and we'll create an app registration for GitHub Actions and save the connection details automatically.
+            </Typography>
             {loggingIn ? (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <CircularProgress size={14} sx={{ color: "#2563eb" }} />
@@ -261,14 +236,7 @@ export default function AzureAppCard({
                     href={CLOUD_DOCS.azure.createAccount}
                     target="_blank"
                     rel="noopener noreferrer"
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 0.25,
-                      color: "#64748b",
-                      textDecoration: "none",
-                      "&:hover": { color: "#2563eb" },
-                    }}
+                    sx={{ display: "flex", alignItems: "center", gap: 0.25, color: "#64748b", textDecoration: "none", "&:hover": { color: "#2563eb" } }}
                   >
                     <Typography sx={{ fontSize: "0.7rem" }}>Create a free one</Typography>
                     <OpenInNewIcon sx={{ fontSize: 11 }} />
@@ -293,7 +261,7 @@ export default function AzureAppCard({
               </Typography>
               <Button
                 size="small"
-                onClick={logout}
+                onClick={handleLogout}
                 sx={{ minWidth: 0, fontSize: "0.68rem", color: "#94a3b8", textTransform: "none", ...mono, py: 0.25, "&:hover": { color: "#ef4444" } }}
               >
                 Sign out
@@ -302,22 +270,9 @@ export default function AzureAppCard({
 
             {/* Tenant ID input (personal accounts) */}
             {needsTenantId && (
-              <Box
-                sx={{
-                  background: "#fef9c3",
-                  border: "1px solid #fde047",
-                  borderRadius: "8px",
-                  px: 2,
-                  py: 1.5,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 1.25,
-                }}
-              >
+              <Box sx={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", px: 2, py: 1.5, display: "flex", flexDirection: "column", gap: 1.25 }}>
                 <Box>
-                  <Typography sx={{ fontSize: "0.78rem", color: "#713f12", fontWeight: 600 }}>
-                    Personal Microsoft account detected
-                  </Typography>
+                  <Typography sx={{ fontSize: "0.78rem", color: "#713f12", fontWeight: 600 }}>Personal Microsoft account detected</Typography>
                   <Typography sx={{ fontSize: "0.72rem", color: "#854d0e", mt: 0.25 }}>
                     Enter your Azure Tenant ID to load subscriptions. Find it at: Entra ID → Overview → Tenant ID
                   </Typography>
@@ -355,56 +310,46 @@ export default function AzureAppCard({
 
             {subsError && <Typography sx={{ fontSize: "0.72rem", color: "#ef4444" }}>{subsError}</Typography>}
 
-            {/* Subscriptions */}
+            {/* Subscription dropdown (single-select) */}
             {subscriptions.length >= 1 && steps.length === 0 && (
               <Box>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.75 }}>
-                  <Typography sx={{ ...labelSx }}>Subscriptions</Typography>
+                  <Typography sx={{ ...labelSx }}>Subscription</Typography>
                   {manualTenantId !== "" && (
                     <Button
                       size="small"
                       onClick={changeTenant}
-                      sx={{
-                        minWidth: 0,
-                        fontSize: "0.65rem",
-                        color: "#94a3b8",
-                        textTransform: "none",
-                        ...mono,
-                        py: 0,
-                        "&:hover": { color: "#2563eb" },
-                      }}
+                      sx={{ minWidth: 0, fontSize: "0.65rem", color: "#94a3b8", textTransform: "none", ...mono, py: 0, "&:hover": { color: "#2563eb" } }}
                     >
                       Change tenant
                     </Button>
                   )}
                 </Box>
                 <Select
-                  multiple
                   size="small"
-                  value={selectedSubs}
-                  onChange={(e) => setSelectedSubs(typeof e.target.value === "string" ? [e.target.value] : (e.target.value as string[]))}
+                  value={selectedSubs[0] ?? ""}
+                  onChange={(e) => setSelectedSubs([e.target.value as string])}
                   displayEmpty
-                  renderValue={(selected) => {
-                    if ((selected as string[]).length === 0)
-                      return <Typography sx={{ fontSize: "0.8rem", color: "#94a3b8", ...mono }}>Select subscriptions</Typography>;
-                    return (selected as string[]).map((id) => subscriptions.find((s) => s.id === id)?.displayName ?? id).join(", ");
+                  renderValue={(v) => {
+                    if (!v) return <Typography sx={{ fontSize: "0.8rem", color: "#94a3b8", ...mono }}>Select a subscription</Typography>;
+                    const name = subscriptions.find((s) => s.id === v)?.displayName ?? v;
+                    return <Typography sx={{ fontSize: "0.8rem", ...mono }}>{name}</Typography>;
                   }}
                   sx={{ minWidth: 380, fontSize: "0.8rem", ...mono }}
                 >
                   {subscriptions.map((s) => (
-                    <MenuItem key={s.id} value={s.id} sx={{ py: 0.5 }}>
-                      <Checkbox checked={selectedSubs.includes(s.id)} size="small" sx={{ py: 0, mr: 0.5 }} />
-                      <ListItemText
-                        primary={<Typography sx={{ fontSize: "0.8rem", ...mono }}>{s.displayName}</Typography>}
-                        secondary={<Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono }}>{s.id}</Typography>}
-                      />
+                    <MenuItem key={s.id} value={s.id} sx={{ py: 0.75 }}>
+                      <Box>
+                        <Typography sx={{ fontSize: "0.8rem", ...mono }}>{s.displayName}</Typography>
+                        <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono }}>{s.id}</Typography>
+                      </Box>
                     </MenuItem>
                   ))}
                 </Select>
               </Box>
             )}
 
-            {/* Config */}
+            {/* App name + create button */}
             {steps.length === 0 && (
               <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                 <Box>
@@ -418,58 +363,35 @@ export default function AzureAppCard({
                   />
                 </Box>
 
-                <Box>
-                  <Typography sx={{ ...labelSx, mb: 0.75 }}>Which environments can deploy</Typography>
-                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
-                    {validEnvs.map((env) => {
-                      const selected = environments.includes(env);
-                      return (
-                        <Chip
-                          key={env}
-                          size="small"
-                          onClick={() => toggleEnv(env)}
-                          icon={selected ? <CheckIcon sx={{ fontSize: "12px !important", color: "#2563eb !important" }} /> : undefined}
-                          label={env}
-                          sx={{
-                            ...mono,
-                            fontSize: "0.72rem",
-                            cursor: "pointer",
-                            background: selected ? "#eff6ff" : "#f1f5f9",
-                            color: selected ? "#2563eb" : "#64748b",
-                            border: `1px solid ${selected ? "#93c5fd" : "#e2e8f0"}`,
-                            fontWeight: selected ? 600 : 400,
-                            "&:hover": { background: selected ? "#dbeafe" : "#e2e8f0" },
-                            "& .MuiChip-icon": { ml: "6px" },
-                          }}
-                        />
-                      );
-                    })}
-                  </Box>
-                  {environments.length === 0 && (
-                    <Typography sx={{ fontSize: "0.68rem", color: "#ef4444", mt: 0.5 }}>Select at least one environment</Typography>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+                  <Button
+                    variant="contained"
+                    onClick={handleRun}
+                    disabled={disabled || selectedSubs.length === 0 || !appName.trim()}
+                    sx={{
+                      background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+                      textTransform: "none",
+                      ...mono,
+                      fontSize: "0.85rem",
+                      py: 0.85,
+                      px: 2.5,
+                      borderRadius: "8px",
+                      boxShadow: "0 2px 6px #2563eb33",
+                      "&:hover": { background: "linear-gradient(135deg, #1d4ed8, #1e40af)" },
+                      "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
+                    }}
+                  >
+                    Create app registration
+                  </Button>
+                  {varHasAny && (
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                      <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
+                      <Typography sx={{ fontSize: "0.68rem", color: "#d97706" }}>
+                        This will overwrite your current connection details
+                      </Typography>
+                    </Box>
                   )}
                 </Box>
-
-                <Button
-                  variant="contained"
-                  onClick={run}
-                  disabled={disabled || selectedSubs.length === 0 || environments.length === 0 || !appName.trim()}
-                  sx={{
-                    alignSelf: "flex-start",
-                    background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
-                    textTransform: "none",
-                    ...mono,
-                    fontSize: "0.85rem",
-                    py: 0.85,
-                    px: 2.5,
-                    borderRadius: "8px",
-                    boxShadow: "0 2px 6px #2563eb33",
-                    "&:hover": { background: "linear-gradient(135deg, #1d4ed8, #1e40af)" },
-                    "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
-                  }}
-                >
-                  Create app registration
-                </Button>
               </Box>
             )}
 
@@ -483,16 +405,8 @@ export default function AzureAppCard({
                 {!running && (
                   <Button
                     size="small"
-                    onClick={reset}
-                    sx={{
-                      alignSelf: "flex-start",
-                      mt: 0.5,
-                      textTransform: "none",
-                      ...mono,
-                      fontSize: "0.72rem",
-                      color: "#64748b",
-                      "&:hover": { color: "#2563eb" },
-                    }}
+                    onClick={handleRetry}
+                    sx={{ alignSelf: "flex-start", mt: 0.5, textTransform: "none", ...mono, fontSize: "0.72rem", color: "#64748b", "&:hover": { color: "#2563eb" } }}
                   >
                     ↩ Try again
                   </Button>
@@ -511,85 +425,46 @@ export default function AzureAppCard({
                 </Typography>
               </Box>
             )}
-
-            {/* Output — read-only summary of the created app registration */}
-            {result && (
-              <Box sx={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "8px", px: 2, py: 1.5 }}>
-                <Typography sx={{ ...labelSx, mb: 1, color: "#15803d" }}>App registration created</Typography>
-                <CopyRow label="AZURE_CLIENT_ID" value={result.clientId} />
-                <CopyRow label="AZURE_TENANT_ID" value={result.tenantId} />
-                {result.subscriptionIds.map((id, i) => (
-                  <CopyRow
-                    key={id}
-                    label={result.subscriptionIds.length > 1 ? `AZURE_SUBSCRIPTION_ID (${i + 1})` : "AZURE_SUBSCRIPTION_ID"}
-                    value={id}
-                  />
-                ))}
-
-                {/* Pick which subscription drives AZURE_SUBSCRIPTION_ID above */}
-                {result.subscriptionIds.length > 1 && (
-                  <Box sx={{ mt: 1, pt: 1, borderTop: "1px solid #bbf7d0" }}>
-                    <Typography sx={{ fontSize: "0.72rem", color: "#15803d", fontWeight: 600, mb: 0.5 }}>
-                      Which subscription should GitHub deploy to?
-                    </Typography>
-                    <RadioGroup value={chosenSub} onChange={(e) => setSubForVar(e.target.value)}>
-                      {result.subscriptionIds.map((id) => (
-                        <FormControlLabel
-                          key={id}
-                          value={id}
-                          control={<Radio size="small" sx={{ py: 0.25, color: "#94a3b8", "&.Mui-checked": { color: "#16a34a" } }} />}
-                          label={
-                            <Typography sx={{ ...mono, fontSize: "0.78rem", color: "#475569" }}>
-                              {subscriptions.find((s) => s.id === id)?.displayName ?? id}
-                              <Box component="span" sx={{ color: "#94a3b8", fontSize: "0.7rem", ml: 0.75 }}>
-                                {id}
-                              </Box>
-                            </Typography>
-                          }
-                        />
-                      ))}
-                    </RadioGroup>
-                    <Typography sx={{ fontSize: "0.66rem", color: "#94a3b8", mt: 0.25 }}>
-                      Switching updates AZURE_SUBSCRIPTION_ID above.
-                    </Typography>
-                  </Box>
-                )}
-
-                <Box
-                  sx={{
-                    mt: 1,
-                    pt: 1,
-                    borderTop: "1px solid #bbf7d0",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 1,
-                  }}
-                >
-                  <Typography sx={{ fontSize: "0.72rem", color: "#15803d" }}>
-                    These values are filled into the fields above — scroll up to review and save them.
-                  </Typography>
-                  <Button
-                    size="small"
-                    onClick={() => setFillKey((k) => k + 1)}
-                    sx={{
-                      flexShrink: 0,
-                      fontSize: "0.68rem",
-                      color: "#15803d",
-                      textTransform: "none",
-                      ...mono,
-                      py: 0.25,
-                      "&:hover": { color: "#166534", background: "#dcfce7" },
-                    }}
-                  >
-                    Fill again
-                  </Button>
-                </Box>
-              </Box>
-            )}
           </Box>
         )}
       </Box>
+
+      {/* ── Divider (clickable toggle) ── */}
+      <Box
+        onClick={() => setVarExpanded((e) => !e)}
+        sx={{ display: "flex", alignItems: "center", gap: 1.5, cursor: "pointer", userSelect: "none", py: 0.25 }}
+      >
+        <Box sx={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
+        <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, whiteSpace: "nowrap" }}>
+          {varExpanded ? "collapse" : "open to enter application connection detail"}
+        </Typography>
+        <KeyboardArrowDownIcon
+          sx={{ fontSize: 14, color: "#94a3b8", transform: varExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}
+        />
+        <Box sx={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
+      </Box>
+
+      {/* ── Variable editor (Collapse keeps it mounted so onLoaded fires) ── */}
+      <Collapse in={varExpanded} timeout={300} unmountOnExit={false}>
+        <VariableEditor
+          account={account}
+          repo={repoName}
+          envName={selectedEnv?.name ?? null}
+          keys={AZURE_VARIABLE_KEYS}
+          populate={populate}
+          title="Connection details"
+          disabled={disabled}
+          onComplete={onComplete}
+          onAutoSaveResult={(result) => setBannerState(result)}
+          githubUrl={githubUrl}
+          onLoaded={(saved) => {
+            setLoadedVars(saved);
+            // Any saved value → expand; none → collapse.
+            setVarExpanded(Object.keys(saved).length > 0);
+          }}
+          autoSaveCounter={autoSaveCounter}
+        />
+      </Collapse>
     </Box>
   );
 }

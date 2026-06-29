@@ -5,6 +5,7 @@ import { GRAPH_SCOPES, ARM_SCOPES } from "../config/azureConfig";
 import {
   listSubscriptions,
   getExistingApp,
+  getAppNameByAppId,
   createAppRegistration,
   getExistingSP,
   createServicePrincipal,
@@ -231,6 +232,20 @@ export function useAzureSetup({
     setTenantIdError(null);
   }, []);
 
+  // Resolve the app registration's display name from a known client id and prefill appName.
+  const prefillAppName = useCallback(
+    async (appId: string) => {
+      if (!azureAccount || !appId) return;
+      try {
+        const name = await getAppNameByAppId(azureAccount, appId, effectiveTenantId);
+        if (name) setAppName(name);
+      } catch {
+        /* keep default name */
+      }
+    },
+    [azureAccount, effectiveTenantId],
+  );
+
   const reset = useCallback(() => {
     setSteps([]);
     setResult(null);
@@ -268,8 +283,8 @@ export function useAzureSetup({
     const initialSteps: SetupStep[] = [
       { id: "app", label: "Create app registration", status: "pending" },
       { id: "sp", label: "Create service principal", status: "pending" },
-      { id: "creds", label: `Add federated credentials (${environments.join(", ")})`, status: "pending" },
-      { id: "rbac", label: `Assign RBAC roles (${selectedSubs.length} subscription${selectedSubs.length > 1 ? "s" : ""})`, status: "pending" },
+      { id: "creds", label: "Add federated credentials", status: "pending" },
+      { id: "rbac", label: "Assign RBAC roles", status: "pending" },
       { id: "consent", label: "Grant admin consent", status: "pending" },
     ];
     setSteps(initialSteps);
@@ -313,7 +328,7 @@ export function useAzureSetup({
       for (const env of environments) {
         await ensureFederatedCredential(azureAccount, appObjectId, org, githubRepo, env, effectiveTenantId);
       }
-      updateStep("creds", "done");
+      updateStep("creds", "done", environments.join(", "));
 
       currentStep = "rbac";
       updateStep("rbac", "running");
@@ -321,7 +336,7 @@ export function useAzureSetup({
         await ensureRbacRole(azureAccount, sub, spObjectId, "Contributor", effectiveTenantId);
         await ensureRbacRole(azureAccount, sub, spObjectId, "User Access Administrator", effectiveTenantId);
       }
-      updateStep("rbac", "done");
+      updateStep("rbac", "done", selectedSubs.length === 1 ? (subscriptions.find((s) => s.id === selectedSubs[0])?.displayName ?? selectedSubs[0]) : `${selectedSubs.length} subscriptions`);
 
       currentStep = "consent";
       updateStep("consent", "running");
@@ -370,5 +385,6 @@ export function useAzureSetup({
     reset,
     run,
     changeTenant,
+    prefillAppName,
   };
 }

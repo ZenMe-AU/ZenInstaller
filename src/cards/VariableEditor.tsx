@@ -33,19 +33,21 @@ type Props = {
   repo: string;
   envName: string | null;
   keys: readonly string[];
-  /** When set, these values are auto-filled into the fields (as unsaved edits) whenever they change. */
   populate?: Record<string, string>;
-  /** Increment to re-apply populate values (e.g. after user accidentally refreshed). */
   fillKey?: number;
   title?: string;
   disabled?: boolean;
-  /** Called with true when all required keys have a saved value; false when any are missing. */
   onComplete?: (done: boolean) => void;
-  /** If provided, shows a "Manage on GitHub" link next to the Save button. */
   githubUrl?: string;
+  /** Called after each initial load with the currently-saved values (scoped to `keys`). */
+  onLoaded?: (saved: Record<string, string>) => void;
+  /** Increment to auto-apply populate values and immediately save them to GitHub. */
+  autoSaveCounter?: number;
+  /** Called when auto-save (triggered by autoSaveCounter) completes. */
+  onAutoSaveResult?: (result: "saved" | "no-changes" | "error") => void;
 };
 
-export default function VariableEditor({ account, repo, envName, keys, populate, fillKey, title = "Variables", disabled, onComplete, githubUrl }: Props) {
+export default function VariableEditor({ account, repo, envName, keys, populate, fillKey, title = "Variables", disabled, onComplete, githubUrl, onLoaded, autoSaveCounter, onAutoSaveResult }: Props) {
   const [savedValues, setSavedValues] = useState<Record<string, string>>({});
   const [localValues, setLocalValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -55,11 +57,16 @@ export default function VariableEditor({ account, repo, envName, keys, populate,
   const [updating, setUpdating] = useState(false);
   const prevPopulateRef = useRef<Record<string, string> | undefined>(undefined);
   const prevFillKeyRef = useRef<number | undefined>(undefined);
+  const prevAutoSaveCounterRef = useRef(autoSaveCounter);
 
-  // Keep a stable ref to onComplete so load/save callbacks can call it
-  // without it appearing as a useCallback dependency.
   const onCompleteRef = useRef(onComplete);
   useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
+
+  const onLoadedRef = useRef(onLoaded);
+  useEffect(() => { onLoadedRef.current = onLoaded; }, [onLoaded]);
+
+  const onAutoSaveResultRef = useRef(onAutoSaveResult);
+  useEffect(() => { onAutoSaveResultRef.current = onAutoSaveResult; }, [onAutoSaveResult]);
 
   const checkComplete = (values: Record<string, string>) => {
     onCompleteRef.current?.(keys.every((k) => !!values[k]));
@@ -84,6 +91,7 @@ export default function VariableEditor({ account, repo, envName, keys, populate,
         setLocalValues(Object.fromEntries(keys.map((k) => [k, all[k] ?? ""])));
         setUpsertStatuses([]);
         checkComplete(scoped);
+        if (mode === "initial") onLoadedRef.current?.(scoped);
         return true;
       } catch (e) {
         console.error("Failed to load variables:", e);
@@ -100,8 +108,6 @@ export default function VariableEditor({ account, repo, envName, keys, populate,
     void load("initial");
   }, [load]);
 
-  // Auto-fill when populate values change — only the keys that actually changed,
-  // so switching e.g. the subscription only touches AZURE_SUBSCRIPTION_ID.
   useEffect(() => {
     if (!populate) {
       prevPopulateRef.current = undefined;
@@ -119,7 +125,6 @@ export default function VariableEditor({ account, repo, envName, keys, populate,
     setUpsertStatuses((cur) => cur.filter((s) => !changed.includes(s.key)));
   }, [populate ? JSON.stringify(populate) : ""]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Manual re-fill: when fillKey increments, re-apply all populate values.
   useEffect(() => {
     if (fillKey === undefined || !populate || fillKey === prevFillKeyRef.current) return;
     prevFillKeyRef.current = fillKey;
@@ -127,7 +132,6 @@ export default function VariableEditor({ account, repo, envName, keys, populate,
     setUpsertStatuses((cur) => cur.filter((s) => !Object.keys(populate).includes(s.key)));
   }, [fillKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Transient Done/Failed indicator on the refresh button.
   const clickedRef = useRef(false);
   const prevRecheckingRef = useRef(false);
   useEffect(() => {
@@ -159,14 +163,19 @@ export default function VariableEditor({ account, repo, envName, keys, populate,
     setRefreshResult(ok ? "done" : "failed");
   };
 
-  const handleSave = async () => {
-    if (!account || !repo || !envName || dirtyKeys.length === 0) return;
+  const handleSave = useCallback(async (overrideValues?: Record<string, string>): Promise<"saved" | "no-changes" | "error"> => {
+    if (!account || !repo || !envName) return "error";
+    const vals = overrideValues ?? localValues;
+    const curr = savedValues;
+    const dirty = keys.filter((k) => (vals[k] ?? "") !== (curr[k] ?? ""));
+    if (dirty.length === 0) return "no-changes";
     setUpdating(true);
     const statuses: UpsertStatus[] = [];
-    const newlySaved = { ...savedValues };
-    for (const key of dirtyKeys) {
-      const value = localValues[key] ?? "";
-      const isNew = !savedValues[key];
+    const newlySaved = { ...curr };
+    let hasError = false;
+    for (const key of dirty) {
+      const value = vals[key] ?? "";
+      const isNew = !curr[key];
       try {
         await (isNew ? createVariable : updateVariable)(account, repo, key, value, envName);
         statuses.push({ key, status: "success" });
@@ -175,16 +184,32 @@ export default function VariableEditor({ account, repo, envName, keys, populate,
       } catch (e) {
         console.error(`Failed to ${isNew ? "create" : "update"} variable "${key}":`, e);
         statuses.push({ key, status: "error", error: "Save failed" });
+        hasError = true;
       }
     }
     setUpsertStatuses(statuses);
     setUpdating(false);
     checkComplete(newlySaved);
-  };
+    return hasError ? "error" : "saved";
+  }, [account, repo, envName, savedValues, localValues, keys]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Always-current ref so auto-save effect gets the latest closure.
+  const handleSaveRef = useRef(handleSave);
+  useEffect(() => { handleSaveRef.current = handleSave; }, [handleSave]);
+
+  // Auto-save: when counter increments, apply populate values, save immediately, and report result.
+  useEffect(() => {
+    if (autoSaveCounter === undefined || autoSaveCounter === prevAutoSaveCounterRef.current || !populate) return;
+    prevAutoSaveCounterRef.current = autoSaveCounter;
+    setLocalValues((cur) => ({ ...cur, ...populate }));
+    void (async () => {
+      const result = await handleSaveRef.current(populate);
+      onAutoSaveResultRef.current?.(result);
+    })();
+  }, [autoSaveCounter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <Box>
-      {/* Header: title + not-configured + refresh */}
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1, gap: 1 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Typography sx={sectionLabelSx}>{title}</Typography>
@@ -236,10 +261,9 @@ export default function VariableEditor({ account, repo, envName, keys, populate,
         onRevert={handleRevert}
       />
 
-      {/* Save button row */}
       <Box sx={{ mt: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
         <Button
-          onClick={handleSave}
+          onClick={() => void handleSave()}
           disabled={!!disabled || !account || !repo || !envName || updating || dirtyKeys.length === 0}
           variant="contained"
           size="small"

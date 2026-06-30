@@ -14,7 +14,7 @@
   "scripts": {
     "start": "func start",
     "test": "echo \"No tests yet...\"",
-    "deploy": "pnpm deploy --legacy --prod ${DEPLOY_OUT:-./dist} --config.node-linker=hoisted --config.symlink=false --config.package-import-method=copy"
+    "deploy": "pnpm --filter . deploy --legacy --prod ${DEPLOY_OUT:-./dist} --config.node-linker=hoisted --config.symlink=false --config.package-import-method=copy"
   },
   "dependencies": {
     "@aws-sdk/client-iam": "^3.0.0",

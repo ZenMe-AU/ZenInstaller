@@ -95,7 +95,8 @@ export default function AzureAccessPassCard({
     showingSelectedUserPass && steps.length === 0
       ? [{ id: "tap", label: "Create Temporary Access Pass", status: "done", detail: "Temporary Access Pass created" }]
       : steps;
-  const showingSelectedUserSteps = hydratedSelectedUserSteps.length > 0 && (running || showingSelectedUserPass);
+  const hasFinishedOrErroredStep = hydratedSelectedUserSteps.some((s) => s.status === "done" || s.status === "error");
+  const showingSelectedUserSteps = hydratedSelectedUserSteps.length > 0 && (running || showingSelectedUserPass || hasFinishedOrErroredStep);
 
   return (
     <>

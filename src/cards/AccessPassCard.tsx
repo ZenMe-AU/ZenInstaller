@@ -19,6 +19,7 @@ import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import type { useAzureAccessPass, SetupStep } from "../hooks/useAccessPass";
+import { MSA_TENANT } from "../api/accessPassGraph";
 import { CLOUD_DOCS } from "../config/docsConfig";
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
@@ -170,7 +171,10 @@ export default function AzureAccessPassCard({
     showingSelectedUserPass && steps.length === 0
       ? [{ id: "tap", label: "Create Temporary Access Pass", status: "done", detail: "Temporary Access Pass created" }]
       : steps;
-  const showingSelectedUserSteps = hydratedSelectedUserSteps.length > 0 && (running || showingSelectedUserPass);
+  const hasFinishedOrErroredStep = hydratedSelectedUserSteps.some((s) => s.status === "done" || s.status === "error");
+  const showingSelectedUserSteps = hydratedSelectedUserSteps.length > 0 && (running || showingSelectedUserPass || hasFinishedOrErroredStep);
+  const statusUserId = creatingUserId ?? selectedManagerUserId;
+  const showChangeTenantButton = !!azureAccount && (manualTenantId !== "" || azureAccount.tenantId === MSA_TENANT);
 
   return (
     <>
@@ -337,16 +341,17 @@ export default function AzureAccessPassCard({
                           const isCurrentResult = result?.targetUserId === user.id;
                           const isCreatingThisUser = creatingUserId === user.id && running;
                           const savedPass = passValuesByUserId[user.id];
+                          const showingInlineStepsForUser = showingSelectedUserSteps && statusUserId === user.id;
                           return (
                             <Fragment key={user.id}>
                               <TableRow sx={isCurrentResult ? { background: "#f0fdf4" } : undefined}>
-                                <TableCell sx={{ ...mono, fontSize: "0.76rem", color: "#334155", ...(savedPass ? { borderBottom: "none" } : {}) }}>
+                                <TableCell sx={{ ...mono, fontSize: "0.76rem", color: "#334155", ...(savedPass || showingInlineStepsForUser ? { borderBottom: "none" } : {}) }}>
                                   {user.displayName}
                                 </TableCell>
-                                <TableCell sx={{ ...mono, fontSize: "0.72rem", color: "#64748b", ...(savedPass ? { borderBottom: "none" } : {}) }}>
+                                <TableCell sx={{ ...mono, fontSize: "0.72rem", color: "#64748b", ...(savedPass || showingInlineStepsForUser ? { borderBottom: "none" } : {}) }}>
                                   {user.userPrincipalName || "-"}
                                 </TableCell>
-                                <TableCell align="right" sx={savedPass ? { borderBottom: "none" } : undefined}>
+                                <TableCell align="right" sx={savedPass || showingInlineStepsForUser ? { borderBottom: "none" } : undefined}>
                                   <Button
                                     size="small"
                                     variant="contained"
@@ -369,6 +374,37 @@ export default function AzureAccessPassCard({
                                   </Button>
                                 </TableCell>
                               </TableRow>
+                              {showingInlineStepsForUser && (
+                                <TableRow sx={isCurrentResult ? { background: "#f0fdf4" } : { background: "inherit" }}>
+                                  <TableCell colSpan={3} sx={{ py: 0.75, px: 1.5, borderBottom: savedPass ? "none" : undefined }}>
+                                    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, borderLeft: "2px solid #e2e8f0", pl: 1.25 }}>
+                                      {hydratedSelectedUserSteps.map((s) => (
+                                        <StepRow key={`${user.id}-${s.id}`} step={s} />
+                                      ))}
+                                      {running && <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, mt: 0.25 }}>Running...</Typography>}
+                                      {!running && (
+                                        <Button
+                                          size="small"
+                                          onClick={reset}
+                                          sx={{
+                                            alignSelf: "flex-start",
+                                            mt: 0.25,
+                                            textTransform: "none",
+                                            ...mono,
+                                            fontSize: "0.72rem",
+                                            color: "#64748b",
+                                            px: 0.5,
+                                            minWidth: 0,
+                                            "&:hover": { color: "#2563eb" },
+                                          }}
+                                        >
+                                          ↩ Try again
+                                        </Button>
+                                      )}
+                                    </Box>
+                                  </TableCell>
+                                </TableRow>
+                              )}
                               {savedPass && (
                                 <TableRow sx={isCurrentResult ? { background: "#f0fdf4" } : { background: "inherit" }}>
                                   <TableCell colSpan={3} sx={{ py: 0.5, px: 1.5 }}>
@@ -447,7 +483,7 @@ export default function AzureAccessPassCard({
                   <Typography sx={{ fontSize: "0.72rem", color: "#ef4444", ...mono }}>{managerUsersError}</Typography>
                 )}
 
-                {manualTenantId !== "" && (
+                {showChangeTenantButton && (
                   <Button
                     size="small"
                     onClick={changeTenant}
@@ -461,33 +497,6 @@ export default function AzureAccessPassCard({
           )}
 
           {subsError && <Typography sx={{ fontSize: "0.72rem", color: "#ef4444", ...mono }}>{subsError}</Typography>}
-
-          {/* Progress steps */}
-          {showingSelectedUserSteps && (
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, borderLeft: "2px solid #e2e8f0", pl: 1.5 }}>
-              {hydratedSelectedUserSteps.map((s) => (
-                <StepRow key={s.id} step={s} />
-              ))}
-              {running && <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, mt: 0.5 }}>Running...</Typography>}
-              {!running && (
-                <Button
-                  size="small"
-                  onClick={reset}
-                  sx={{
-                    alignSelf: "flex-start",
-                    mt: 0.5,
-                    textTransform: "none",
-                    ...mono,
-                    fontSize: "0.72rem",
-                    color: "#64748b",
-                    "&:hover": { color: "#2563eb" },
-                  }}
-                >
-                  ↩ Try again
-                </Button>
-              )}
-            </Box>
-          )}
 
           {/* Consent warning */}
           {consentFailed && (

@@ -6,6 +6,9 @@ import {
   listSubscriptions,
   listUsersManagedBySignedInUser,
   createTemporaryAccessPassForUser,
+  generateRandomPassword,
+  removeNonPasswordAuthenticationMethods,
+  resetUserPassword,
   temporaryAccessPassMethodExists,
   MSA_TENANT,
   type EntraUser,
@@ -78,6 +81,21 @@ function toTapErrorMessage(err: unknown): string {
 
   if (lower.includes("404") && lower.includes("temporaryaccesspassmethods")) {
     return "Selected user was not found in the current tenant context. Re-select the user and try again.";
+  }
+
+  if (lower.includes("authentication/methods") && lower.includes("403")) {
+    return (
+      "Not authorized to remove existing sign-in methods. " +
+      "Ensure your account has Authentication Administrator or Privileged Authentication Administrator role, " +
+      "and delegated UserAuthenticationMethod.ReadWrite.All has admin consent."
+    );
+  }
+
+  if (lower.includes("passwordprofile") && lower.includes("403")) {
+    return (
+      "Not authorized to reset the user password. " +
+      "Ensure your account has permissions to reset user passwords and delegated User.ReadWrite.All has admin consent."
+    );
   }
 
   return msg;
@@ -474,11 +492,31 @@ export function useAzureAccessPass(props: {
     const resolvedTenantId = effectiveTenantId ?? tenantScopedAccount.tenantId;
 
     const initialSteps: SetupStep[] = [
+      { id: "removeMethods", label: "Remove Existing Login Methods", status: "pending" },
+      { id: "rotatePassword", label: "Randomize User Password", status: "pending" },
       { id: "tap", label: "Create Temporary Access Pass", status: "pending" },
     ];
     setSteps(initialSteps);
 
+    let currentStepId: SetupStep["id"] = "removeMethods";
     try {
+      updateStep("removeMethods", "running");
+      const removedMethods = await removeNonPasswordAuthenticationMethods(tenantScopedAccount, selectedManagerUserId, effectiveTenantId);
+      updateStep(
+        "removeMethods",
+        "done",
+        removedMethods > 0
+          ? `Removed ${removedMethods} existing method${removedMethods === 1 ? "" : "s"}`
+          : "No removable methods found",
+      );
+
+      currentStepId = "rotatePassword";
+      updateStep("rotatePassword", "running");
+      const randomizedPassword = generateRandomPassword(30);
+      await resetUserPassword(tenantScopedAccount, selectedManagerUserId, randomizedPassword, effectiveTenantId);
+      updateStep("rotatePassword", "done", "Password randomized to a new 30-character value");
+
+      currentStepId = "tap";
       updateStep("tap", "running");
       const tap = await createTemporaryAccessPassForUser(tenantScopedAccount, selectedManagerUserId, effectiveTenantId);
       updateStep("tap", "done", "Temporary Access Pass created");
@@ -493,7 +531,7 @@ export function useAzureAccessPass(props: {
       setResult(r);
       saveResult(r);
     } catch (err) {
-      updateStep("tap", "error", toTapErrorMessage(err));
+      updateStep(currentStepId, "error", toTapErrorMessage(err));
     } finally {
       setRunning(false);
     }

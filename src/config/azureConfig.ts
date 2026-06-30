@@ -12,8 +12,11 @@ export const GRAPH_SCOPES = [
   "https://graph.microsoft.com/DelegatedPermissionGrant.ReadWrite.All",
   "https://graph.microsoft.com/RoleManagement.ReadWrite.Directory",
   "https://graph.microsoft.com/User.ReadWrite.All",
+  "https://graph.microsoft.com/User-PasswordProfile.ReadWrite.All",
   "https://graph.microsoft.com/Group.ReadWrite.All",
   "https://graph.microsoft.com/GroupMember.ReadWrite.All",
+  "https://graph.microsoft.com/UserAuthenticationMethod.ReadWrite.All",
+  "https://graph.microsoft.com/Policy.ReadWrite.AuthenticationMethod",
   "openid",
   "profile",
 ];

@@ -70,6 +70,92 @@ export type TemporaryAccessPass = {
   isUsableOnce?: boolean;
 };
 
+type GraphAuthMethod = {
+  id: string;
+  "@odata.type"?: string;
+};
+
+function randomInt(maxExclusive: number): number {
+  if (maxExclusive <= 0) return 0;
+
+  if (typeof globalThis.crypto?.getRandomValues === "function") {
+    const buf = new Uint32Array(1);
+    globalThis.crypto.getRandomValues(buf);
+    return buf[0] % maxExclusive;
+  }
+
+  return Math.floor(Math.random() * maxExclusive);
+}
+
+function pickRandomChar(chars: string): string {
+  return chars[randomInt(chars.length)];
+}
+
+function shuffleString(input: string): string {
+  const out = input.split("");
+  for (let i = out.length - 1; i > 0; i -= 1) {
+    const j = randomInt(i + 1);
+    const tmp = out[i];
+    out[i] = out[j];
+    out[j] = tmp;
+  }
+  return out.join("");
+}
+
+export function generateRandomPassword(length = 30): string {
+  const lowercase = "abcdefghijklmnopqrstuvwxyz";
+  const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const digits = "0123456789";
+  const symbols = "!@#$%^&*()-_=+[]{}<>?";
+  const all = `${lowercase}${uppercase}${digits}${symbols}`;
+
+  const effectiveLength = Math.max(length, 4);
+  const chars: string[] = [
+    pickRandomChar(lowercase),
+    pickRandomChar(uppercase),
+    pickRandomChar(digits),
+    pickRandomChar(symbols),
+  ];
+
+  for (let i = chars.length; i < effectiveLength; i += 1) {
+    chars.push(pickRandomChar(all));
+  }
+
+  return shuffleString(chars.join(""));
+}
+
+function getAuthMethodDeletePath(userId: string, method: GraphAuthMethod): string | null {
+  const methodType = method["@odata.type"]?.toLowerCase();
+
+  // Password auth method cannot be deleted; it is rotated separately via passwordProfile.
+  if (methodType?.includes("passwordauthenticationmethod")) return null;
+
+  if (methodType?.includes("emailauthenticationmethod")) {
+    return `/users/${userId}/authentication/emailMethods/${method.id}`;
+  }
+  if (methodType?.includes("phoneauthenticationmethod")) {
+    return `/users/${userId}/authentication/phoneMethods/${method.id}`;
+  }
+  if (methodType?.includes("microsoftauthenticatorauthenticationmethod")) {
+    return `/users/${userId}/authentication/microsoftAuthenticatorMethods/${method.id}`;
+  }
+  if (methodType?.includes("fido2authenticationmethod")) {
+    return `/users/${userId}/authentication/fido2Methods/${method.id}`;
+  }
+  if (methodType?.includes("softwareoathauthenticationmethod")) {
+    return `/users/${userId}/authentication/softwareOathMethods/${method.id}`;
+  }
+  if (methodType?.includes("windowshelloforbusinessauthenticationmethod")) {
+    return `/users/${userId}/authentication/windowsHelloForBusinessMethods/${method.id}`;
+  }
+  if (methodType?.includes("temporaryaccesspassauthenticationmethod")) {
+    return `/users/${userId}/authentication/temporaryAccessPassMethods/${method.id}`;
+  }
+
+  // Unknown or unsupported method type: skip instead of failing the full flow.
+  return null;
+}
+
 export async function listSubscriptions(account: AccountInfo, overrideTenantId?: string): Promise<Subscription[]> {
   await getToken(account, GRAPH_SCOPES, overrideTenantId);
   const token = await getToken(account, ARM_SCOPES, overrideTenantId);
@@ -104,13 +190,41 @@ export async function createTemporaryAccessPassForUser(
   overrideTenantId?: string,
 ): Promise<TemporaryAccessPass> {
   const token = await getToken(account, GRAPH_SCOPES, overrideTenantId);
-  const data = await gFetch(token, GRAPH, `/users/${userId}/authentication/temporaryAccessPassMethods`, {
-    method: "POST",
-    body: JSON.stringify({
-      isUsableOnce: true,
-      lifetimeInMinutes: 60,
-    }),
-  });
+  const maxAttempts = 4;
+  let data: {
+    id: string;
+    temporaryAccessPass: string;
+    startDateTime?: string;
+    lifetimeInMinutes?: number;
+    isUsableOnce?: boolean;
+  } | null = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      data = await gFetch(token, GRAPH, `/users/${userId}/authentication/temporaryAccessPassMethods`, {
+        method: "POST",
+        body: JSON.stringify({
+          isUsableOnce: true,
+          lifetimeInMinutes: 60,
+        }),
+      });
+      break;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      const retryable = msg.includes("409") && (msg.toLowerCase().includes("conflict") || msg.includes("concurrent requests"));
+
+      if (!retryable || attempt === maxAttempts) {
+        throw err;
+      }
+
+      const delayMs = 400 * attempt;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  if (!data) {
+    throw new Error("Failed to create Temporary Access Pass");
+  }
 
   return {
     id: data.id,
@@ -119,6 +233,63 @@ export async function createTemporaryAccessPassForUser(
     lifetimeInMinutes: data.lifetimeInMinutes,
     isUsableOnce: data.isUsableOnce,
   };
+}
+
+export async function removeNonPasswordAuthenticationMethods(
+  account: AccountInfo,
+  userId: string,
+  overrideTenantId?: string,
+): Promise<number> {
+  const token = await getToken(account, GRAPH_SCOPES, overrideTenantId);
+  // Do not use @odata.type in $select; Graph rejects it in select/expand expressions.
+  const data = await gFetch(token, GRAPH, `/users/${userId}/authentication/methods`);
+  const methods = (data?.value ?? []) as GraphAuthMethod[];
+
+  const deletePaths = methods
+    .map((m) => getAuthMethodDeletePath(userId, m))
+    .filter((p): p is string => !!p);
+
+  for (const path of deletePaths) {
+    await gFetch(token, GRAPH, path, { method: "DELETE" });
+  }
+
+  return deletePaths.length;
+}
+
+export async function resetUserPassword(
+  account: AccountInfo,
+  userId: string,
+  newPassword: string,
+  overrideTenantId?: string,
+): Promise<void> {
+  const token = await getToken(account, GRAPH_SCOPES, overrideTenantId);
+  const maxAttempts = 4;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      await gFetch(token, GRAPH, `/users/${userId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          passwordProfile: {
+            password: newPassword,
+            forceChangePasswordNextSignIn: false,
+            forceChangePasswordNextSignInWithMfa: false,
+          },
+        }),
+      });
+      return;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      const retryable = msg.includes("409") && (msg.includes("Directory_ConcurrencyViolation") || msg.includes("concurrent requests"));
+
+      if (!retryable || attempt === maxAttempts) {
+        throw err;
+      }
+
+      const delayMs = 400 * attempt;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
 }
 
 // checks if a temporary access pass method exists for a given user and method ID

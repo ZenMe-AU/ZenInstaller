@@ -3,6 +3,7 @@ import { Box, Typography } from "@mui/material";
 import { useAzureAccessPass } from "./hooks/useAccessPass";
 import Connector from "./components/Connector";
 import NavBar from "./components/NavBar";
+import AccessPassLogin from "./steps/AccessPassLogin";
 import AzureAccessPass from "./steps/AccessPass";
 
 // ─── App ──────────────────────────────────────────────────────────────────────
@@ -14,8 +15,11 @@ export default function AccessPassApp() {
     validEnvs: [],
   });
 
-  const [expanded, setExpanded] = useState(true);
-  const accessPassStatus = azureAccessPass.result ? "complete" : "loading";
+  const [loginExpanded, setLoginExpanded] = useState(true);
+  const [accessPassExpanded, setAccessPassExpanded] = useState(true);
+  const loginReady = !!azureAccessPass.azureAccount && !azureAccessPass.needsTenantId;
+  const loginStatus = loginReady ? "complete" : "loading";
+  const accessPassStatus = azureAccessPass.result ? "complete" : loginReady ? "loading" : "idle";
 
   return (
     <Box sx={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a", fontFamily: "'IBM Plex Sans', sans-serif" }}>
@@ -40,12 +44,21 @@ export default function AccessPassApp() {
         </Box>
 
         <Connector>
+          <AccessPassLogin
+            {...azureAccessPass}
+            status={loginStatus}
+            expanded={loginExpanded}
+            onToggle={() => setLoginExpanded((p) => !p)}
+            disabled={false}
+          />
+
           <AzureAccessPass
             {...azureAccessPass}
             status={accessPassStatus}
-            expanded={expanded}
-            onToggle={() => setExpanded((p) => !p)}
-            disabled={false}
+            expanded={accessPassExpanded}
+            onToggle={() => setAccessPassExpanded((p) => !p)}
+            disabled={!loginReady}
+            locked={!loginReady}
             validEnvs={[]}
             onComplete={() => {}}
           />

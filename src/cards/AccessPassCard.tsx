@@ -1,26 +1,10 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
-import {
-  Autocomplete,
-  Box,
-  Button,
-  CircularProgress,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Box, Button, CircularProgress, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import type { useAzureAccessPass, SetupStep } from "../hooks/useAccessPass";
-import { MSA_TENANT } from "../api/accessPassGraph";
-import { CLOUD_DOCS } from "../config/docsConfig";
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 const labelSx = { fontSize: "0.68rem", color: "#94a3b8", textTransform: "uppercase" as const, letterSpacing: "0.08em", ...mono };
@@ -82,34 +66,23 @@ type Props = ReturnType<typeof useAzureAccessPass> & {
   disabled: boolean;
   validEnvs: readonly string[];
   onComplete: (done: boolean) => void;
+  locked?: boolean;
 };
 
 export default function AzureAccessPassCard({
   azureAccount,
-  appName,
   steps,
   result,
   running,
-  loggingIn,
-  consentFailed,
-  loginError,
   subsError,
-  needsTenantId,
-  availableTenants,
-  manualTenantId,
-  setManualTenantId,
-  tenantIdError,
-  confirmTenantId,
   managerUsers,
   selectedManagerUserId,
   managerUsersLoading,
   managerUsersError,
-  login,
-  logout,
   reset,
   runForUser,
-  changeTenant,
   disabled,
+  locked = false,
 }: Props) {
   const PAGE_SIZE = 200;
   const [creatingUserId, setCreatingUserId] = useState<string | null>(null);
@@ -174,144 +147,33 @@ export default function AzureAccessPassCard({
   const hasFinishedOrErroredStep = hydratedSelectedUserSteps.some((s) => s.status === "done" || s.status === "error");
   const showingSelectedUserSteps = hydratedSelectedUserSteps.length > 0 && (running || showingSelectedUserPass || hasFinishedOrErroredStep);
   const statusUserId = creatingUserId ?? selectedManagerUserId;
-  const showChangeTenantButton = !!azureAccount && (manualTenantId !== "" || azureAccount.tenantId === MSA_TENANT);
+  const showLockedState = locked || !azureAccount;
 
   return (
     <>
-      {/* ── Not signed in ── */}
-      {!azureAccount && (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-          {loggingIn ? (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <CircularProgress size={14} sx={{ color: "#2563eb" }} />
-              <Typography sx={{ fontSize: "0.72rem", color: "#64748b", ...mono }}>Checking session...</Typography>
-            </Box>
-          ) : (
-            <>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                <Typography sx={{ fontSize: "0.72rem", color: "#94a3b8", ...mono }}>Don't have an account?</Typography>
-                <Box
-                  component="a"
-                  href={CLOUD_DOCS.azure.createAccount}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  sx={{ display: "flex", alignItems: "center", gap: 0.25, color: "#64748b", textDecoration: "none", "&:hover": { color: "#2563eb" } }}
-                >
-                  <Typography sx={{ fontSize: "0.72rem", ...mono }}>How to Create a Free Azure Account</Typography>
-                  <OpenInNewIcon sx={{ fontSize: 12 }} />
-                </Box>
-              </Box>
-              <Button
-                variant="contained"
-                onClick={login}
-                disabled={disabled}
-                sx={{
-                  alignSelf: "flex-start",
-                  background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
-                  textTransform: "none",
-                  ...mono,
-                  fontSize: "0.85rem",
-                  py: 1,
-                  px: 2.5,
-                  borderRadius: "8px",
-                  boxShadow: "0 2px 8px #2563eb33",
-                  "&:hover": { background: "linear-gradient(135deg, #1d4ed8, #1e40af)", boxShadow: "0 4px 12px #2563eb44" },
-                  "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
-                }}
-              >
-                Connect Azure
-              </Button>
-            </>
-          )}
-          {loginError && <Typography sx={{ fontSize: "0.72rem", color: "#ef4444", ...mono }}>{loginError}</Typography>}
+      {showLockedState && (
+        <Box sx={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "8px", px: 2, py: 1.5 }}>
+          <Typography sx={{ fontSize: "0.76rem", color: "#475569", ...mono }}>
+            Complete the Azure Login card first. Access pass creation will unlock after Azure sign-in and tenant confirmation.
+          </Typography>
         </Box>
       )}
 
-      {/* ── Signed in ── */}
-      {azureAccount && (
+      {!showLockedState && azureAccount && (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-          {/* Account info */}
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
-              Signed in as{" "}
-              <Box component="span" sx={{ fontWeight: 600, ...mono }}>
-                {azureAccount.username}
-              </Box>
-            </Typography>
-            <Button
-              size="small"
-              onClick={logout}
-              sx={{ minWidth: 0, fontSize: "0.68rem", color: "#94a3b8", textTransform: "none", ...mono, py: 0.25, "&:hover": { color: "#ef4444" } }}
-            >
-              Sign out
-            </Button>
-          </Box>
-
-          {/* Tenant selection required first for personal Microsoft accounts */}
-          {needsTenantId && (
-            <Box
-              sx={{
-                background: "#fef9c3",
-                border: "1px solid #fde047",
-                borderRadius: "8px",
-                px: 2,
-                py: 1.5,
-                display: "flex",
-                flexDirection: "column",
-                gap: 1.25,
-              }}
-            >
-              <Box>
-                <Typography sx={{ fontSize: "0.78rem", color: "#713f12", ...mono, fontWeight: 600 }}>Personal Microsoft account detected</Typography>
-                <Typography sx={{ fontSize: "0.72rem", color: "#854d0e", ...mono, mt: 0.25 }}>
-                  Enter your Azure Tenant ID to continue. Find it at: Entra ID → Overview → Tenant ID.
-                </Typography>
-              </Box>
-              <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start", flexDirection: "column" }}>
-                <Autocomplete
-                  freeSolo
-                  options={availableTenants}
-                  inputValue={manualTenantId}
-                  onInputChange={(_, v) => setManualTenantId(v)}
-                  sx={{ minWidth: 420 }}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      size="small"
-                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                      onKeyDown={(e) => e.key === "Enter" && confirmTenantId()}
-                      inputProps={{ ...params.inputProps, style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" } }}
-                      error={!!tenantIdError}
-                      helperText={tenantIdError}
-                    />
-                  )}
-                />
-                <Button
-                  variant="contained"
-                  size="small"
-                  onClick={confirmTenantId}
-                  sx={{ background: "#d97706", textTransform: "none", ...mono, fontSize: "0.78rem", "&:hover": { background: "#b45309" } }}
-                >
-                  Load tenant
-                </Button>
-              </Box>
-            </Box>
-          )}
-
           {/* Entra user selector */}
-          {!needsTenantId && (
-            <Box
-              sx={{
-                background: "#f8fafc",
-                border: "1px solid #e2e8f0",
-                borderRadius: "8px",
-                px: 2,
-                py: 1.5,
-                display: "flex",
-                flexDirection: "column",
-                gap: 1.25,
-              }}
-            >
+          <Box
+            sx={{
+              background: "#f8fafc",
+              border: "1px solid #e2e8f0",
+              borderRadius: "8px",
+              px: 2,
+              py: 1.5,
+              display: "flex",
+              flexDirection: "column",
+              gap: 1.25,
+            }}
+          >
               <Box>
                 <Typography sx={{ fontSize: "0.78rem", color: "#0f172a", ...mono, fontWeight: 600 }}>Select Entra user</Typography>
                 <Typography sx={{ fontSize: "0.72rem", color: "#475569", ...mono, mt: 0.25 }}>
@@ -483,32 +345,10 @@ export default function AzureAccessPassCard({
                   <Typography sx={{ fontSize: "0.72rem", color: "#ef4444", ...mono }}>{managerUsersError}</Typography>
                 )}
 
-                {showChangeTenantButton && (
-                  <Button
-                    size="small"
-                    onClick={changeTenant}
-                    sx={{ minWidth: 0, fontSize: "0.68rem", color: "#94a3b8", textTransform: "none", ...mono, py: 0, "&:hover": { color: "#2563eb" } }}
-                  >
-                    Change tenant
-                  </Button>
-                )}
               </Box>
-            </Box>
-          )}
+          </Box>
 
           {subsError && <Typography sx={{ fontSize: "0.72rem", color: "#ef4444", ...mono }}>{subsError}</Typography>}
-
-          {/* Consent warning */}
-          {consentFailed && (
-            <Box sx={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", px: 2, py: 1.25 }}>
-              <Typography sx={{ fontSize: "0.78rem", color: "#713f12", ...mono, fontWeight: 600 }}>
-                ⚠ Admin consent failed — grant manually
-              </Typography>
-              <Typography sx={{ fontSize: "0.72rem", color: "#854d0e", ...mono, mt: 0.5 }}>
-                Entra ID → App registrations → {appName} → API permissions → Grant admin consent for [tenant]
-              </Typography>
-            </Box>
-          )}
 
           {/* Output is displayed inline under each user row */}
         </Box>

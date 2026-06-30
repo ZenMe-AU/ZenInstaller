@@ -9,14 +9,17 @@ type Props = ReturnType<typeof useAzureAccessPass> & {
   expanded: boolean;
   onToggle: () => void;
   disabled: boolean;
+  locked?: boolean;
   validEnvs: readonly string[];
   onComplete: (done: boolean) => void;
 };
 
-export default function AzureAccessPass({ status, expanded, onToggle, disabled, validEnvs, onComplete, ...azureSetup }: Props) {
+export default function AzureAccessPass({ status, expanded, onToggle, disabled, locked = false, validEnvs, onComplete, ...azureSetup }: Props) {
   if (!AZURE_CLIENT_ID) return null;
 
-  const subtitle = azureSetup.result
+  const subtitle = locked
+    ? "Complete Azure login and tenant ID first"
+    : azureSetup.result
     ? `Access pass created`
     : azureSetup.azureAccount
       ? `Signed in as ${azureSetup.azureAccount.username}`
@@ -24,7 +27,7 @@ export default function AzureAccessPass({ status, expanded, onToggle, disabled, 
 
   return (
     <StepWrapper title="Azure Access Pass" subtitle={subtitle} status={status} expanded={expanded} onToggle={onToggle}>
-      <AzureAccessPassCard {...azureSetup} disabled={disabled} validEnvs={validEnvs} onComplete={onComplete} />
+      <AzureAccessPassCard {...azureSetup} disabled={disabled} locked={locked} validEnvs={validEnvs} onComplete={onComplete} />
     </StepWrapper>
   );
 }

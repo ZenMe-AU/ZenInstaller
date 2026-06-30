@@ -1,6 +1,7 @@
 import { updateKeyVaultSecrets } from "./keyvault.js";
 import { buildFunctionApp, zipFunctionApp, deployFunctionAppZip, deleteAppSetting } from "./functionApp.js";
 import { execSync } from "child_process";
+import { resolve } from "path";
 import { exit } from "process";
 
 function getCurrentSubscription() {
@@ -26,33 +27,20 @@ export async function runDeploy(config) {
     console.log("Step 1: Update Key Vault");
     await updateKeyVaultSecrets(vaultName, secretList);
 
-    console.log("Step 2: Copy files");
+    console.log("Step 2: pnpm deploy (flat, prod-only)");
     const outputDirName = "dist";
     const distCwd = `${appCwd}/${outputDirName}`;
-    execSync(`rm -rf ${outputDirName}`, { stdio: "inherit", shell: true, cwd: appCwd });
-    execSync(
-      `
-      rsync -av --delete \
-        --include="src/***" \
-        --include="host.json" \
-        --include="package.json" \
-        --exclude="*" \
-        ./ ${outputDirName}/
-      `,
-      { stdio: "inherit", shell: true, cwd: appCwd },
-    );
-
-    console.log("Step 3: Install production dependencies");
-    execSync(`npm install --omit=dev`, { stdio: "inherit", shell: true, cwd: distCwd });
-
-    console.log("Step 4: Zip");
+    const workspaceCwd = resolve(appCwd, "..");
+    execSync(`rm -rf "${distCwd}"`, { stdio: "inherit", shell: true });
+    execSync(`pnpm run backend:deploy`, { stdio: "inherit", shell: true, cwd: workspaceCwd, env: { ...process.env, DEPLOY_OUT: distCwd } });
+    console.log("Step 3: Zip");
     const zipName = "deploy.zip";
     zipFunctionApp({ outputName: zipName }, { cwd: distCwd });
 
-    console.log("Step 5: Delete old app settings");
+    console.log("Step 4: Delete old app settings");
     deleteAppSetting({ functionAppName, resourceGroupName, settingName: "AzureWebJobsStorage" });
 
-    console.log("Step 6: Deploy");
+    console.log("Step 5: Deploy");
     deployFunctionAppZip(
       {
         src: zipName,

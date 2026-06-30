@@ -12,7 +12,9 @@
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "backend:dev": "pnpm --filter backend start",
+    "backend:deploy": "pnpm --filter backend run deploy"
   },
   "dependencies": {
     "@aws-sdk/client-sts": "^3.1075.0",
@@ -20,6 +22,9 @@
     "libsodium-wrappers": "^0.8.4",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["azure-functions-core-tools"]
   },
   "devDependencies": {
     "@emotion/react": "^11.14.0",

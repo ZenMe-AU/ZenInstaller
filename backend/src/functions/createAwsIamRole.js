@@ -17,23 +17,25 @@ const GITHUB_AUD_KEY = "token.actions.githubusercontent.com:aud";
 const GITHUB_SUB_KEY = "token.actions.githubusercontent.com:sub";
 
 app.http("createAwsIamRole", {
-  methods: ["POST", "OPTIONS"],
+  methods: ["POST"],
   authLevel: "anonymous",
   route: "createAwsIamRole",
   handler: corsWrapper(async (request) => {
-    const { accessKeyId, secretAccessKey, sessionToken, org, repo, environments, roleName, createOidcProvider } = await request.json();
+    const { accessKeyId: _ak, secretAccessKey: _sk, sessionToken: _st, org, repo, environments, roleName, createOidcProvider } = await request.json();
+    const accessKeyId = _ak?.trim();
+    const secretAccessKey = _sk?.trim();
+    const sessionToken = _st?.trim();
 
-    if (!accessKeyId || !secretAccessKey || !sessionToken) {
+    if (!accessKeyId || !secretAccessKey) {
       throw new HttpError(400, "Missing AWS credentials");
     }
     if (!org || !repo || !roleName || !environments?.length) {
       throw new HttpError(400, "Missing required parameters");
     }
 
-    const credentials = { accessKeyId, secretAccessKey, sessionToken };
-
+    const credentials = sessionToken ? { accessKeyId, secretAccessKey, sessionToken } : { accessKeyId, secretAccessKey };
     const sts = new STSClient({ region: "us-east-1", credentials });
-    const iam = new IAMClient({ region: "us-east-1", credentialProvider: credentials });
+    const iam = new IAMClient({ region: "us-east-1", credentials });
 
     try {
       const { Account: accountId } = await sts.send(new GetCallerIdentityCommand({}));

@@ -1,10 +1,24 @@
 import { STSClient, GetSessionTokenCommand, GetCallerIdentityCommand } from "@aws-sdk/client-sts";
-import { IAMClient, ListMFADevicesCommand } from "@aws-sdk/client-iam";
-import { SESSION_DURATION_SECONDS } from "../config/awsConfig";
+import {
+  IAMClient,
+  ListMFADevicesCommand,
+  CreateRoleCommand,
+  AttachRolePolicyCommand,
+  CreateOpenIDConnectProviderCommand,
+  GetRoleCommand,
+  UpdateAssumeRolePolicyCommand,
+} from "@aws-sdk/client-iam";
+import {
+  SESSION_DURATION_SECONDS,
+  GITHUB_OIDC_URL,
+  GITHUB_OIDC_THUMBPRINTS,
+  GITHUB_OIDC_AUD_CONDITION_KEY,
+  GITHUB_OIDC_SUB_CONDITION_KEY,
+} from "../config/awsConfig";
 
-// AWS-specific prerequisite work for backend calls. The backend's IAM operations run
-// with short-lived session credentials rather than the user's long-lived access keys,
-// so we exchange them client-side via STS before handing them to the backend.
+// AWS calls made directly from the browser with the user's own credentials — no
+// backend involved. STS/IAM support signed cross-origin requests, so the whole
+// sign-in + role-creation flow can run client-side.
 
 export type AwsSessionCredentials = {
   accessKeyId: string;
@@ -67,4 +81,130 @@ export async function getAwsSessionCredentials(
     throw new Error("Failed to obtain temporary credentials from AWS STS");
   }
   return { accessKeyId: AccessKeyId, secretAccessKey: SecretAccessKey, sessionToken: SessionToken, expiration: Expiration };
+}
+
+// ─── IAM role for GitHub Actions OIDC ───────────────────────────────────────────
+// Split into two calls (provider, then role) so the hook can drive a step-by-step
+// progress display, the same way the Azure app-registration flow does.
+
+type TrustPolicyStatement = {
+  Effect: string;
+  Principal: { Federated: string };
+  Action: string;
+  Condition: {
+    StringEquals: Record<string, string>;
+    StringLike: Record<string, string | string[]>;
+  };
+};
+
+type TrustPolicyDocument = { Version: string; Statement: TrustPolicyStatement[] };
+
+const isAwsError = (err: unknown, name: string): boolean => err instanceof Error && err.name === name;
+
+// Registers GitHub Actions as an OIDC identity provider in IAM. Idempotent —
+// reports whether it already existed vs was just created.
+export async function ensureGithubOidcProvider(credentials: AwsSessionCredentials): Promise<{ created: boolean }> {
+  const iam = new IAMClient({ region: "us-east-1", credentials });
+  try {
+    await iam.send(
+      new CreateOpenIDConnectProviderCommand({
+        Url: GITHUB_OIDC_URL,
+        ClientIDList: ["sts.amazonaws.com"],
+        ThumbprintList: GITHUB_OIDC_THUMBPRINTS,
+      }),
+    );
+    return { created: true };
+  } catch (err) {
+    if (isAwsError(err, "EntityAlreadyExistsException")) return { created: false };
+    throw err;
+  }
+}
+
+export type CreateAwsIamRoleParams = {
+  accountId: string;
+  org: string;
+  repo: string;
+  environments: string[];
+  roleName: string;
+};
+
+// Creates (or updates the trust policy of) an IAM role that GitHub Actions can assume
+// via OIDC — no long-lived AWS secrets stored in GitHub. Idempotent: re-running with
+// additional environments merges them into the existing trust policy.
+export async function createOrUpdateGithubOidcRole(
+  credentials: AwsSessionCredentials,
+  { accountId, org, repo, environments, roleName }: CreateAwsIamRoleParams,
+): Promise<{ roleArn: string; updated: boolean }> {
+  const iam = new IAMClient({ region: "us-east-1", credentials });
+
+  const oidcProviderArn = `arn:aws:iam::${accountId}:oidc-provider/token.actions.githubusercontent.com`;
+  const newSubs = environments.map((env) => `repo:${org}/${repo}:environment:${env}`);
+
+  const newStatement: TrustPolicyStatement = {
+    Effect: "Allow",
+    Principal: { Federated: oidcProviderArn },
+    Action: "sts:AssumeRoleWithWebIdentity",
+    Condition: {
+      StringEquals: { [GITHUB_OIDC_AUD_CONDITION_KEY]: "sts.amazonaws.com" },
+      StringLike: { [GITHUB_OIDC_SUB_CONDITION_KEY]: newSubs },
+    },
+  };
+
+  let roleArn: string;
+  let updated = false;
+
+  try {
+    const createRes = await iam.send(
+      new CreateRoleCommand({
+        RoleName: roleName,
+        AssumeRolePolicyDocument: JSON.stringify({ Version: "2012-10-17", Statement: [newStatement] }),
+        Description: `GitHub Actions OIDC role for ${org}/${repo}`,
+      }),
+    );
+    if (!createRes.Role?.Arn) throw new Error("AWS did not return a role ARN");
+    roleArn = createRes.Role.Arn;
+  } catch (err) {
+    if (!isAwsError(err, "EntityAlreadyExistsException")) throw err;
+
+    // Role exists — merge selected environments into the trust policy.
+    const existing = await iam.send(new GetRoleCommand({ RoleName: roleName }));
+    if (!existing.Role?.Arn) throw new Error("Failed to resolve existing role ARN");
+    roleArn = existing.Role.Arn;
+
+    let existingPolicyObj: TrustPolicyDocument | null = null;
+    try {
+      existingPolicyObj = existing.Role.AssumeRolePolicyDocument
+        ? (JSON.parse(decodeURIComponent(existing.Role.AssumeRolePolicyDocument)) as TrustPolicyDocument)
+        : null;
+    } catch {
+      existingPolicyObj = null;
+    }
+
+    let mergedPolicy: TrustPolicyDocument;
+    if (existingPolicyObj) {
+      // Find an existing GitHub OIDC statement to merge subs into.
+      const githubStmt = existingPolicyObj.Statement?.find(
+        (s) => s.Condition?.StringLike?.[GITHUB_OIDC_SUB_CONDITION_KEY] !== undefined,
+      );
+      if (githubStmt) {
+        const existingSubs = ([] as string[]).concat(githubStmt.Condition.StringLike[GITHUB_OIDC_SUB_CONDITION_KEY]);
+        githubStmt.Condition.StringLike[GITHUB_OIDC_SUB_CONDITION_KEY] = [...new Set([...existingSubs, ...newSubs])];
+      } else {
+        // Unrecognized trust policy structure — append a new statement.
+        existingPolicyObj.Statement = [...(existingPolicyObj.Statement ?? []), newStatement];
+      }
+      mergedPolicy = existingPolicyObj;
+    } else {
+      // Unparseable document — replace with minimal policy containing our statement.
+      mergedPolicy = { Version: "2012-10-17", Statement: [newStatement] };
+    }
+
+    await iam.send(new UpdateAssumeRolePolicyCommand({ RoleName: roleName, PolicyDocument: JSON.stringify(mergedPolicy) }));
+    updated = true;
+  }
+
+  // Idempotent — safe to call even if the policy is already attached.
+  await iam.send(new AttachRolePolicyCommand({ RoleName: roleName, PolicyArn: "arn:aws:iam::aws:policy/AdministratorAccess" }));
+
+  return { roleArn, updated };
 }

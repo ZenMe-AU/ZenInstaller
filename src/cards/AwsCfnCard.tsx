@@ -1,32 +1,44 @@
 import { useState, useEffect, useRef } from "react";
-import {
-  Box,
-  Button,
-  Checkbox,
-  CircularProgress,
-  Collapse,
-  FormControlLabel,
-  IconButton,
-  InputAdornment,
-  MenuItem,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Box, Button, CircularProgress, Collapse, IconButton, InputAdornment, MenuItem, TextField, Typography } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
-import CheckIcon from "@mui/icons-material/Check";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { Account, GhEnv } from "../types";
-import type { useAwsSetup } from "../hooks/useAwsSetup";
+import type { useAwsSetup, SetupStep } from "../hooks/useAwsSetup";
 import { AWS_VARIABLE_KEYS } from "../logic/variables";
 import { CLOUD_DOCS } from "../config/docsConfig";
 import VariableEditor from "./VariableEditor";
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 const labelSx = { fontSize: "0.68rem", color: "#94a3b8", textTransform: "uppercase" as const, letterSpacing: "0.08em", ...mono };
+
+function StepRow({ step }: { step: SetupStep }) {
+  const icon =
+    step.status === "done" ? (
+      <CheckCircleOutlineIcon sx={{ fontSize: 14, color: "#22c55e" }} />
+    ) : step.status === "error" ? (
+      <ErrorOutlineIcon sx={{ fontSize: 14, color: "#ef4444" }} />
+    ) : step.status === "running" ? (
+      <CircularProgress size={12} sx={{ color: "#2563eb" }} />
+    ) : (
+      <RadioButtonUncheckedIcon sx={{ fontSize: 14, color: "#cbd5e1" }} />
+    );
+
+  return (
+    <Box sx={{ display: "grid", gridTemplateColumns: "18px 1fr", alignItems: "start", py: 0.5 }}>
+      <Box sx={{ display: "flex", alignItems: "center", height: "1.2em" }}>{icon}</Box>
+      <Box>
+        <Typography sx={{ fontSize: "0.78rem", color: step.status === "error" ? "#ef4444" : "#475569", ...mono }}>{step.label}</Typography>
+        {step.detail && <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, mt: 0.25 }}>{step.detail}</Typography>}
+      </Box>
+    </Box>
+  );
+}
 
 type Props = ReturnType<typeof useAwsSetup> & {
   account: Account | null;
@@ -59,13 +71,13 @@ export default function AwsCfnCard({
   roleName,
   setRoleName,
   setEnvironments,
-  createOidcProvider,
-  setCreateOidcProvider,
   loading,
+  steps,
   roleArn,
   error,
   canCreate,
   create,
+  resetRoleCreation,
   account,
   repoName,
   selectedEnv,
@@ -88,6 +100,10 @@ export default function AwsCfnCard({
   const handleCreate = () => {
     setBannerState("none");
     create();
+  };
+  const handleRetry = () => {
+    setBannerState("none");
+    resetRoleCreation();
   };
 
   // Keep environments in sync with the selected env from parent.
@@ -360,70 +376,76 @@ export default function AwsCfnCard({
         {/* Role configuration + create — revealed only once signed in */}
         {signedIn && (
           <>
-            {/* Role name */}
-            <Box>
-              <Typography sx={{ ...labelSx, mb: 0.75 }}>IAM role name</Typography>
-              <TextField
-                size="small"
-                value={roleName}
-                onChange={(e) => setRoleName(e.target.value)}
-                sx={{ minWidth: 280 }}
-                inputProps={{ style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" } }}
-              />
-            </Box>
-
-            {/* OIDC provider toggle */}
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={createOidcProvider}
-                  onChange={(e) => setCreateOidcProvider(e.target.checked)}
-                  size="small"
-                  sx={{ color: "#94a3b8", "&.Mui-checked": { color: "#2563eb" }, py: 0.5 }}
-                />
-              }
-              label={
-                <Typography sx={{ fontSize: "0.75rem", color: "#475569" }}>
-                  Create GitHub OIDC provider
-                  <Box component="span" sx={{ color: "#94a3b8", fontSize: "0.68rem", ml: 0.75 }}>
-                    (check if not already set up in this AWS account)
-                  </Box>
-                </Typography>
-              }
-            />
-
-            {/* Create button + overwrite warning */}
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
-              <Button
-                variant="contained"
-                onClick={handleCreate}
-                disabled={disabled || !canCreate || loading}
-                startIcon={
-                  loading ? <CircularProgress size={14} sx={{ color: "inherit" }} /> : roleArn ? <CheckIcon sx={{ fontSize: 16 }} /> : undefined
-                }
-                sx={{
-                  background: roleArn ? "#16a34a" : "linear-gradient(135deg, #2563eb, #1d4ed8)",
-                  textTransform: "none",
-                  ...mono,
-                  fontSize: "0.85rem",
-                  py: 1,
-                  px: 2.5,
-                  borderRadius: "8px",
-                  boxShadow: roleArn ? "0 2px 8px #16a34a33" : "0 2px 8px #2563eb33",
-                  transition: "background 0.2s",
-                  "&:hover": { background: roleArn ? "#15803d" : "linear-gradient(135deg, #1d4ed8, #1e40af)" },
-                  "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
-                }}
-              >
-                {loading ? (roleArn ? "Updating…" : "Creating role…") : roleArn ? "Update trust policy" : "Create IAM Role"}
-              </Button>
-              {varHasAny && (
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                  <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
-                  <Typography sx={{ fontSize: "0.68rem", color: "#d97706" }}>This will overwrite your current connection details</Typography>
+            {/* Role name + OIDC toggle + create button */}
+            {steps.length === 0 && (
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <Box>
+                  <Typography sx={{ ...labelSx, mb: 0.75 }}>IAM role name</Typography>
+                  <TextField
+                    size="small"
+                    value={roleName}
+                    onChange={(e) => setRoleName(e.target.value)}
+                    sx={{ minWidth: 280 }}
+                    inputProps={{ style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" } }}
+                  />
                 </Box>
-              )}
-            </Box>
+
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+                  <Button
+                    variant="contained"
+                    onClick={handleCreate}
+                    disabled={disabled || !canCreate}
+                    sx={{
+                      background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+                      textTransform: "none",
+                      ...mono,
+                      fontSize: "0.85rem",
+                      py: 1,
+                      px: 2.5,
+                      borderRadius: "8px",
+                      boxShadow: "0 2px 8px #2563eb33",
+                      "&:hover": { background: "linear-gradient(135deg, #1d4ed8, #1e40af)" },
+                      "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
+                    }}
+                  >
+                    Create IAM Role
+                  </Button>
+                  {varHasAny && (
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                      <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
+                      <Typography sx={{ fontSize: "0.68rem", color: "#d97706" }}>This will overwrite your current connection details</Typography>
+                    </Box>
+                  )}
+                </Box>
+              </Box>
+            )}
+
+            {/* Progress steps */}
+            {steps.length > 0 && (
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, borderLeft: "2px solid #e2e8f0", pl: 1.5 }}>
+                {steps.map((s) => (
+                  <StepRow key={s.id} step={s} />
+                ))}
+                {loading && <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", mt: 0.5 }}>Running...</Typography>}
+                {!loading && (
+                  <Button
+                    size="small"
+                    onClick={handleRetry}
+                    sx={{
+                      alignSelf: "flex-start",
+                      mt: 0.5,
+                      textTransform: "none",
+                      ...mono,
+                      fontSize: "0.72rem",
+                      color: "#64748b",
+                      "&:hover": { color: "#2563eb" },
+                    }}
+                  >
+                    ↩ Try again
+                  </Button>
+                )}
+              </Box>
+            )}
 
             {error && <Typography sx={{ fontSize: "0.72rem", color: "#ef4444" }}>{error}</Typography>}
           </>

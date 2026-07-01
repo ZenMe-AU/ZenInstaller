@@ -1,7 +1,6 @@
 import { parse } from "dotenv";
 import JSZip from "jszip";
 import type { Account, Branch, GhEnv, PullRequest, Repo, WorkflowRun, UpsertSecretResult } from "../types";
-import type { AwsSessionCredentials } from "./aws";
 
 const url = import.meta.env.VITE_API_URL;
 
@@ -44,34 +43,6 @@ export async function exchangePkceCode(code: string, verifier: string, clientId:
   const data = await res.json();
   if (!data.access_token) throw new Error(data.error ?? "Token exchange failed");
   return data.access_token;
-}
-
-// ─── AWS IAM role (always-backend — needs server-side AWS SDK) ────────────────
-// index.ts guards against direct/PAT mode before dispatching here; this is the
-// backend implementation and stays mode-unaware like the rest of this module.
-
-export type CreateAwsIamRoleParams = {
-  credentials: AwsSessionCredentials;
-  org: string;
-  repo: string;
-  environments: string[];
-  roleName: string;
-  createOidcProvider: boolean;
-};
-
-export async function createAwsIamRole({
-  credentials,
-  ...rest
-}: CreateAwsIamRoleParams): Promise<{ roleArn: string; updated: boolean }> {
-  const { accessKeyId, secretAccessKey, sessionToken } = credentials;
-  const res = await fetchWithAuth(`${url}/createAwsIamRole`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ accessKeyId, secretAccessKey, sessionToken, ...rest }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status})`);
-  return { roleArn: data.roleArn as string, updated: data.updated as boolean };
 }
 
 // ─── Orgs & Repos ─────────────────────────────────────────────────────────────

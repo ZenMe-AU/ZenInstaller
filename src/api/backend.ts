@@ -1,7 +1,7 @@
 import { parse } from "dotenv";
 import JSZip from "jszip";
 import type { Account, Branch, GhEnv, PullRequest, Repo, WorkflowRun, UpsertSecretResult } from "../types";
-import { getAwsSessionCredentials } from "./aws";
+import type { AwsSessionCredentials } from "./aws";
 
 const url = import.meta.env.VITE_API_URL;
 
@@ -35,12 +35,7 @@ export async function verifyAuth(): Promise<{ login: string }> {
 
 // ─── PKCE auth (used by usePkceAuth — inactive until VITE_AUTH_PKCE=true) ────
 
-export async function exchangePkceCode(
-  code: string,
-  verifier: string,
-  clientId: string,
-  redirectUri: string,
-): Promise<string> {
+export async function exchangePkceCode(code: string, verifier: string, clientId: string, redirectUri: string): Promise<string> {
   const res = await fetch(`${url}/getAccessToken`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -56,8 +51,7 @@ export async function exchangePkceCode(
 // backend implementation and stays mode-unaware like the rest of this module.
 
 export type CreateAwsIamRoleParams = {
-  accessKeyId: string;
-  secretAccessKey: string;
+  credentials: AwsSessionCredentials;
   org: string;
   repo: string;
   environments: string[];
@@ -66,15 +60,14 @@ export type CreateAwsIamRoleParams = {
 };
 
 export async function createAwsIamRole({
-  accessKeyId,
-  secretAccessKey,
+  credentials,
   ...rest
 }: CreateAwsIamRoleParams): Promise<{ roleArn: string; updated: boolean }> {
-  const creds = await getAwsSessionCredentials(accessKeyId, secretAccessKey);
+  const { accessKeyId, secretAccessKey, sessionToken } = credentials;
   const res = await fetchWithAuth(`${url}/createAwsIamRole`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...creds, ...rest }),
+    body: JSON.stringify({ accessKeyId, secretAccessKey, sessionToken, ...rest }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status})`);

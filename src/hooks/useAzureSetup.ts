@@ -336,7 +336,13 @@ export function useAzureSetup({
         await ensureRbacRole(azureAccount, sub, spObjectId, "Contributor", effectiveTenantId);
         await ensureRbacRole(azureAccount, sub, spObjectId, "User Access Administrator", effectiveTenantId);
       }
-      updateStep("rbac", "done", selectedSubs.length === 1 ? (subscriptions.find((s) => s.id === selectedSubs[0])?.displayName ?? selectedSubs[0]) : `${selectedSubs.length} subscriptions`);
+      updateStep(
+        "rbac",
+        "done",
+        selectedSubs.length === 1
+          ? (subscriptions.find((s) => s.id === selectedSubs[0])?.displayName ?? selectedSubs[0])
+          : `${selectedSubs.length} subscriptions`,
+      );
 
       currentStep = "consent";
       updateStep("consent", "running");

@@ -10,7 +10,6 @@ let _provider: ApiProvider = B;
 
 export const switchToDirect  = (token: string) => { _provider = createGithubApi(token); };
 export const switchToBackend = ()              => { _provider = B; };
-export const isDirectMode    = ()              => _provider !== B;
 
 // Re-export factory so callers can inspect / create a provider directly
 export { createGithubApi } from "./github";
@@ -84,12 +83,3 @@ export const fetchPlan:      ApiProvider["fetchPlan"]      = (...a) => _provider
 export const triggerWorkflow:       ApiProvider["triggerWorkflow"]       = (...a) => _provider.triggerWorkflow(...a);
 export const triggerWorkflowFromPR: ApiProvider["triggerWorkflowFromPR"] = (...a) => _provider.triggerWorkflowFromPR(...a);
 export const deployChangeset:       ApiProvider["deployChangeset"]       = (...a) => _provider.deployChangeset(...a);
-
-// ─── AWS ──────────────────────────────────────────────────────────────────────
-// Backend-only: no direct/PAT implementation exists, so reject direct mode here at
-// the dispatch layer (callers stay mode-blind, same as every export above).
-
-export const createAwsIamRole: typeof B.createAwsIamRole = (...a) => {
-  if (isDirectMode()) throw new Error("AWS IAM role setup requires the backend service and is not available in PAT mode.");
-  return B.createAwsIamRole(...a);
-};

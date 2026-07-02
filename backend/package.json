@@ -1,16 +1,22 @@
 {
-  "name": "",
+  "name": "backend",
   "version": "1.0.0",
   "description": "",
   "main": "src/functions/*.js",
   "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "files": [
+    "src",
+    "host.json"
+  ],
   "scripts": {
     "start": "func start",
-    "test": "echo \"No tests yet...\""
+    "test": "echo \"No tests yet...\"",
+    "deploy": "pnpm --filter . deploy --legacy --prod ${DEPLOY_OUT:-./dist} --config.node-linker=hoisted --config.symlink=false --config.package-import-method=copy"
   },
   "dependencies": {
-    "@aws-sdk/client-iam": "^3.0.0",
-    "@aws-sdk/client-sts": "^3.0.0",
     "@azure/functions": "^4.0.0",
     "octokit": "^5.0.5"
   },

@@ -14,6 +14,7 @@ type Props = ReturnType<typeof useAzureSetup> & {
   repoFullName: string | null;
   selectedEnv: GhEnv | null;
   onComplete: (done: boolean) => void;
+  onAzureValid?: (valid: boolean | null) => void;
 };
 
 export default function AzureSetupStep({
@@ -26,15 +27,17 @@ export default function AzureSetupStep({
   repoFullName,
   selectedEnv,
   onComplete,
+  onAzureValid,
   ...azureSetup
 }: Props) {
   if (!AZURE_CLIENT_ID) return null;
 
-  const subtitle = azureSetup.result
-    ? "Identity created · review & save the values"
-    : azureSetup.azureAccount
-      ? `Signed in as ${azureSetup.azureAccount.username}`
-      : "Give GitHub Actions access to deploy to Azure";
+  const subtitle =
+    status === "complete"
+      ? "Connection details already filled in"
+      : azureSetup.azureAccount
+        ? `Signed in as ${azureSetup.azureAccount.username}`
+        : "Not yet connected — give GitHub Actions access to deploy to Azure";
 
   const githubUrl =
     repoFullName && selectedEnv
@@ -51,6 +54,7 @@ export default function AzureSetupStep({
         selectedEnv={selectedEnv}
         onComplete={onComplete}
         githubUrl={githubUrl}
+        onAzureValid={onAzureValid}
       />
     </StepWrapper>
   );

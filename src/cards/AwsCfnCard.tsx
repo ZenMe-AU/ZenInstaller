@@ -47,6 +47,9 @@ type Props = ReturnType<typeof useAwsSetup> & {
   disabled: boolean;
   onComplete: (done: boolean) => void;
   githubUrl?: string;
+  /** Invalidates the last pipeline run's AWS-connectivity result — call when a
+   *  connection-detail variable is edited, since the old validation no longer applies. */
+  onAwsValid?: (valid: boolean | null) => void;
 };
 
 export default function AwsCfnCard({
@@ -84,6 +87,7 @@ export default function AwsCfnCard({
   disabled,
   onComplete,
   githubUrl,
+  onAwsValid,
 }: Props) {
   const [showSecret, setShowSecret] = useState(false);
   const [varExpanded, setVarExpanded] = useState(false);
@@ -173,27 +177,28 @@ export default function AwsCfnCard({
 
       {/* ── Create section ── */}
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        {!signedIn && (
-          <>
-            <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
-              Provide temporary IAM credentials and we'll create an IAM role GitHub can assume via OIDC, then save the connection details
-              automatically.
-            </Typography>
+        {/* Description — always visible, regardless of banner/sign-in state */}
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+          <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+            We'll create an IAM role GitHub can assume via OIDC, then save the connection details automatically. We never store your AWS access key or
+            secret key — they're used only in your browser to sign in and are never sent to our servers.
+          </Typography>
+        </Box>
 
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <Typography sx={{ fontSize: "0.7rem", color: "#94a3b8" }}>No AWS account?</Typography>
-              <Box
-                component="a"
-                href={CLOUD_DOCS.aws.createAccount}
-                target="_blank"
-                rel="noopener noreferrer"
-                sx={{ display: "flex", alignItems: "center", gap: 0.25, color: "#64748b", textDecoration: "none", "&:hover": { color: "#2563eb" } }}
-              >
-                <Typography sx={{ fontSize: "0.7rem" }}>Create a free one</Typography>
-                <OpenInNewIcon sx={{ fontSize: 11 }} />
-              </Box>
+        {!signedIn && (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <Typography sx={{ fontSize: "0.7rem", color: "#94a3b8" }}>No AWS account?</Typography>
+            <Box
+              component="a"
+              href={CLOUD_DOCS.aws.createAccount}
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{ display: "flex", alignItems: "center", gap: 0.25, color: "#64748b", textDecoration: "none", "&:hover": { color: "#2563eb" } }}
+            >
+              <Typography sx={{ fontSize: "0.7rem" }}>Create a free one</Typography>
+              <OpenInNewIcon sx={{ fontSize: 11 }} />
             </Box>
-          </>
+          </Box>
         )}
 
         {/* Bootstrap credentials */}
@@ -479,6 +484,7 @@ export default function AwsCfnCard({
           disabled={disabled}
           onComplete={onComplete}
           onAutoSaveResult={(result) => setBannerState(result)}
+          onSaved={() => onAwsValid?.(null)}
           githubUrl={githubUrl}
           onLoaded={(saved) => {
             setLoadedVars(saved);

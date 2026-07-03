@@ -45,9 +45,28 @@ type Props = {
   autoSaveCounter?: number;
   /** Called when auto-save (triggered by autoSaveCounter) completes. */
   onAutoSaveResult?: (result: "saved" | "no-changes" | "error") => void;
+  /** Called with the keys that were actually written to GitHub, from either the
+   *  manual "Save" button or an auto-save. Lets callers invalidate anything that
+   *  was validated against the old values (e.g. a prior pipeline run's result). */
+  onSaved?: (keys: string[]) => void;
 };
 
-export default function VariableEditor({ account, repo, envName, keys, populate, fillKey, title = "Variables", disabled, onComplete, githubUrl, onLoaded, autoSaveCounter, onAutoSaveResult }: Props) {
+export default function VariableEditor({
+  account,
+  repo,
+  envName,
+  keys,
+  populate,
+  fillKey,
+  title = "Variables",
+  disabled,
+  onComplete,
+  githubUrl,
+  onLoaded,
+  autoSaveCounter,
+  onAutoSaveResult,
+  onSaved,
+}: Props) {
   const [savedValues, setSavedValues] = useState<Record<string, string>>({});
   const [localValues, setLocalValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -61,6 +80,9 @@ export default function VariableEditor({ account, repo, envName, keys, populate,
 
   const onCompleteRef = useRef(onComplete);
   useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
+
+  const onSavedRef = useRef(onSaved);
+  useEffect(() => { onSavedRef.current = onSaved; }, [onSaved]);
 
   const onLoadedRef = useRef(onLoaded);
   useEffect(() => { onLoadedRef.current = onLoaded; }, [onLoaded]);
@@ -190,6 +212,8 @@ export default function VariableEditor({ account, repo, envName, keys, populate,
     setUpsertStatuses(statuses);
     setUpdating(false);
     checkComplete(newlySaved);
+    const savedKeys = statuses.filter((s) => s.status === "success").map((s) => s.key);
+    if (savedKeys.length > 0) onSavedRef.current?.(savedKeys);
     return hasError ? "error" : "saved";
   }, [account, repo, envName, savedValues, localValues, keys]); // eslint-disable-line react-hooks/exhaustive-deps
 

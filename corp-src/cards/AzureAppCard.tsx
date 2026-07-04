@@ -1,15 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import {
-  Autocomplete,
-  Box,
-  Button,
-  CircularProgress,
-  Collapse,
-  MenuItem,
-  Select,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Autocomplete, Box, Button, CircularProgress, Collapse, MenuItem, Select, TextField, Typography } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
@@ -56,6 +46,9 @@ type Props = ReturnType<typeof useAzureSetup> & {
   selectedEnv: GhEnv | null;
   onComplete: (done: boolean) => void;
   githubUrl?: string;
+  /** Invalidates the last pipeline run's Azure-connectivity result — call when a
+   *  connection-detail variable is edited, since the old validation no longer applies. */
+  onAzureValid?: (valid: boolean | null) => void;
 };
 
 export default function AzureAppCard({
@@ -91,6 +84,7 @@ export default function AzureAppCard({
   selectedEnv,
   onComplete,
   githubUrl,
+  onAzureValid,
 }: Props) {
   const [varExpanded, setVarExpanded] = useState(false);
   const [loadedVars, setLoadedVars] = useState<Record<string, string> | null>(null);
@@ -103,9 +97,18 @@ export default function AzureAppCard({
   const varHasAny = !!loadedVars && Object.keys(loadedVars).length > 0;
 
   // Action handlers that also dismiss the banner.
-  const handleLogout = () => { setBannerState("none"); logout(); };
-  const handleRetry = () => { setBannerState("none"); reset(); };
-  const handleRun = () => { setBannerState("none"); run(); };
+  const handleLogout = () => {
+    setBannerState("none");
+    logout();
+  };
+  const handleRetry = () => {
+    setBannerState("none");
+    reset();
+  };
+  const handleRun = () => {
+    setBannerState("none");
+    run();
+  };
 
   // Keep environments in sync with the selected env from parent.
   useEffect(() => {
@@ -176,16 +179,23 @@ export default function AzureAppCard({
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
       {/* ── Result banner (shown after create+auto-save completes) ── */}
       {bannerState !== "none" && (
-        <Box sx={{
-          display: "flex", alignItems: "center", gap: 1,
-          background: bannerState === "error" ? "#fef9c3" : "#f0fdf4",
-          border: `1px solid ${bannerState === "error" ? "#fde047" : "#bbf7d0"}`,
-          borderRadius: "8px", px: 1.5, py: 1,
-        }}>
-          {bannerState === "error"
-            ? <WarningAmberIcon sx={{ fontSize: 16, color: "#d97706" }} />
-            : <CheckCircleOutlineIcon sx={{ fontSize: 16, color: "#16a34a" }} />
-          }
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            background: bannerState === "error" ? "#fef9c3" : "#f0fdf4",
+            border: `1px solid ${bannerState === "error" ? "#fde047" : "#bbf7d0"}`,
+            borderRadius: "8px",
+            px: 1.5,
+            py: 1,
+          }}
+        >
+          {bannerState === "error" ? (
+            <WarningAmberIcon sx={{ fontSize: 16, color: "#d97706" }} />
+          ) : (
+            <CheckCircleOutlineIcon sx={{ fontSize: 16, color: "#16a34a" }} />
+          )}
           <Typography sx={{ fontSize: "0.75rem", color: bannerState === "error" ? "#713f12" : "#15803d" }}>
             {bannerState === "saved" && "Connection details saved."}
             {bannerState === "no-changes" && "Connection details saved — no changes needed."}
@@ -196,12 +206,17 @@ export default function AzureAppCard({
 
       {/* ── Login / Create section ── */}
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        {/* Description — always visible, regardless of banner/sign-in state */}
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+          <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+            Sign in with Azure and we'll create an app registration for GitHub Actions and save the connection details automatically. We never store
+            your Azure credentials — sign-in happens directly with Microsoft, and only a short-lived access token is used.
+          </Typography>
+        </Box>
+
         {/* Not signed in */}
         {!azureAccount && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>
-            <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
-              Sign in with Azure and we'll create an app registration for GitHub Actions and save the connection details automatically.
-            </Typography>
             {loggingIn ? (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <CircularProgress size={14} sx={{ color: "#2563eb" }} />
@@ -236,7 +251,14 @@ export default function AzureAppCard({
                     href={CLOUD_DOCS.azure.createAccount}
                     target="_blank"
                     rel="noopener noreferrer"
-                    sx={{ display: "flex", alignItems: "center", gap: 0.25, color: "#64748b", textDecoration: "none", "&:hover": { color: "#2563eb" } }}
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0.25,
+                      color: "#64748b",
+                      textDecoration: "none",
+                      "&:hover": { color: "#2563eb" },
+                    }}
                   >
                     <Typography sx={{ fontSize: "0.7rem" }}>Create a free one</Typography>
                     <OpenInNewIcon sx={{ fontSize: 11 }} />
@@ -270,7 +292,18 @@ export default function AzureAppCard({
 
             {/* Tenant ID input (personal accounts) */}
             {needsTenantId && (
-              <Box sx={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", px: 2, py: 1.5, display: "flex", flexDirection: "column", gap: 1.25 }}>
+              <Box
+                sx={{
+                  background: "#fef9c3",
+                  border: "1px solid #fde047",
+                  borderRadius: "8px",
+                  px: 2,
+                  py: 1.5,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 1.25,
+                }}
+              >
                 <Box>
                   <Typography sx={{ fontSize: "0.78rem", color: "#713f12", fontWeight: 600 }}>Personal Microsoft account detected</Typography>
                   <Typography sx={{ fontSize: "0.72rem", color: "#854d0e", mt: 0.25 }}>
@@ -319,7 +352,15 @@ export default function AzureAppCard({
                     <Button
                       size="small"
                       onClick={changeTenant}
-                      sx={{ minWidth: 0, fontSize: "0.65rem", color: "#94a3b8", textTransform: "none", ...mono, py: 0, "&:hover": { color: "#2563eb" } }}
+                      sx={{
+                        minWidth: 0,
+                        fontSize: "0.65rem",
+                        color: "#94a3b8",
+                        textTransform: "none",
+                        ...mono,
+                        py: 0,
+                        "&:hover": { color: "#2563eb" },
+                      }}
                     >
                       Change tenant
                     </Button>
@@ -386,9 +427,7 @@ export default function AzureAppCard({
                   {varHasAny && (
                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                       <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
-                      <Typography sx={{ fontSize: "0.68rem", color: "#d97706" }}>
-                        This will overwrite your current connection details
-                      </Typography>
+                      <Typography sx={{ fontSize: "0.68rem", color: "#d97706" }}>This will overwrite your current connection details</Typography>
                     </Box>
                   )}
                 </Box>
@@ -406,7 +445,15 @@ export default function AzureAppCard({
                   <Button
                     size="small"
                     onClick={handleRetry}
-                    sx={{ alignSelf: "flex-start", mt: 0.5, textTransform: "none", ...mono, fontSize: "0.72rem", color: "#64748b", "&:hover": { color: "#2563eb" } }}
+                    sx={{
+                      alignSelf: "flex-start",
+                      mt: 0.5,
+                      textTransform: "none",
+                      ...mono,
+                      fontSize: "0.72rem",
+                      color: "#64748b",
+                      "&:hover": { color: "#2563eb" },
+                    }}
                   >
                     ↩ Try again
                   </Button>
@@ -456,6 +503,7 @@ export default function AzureAppCard({
           disabled={disabled}
           onComplete={onComplete}
           onAutoSaveResult={(result) => setBannerState(result)}
+          onSaved={() => onAzureValid?.(null)}
           githubUrl={githubUrl}
           onLoaded={(saved) => {
             setLoadedVars(saved);

@@ -13,6 +13,7 @@ type Props = ReturnType<typeof useAwsSetup> & {
   repoFullName: string | null;
   selectedEnv: GhEnv | null;
   onComplete: (done: boolean) => void;
+  onAwsValid?: (valid: boolean | null) => void;
 };
 
 export default function AwsSetupStep({
@@ -25,9 +26,15 @@ export default function AwsSetupStep({
   repoFullName,
   selectedEnv,
   onComplete,
+  onAwsValid,
   ...awsSetup
 }: Props) {
-  const subtitle = awsSetup.roleArn ? "IAM role ready · review & save AWS_ROLE_ARN" : "Give GitHub Actions access to deploy to AWS";
+  const subtitle =
+    status === "complete"
+      ? "Connection details already filled in"
+      : awsSetup.signedIn
+        ? `Signed in as ${awsSetup.identity?.username ?? "AWS"}`
+        : "Not yet connected — give GitHub Actions access to deploy to AWS";
 
   const githubUrl =
     repoFullName && selectedEnv
@@ -44,6 +51,7 @@ export default function AwsSetupStep({
         disabled={disabled}
         onComplete={onComplete}
         githubUrl={githubUrl}
+        onAwsValid={onAwsValid}
       />
     </StepWrapper>
   );

@@ -142,9 +142,17 @@ export default function AppDashboard() {
     pr: prStatus,
     env: effectiveEnvStatus,
     status_update: effectiveStatusUpdateStatus,
-    azure_setup: isAuthed && repo.isCloneRepo ? (azureSetupDone ? "complete" : "loading") : "idle",
+    azure_setup:
+      !isAuthed || !repo.isCloneRepo || !env.selectedEnv ? "idle" :
+      !azureSetupDone ? "warning" :
+      env.azureSecrets.valid === false ? "error" :
+      "complete", // filled in — validated (true) or not yet run (null) both count as complete
     azure_access_pass: !isAuthed || !repo.isCloneRepo ? "idle" : azureAccessPass.result ? "complete" : "loading",
-    aws_setup: isAuthed && repo.isCloneRepo ? (awsSetupDone ? "complete" : "loading") : "idle",
+    aws_setup:
+      !isAuthed || !repo.isCloneRepo || !env.selectedEnv ? "idle" :
+      !awsSetupDone ? "warning" :
+      env.awsSecrets.valid === false ? "error" :
+      "complete", // filled in — validated (true) or not yet run (null) both count as complete
     stages: isAuthed && plan.hasPlan ? (plan.stages.some((s) => s.status === "failed") ? "warning" : "complete") : "idle",
   };
 
@@ -303,6 +311,7 @@ export default function AppDashboard() {
               repoFullName={repo.repoFullName}
               selectedEnv={env.selectedEnv}
               onComplete={setAzureSetupDone}
+              onAzureValid={env.onAzureValid}
             />
 
             <AwsSetupStep
@@ -316,6 +325,7 @@ export default function AppDashboard() {
               repoFullName={repo.repoFullName}
               selectedEnv={env.selectedEnv}
               onComplete={setAwsSetupDone}
+              onAwsValid={env.onAwsValid}
             />
 
             <StatusUpdateStep

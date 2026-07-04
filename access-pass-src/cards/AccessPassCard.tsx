@@ -86,6 +86,8 @@ export default function AzureAccessPassCard({
 }: Props) {
   const PAGE_SIZE = 200;
   const [creatingUserId, setCreatingUserId] = useState<string | null>(null);
+  const [confirmationUserId, setConfirmationUserId] = useState<string | null>(null);
+  const [photoIdConfirmed, setPhotoIdConfirmed] = useState(false);
   const [passValuesByUserId, setPassValuesByUserId] = useState<Record<string, string>>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [pageInput, setPageInput] = useState("1");
@@ -120,6 +122,8 @@ export default function AzureAccessPassCard({
   }, [result]);
 
   const handleCreateForUser = async (userId: string) => {
+    setConfirmationUserId(null);
+    setPhotoIdConfirmed(false);
     setCreatingUserId(userId);
     try {
       const created = await runForUser(userId);
@@ -203,39 +207,125 @@ export default function AzureAccessPassCard({
                           const isCurrentResult = result?.targetUserId === user.id;
                           const isCreatingThisUser = creatingUserId === user.id && running;
                           const savedPass = passValuesByUserId[user.id];
+                          const showingConfirmationForUser = confirmationUserId === user.id && !running;
                           const showingInlineStepsForUser = showingSelectedUserSteps && statusUserId === user.id;
                           return (
                             <Fragment key={user.id}>
                               <TableRow sx={isCurrentResult ? { background: "#f0fdf4" } : undefined}>
-                                <TableCell sx={{ ...mono, fontSize: "0.76rem", color: "#334155", ...(savedPass || showingInlineStepsForUser ? { borderBottom: "none" } : {}) }}>
+                                <TableCell
+                                  sx={{
+                                    ...mono,
+                                    fontSize: "0.76rem",
+                                    color: "#334155",
+                                    ...(savedPass || showingInlineStepsForUser || showingConfirmationForUser ? { borderBottom: "none" } : {}),
+                                  }}
+                                >
                                   {user.displayName}
                                 </TableCell>
-                                <TableCell sx={{ ...mono, fontSize: "0.72rem", color: "#64748b", ...(savedPass || showingInlineStepsForUser ? { borderBottom: "none" } : {}) }}>
+                                <TableCell
+                                  sx={{
+                                    ...mono,
+                                    fontSize: "0.72rem",
+                                    color: "#64748b",
+                                    ...(savedPass || showingInlineStepsForUser || showingConfirmationForUser ? { borderBottom: "none" } : {}),
+                                  }}
+                                >
                                   {user.userPrincipalName || "-"}
                                 </TableCell>
-                                <TableCell align="right" sx={savedPass || showingInlineStepsForUser ? { borderBottom: "none" } : undefined}>
-                                  <Button
-                                    size="small"
-                                    variant="contained"
-                                    onClick={() => {
-                                      void handleCreateForUser(user.id);
-                                    }}
-                                    disabled={disabled || running}
-                                    sx={{
-                                      textTransform: "none",
-                                      ...mono,
-                                      fontSize: "0.72rem",
-                                      py: 0.35,
-                                      px: 1.2,
-                                      background: isCurrentResult ? "#16a34a" : "#2563eb",
-                                      "&:hover": { background: isCurrentResult ? "#15803d" : "#1d4ed8" },
-                                      "&.Mui-disabled": { background: "#e2e8f0", color: "#94a3b8" },
-                                    }}
-                                  >
-                                    {isCreatingThisUser ? "Creating..." : savedPass ? "Create Again" : "Create Access Pass"}
-                                  </Button>
+                                <TableCell
+                                  align="right"
+                                  sx={savedPass || showingInlineStepsForUser || showingConfirmationForUser ? { borderBottom: "none" } : undefined}
+                                >
+                                  <Box sx={{ display: "flex", justifyContent: "flex-end", minHeight: 28 }}>
+                                    {!showingConfirmationForUser && (
+                                    <Button
+                                      size="small"
+                                      variant="contained"
+                                      onClick={() => {
+                                        if (confirmationUserId !== user.id) {
+                                          setConfirmationUserId(user.id);
+                                          setPhotoIdConfirmed(false);
+                                          return;
+                                        }
+                                        if (!photoIdConfirmed) return;
+                                        void handleCreateForUser(user.id);
+                                      }}
+                                      disabled={disabled || running || (showingConfirmationForUser && !photoIdConfirmed)}
+                                      sx={{
+                                        textTransform: "none",
+                                        ...mono,
+                                        fontSize: "0.72rem",
+                                        py: 0.35,
+                                        px: 1.2,
+                                        background: isCurrentResult ? "#16a34a" : "#2563eb",
+                                        "&:hover": { background: isCurrentResult ? "#15803d" : "#1d4ed8" },
+                                        "&.Mui-disabled": { background: "#e2e8f0", color: "#94a3b8" },
+                                      }}
+                                    >
+                                      {isCreatingThisUser ? "Creating..." : savedPass ? "Create Again" : "Create Access Pass"}
+                                    </Button>
+                                    )}
+                                  </Box>
                                 </TableCell>
                               </TableRow>
+                              {showingConfirmationForUser && (
+                                <TableRow sx={isCurrentResult ? { background: "#f0fdf4" } : { background: "inherit" }}>
+                                  <TableCell colSpan={3} sx={{ py: 0.75, px: 1.5, borderBottom: savedPass ? "none" : undefined }}>
+                                    <Box
+                                      sx={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: 0.75,
+                                        borderLeft: "2px solid #fbbf24",
+                                        pl: 1.25,
+                                      }}
+                                    >
+                                      <Typography sx={{ fontSize: "0.72rem", color: "#92400e", ...mono }}>
+                                        If you continue, all existing access for this user will be deleted and a 1 hour temorary access pass will be created.
+                                      </Typography>
+                                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                                        <input
+                                          type="checkbox"
+                                          checked={photoIdConfirmed}
+                                          onChange={(e) => setPhotoIdConfirmed(e.target.checked)}
+                                          style={{ margin: 0, width: 14, height: 14 }}
+                                        />
+                                        <Typography sx={{ fontSize: "0.7rem", color: "#92400e", ...mono }}>
+                                          Confirm that you have viewed the photo ID and confirm it to be the person selected
+                                        </Typography>
+                                      </Box>
+                                      <Box sx={{ display: "flex", justifyContent: "flex-end", pt: 0.35 }}>
+                                        <Button
+                                          size="small"
+                                          variant="contained"
+                                          onClick={() => {
+                                            if (confirmationUserId !== user.id) {
+                                              setConfirmationUserId(user.id);
+                                              setPhotoIdConfirmed(false);
+                                              return;
+                                            }
+                                            if (!photoIdConfirmed) return;
+                                            void handleCreateForUser(user.id);
+                                          }}
+                                          disabled={disabled || running || !photoIdConfirmed}
+                                          sx={{
+                                            textTransform: "none",
+                                            ...mono,
+                                            fontSize: "0.72rem",
+                                            py: 0.35,
+                                            px: 1.2,
+                                            background: isCurrentResult ? "#16a34a" : "#2563eb",
+                                            "&:hover": { background: isCurrentResult ? "#15803d" : "#1d4ed8" },
+                                            "&.Mui-disabled": { background: "#e2e8f0", color: "#94a3b8" },
+                                          }}
+                                        >
+                                          {isCreatingThisUser ? "Creating..." : savedPass ? "Create Again" : "Create Access Pass"}
+                                        </Button>
+                                      </Box>
+                                    </Box>
+                                  </TableCell>
+                                </TableRow>
+                              )}
                               {showingInlineStepsForUser && (
                                 <TableRow sx={isCurrentResult ? { background: "#f0fdf4" } : { background: "inherit" }}>
                                   <TableCell colSpan={3} sx={{ py: 0.75, px: 1.5, borderBottom: savedPass ? "none" : undefined }}>

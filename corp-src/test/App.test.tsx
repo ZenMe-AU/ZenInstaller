@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import React from "react";
 import { createRoot } from "react-dom/client";
-import App from "../../corp-src/App";
+import App from "../App";
 
 describe("App - Home Page", () => {
   it("should render without crashing", () => {

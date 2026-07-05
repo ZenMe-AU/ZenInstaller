@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Box, Button, CircularProgress, IconButton, InputAdornment, TextField, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import ClearIcon from "@mui/icons-material/Clear";
-import type { CardStatus, User } from "../../access-pass-src/types";
-import { switchToDirect, switchToBackend } from "../../access-pass-src/api";
-import StepWrapper from "../../corp-src/components/StepWrapper";
+import type { CardStatus, User } from "../types";
+import { switchToDirect, switchToBackend } from "../api";
+import StepWrapper from "../components/StepWrapper";
 
 type Props = {
   // ── PipelineCard chrome ──────────────────────────────────────────────────

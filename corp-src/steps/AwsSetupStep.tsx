@@ -1,6 +1,6 @@
-import type { Account, CardStatus, GhEnv } from "../../access-pass-src/types";
+import type { Account, CardStatus, GhEnv } from "../types";
 import type { useAwsSetup } from "../hooks/useAwsSetup";
-import StepWrapper from "../../corp-src/components/StepWrapper";
+import StepWrapper from "../components/StepWrapper";
 import AwsCfnCard from "../cards/AwsCfnCard";
 
 type Props = ReturnType<typeof useAwsSetup> & {

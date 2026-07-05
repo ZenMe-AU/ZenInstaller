@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AccountInfo } from "@azure/msal-browser";
-import { getMsal } from "../../access-pass-src/api/msal";
-import { GRAPH_SCOPES, ARM_SCOPES } from "../../access-pass-src/config/azureConfig";
+import { getMsal } from "../api/msal";
+import { GRAPH_SCOPES, ARM_SCOPES } from "../config/azureConfig";
 import {
   listSubscriptions,
   getExistingApp,
@@ -14,9 +14,9 @@ import {
   grantAdminConsent,
   MSA_TENANT,
   type Subscription,
-} from "../../access-pass-src/api/azureGraph";
-import { getAllPermissions } from "../../access-pass-src/config/azureConfig";
-import type { Account, StageDefinition } from "../../access-pass-src/types";
+} from "../api/azureGraph";
+import { getAllPermissions } from "../config/azureConfig";
+import type { Account, StageDefinition } from "../types";
 
 export type StepStatus = "pending" | "running" | "done" | "skipped" | "error";
 export type SetupStep = { id: string; label: string; status: StepStatus; detail?: string };

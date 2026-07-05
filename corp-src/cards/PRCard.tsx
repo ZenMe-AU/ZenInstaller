@@ -7,8 +7,8 @@ import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import type { GhEnv, PullRequest } from "../../access-pass-src/types";
-import { matchEnv } from "../../corp-src/logic/env";
+import type { GhEnv, PullRequest } from "../types";
+import { matchEnv } from "../logic/env";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { exchangePkceCode, fetchGithubUser, switchToDirect, switchToBackend } from "../../access-pass-src/api";
-import { generateCodeChallenge, generateRandomString } from "../../corp-src/logic/pkce";
-import type { CardStatus, User } from "../../access-pass-src/types";
+import { exchangePkceCode, fetchGithubUser, switchToDirect, switchToBackend } from "../api";
+import { generateCodeChallenge, generateRandomString } from "../logic/pkce";
+import type { CardStatus, User } from "../types";
 
 // ─── Future replacement for useAuth ───────────────────────────────────────────
 // Uses PKCE client-side token flow instead of server-managed sessions.

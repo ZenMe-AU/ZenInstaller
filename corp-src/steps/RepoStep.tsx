@@ -1,7 +1,7 @@
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { Button } from "@mui/material";
-import type { Account, CardStatus, Repo, RepoOption } from "../../access-pass-src/types";
-import StepWrapper from "../../corp-src/components/StepWrapper";
+import type { Account, CardStatus, Repo, RepoOption } from "../types";
+import StepWrapper from "../components/StepWrapper";
 import RepoCard from "../cards/RepoCard";
 
 type Props = {

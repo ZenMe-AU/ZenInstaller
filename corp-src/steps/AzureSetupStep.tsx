@@ -1,7 +1,7 @@
-import type { Account, CardStatus, GhEnv } from "../../access-pass-src/types";
-import { AZURE_CLIENT_ID } from "../../access-pass-src/config/azureConfig";
+import type { Account, CardStatus, GhEnv } from "../types";
+import { AZURE_CLIENT_ID } from "../config/azureConfig";
 import type { useAzureSetup } from "../hooks/useAzureSetup";
-import StepWrapper from "../../corp-src/components/StepWrapper";
+import StepWrapper from "../components/StepWrapper";
 import AzureAppCard from "../cards/AzureAppCard";
 
 type Props = ReturnType<typeof useAzureSetup> & {

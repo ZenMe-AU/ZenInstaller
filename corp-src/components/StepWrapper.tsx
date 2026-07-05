@@ -1,7 +1,7 @@
 import { Box, Collapse, IconButton, Typography } from "@mui/material";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import type { CardStatus } from "../../access-pass-src/types";
+import type { CardStatus } from "../types";
 
 type Props = {
   title: string;

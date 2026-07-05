@@ -1,6 +1,6 @@
 import { Box } from "@mui/material";
-import { ACTION_CONFIG } from "../../access-pass-src/config/planConfig";
-import type { ActionType } from "../../access-pass-src/types";
+import { ACTION_CONFIG } from "../config/planConfig";
+import type { ActionType } from "../types";
 
 export default function SummaryChip({ type, count }: { type: ActionType; count: number }) {
   const cfg     = ACTION_CONFIG[type];

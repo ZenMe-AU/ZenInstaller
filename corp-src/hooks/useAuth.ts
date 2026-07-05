@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { verifyAuth, switchToDirect, switchToBackend } from "../../access-pass-src/api";
-import type { CardStatus, User } from "../../access-pass-src/types";
+import { verifyAuth, switchToDirect, switchToBackend } from "../api";
+import type { CardStatus, User } from "../types";
 
 const url = import.meta.env.VITE_API_URL;
 const PAT_SESSION = "pat_token";

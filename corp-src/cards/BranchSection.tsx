@@ -2,7 +2,7 @@ import { Box, Button, CircularProgress, MenuItem, Select, Typography } from "@mu
 import AddIcon from "@mui/icons-material/Add";
 import CallSplitIcon from "@mui/icons-material/CallSplit";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
-import type { Branch } from "../../access-pass-src/types";
+import type { Branch } from "../types";
 
 const selectSx = {
   background: "#f8fafc",

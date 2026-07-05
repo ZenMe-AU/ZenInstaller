@@ -6,8 +6,8 @@ import {
   fetchOrgList,
   fetchRepos,
   generateRepo,
-} from "../../access-pass-src/api";
-import { PIPELINES } from "../../corp-src/logic/pipeline";
+} from "../api";
+import { PIPELINES } from "../logic/pipeline";
 import type {
   Account,
   Branch,
@@ -16,8 +16,8 @@ import type {
   Repo,
   RepoOption,
   User,
-} from "../../access-pass-src/types";
-import type { PendingRestore } from "../hooks/useUrlRestore";
+} from "../types";
+import type { PendingRestore } from "./useUrlRestore";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

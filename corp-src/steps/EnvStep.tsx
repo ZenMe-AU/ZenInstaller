@@ -6,8 +6,8 @@ import type {
   CardStatus,
   GhEnv,
   SecretsStatus,
-} from "../../access-pass-src/types";
-import StepWrapper from "../../corp-src/components/StepWrapper";
+} from "../types";
+import StepWrapper from "../components/StepWrapper";
 import EnvironmentCard from "../cards/EnvironmentCard";
 
 type Props = {

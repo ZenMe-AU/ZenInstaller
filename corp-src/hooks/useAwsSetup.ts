@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { createOrUpdateGithubOidcRole, ensureGithubOidcProvider, getAwsCallerIdentity, getAwsMfaDevices, getAwsSessionCredentials } from "../../access-pass-src/api/aws";
-import type { AwsCallerIdentity, AwsMfaDevice, AwsSessionCredentials } from "../../access-pass-src/api/aws";
-import { SESSION_DURATION_MS, SESSION_REFRESH_LEAD_MS } from "../../access-pass-src/config/awsConfig";
+import { createOrUpdateGithubOidcRole, ensureGithubOidcProvider, getAwsCallerIdentity, getAwsMfaDevices, getAwsSessionCredentials } from "../api/aws";
+import type { AwsCallerIdentity, AwsMfaDevice, AwsSessionCredentials } from "../api/aws";
+import { SESSION_DURATION_MS, SESSION_REFRESH_LEAD_MS } from "../config/awsConfig";
 
 export type StepStatus = "pending" | "running" | "done" | "skipped" | "error";
 export type SetupStep = { id: string; label: string; status: StepStatus; detail?: string };

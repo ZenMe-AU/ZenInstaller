@@ -1,22 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Box, Typography } from "@mui/material";
 
-import { type CardId, type CardStatus, type PendingRestore, type StageStatus } from "../access-pass-src/types";
+import { type CardId, type CardStatus, type PendingRestore, type StageStatus } from "./types";
 import { useActiveAuth as useAuth } from "./hooks/useActiveAuth";
 import { useAccountRepo } from "./hooks/useAccountRepo";
 import { useAzureSetup } from "./hooks/useAzureSetup";
 import { useAwsSetup } from "./hooks/useAwsSetup";
-import { useAzureAccessPass } from "../access-pass-src/hooks/useAzureAccessPass";
+import { useAzureAccessPass } from "./hooks/useAzureAccessPass";
 import { useDeploymentPlan } from "./hooks/useDeploymentPlan";
 import { useEnv } from "./hooks/useEnv";
 import { usePR } from "./hooks/usePR";
 import { useUrlRestore } from "./hooks/useUrlRestore";
-import { getEffectiveStatus, stageToCardStatus, hasVariableDiff } from "../corp-src/logic/stage";
+import { getEffectiveStatus, stageToCardStatus, hasVariableDiff } from "./logic/stage";
 
-import Connector from "../access-pass-src/components/Connector";
-import NavBar from "../access-pass-src/components/NavBar";
-import RestoreToast from "../corp-src/components/RestoreToast";
-import SessionOverlay from "../corp-src/components/SessionOverlay";
+import Connector from "./components/Connector";
+import NavBar from "./components/NavBar";
+import RestoreToast from "./components/RestoreToast";
+import SessionOverlay from "./components/SessionOverlay";
 import LoginStep from "./steps/LoginStep";
 import RepoStep from "./steps/RepoStep";
 import PRStep from "./steps/PRStep";

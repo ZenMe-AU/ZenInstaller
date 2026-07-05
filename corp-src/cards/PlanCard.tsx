@@ -1,9 +1,9 @@
 /** @moved src/component/PlanView.tsx → src/cards/PlanCard.tsx */
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
-import { getActionType } from "../../corp-src/logic/plan";
-import { ACTION_CONFIG } from "../../access-pass-src/config/planConfig";
-import SummaryChip from "../../corp-src/components/SummaryChip";
-import type { PlanItem, PlanSummary } from "../../access-pass-src/types";
+import { getActionType } from "../logic/plan";
+import { ACTION_CONFIG } from "../config/planConfig";
+import SummaryChip from "../components/SummaryChip";
+import type { PlanItem, PlanSummary } from "../types";
 
 function DeployButton({ onDeploy, disabled }: { onDeploy: () => void; disabled?: boolean }) {
   return (

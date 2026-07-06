@@ -1,20 +1,28 @@
-import { useState } from "react";
+import { useState, useEffect} from "react";
 import { Box, Typography } from "@mui/material";
 import { useAzureAccessPass } from "./hooks/useAccessPass";
 import Connector from "./components/Connector";
 import NavBar from "./components/NavBar";
 import AccessPassLogin from "./steps/AccessPassLogin";
 import AzureAccessPass from "./steps/AccessPass";
+import { logPageView } from "./monitor/telemetry";
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 export default function AccessPassApp() {
+  useEffect(() => {
+    try {
+      logPageView("AccessPassApp");
+    } catch {}
+  },[]);
+
   const azureAccessPass = useAzureAccessPass({
     githubAccount: null,
     githubRepo: "",
     validEnvs: [],
   });
 
+  
   const [loginExpanded, setLoginExpanded] = useState(true);
   const [accessPassExpanded, setAccessPassExpanded] = useState(true);
   const loginReady = !!azureAccessPass.azureAccount && !azureAccessPass.needsTenantId;

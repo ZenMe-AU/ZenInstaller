@@ -15,6 +15,7 @@ import {
   type Subscription,
 } from "../../access-pass-src/api/accessPassGraph";
 import type { Account, StageDefinition } from "../types";
+import { logEvent } from "../monitor/telemetry";
 
 export type StepStatus = "pending" | "running" | "done" | "skipped" | "error";
 export type SetupStep = { id: string; label: string; status: StepStatus; detail?: string };
@@ -369,7 +370,8 @@ export function useAzureAccessPass(props: {
     };
   }, [loadSubs]);
 
-  const login = useCallback(async () => {
+  const login = useCallback(async function btnLoginClicked() {
+    logEvent("btnLoginClicked", {parentId: "XXXXXXX"});
     setLoginError(null);
     setSubsError(null);
     setTenantIdError(null);

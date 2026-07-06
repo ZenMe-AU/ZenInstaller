@@ -3,6 +3,7 @@ import type { CardStatus } from "../types";
 import type { useAzureAccessPass } from "../hooks/useAccessPass";
 import StepWrapper from "../../access-pass-src/components/StepWrapper";
 import AccessPassLoginCard from "../cards/AccessPassLoginCard";
+import { logEvent } from "../monitor/telemetry";
 
 type Props = Pick<
   ReturnType<typeof useAzureAccessPass>,
@@ -33,7 +34,10 @@ export default function AccessPassLogin({ status, expanded, onToggle, disabled, 
       subtitle={subtitle}
       status={status}
       expanded={expanded}
-      onToggle={onToggle}
+      onToggle={() => {
+        logEvent("toggleAccessPassLoginCard", {parentId: "XXXXXXX"});
+        onToggle();
+      }}
       action={
         status === "complete" ? <CheckCircleOutlineIcon sx={{ fontSize: 16, color: "#16a34a" }} /> : null
       }

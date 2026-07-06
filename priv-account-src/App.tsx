@@ -31,7 +31,7 @@ export default function AccessPassApp() {
 
   return (
     <Box sx={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a", fontFamily: "'IBM Plex Sans', sans-serif" }}>
-      <NavBar title="Access Pass" siblingPage={{ label: "ZenInstaller", href: "/" }} />
+      <NavBar title="Privileged Account Access Management" siblingPage={{ label: "ZenInstaller", href: "/" }} />
 
       <Box sx={{ maxWidth: 860, mx: "auto", px: 4, py: 5 }}>
         <Box

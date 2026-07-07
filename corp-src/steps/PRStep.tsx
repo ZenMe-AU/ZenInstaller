@@ -1,7 +1,7 @@
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { Button } from "@mui/material";
-import type { CardStatus, GhEnv, PullRequest } from "../../access-pass-src/types";
-import StepWrapper from "../../corp-src/components/StepWrapper";
+import type { CardStatus, GhEnv, PullRequest } from "../types";
+import StepWrapper from "../components/StepWrapper";
 import PRCard from "../cards/PRCard";
 
 // ─── Props ────────────────────────────────────────────────────────────────────

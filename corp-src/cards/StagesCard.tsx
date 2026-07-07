@@ -17,12 +17,12 @@ import type {
   Stage,
   StageDefinition,
   UpsertStatus,
-} from "../../access-pass-src/types.ts";
-import { createVariable, fetchDeployLog, fetchPlan, updateVariable } from "../../access-pass-src/api/index.ts";
-import { computePlanSummary } from "../../corp-src/logic/plan.ts";
-import { getVariableDisplayName } from "../../corp-src/logic/variables.ts";
+} from "../types.ts";
+import { createVariable, fetchDeployLog, fetchPlan, updateVariable } from "../api";
+import { computePlanSummary } from "../logic/plan";
+import { getVariableDisplayName } from "../logic/variables";
 import PlanCard from "./PlanCard";
-import VariablesCard from "../../corp-src/components/VariablesCard.tsx";
+import VariablesCard from "../components/VariablesCard";
 
 // ─── Prerequisite helpers ─────────────────────────────────────────────────────
 

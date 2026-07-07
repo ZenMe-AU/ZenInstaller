@@ -4,10 +4,10 @@ import CheckIcon from "@mui/icons-material/Check";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import type { Account, GhEnv, UpsertStatus } from "../../access-pass-src/types";
-import { GITHUB_VARIABLE_KEYS } from "../../corp-src/logic/variables";
-import { createVariable, updateVariable } from "../../access-pass-src/api";
-import VariablesCard from "../../corp-src/components/VariablesCard";
+import type { Account, GhEnv, UpsertStatus } from "../types";
+import { GITHUB_VARIABLE_KEYS } from "../logic/variables";
+import { createVariable, updateVariable } from "../api";
+import VariablesCard from "../components/VariablesCard";
 
 const sectionLabelSx = {
   fontSize: "0.7rem",

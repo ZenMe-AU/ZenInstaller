@@ -12,7 +12,7 @@ import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import UndoIcon from "@mui/icons-material/Undo";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import type { UpsertStatus } from "../../access-pass-src/types";
+import type { UpsertStatus } from "../types";
 import { getVariableDisplayName } from "../logic/variables";
 
 // ─── Input style ──────────────────────────────────────────────────────────────

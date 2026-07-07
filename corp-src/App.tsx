@@ -1,22 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Box, Typography } from "@mui/material";
 
-import { type CardId, type CardStatus, type PendingRestore, type StageStatus } from "../access-pass-src/types";
+import { type CardId, type CardStatus, type PendingRestore, type StageStatus } from "./types";
 import { useActiveAuth as useAuth } from "./hooks/useActiveAuth";
 import { useAccountRepo } from "./hooks/useAccountRepo";
 import { useAzureSetup } from "./hooks/useAzureSetup";
 import { useAwsSetup } from "./hooks/useAwsSetup";
-import { useAzureAccessPass } from "../access-pass-src/hooks/useAzureAccessPass";
+//import { useAzureAccessPass } from "./hooks/useAzureAccessPass";
 import { useDeploymentPlan } from "./hooks/useDeploymentPlan";
 import { useEnv } from "./hooks/useEnv";
 import { usePR } from "./hooks/usePR";
 import { useUrlRestore } from "./hooks/useUrlRestore";
-import { getEffectiveStatus, stageToCardStatus, hasVariableDiff } from "../corp-src/logic/stage";
+import { getEffectiveStatus, stageToCardStatus, hasVariableDiff } from "./logic/stage";
 
-import Connector from "../access-pass-src/components/Connector";
-import NavBar from "../access-pass-src/components/NavBar";
-import RestoreToast from "../corp-src/components/RestoreToast";
-import SessionOverlay from "../corp-src/components/SessionOverlay";
+import Connector from "./components/Connector";
+import NavBar from "./components/NavBar";
+import RestoreToast from "./components/RestoreToast";
+import SessionOverlay from "./components/SessionOverlay";
 import LoginStep from "./steps/LoginStep";
 import RepoStep from "./steps/RepoStep";
 import PRStep from "./steps/PRStep";
@@ -81,12 +81,12 @@ export default function AppDashboard() {
     repo: repo.selectedRepo?.name ?? "",
     validEnvs: repo.pipeline.validEnvs,
   });
-  const azureAccessPass = useAzureAccessPass({
-    githubAccount: repo.selectedAccount,
-    githubRepo: repo.selectedRepo?.name ?? "",
-    validEnvs: repo.pipeline.validEnvs,
-    stages: repo.pipeline.stages,
-  });
+  // const azureAccessPass = useAzureAccessPass({
+  //   githubAccount: repo.selectedAccount,
+  //   githubRepo: repo.selectedRepo?.name ?? "",
+  //   validEnvs: repo.pipeline.validEnvs,
+  //   stages: repo.pipeline.stages,
+  // });
 
   const plan = useDeploymentPlan({
     account: repo.selectedAccount,
@@ -107,7 +107,7 @@ export default function AppDashboard() {
     auth: true,
     repo: true,
     azure_setup: true,
-    azure_access_pass: true,
+    // azure_access_pass: true,
     aws_setup: true,
     pr: true,
     env: true,
@@ -147,7 +147,7 @@ export default function AppDashboard() {
       !azureSetupDone ? "warning" :
       env.azureSecrets.valid === false ? "error" :
       "complete", // filled in — validated (true) or not yet run (null) both count as complete
-    azure_access_pass: !isAuthed || !repo.isCloneRepo ? "idle" : azureAccessPass.result ? "complete" : "loading",
+    // azure_access_pass: !isAuthed || !repo.isCloneRepo ? "idle" : azureAccessPass.result ? "complete" : "loading",
     aws_setup:
       !isAuthed || !repo.isCloneRepo || !env.selectedEnv ? "idle" :
       !awsSetupDone ? "warning" :

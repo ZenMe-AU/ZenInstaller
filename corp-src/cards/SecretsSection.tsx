@@ -3,11 +3,11 @@ import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import type { Account, GhEnv, PendingSecret, SecretsStatus, UpsertStatus } from "../../access-pass-src/types";
-import { AZURE_SECRET_KEYS, AWS_SECRET_KEYS } from "../../corp-src/logic/variables";
-import { fetchPublicKey, upsertSecret } from "../../access-pass-src/api";
-import { encryptSecret } from "../../corp-src/logic/crypto";
-import SecretsCard from "../../corp-src/components/SecretsCard";
+import type { Account, GhEnv, PendingSecret, SecretsStatus, UpsertStatus } from "../types";
+import { AZURE_SECRET_KEYS, AWS_SECRET_KEYS } from "../logic/variables";
+import { fetchPublicKey, upsertSecret } from "../api";
+import { encryptSecret } from "../logic/crypto";
+import SecretsCard from "../components/SecretsCard";
 
 const sectionLabelSx = {
   fontSize: "0.7rem",

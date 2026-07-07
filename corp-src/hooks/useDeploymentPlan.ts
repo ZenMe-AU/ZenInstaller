@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { deployChangeset, fetchRuns, fetchStatus, getPlanEnv, triggerWorkflow, triggerWorkflowFromPR } from "../../access-pass-src/api";
-import { isPlanStale } from "../../corp-src/logic/stage";
-import type { Account, Branch, CardStatus, GhEnv, PipelineConfig, PlanSummary, PullRequest, Stage, StageDefinition } from "../../access-pass-src/types";
+import { deployChangeset, fetchRuns, fetchStatus, getPlanEnv, triggerWorkflow, triggerWorkflowFromPR } from "../api";
+import { isPlanStale } from "../logic/stage";
+import type { Account, Branch, CardStatus, GhEnv, PipelineConfig, PlanSummary, PullRequest, Stage, StageDefinition } from "../types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

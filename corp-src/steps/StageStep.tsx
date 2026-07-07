@@ -1,8 +1,8 @@
 import { Box, Button } from "@mui/material";
-import type { Account, CardId, CardStatus, GhEnv, PlanSummary, Stage, StageDefinition, StageStatus } from "../../access-pass-src/types";
-import { isNoChanges } from "../../corp-src/logic/stage";
-import SummaryChip from "../../corp-src/components/SummaryChip";
-import StepWrapper from "../../corp-src/components/StepWrapper";
+import type { Account, CardId, CardStatus, GhEnv, PlanSummary, Stage, StageDefinition, StageStatus } from "../types";
+import { isNoChanges } from "../logic/stage";
+import SummaryChip from "../components/SummaryChip";
+import StepWrapper from "../components/StepWrapper";
 import { StageItem } from "../cards/StagesCard";
 
 type Props = {

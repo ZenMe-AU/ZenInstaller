@@ -10,7 +10,7 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import PersonIcon from "@mui/icons-material/Person";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import type { Account, Repo, RepoOption } from "../../access-pass-src/types";
+import type { Account, Repo, RepoOption } from "../types";
 
 // ─── Template status badge ────────────────────────────────────────────────────
 

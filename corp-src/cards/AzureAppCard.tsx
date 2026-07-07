@@ -6,11 +6,11 @@ import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import type { Account, GhEnv } from "../../access-pass-src/types";
+import type { Account, GhEnv } from "../types";
 import type { useAzureSetup } from "../hooks/useAzureSetup";
 import type { SetupStep } from "../hooks/useAzureSetup";
-import { AZURE_VARIABLE_KEYS } from "../../corp-src/logic/variables";
-import { CLOUD_DOCS } from "../../access-pass-src/config/docsConfig";
+import { AZURE_VARIABLE_KEYS } from "../logic/variables";
+import { CLOUD_DOCS } from "../config/docsConfig";
 import VariableEditor from "./VariableEditor";
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };

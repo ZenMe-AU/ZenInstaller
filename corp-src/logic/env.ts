@@ -1,4 +1,4 @@
-import type { Branch, GhEnv } from "../../access-pass-src/types";
+import type { Branch, GhEnv } from "../types";
 
 export function isValidEnvName(name: string, validEnvs: readonly string[]): boolean {
   return validEnvs.some((v) => v.toLowerCase() === name.toLowerCase());

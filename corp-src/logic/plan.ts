@@ -1,4 +1,4 @@
-import type { ActionType, PlanItem, PlanSummary } from "../../access-pass-src/types";
+import type { ActionType, PlanItem, PlanSummary } from "../types";
 
 export function getActionType(actions: string[]): ActionType | null {
   if (actions.includes("delete") && actions.includes("create")) return "replace";

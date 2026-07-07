@@ -7,7 +7,7 @@ import type {
   PrerequisiteVarGroup,
   Stage,
   StageStatus,
-} from "../../access-pass-src/types";
+} from "../types";
 
 // ─── Pure domain functions for stage business logic ───────────────────────────
 

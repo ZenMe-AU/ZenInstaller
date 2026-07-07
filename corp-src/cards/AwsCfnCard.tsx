@@ -8,11 +8,11 @@ import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import type { Account, GhEnv } from "../../access-pass-src/types";
+import type { Account, GhEnv } from "../types";
 import type { useAwsSetup, SetupStep } from "../hooks/useAwsSetup";
-import { AWS_VARIABLE_KEYS } from "../../corp-src/logic/variables";
-import { CLOUD_DOCS } from "../../access-pass-src/config/docsConfig";
-import VariableEditor from "../cards/VariableEditor";
+import { AWS_VARIABLE_KEYS } from "../logic/variables";
+import { CLOUD_DOCS } from "../config/docsConfig";
+import VariableEditor from "./VariableEditor";
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 const labelSx = { fontSize: "0.68rem", color: "#94a3b8", textTransform: "uppercase" as const, letterSpacing: "0.08em", ...mono };

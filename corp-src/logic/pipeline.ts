@@ -1,5 +1,5 @@
-import type { PipelineConfig } from "../../access-pass-src/types";
-import { GRAPH_PERMISSIONS } from "../../access-pass-src/config/azureConfig";
+import type { PipelineConfig } from "../types";
+import { GRAPH_PERMISSIONS } from "../config/azureConfig";
 import { AZURE_VARIABLE_KEYS, AWS_VARIABLE_KEYS, C01_KEYS } from "./variables";
 
 export const PIPELINES: Record<string, PipelineConfig> = {

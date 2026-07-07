@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { fetchEnvs, fetchSecrets, fetchVariables } from "../../access-pass-src/api";
-import { AZURE_SECRET_KEYS, AWS_SECRET_KEYS } from "../../corp-src/logic/variables";
+import { fetchEnvs, fetchSecrets, fetchVariables } from "../api";
+import { AZURE_SECRET_KEYS, AWS_SECRET_KEYS } from "../logic/variables";
 import {
   type Account,
   type Branch,
@@ -10,8 +10,8 @@ import {
   type PullRequest,
   type RepoOption,
   type SecretsStatus,
-} from "../../access-pass-src/types";
-import { matchBranch, matchEnv } from "../../corp-src/logic/env";
+} from "../types";
+import { matchBranch, matchEnv } from "../logic/env";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

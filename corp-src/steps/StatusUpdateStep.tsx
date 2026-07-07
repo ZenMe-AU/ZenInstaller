@@ -1,5 +1,5 @@
-import type { CardStatus } from "../../access-pass-src/types";
-import StepWrapper from "../../corp-src/components/StepWrapper";
+import type { CardStatus } from "../types";
+import StepWrapper from "../components/StepWrapper";
 import StatusCard from "../cards/StatusCard";
 
 type Props = {

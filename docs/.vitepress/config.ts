@@ -10,6 +10,10 @@ export default defineConfig({
       {
         items: [
           {
+            text: "Create GitHub OAuth App",
+            link: "/Create_GitHub_OAuth_App",
+          },
+          {
             text: "Creating AZURE account",
             link: "/Creating_AZURE_account",
           },

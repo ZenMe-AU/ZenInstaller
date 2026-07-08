@@ -1,10 +1,10 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import '../corp-src/index.css'
-import AccessPassApp from './AccessPassApp.tsx'
+import './index.css'
+import App from './App.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AccessPassApp />
+    <App />
   </StrictMode>,
 )

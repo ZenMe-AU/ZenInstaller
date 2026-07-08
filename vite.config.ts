@@ -10,6 +10,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, "index.html"),
         accessPass: resolve(__dirname, "accessPass.html"),
+        privAccount: resolve(__dirname, "privAccount.html"),
       },
     },
   },

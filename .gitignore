@@ -36,3 +36,4 @@ deploy/.env
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+/playwright-tests/.auth/

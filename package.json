@@ -30,7 +30,8 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
-      "azure-functions-core-tools"
+      "azure-functions-core-tools",
+      "esbuild"
     ]
   },
   "devDependencies": {

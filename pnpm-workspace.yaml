@@ -1,3 +1,7 @@
 packages:
   - backend
   - deploy
+
+onlyBuiltDependencies:
+  - esbuild
+  - azure-functions-core-tools

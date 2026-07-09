@@ -30,6 +30,7 @@ export type AzureSetupResult = {
 const SESSION_KEY = "zeninstaller_arm_tenant_access";
 const RESULT_KEY = "zeninstaller_azure_access_result";
 const AZURE_SETUP_RESULT_KEY = "zeninstaller_azure_result";
+const LOGIN_INTENT_KEY = "zeninstaller_access_pass_login_intent";
 
 function saveResult(r: AzureSetupResult | null) {
   if (r) localStorage.setItem(RESULT_KEY, JSON.stringify(r));
@@ -340,6 +341,13 @@ export function useAzureAccessPass(props: {
         if (result?.account) {
           console.log("MSAL accounts on init:", msal.getAllAccounts());
           setAzureAccount(result.account);
+          if (sessionStorage.getItem(LOGIN_INTENT_KEY) === "1") {
+            logEvent("accessPassLoginSucceeded", {
+              username: result.account.username,
+              tenantId: result.account.tenantId,
+            });
+            sessionStorage.removeItem(LOGIN_INTENT_KEY);
+          }
           const tenant = savedTenant ?? msaTenant(result.account);
           if (tenant) setManualTenantId(tenant);
           await tryLoadSubs(result.account, tenant);
@@ -353,6 +361,13 @@ export function useAzureAccessPass(props: {
               accounts.find((a) => a.tenantId !== MSA_TENANT) ??
               accounts[0];
             setAzureAccount(account);
+            if (sessionStorage.getItem(LOGIN_INTENT_KEY) === "1") {
+              logEvent("accessPassLoginSucceeded", {
+                username: account.username,
+                tenantId: account.tenantId,
+              });
+              sessionStorage.removeItem(LOGIN_INTENT_KEY);
+            }
             const tenant = savedTenant ?? msaTenant(account) ?? preferredTid;
             if (tenant) setManualTenantId(tenant);
             await tryLoadSubs(account, tenant);
@@ -380,6 +395,7 @@ export function useAzureAccessPass(props: {
       if (!msal) return;
       const setupTenant = loadTenantIdFromStorage(AZURE_SETUP_RESULT_KEY);
       const preferredTenant = manualTenantId.trim() || loadResult()?.tenantId || setupTenant;
+      sessionStorage.setItem(LOGIN_INTENT_KEY, "1");
       await msal.loginRedirect({
         scopes: GRAPH_SCOPES,
         authority: preferredTenant ? `https://login.microsoftonline.com/${preferredTenant}` : "https://login.microsoftonline.com/common",
@@ -505,6 +521,10 @@ export function useAzureAccessPass(props: {
     try {
       updateStep("removeMethods", "running");
       const removedMethods = await removeNonPasswordAuthenticationMethods(tenantScopedAccount, targetUserId, effectiveTenantId);
+      logEvent("accessPassAuthenticationMethodsDeleted", {
+        targetUserId,
+        removedMethods,
+      });
       updateStep(
         "removeMethods",
         "done",
@@ -517,11 +537,18 @@ export function useAzureAccessPass(props: {
       updateStep("rotatePassword", "running");
       const randomizedPassword = generateRandomPassword(30);
       await resetUserPassword(tenantScopedAccount, targetUserId, randomizedPassword, effectiveTenantId);
+      logEvent("accessPassPasswordReset", {
+        targetUserId,
+      });
       updateStep("rotatePassword", "done", "Password randomized to a new 30-character value");
 
       currentStepId = "tap";
       updateStep("tap", "running");
       const tap = await createTemporaryAccessPassForUser(tenantScopedAccount, targetUserId, effectiveTenantId);
+      logEvent("accessPassTemporaryAccessPassCreated", {
+        targetUserId,
+        tapMethodId: tap.id,
+      });
       updateStep("tap", "done", "Temporary Access Pass created");
 
       const r = {
@@ -535,6 +562,11 @@ export function useAzureAccessPass(props: {
       saveResult(r);
       return r;
     } catch (err) {
+      logEvent("accessPassWorkflowStepFailed", {
+        targetUserId,
+        stepId: currentStepId,
+        message: err instanceof Error ? err.message : String(err),
+      });
       updateStep(currentStepId, "error", toTapErrorMessage(err));
       return null;
     } finally {

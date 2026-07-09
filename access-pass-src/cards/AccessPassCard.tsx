@@ -163,6 +163,9 @@ export default function AzureAccessPassCard({
   }, [deliveryConfirmedByUserId]);
 
   const handleCreateForUser = async (userId: string) => {
+    logEvent("accessPassCreateButtonClicked", {
+      targetUserId: userId,
+    });
     setConfirmationUserId(null);
     setPhotoIdConfirmed(false);
     setDeliveryConfirmedByUserId((prev) => ({ ...prev, [userId]: false }));
@@ -424,12 +427,14 @@ export default function AzureAccessPassCard({
                                       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                                         <input
                                           type="checkbox"
+                                          data-id="chkDeliveryConfirm"
+                                          data-upn={user.userPrincipalName}
                                           checked={isDeliveryConfirmed}
                                           onChange={(e) => {
                                             const checked = e.target.checked;
                                             setDeliveryConfirmedByUserId((prev) => ({ ...prev, [user.id]: checked }));
-                                            logEvent("accessPassDeliveryCheckboxToggled", {
-                                              targetUserId: user.id,
+                                            logEvent("chkDeliveryConfirmClicked", {
+                                              targetUpn: user.userPrincipalName,
                                               checked,
                                             });
                                             if (!checked) {
@@ -445,9 +450,15 @@ export default function AzureAccessPassCard({
                                       <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
                                         <Button
                                           size="small"
+                                          data-id="btnMarkComplete"
+                                          data-upn={user.userPrincipalName}
                                           variant="contained"
                                           onClick={() => {
                                             if (!isDeliveryConfirmed) return;
+                                            logEvent("btnMarkCompleteClicked", {
+                                              targetUserId: user.id,
+                                              deliveryConfirmed: isDeliveryConfirmed,
+                                            });
                                             setCompletedByUserId((prev) => ({ ...prev, [user.id]: true }));
                                           }}
                                           disabled={!isDeliveryConfirmed}

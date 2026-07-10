@@ -5,9 +5,40 @@ import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import type { useAzureAccessPass, SetupStep } from "../hooks/useAccessPass";
+import { logEvent } from "../monitor/telemetry";
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 const labelSx = { fontSize: "0.68rem", color: "#94a3b8", textTransform: "uppercase" as const, letterSpacing: "0.08em", ...mono };
+const COMPLETED_USERS_KEY = "zeninstaller_access_pass_completed_users";
+const DELIVERY_CONFIRMED_USERS_KEY = "zeninstaller_access_pass_delivery_confirmed_users";
+
+function loadCompletedByUserId(): Record<string, boolean> {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(COMPLETED_USERS_KEY) ?? "{}");
+    if (!parsed || typeof parsed !== "object") return {};
+    return Object.fromEntries(Object.entries(parsed).map(([k, v]) => [k, !!v]));
+  } catch {
+    return {};
+  }
+}
+
+function saveCompletedByUserId(value: Record<string, boolean>) {
+  localStorage.setItem(COMPLETED_USERS_KEY, JSON.stringify(value));
+}
+
+function loadDeliveryConfirmedByUserId(): Record<string, boolean> {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(DELIVERY_CONFIRMED_USERS_KEY) ?? "{}");
+    if (!parsed || typeof parsed !== "object") return {};
+    return Object.fromEntries(Object.entries(parsed).map(([k, v]) => [k, !!v]));
+  } catch {
+    return {};
+  }
+}
+
+function saveDeliveryConfirmedByUserId(value: Record<string, boolean>) {
+  localStorage.setItem(DELIVERY_CONFIRMED_USERS_KEY, JSON.stringify(value));
+}
 
 function StepRow({ step }: { step: SetupStep }) {
   const icon =
@@ -86,7 +117,11 @@ export default function AzureAccessPassCard({
 }: Props) {
   const PAGE_SIZE = 200;
   const [creatingUserId, setCreatingUserId] = useState<string | null>(null);
+  const [confirmationUserId, setConfirmationUserId] = useState<string | null>(null);
+  const [photoIdConfirmed, setPhotoIdConfirmed] = useState(false);
   const [passValuesByUserId, setPassValuesByUserId] = useState<Record<string, string>>({});
+  const [deliveryConfirmedByUserId, setDeliveryConfirmedByUserId] = useState<Record<string, boolean>>(loadDeliveryConfirmedByUserId);
+  const [completedByUserId, setCompletedByUserId] = useState<Record<string, boolean>>(loadCompletedByUserId);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageInput, setPageInput] = useState("1");
 
@@ -119,7 +154,22 @@ export default function AzureAccessPassCard({
     setPassValuesByUserId((prev) => ({ ...prev, [result.targetUserId!]: result.accessPassValue }));
   }, [result]);
 
+  useEffect(() => {
+    saveCompletedByUserId(completedByUserId);
+  }, [completedByUserId]);
+
+  useEffect(() => {
+    saveDeliveryConfirmedByUserId(deliveryConfirmedByUserId);
+  }, [deliveryConfirmedByUserId]);
+
   const handleCreateForUser = async (userId: string) => {
+    logEvent("accessPassCreateButtonClicked", {
+      targetUserId: userId,
+    });
+    setConfirmationUserId(null);
+    setPhotoIdConfirmed(false);
+    setDeliveryConfirmedByUserId((prev) => ({ ...prev, [userId]: false }));
+    setCompletedByUserId((prev) => ({ ...prev, [userId]: false }));
     setCreatingUserId(userId);
     try {
       const created = await runForUser(userId);
@@ -203,41 +253,138 @@ export default function AzureAccessPassCard({
                           const isCurrentResult = result?.targetUserId === user.id;
                           const isCreatingThisUser = creatingUserId === user.id && running;
                           const savedPass = passValuesByUserId[user.id];
+                          const isCompletedUser = !!completedByUserId[user.id];
+                          const isDeliveryConfirmed = !!deliveryConfirmedByUserId[user.id];
+                          const rowHighlightSx = isCompletedUser ? { background: "#dbeafe" } : isCurrentResult ? { background: "#f0fdf4" } : undefined;
+                          const showingConfirmationForUser = confirmationUserId === user.id && !running;
                           const showingInlineStepsForUser = showingSelectedUserSteps && statusUserId === user.id;
                           return (
                             <Fragment key={user.id}>
-                              <TableRow sx={isCurrentResult ? { background: "#f0fdf4" } : undefined}>
-                                <TableCell sx={{ ...mono, fontSize: "0.76rem", color: "#334155", ...(savedPass || showingInlineStepsForUser ? { borderBottom: "none" } : {}) }}>
+                              <TableRow sx={rowHighlightSx}>
+                                <TableCell
+                                  sx={{
+                                    ...mono,
+                                    fontSize: "0.76rem",
+                                    color: "#334155",
+                                    ...(savedPass || showingInlineStepsForUser || showingConfirmationForUser ? { borderBottom: "none" } : {}),
+                                  }}
+                                >
                                   {user.displayName}
                                 </TableCell>
-                                <TableCell sx={{ ...mono, fontSize: "0.72rem", color: "#64748b", ...(savedPass || showingInlineStepsForUser ? { borderBottom: "none" } : {}) }}>
+                                <TableCell
+                                  sx={{
+                                    ...mono,
+                                    fontSize: "0.72rem",
+                                    color: "#64748b",
+                                    ...(savedPass || showingInlineStepsForUser || showingConfirmationForUser ? { borderBottom: "none" } : {}),
+                                  }}
+                                >
                                   {user.userPrincipalName || "-"}
                                 </TableCell>
-                                <TableCell align="right" sx={savedPass || showingInlineStepsForUser ? { borderBottom: "none" } : undefined}>
-                                  <Button
-                                    size="small"
-                                    variant="contained"
-                                    onClick={() => {
-                                      void handleCreateForUser(user.id);
-                                    }}
-                                    disabled={disabled || running}
-                                    sx={{
-                                      textTransform: "none",
-                                      ...mono,
-                                      fontSize: "0.72rem",
-                                      py: 0.35,
-                                      px: 1.2,
-                                      background: isCurrentResult ? "#16a34a" : "#2563eb",
-                                      "&:hover": { background: isCurrentResult ? "#15803d" : "#1d4ed8" },
-                                      "&.Mui-disabled": { background: "#e2e8f0", color: "#94a3b8" },
-                                    }}
-                                  >
-                                    {isCreatingThisUser ? "Creating..." : savedPass ? "Create Again" : "Create Access Pass"}
-                                  </Button>
+                                <TableCell
+                                  align="right"
+                                  sx={savedPass || showingInlineStepsForUser || showingConfirmationForUser ? { borderBottom: "none" } : undefined}
+                                >
+                                  <Box sx={{ display: "flex", justifyContent: "flex-end", minHeight: 28 }}>
+                                    {!showingConfirmationForUser && (
+                                      <Button
+                                        size="small"
+                                        variant="contained"
+                                        onClick={() => {
+                                          if (confirmationUserId !== user.id) {
+                                            setConfirmationUserId(user.id);
+                                            setPhotoIdConfirmed(false);
+                                            return;
+                                          }
+                                          if (!photoIdConfirmed) return;
+                                          void handleCreateForUser(user.id);
+                                        }}
+                                        disabled={disabled || running || (showingConfirmationForUser && !photoIdConfirmed)}
+                                        sx={{
+                                          textTransform: "none",
+                                          ...mono,
+                                          fontSize: "0.72rem",
+                                          py: 0.35,
+                                          px: 1.2,
+                                          background: isCurrentResult ? "#16a34a" : "#2563eb",
+                                          "&:hover": { background: isCurrentResult ? "#15803d" : "#1d4ed8" },
+                                          "&.Mui-disabled": { background: "#e2e8f0", color: "#94a3b8" },
+                                        }}
+                                      >
+                                        {isCreatingThisUser ? "Creating..." : savedPass ? "Create Again" : "Create Access Pass"}
+                                      </Button>
+                                    )}
+                                  </Box>
                                 </TableCell>
                               </TableRow>
+                              {showingConfirmationForUser && (
+                                <TableRow sx={rowHighlightSx ?? { background: "inherit" }}>
+                                  <TableCell colSpan={3} sx={{ py: 0.75, px: 1.5, borderBottom: savedPass ? "none" : undefined }}>
+                                    <Box
+                                      sx={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: 0.75,
+                                        borderLeft: "2px solid #fbbf24",
+                                        pl: 1.25,
+                                      }}
+                                    >
+                                      <Typography sx={{ fontSize: "0.72rem", color: "#92400e", ...mono }}>
+                                        If you continue, all existing access for this user will be deleted and a 1 hour temorary access pass will be created.
+                                      </Typography>
+                                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                                        <input
+                                          type="checkbox"
+                                          checked={photoIdConfirmed}
+                                          onChange={(e) => {
+                                            const checked = e.target.checked;
+                                            setPhotoIdConfirmed(checked);
+                                            logEvent("accessPassPhotoIdCheckboxToggled", {
+                                              targetUserId: user.id,
+                                              checked,
+                                              parentId: "XXXXXXX",
+                                            });
+                                          }}
+                                          style={{ margin: 0, width: 14, height: 14 }}
+                                        />
+                                        <Typography sx={{ fontSize: "0.7rem", color: "#92400e", ...mono }}>
+                                          Confirm that you have viewed the photo ID and confirm it to be the person selected
+                                        </Typography>
+                                      </Box>
+                                      <Box sx={{ display: "flex", justifyContent: "flex-end", pt: 0.35 }}>
+                                        <Button
+                                          size="small"
+                                          variant="contained"
+                                          onClick={() => {
+                                            if (confirmationUserId !== user.id) {
+                                              setConfirmationUserId(user.id);
+                                              setPhotoIdConfirmed(false);
+                                              return;
+                                            }
+                                            if (!photoIdConfirmed) return;
+                                            void handleCreateForUser(user.id);
+                                          }}
+                                          disabled={disabled || running || !photoIdConfirmed}
+                                          sx={{
+                                            textTransform: "none",
+                                            ...mono,
+                                            fontSize: "0.72rem",
+                                            py: 0.35,
+                                            px: 1.2,
+                                            background: isCurrentResult ? "#16a34a" : "#2563eb",
+                                            "&:hover": { background: isCurrentResult ? "#15803d" : "#1d4ed8" },
+                                            "&.Mui-disabled": { background: "#e2e8f0", color: "#94a3b8" },
+                                          }}
+                                        >
+                                          {isCreatingThisUser ? "Creating..." : savedPass ? "Create Again" : "Create Access Pass"}
+                                        </Button>
+                                      </Box>
+                                    </Box>
+                                  </TableCell>
+                                </TableRow>
+                              )}
                               {showingInlineStepsForUser && (
-                                <TableRow sx={isCurrentResult ? { background: "#f0fdf4" } : { background: "inherit" }}>
+                                <TableRow sx={rowHighlightSx ?? { background: "inherit" }}>
                                   <TableCell colSpan={3} sx={{ py: 0.75, px: 1.5, borderBottom: savedPass ? "none" : undefined }}>
                                     <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, borderLeft: "2px solid #e2e8f0", pl: 1.25 }}>
                                       {hydratedSelectedUserSteps.map((s) => (
@@ -268,9 +415,70 @@ export default function AzureAccessPassCard({
                                 </TableRow>
                               )}
                               {savedPass && (
-                                <TableRow sx={isCurrentResult ? { background: "#f0fdf4" } : { background: "inherit" }}>
+                                <TableRow sx={rowHighlightSx ?? { background: "inherit" }}>
                                   <TableCell colSpan={3} sx={{ py: 0.5, px: 1.5 }}>
                                     <CopyRow label="ACCESS_PASS_PASSWORD_VALUE" value={savedPass} masked />
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                              {savedPass && (
+                                <TableRow sx={rowHighlightSx ?? { background: "inherit" }}>
+                                  <TableCell colSpan={3} sx={{ py: 0.75, px: 1.5 }}>
+                                    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.7, borderLeft: "2px solid #bfdbfe", pl: 1.25 }}>
+                                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                                        <input
+                                          type="checkbox"
+                                          data-id="chkDeliveryConfirm"
+                                          data-upn={user.userPrincipalName}
+                                          checked={isDeliveryConfirmed}
+                                          onChange={(e) => {
+                                            const checked = e.target.checked;
+                                            setDeliveryConfirmedByUserId((prev) => ({ ...prev, [user.id]: checked }));
+                                            logEvent("chkDeliveryConfirmClicked", {
+                                              targetUpn: user.userPrincipalName,
+                                              checked,
+                                              parentId: "XXXXXXX",
+                                            });
+                                            if (!checked) {
+                                              setCompletedByUserId((prev) => ({ ...prev, [user.id]: false }));
+                                            }
+                                          }}
+                                          style={{ margin: 0, width: 14, height: 14 }}
+                                        />
+                                        <Typography sx={{ fontSize: "0.7rem", color: "#1e3a8a", ...mono }}>
+                                          Confirm that you have given the temporary access pass to the person
+                                        </Typography>
+                                      </Box>
+                                      <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                                        <Button
+                                          size="small"
+                                          data-id="btnMarkComplete"
+                                          data-upn={user.userPrincipalName}
+                                          variant="contained"
+                                          onClick={() => {
+                                            if (!isDeliveryConfirmed) return;
+                                            logEvent("btnMarkCompleteClicked", {
+                                              targetUserId: user.id,
+                                              deliveryConfirmed: isDeliveryConfirmed,
+                                            });
+                                            setCompletedByUserId((prev) => ({ ...prev, [user.id]: true }));
+                                          }}
+                                          disabled={!isDeliveryConfirmed}
+                                          sx={{
+                                            textTransform: "none",
+                                            ...mono,
+                                            fontSize: "0.72rem",
+                                            py: 0.35,
+                                            px: 1.2,
+                                            background: isCompletedUser ? "#1d4ed8" : "#2563eb",
+                                            "&:hover": { background: isCompletedUser ? "#1e40af" : "#1d4ed8" },
+                                            "&.Mui-disabled": { background: "#e2e8f0", color: "#94a3b8" },
+                                          }}
+                                        >
+                                          {isCompletedUser ? "Completed" : "Mark Complete"}
+                                        </Button>
+                                      </Box>
+                                    </Box>
                                   </TableCell>
                                 </TableRow>
                               )}

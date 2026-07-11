@@ -4,15 +4,17 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import { useState } from "react";
 import type { RepoOption, User } from "../types";
 
+type SiblingPage = { label: string; href: string };
+
 type Props = {
   authLoading?: boolean;
   user?: User | null;
   selectedRepo?: RepoOption | null;
   title?: string;
-  siblingPage?: { label: string; href: string };
+  siblingPages?: SiblingPage[];
 };
 
-export default function NavBar({ authLoading = false, user = null, selectedRepo = null, title, siblingPage }: Props) {
+export default function NavBar({ authLoading = false, user = null, selectedRepo = null, title, siblingPages = [] }: Props) {
   const [copied, setCopied] = useState(false);
 
   return (
@@ -26,16 +28,17 @@ export default function NavBar({ authLoading = false, user = null, selectedRepo 
           ZB
         </Box>
         <Typography sx={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a", letterSpacing: "-0.01em" }}>
-          {title ?? "ZenInstaller Setup Central Corp Environment"}
+          {title ?? document.title}
         </Typography>
       </Box>
 
       <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-        {siblingPage && (
+        {siblingPages.map((page) => (
           <Button
+            key={page.href}
             size="small"
             component="a"
-            href={siblingPage.href}
+            href={page.href}
             sx={{
               fontSize: "0.72rem",
               textTransform: "none",
@@ -44,9 +47,9 @@ export default function NavBar({ authLoading = false, user = null, selectedRepo 
               "&:hover": { color: "#0f172a" },
             }}
           >
-            {siblingPage.label}
+            {page.label}
           </Button>
-        )}
+        ))}
         {authLoading ? (
           <CircularProgress size={16} sx={{ color: "#cbd5e1" }} />
         ) : user ? (

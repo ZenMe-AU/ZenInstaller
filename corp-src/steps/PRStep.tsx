@@ -4,6 +4,9 @@ import type { CardStatus, GhEnv, PullRequest } from "../types";
 import StepWrapper from "../components/StepWrapper";
 import PRCard from "../cards/PRCard";
 
+import { reactPlugin } from "../monitor/applicationInsights";
+import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 type Props = {
@@ -31,6 +34,7 @@ export default function PRStep({
   pullRequests, selectedPR, onSelectPR, loading, refreshFailed, onRefresh, envList, validEnvs, repoFullName,
 }: Props) {
   return (
+    <AppInsightsErrorBoundary onError={() => <p>Error: Unable to load component!</p>} appInsights={reactPlugin}>
     <StepWrapper
       title="Pull Request"
       subtitle={
@@ -72,5 +76,6 @@ export default function PRStep({
         validEnvs={validEnvs}
       />
     </StepWrapper>
+    </AppInsightsErrorBoundary>
   );
 }

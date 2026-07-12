@@ -5,6 +5,8 @@ import SummaryChip from "../components/SummaryChip";
 import StepWrapper from "../components/StepWrapper";
 import { StageItem } from "../cards/StagesCard";
 
+import { reactPlugin } from "../monitor/applicationInsights";
+import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";
 type Props = {
   status: CardStatus;
   expanded: boolean;
@@ -96,29 +98,31 @@ export default function StageStep({
     ) : undefined;
 
   return (
-    <StepWrapper
-      title={stageDef.label}
-      subtitle={subtitle}
-      status={status}
-      expanded={expanded}
-      onToggle={onToggle}
-      disabled={disabled}
-      action={action}
-    >
-      <StageItem
-        stageDef={stageDef}
-        stage={stage}
-        cardStatus={cardStatus}
-        variableValues={variableValues}
-        account={account}
-        repoName={repoName}
-        selectedEnv={selectedEnv}
-        onVariableConfirmed={onVariableConfirmed}
-        onDeploy={onDeploy}
-        stagesStale={deployDisabled}
-        deployedEnv={deployedEnv}
-        onPlanSummary={onPlanSummary}
-      />
-    </StepWrapper>
+    <AppInsightsErrorBoundary onError={() => <p>Error: Unable to load component!</p>} appInsights={reactPlugin}>
+      <StepWrapper
+        title={stageDef.label}
+        subtitle={subtitle}
+        status={status}
+        expanded={expanded}
+        onToggle={onToggle}
+        disabled={disabled}
+        action={action}
+      >
+        <StageItem
+          stageDef={stageDef}
+          stage={stage}
+          cardStatus={cardStatus}
+          variableValues={variableValues}
+          account={account}
+          repoName={repoName}
+          selectedEnv={selectedEnv}
+          onVariableConfirmed={onVariableConfirmed}
+          onDeploy={onDeploy}
+          stagesStale={deployDisabled}
+          deployedEnv={deployedEnv}
+          onPlanSummary={onPlanSummary}
+        />
+      </StepWrapper>
+    </AppInsightsErrorBoundary>
   );
 }

@@ -4,6 +4,9 @@ import type { Account, CardStatus, Repo, RepoOption } from "../types";
 import StepWrapper from "../components/StepWrapper";
 import RepoCard from "../cards/RepoCard";
 
+import { reactPlugin } from "../monitor/applicationInsights";
+import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";
+
 type Props = {
   // ── PipelineCard chrome ──────────────────────────────────────────────────
   status: CardStatus;
@@ -37,74 +40,95 @@ type Props = {
 };
 
 export default function RepoStep({
-  status, expanded, onToggle, disabled,
-  accounts, selectedAccount, onAccountChange,
-  repos, selectedRepo, onRepoChange,
-  templateStatus, templateName, defaultTemplateRepo,
-  isPrivate, onIsPrivateChange,
-  includeAllBranch, onIncludeAllBranchChange,
-  cloning, cloneError, onClone,
-  createEnvs, onCreateEnvsChange, cloneEnvWarning,
-  repoLoading, repoRefreshFailed, onRefresh, repoFullName,
+  status,
+  expanded,
+  onToggle,
+  disabled,
+  accounts,
+  selectedAccount,
+  onAccountChange,
+  repos,
+  selectedRepo,
+  onRepoChange,
+  templateStatus,
+  templateName,
+  defaultTemplateRepo,
+  isPrivate,
+  onIsPrivateChange,
+  includeAllBranch,
+  onIncludeAllBranchChange,
+  cloning,
+  cloneError,
+  onClone,
+  createEnvs,
+  onCreateEnvsChange,
+  cloneEnvWarning,
+  repoLoading,
+  repoRefreshFailed,
+  onRefresh,
+  repoFullName,
 }: Props) {
   const isNewRepo = selectedRepo?.isNew ?? false;
-  const subtitle = selectedAccount && selectedRepo && !isNewRepo
-    ? `${selectedAccount.login} / ${selectedRepo.name}`
-    : "Type the name of the target repository where the corp environment source code will be installed.";
+  const subtitle =
+    selectedAccount && selectedRepo && !isNewRepo
+      ? `${selectedAccount.login} / ${selectedRepo.name}`
+      : "Type the name of the target repository where the corp environment source code will be installed.";
 
   return (
-    <StepWrapper
-      title="Select Target Repository"
-      subtitle={subtitle}
-      status={status}
-      expanded={expanded}
-      onToggle={onToggle}
-      disabled={disabled}
-      action={
-        repoFullName ? (
-          <Button
-            size="small"
-            variant="outlined"
-            endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />}
-            onClick={() => window.open(`https://github.com/${repoFullName}`, "_blank")}
-            sx={{
-              borderColor: "#e2e8f0",
-              color: "#475569",
-              fontSize: "0.75rem",
-              textTransform: "none",
-              fontFamily: "'IBM Plex Mono', monospace",
-              "&:hover": { borderColor: "#cbd5e1", color: "#0f172a", background: "#f8fafc" },
-            }}
-          >
-            View on GitHub
-          </Button>
-        ) : undefined
-      }
-    >
-      <RepoCard
-        accounts={accounts}
-        selectedAccount={selectedAccount}
-        onAccountChange={onAccountChange}
-        repos={repos}
-        selectedRepo={selectedRepo}
-        onRepoChange={onRepoChange}
-        templateStatus={templateStatus}
-        templateName={templateName}
-        defaultTemplateRepo={defaultTemplateRepo}
-        isPrivate={isPrivate}
-        onIsPrivateChange={onIsPrivateChange}
-        includeAllBranch={includeAllBranch}
-        onIncludeAllBranchChange={onIncludeAllBranchChange}
-        cloning={cloning}
-        cloneError={cloneError}
-        onClone={onClone}
-        createEnvs={createEnvs}
-        onCreateEnvsChange={onCreateEnvsChange}
-        cloneEnvWarning={cloneEnvWarning}
-        repoLoading={repoLoading}
-        repoRefreshFailed={repoRefreshFailed}
-        onRefresh={onRefresh}
-      />
-    </StepWrapper>
+    <AppInsightsErrorBoundary onError={() => <p>Error: Unable to load component!</p>} appInsights={reactPlugin}>
+      <StepWrapper
+        title="Select Target Repository"
+        subtitle={subtitle}
+        status={status}
+        expanded={expanded}
+        onToggle={onToggle}
+        disabled={disabled}
+        action={
+          repoFullName ? (
+            <Button
+              size="small"
+              variant="outlined"
+              endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />}
+              onClick={() => window.open(`https://github.com/${repoFullName}`, "_blank")}
+              sx={{
+                borderColor: "#e2e8f0",
+                color: "#475569",
+                fontSize: "0.75rem",
+                textTransform: "none",
+                fontFamily: "'IBM Plex Mono', monospace",
+                "&:hover": { borderColor: "#cbd5e1", color: "#0f172a", background: "#f8fafc" },
+              }}
+            >
+              View on GitHub
+            </Button>
+          ) : undefined
+        }
+      >
+        <RepoCard
+          accounts={accounts}
+          selectedAccount={selectedAccount}
+          onAccountChange={onAccountChange}
+          repos={repos}
+          selectedRepo={selectedRepo}
+          onRepoChange={onRepoChange}
+          templateStatus={templateStatus}
+          templateName={templateName}
+          defaultTemplateRepo={defaultTemplateRepo}
+          isPrivate={isPrivate}
+          onIsPrivateChange={onIsPrivateChange}
+          includeAllBranch={includeAllBranch}
+          onIncludeAllBranchChange={onIncludeAllBranchChange}
+          cloning={cloning}
+          cloneError={cloneError}
+          onClone={onClone}
+          createEnvs={createEnvs}
+          onCreateEnvsChange={onCreateEnvsChange}
+          cloneEnvWarning={cloneEnvWarning}
+          repoLoading={repoLoading}
+          repoRefreshFailed={repoRefreshFailed}
+          onRefresh={onRefresh}
+        />
+      </StepWrapper>
+    </AppInsightsErrorBoundary>
   );
 }

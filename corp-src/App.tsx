@@ -26,9 +26,12 @@ import StageStep from "./steps/StageStep";
 import AzureSetupStep from "./steps/AzureSetupStep";
 import AwsSetupStep from "./steps/AwsSetupStep";
 
+import { withAITracking } from "@microsoft/applicationinsights-react-js";
+import { reactPlugin } from "./monitor/applicationInsights";
+
 // ─── App ──────────────────────────────────────────────────────────────────────
 
-export default function AppDashboard() {
+function AppDashboard() {
   // ── Hooks ──────────────────────────────────────────────────────────────────
   const restore = useUrlRestore();
   const auth = useAuth();
@@ -107,7 +110,6 @@ export default function AppDashboard() {
     auth: true,
     repo: true,
     azure_setup: true,
-    // azure_access_pass: true,
     aws_setup: true,
     pr: true,
     env: true,
@@ -143,16 +145,16 @@ export default function AppDashboard() {
     env: effectiveEnvStatus,
     status_update: effectiveStatusUpdateStatus,
     azure_setup:
-      !isAuthed || !repo.isCloneRepo || !env.selectedEnv ? "idle" :
-      !azureSetupDone ? "warning" :
-      env.azureSecrets.valid === false ? "error" :
-      "complete", // filled in — validated (true) or not yet run (null) both count as complete
+      !isAuthed || !repo.isCloneRepo || !env.selectedEnv
+        ? "idle"
+        : !azureSetupDone
+          ? "warning"
+          : env.azureSecrets.valid === false
+            ? "error"
+            : "complete", // filled in — validated (true) or not yet run (null) both count as complete
     // azure_access_pass: !isAuthed || !repo.isCloneRepo ? "idle" : azureAccessPass.result ? "complete" : "loading",
     aws_setup:
-      !isAuthed || !repo.isCloneRepo || !env.selectedEnv ? "idle" :
-      !awsSetupDone ? "warning" :
-      env.awsSecrets.valid === false ? "error" :
-      "complete", // filled in — validated (true) or not yet run (null) both count as complete
+      !isAuthed || !repo.isCloneRepo || !env.selectedEnv ? "idle" : !awsSetupDone ? "warning" : env.awsSecrets.valid === false ? "error" : "complete", // filled in — validated (true) or not yet run (null) both count as complete
     stages: isAuthed && plan.hasPlan ? (plan.stages.some((s) => s.status === "failed") ? "warning" : "complete") : "idle",
   };
 
@@ -442,3 +444,5 @@ export default function AppDashboard() {
     </>
   );
 }
+
+export default withAITracking(reactPlugin, AppDashboard, "corpInstaller");

@@ -6,7 +6,6 @@ import { useActiveAuth as useAuth } from "./hooks/useActiveAuth";
 import { useAccountRepo } from "./hooks/useAccountRepo";
 import { useAzureSetup } from "./hooks/useAzureSetup";
 import { useAwsSetup } from "./hooks/useAwsSetup";
-//import { useAzureAccessPass } from "./hooks/useAzureAccessPass";
 import { useDeploymentPlan } from "./hooks/useDeploymentPlan";
 import { useEnv } from "./hooks/useEnv";
 import { usePR } from "./hooks/usePR";
@@ -84,12 +83,6 @@ function AppDashboard() {
     repo: repo.selectedRepo?.name ?? "",
     validEnvs: repo.pipeline.validEnvs,
   });
-  // const azureAccessPass = useAzureAccessPass({
-  //   githubAccount: repo.selectedAccount,
-  //   githubRepo: repo.selectedRepo?.name ?? "",
-  //   validEnvs: repo.pipeline.validEnvs,
-  //   stages: repo.pipeline.stages,
-  // });
 
   const plan = useDeploymentPlan({
     account: repo.selectedAccount,
@@ -152,7 +145,6 @@ function AppDashboard() {
           : env.azureSecrets.valid === false
             ? "error"
             : "complete", // filled in — validated (true) or not yet run (null) both count as complete
-    // azure_access_pass: !isAuthed || !repo.isCloneRepo ? "idle" : azureAccessPass.result ? "complete" : "loading",
     aws_setup:
       !isAuthed || !repo.isCloneRepo || !env.selectedEnv ? "idle" : !awsSetupDone ? "warning" : env.awsSecrets.valid === false ? "error" : "complete", // filled in — validated (true) or not yet run (null) both count as complete
     stages: isAuthed && plan.hasPlan ? (plan.stages.some((s) => s.status === "failed") ? "warning" : "complete") : "idle",

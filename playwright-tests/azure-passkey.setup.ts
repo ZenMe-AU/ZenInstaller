@@ -1,3 +1,6 @@
+// run this from workspace root
+// pnpm exec playwright test azure-passkey.setup.ts --headed 
+
 import { expect, test as setup } from "@playwright/test";
 import fs from "fs";
 import {

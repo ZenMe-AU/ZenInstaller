@@ -12,7 +12,17 @@ export default defineConfig({
   timeout: 60_000,
   expect: {
     timeout: 10_000,
+
+      toHaveScreenshot: {
+      animations: "disabled",
+      caret: "hide",
+      scale: "css",
+      maxDiffPixelRatio: 0.02,
+    },
   },
+
+  snapshotPathTemplate:
+    "playwright-tests/snapshots/{testName}/{arg}{ext}",
 
   use: {
     baseURL: "http://localhost:5173",

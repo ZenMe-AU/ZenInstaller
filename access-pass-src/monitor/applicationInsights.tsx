@@ -6,9 +6,9 @@
 import { ApplicationInsights } from "@microsoft/applicationinsights-web";
 import { ReactPlugin } from "@microsoft/applicationinsights-react-js";
 import { ClickAnalyticsPlugin } from "@microsoft/applicationinsights-clickanalytics-js";
-// import { getConfig } from "../config/loadConfig";
-// TODO: inject runtime configuration instead of hardcoding
-// const appInsightsConnectionString = getConfig("APPINSIGHTS_CONNECTION_STRING") || "";
+
+const appInsightsConnectionString =
+  import.meta.env.VITE_APPINSIGHTS_CONNECTION_STRING || "";
 
 const reactPlugin = new ReactPlugin();
 
@@ -20,7 +20,7 @@ const clickPluginConfig = {
 };
 const appInsights = new ApplicationInsights({
   config: {
-    connectionString: "InstrumentationKey=42e2815d-f1e9-4805-ac5a-332472e5c83f;IngestionEndpoint=https://australiaeast-1.in.applicationinsights.azure.com/;LiveEndpoint=https://australiaeast.livediagnostics.monitor.azure.com/;ApplicationId=64e04c6e-9645-41f2-87ae-eb7e28105f76",
+    connectionString: appInsightsConnectionString,
     // enableAutoRouteTracking: true,
     // disableFetchTracking: false,
     // enableRequestHeaderTracking: true,

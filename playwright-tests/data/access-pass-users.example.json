@@ -1,0 +1,18 @@
+[
+  {
+    "id": "brandedkeys-admin",
+    "email": "Name.A.LastName@brandedkeys.com",
+    "expectedPostLoginText": "Select Entra user",
+    "tenantId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "targetEntraUserEmail": "test.user@brandedkeys.com",
+    "canCreateAccessPass": false
+  },
+  {
+    "id": "entra-manager",
+    "email": "manager@brandedkeys.com",
+    "expectedPostLoginText": "Select Entra user",
+    "tenantId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "targetEntraUserEmail": "test.user@brandedkeys.com",
+    "canCreateAccessPass": true
+  }
+]

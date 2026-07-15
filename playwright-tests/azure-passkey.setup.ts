@@ -24,8 +24,16 @@ import {
 } from "./accessPassUsers";
 
 const ACCESS_PASS_URL = "http://localhost:5173/accessPass.html";
-const users = loadAccessPassUsers();
-setup.describe.configure({mode: "serial",});
+
+const allUsers = loadAccessPassUsers();
+const requestedUserId = process.env.ACCESS_PASS_AUTH_USER?.trim();
+const users = requestedUserId ? allUsers.filter((user) => user.id === requestedUserId,): allUsers;
+
+if (requestedUserId && users.length === 0) {
+  throw new Error(
+    `ACCESS_PASS_AUTH_USER="${requestedUserId}" was not found in access-pass-users.local.json`,
+  );
+}
 
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

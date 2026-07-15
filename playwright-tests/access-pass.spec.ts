@@ -1,7 +1,7 @@
 import { test, expect, type Browser, type Page, type TestInfo, type Locator } from "@playwright/test";
 import {restoreSessionStorage,} from "./authState";
 import fs from "fs";
-import type { AccessPassUser } from "./accessPassUsers";
+import type { AccessPassUser, EntraTargetUser } from "./accessPassUsers";
 import {
   getAccessPassUserAuth,
   loadAccessPassUsers,
@@ -18,11 +18,21 @@ const viewports = {
   // Tablet: { width: 768, height: 1024 },
 } as const;
 
+type ViewportSize =
+  (typeof viewports)[keyof typeof viewports];
+
 function sensitiveTextMasks(page: Page): Locator[] {
   return [
     page.getByTestId("txtAzureUsername"),
     page.getByText(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i),
   ];
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(
+    /[.*+?^${}()|[\]\\]/g,
+    "\\$&",
+  );
 }
 
 async function expectPageSnapshot(
@@ -67,15 +77,13 @@ async function expectPageSnapshot(
 async function openAuthenticatedAccessPassPage(
   browser: Browser,
   user: AccessPassUser,
+  viewport: ViewportSize,
 ) {
   const auth = getAccessPassUserAuth(user);
 
   const context = await browser.newContext({
     storageState: auth.storageStateFile,
-    viewport: {
-      width: 1920,
-      height: 1080,
-    },
+    viewport,
     deviceScaleFactor: 1,
   });
 
@@ -83,7 +91,7 @@ async function openAuthenticatedAccessPassPage(
 
   await restoreSessionStorage(page, auth.sessionStorageFile);
 
-  await page.goto(ACCESS_PASS_URL);
+  await page.goto(ACCESS_PASS_URL, {waitUntil: "domcontentloaded",});
 
   return { page, context };
 }
@@ -164,72 +172,156 @@ async function changeTenantIdIfAvailable(
   return true;
 }
 
-async function expectTenantLoaded(page: Page) {
-  const userSection = page.getByText(/Select Entra user/i).first();
-  const errorMessage = page
-    .getByText(/timed_out|error|failed|unable|unauthorized|forbidden/i)
-    .first();
 
-  await expect(userSection.or(errorMessage)).toBeVisible({
-    timeout: 45_000,
-  });
-
-  if (await errorMessage.isVisible().catch(() => false)) {
-    throw new Error(
-      `Tenant/user loading failed. The Access Pass UI showed an error instead of the Entra user list.`,
-    );
-  }
-
-  await expect(userSection).toBeVisible();
-}
-
-export async function selectEntraUser(
+export async function expectEntraUserListLoaded(
   page: Page,
-  userEmail: string,
 ) {
   await expect(page.getByText(/Select Entra user/i).first()).toBeVisible({
     timeout: 45_000,
   });
+}
 
-  const matchingUser = page
-    .getByText(new RegExp(escapeRegExp(userEmail), "i"))
-    .first();
+export async function expectEntraUserAvailable(
+  page: Page,
+  target: EntraTargetUser,
+) {
+  await expectEntraUserListLoaded(page);
 
-  if (!(await matchingUser.isVisible().catch(() => false))) {
-    const visibleText = await page.locator("body").innerText();
+  // find the table row containing this user's UPN
+  const userRow = page.getByRole("row").filter({hasText: target.email,});
 
-    console.log("");
-    console.log("Could not find target Entra user in page:");
-    console.log(userEmail);
-    console.log("");
-    console.log("Visible page text:");
-    console.log(visibleText.slice(0, 3000));
-    console.log("");
+  await expect(userRow, `Expected exactly one table row for ${target.email}`,).toHaveCount(1);
 
+  await expect(userRow.getByText(target.email, {exact: true,}),).toBeVisible();
+
+  if (target.displayName) {
+    await expect(
+      userRow.getByText(target.displayName, {
+        exact: true,
+      }),
+    ).toBeVisible();
+  }
+
+  const createAccessPassButton = userRow.getByRole("button", {name: /create access pass/i,});
+
+  await expect(createAccessPassButton).toBeVisible();
+  await expect(createAccessPassButton).toBeEnabled();
+
+  return {
+    userRow,
+    createAccessPassButton,
+  };
+}
+
+function getExpectedEntraMessage(
+  user: AccessPassUser,
+) {
+  if (!user.expectedEntraMessage) {
     throw new Error(
-      `Target Entra user was not visible in the Access Pass user list: ${userEmail}`,
+      `No expectedEntraMessage configured for ${user.id}.`,
     );
   }
 
-  await matchingUser.click();
+  return new RegExp(
+    user.expectedEntraMessage,
+    "i",
+  );
 }
 
-async function expectAccessPassCreationReady(page: Page) {
-  const createButton = page.getByRole("button", {
-    name: /create.*access pass|create temporary access pass|generate access pass/i,
-  });
+async function expectNoAccessPassActions(
+  page: Page,
+) {
+  await expect(
+    page.getByRole("button", {
+      name: /create access pass/i,
+    }),
+  ).toHaveCount(0);
+}
 
-  await expect(createButton).toBeVisible({
+async function expectEmptyEntraState(
+  page: Page,
+  user: AccessPassUser,
+) {
+  await expect(
+    page
+      .getByText(
+        getExpectedEntraMessage(user),
+      )
+      .first(),
+  ).toBeVisible({
     timeout: 45_000,
   });
 
-  await expect(createButton).toBeEnabled();
-
-  return createButton;
+  await expectNoAccessPassActions(page);
 }
 
-export function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+async function expectForbiddenEntraState(
+  page: Page,
+  user: AccessPassUser,
+) {
+  await expect(
+    page
+      .getByText(
+        getExpectedEntraMessage(user),
+      )
+      .first(),
+  ).toBeVisible({
+    timeout: 45_000,
+  });
+
+  await expectNoAccessPassActions(page);
+}
+
+async function expectConfiguredTenantOutcome(
+  page: Page,
+  user: AccessPassUser,
+) {
+  switch (user.expectedEntraResult) {
+    case "users": {
+      await expectEntraUserListLoaded(page);
+
+      for (const target of user.targetEntraUsers ?? []) {
+        await test.step(
+          `Verify target user ${target.email}`,
+          async () => {
+            await expectEntraUserAvailable(
+              page,
+              target,
+            );
+          },
+        );
+      }
+
+      return;
+    }
+
+    case "empty": {
+      await expectEmptyEntraState(
+        page,
+        user,
+      );
+
+      return;
+    }
+
+    case "forbidden": {
+      await expectForbiddenEntraState(
+        page,
+        user,
+      );
+
+      return;
+    }
+
+    default: {
+      const exhaustiveCheck: never =
+        user.expectedEntraResult as never;
+
+      throw new Error(
+        `Unsupported expected Entra result: ${exhaustiveCheck}`,
+      );
+    }
+  }
 }
 
 /*
@@ -435,25 +527,17 @@ test("Connecting Azure", async ({
   });
 
   await test.step(`Saved Microsoft session loads authenticated Access Pass state for ${user.id}`, async () => {
-    const context = await browser.newContext({
-      storageState: auth.storageStateFile,
-      viewport: {
-        width: 1920,
-        height: 1080,
-      },
-      deviceScaleFactor: 1,
-    });
-
-    const authenticatedPage = await context.newPage();
-
-    try {
-      await restoreSessionStorage(
-        authenticatedPage,
-        auth.sessionStorageFile,
+    
+    const {
+        page: authenticatedPage,
+        context,
+      } = await openAuthenticatedAccessPassPage(
+        browser,
+        user,
+        viewport,
       );
 
-      await authenticatedPage.goto(ACCESS_PASS_URL);
-
+    try {
       await expectAuthenticatedAccessPassState(
         authenticatedPage,
         user,
@@ -461,7 +545,7 @@ test("Connecting Azure", async ({
 
       await expect(
         authenticatedPage
-          .getByText(new RegExp(user.expectedPostLoginText, "i"))
+          .getByText(new RegExp(escapeRegExp(user.expectedPostLoginText), "i"))
           .first(),
       ).toBeVisible({
         timeout: 45_000,
@@ -491,203 +575,346 @@ test("Connecting Azure", async ({
         2. authenticated user can select an Entra user for access pass creation
         3. authenticated user can create a Temporary Access Pass for an Entra user
     */
-
-    test.describe("AP-Auth", () => {
+  test.describe("AP-Auth", () => {
   test.skip(
-    ({ browserName }) => browserName !== "chromium",
+    ({ browserName }) =>
+      browserName !== "chromium",
     "Saved Microsoft passkey sessions are only tested in Chromium.",
   );
 
   for (const user of users) {
-    test.describe(`- ${user.id}`, () => {
-      test.beforeEach(() => {
-        const auth = getAccessPassUserAuth(user);
+    const targets =
+      user.targetEntraUsers;
 
-        test.skip(
-          !auth.exists,
-          `Missing auth files for ${user.id}. Run azure-passkey-users.setup.ts first.`,
-        );
-      });
+    test.describe(
+      `- ${user.id}`,
+      () => {
+        test.beforeEach(() => {
+          const auth =
+            getAccessPassUserAuth(user);
 
-      test("User load Access Pass page", async ({
-        browser,
-      }, testInfo) => {
-        const { page, context } = await openAuthenticatedAccessPassPage(
-          browser,
-          user,
-        );
-
-        try {
-          await expectAuthenticatedAccessPassState(page, user);
-
-          await expect(
-            page
-              .getByText(new RegExp(user.expectedPostLoginText, "i"))
-              .first(),
-          ).toBeVisible({
-            timeout: 45_000,
-          });
-
-          await expectPageSnapshot(
-            page,
-            testInfo,
-            "authenticated-access-pass-loaded.png",
-            {
-              mask: sensitiveTextMasks(page),
-            },
+          test.skip(
+            !auth.exists,
+            [
+              `Missing auth files for ${user.id}.`,
+              "Run azure-passkey.setup.ts first.",
+              `Expected storage: ${auth.storageStateFile}`,
+              `Expected session: ${auth.sessionStorageFile}`,
+            ].join(" "),
           );
-        } finally {
-          await context.close();
-        }
-      });
+        });
 
-      test("Loading Tenant ID", async ({
-        browser,
-      }, testInfo) => {
-        test.skip(
-          !user.tenantId,
-          `No tenantId configured for ${user.id}.`,
+        /*
+         * Common login test for Name A, Name D and Name E.
+         */
+        test(
+          "User loads Access Pass page",
+          async ({
+            browser,
+          }, testInfo) => {
+            const {
+              page,
+              context,
+            } =
+              await openAuthenticatedAccessPassPage(
+                browser,
+                user,
+                viewport,
+              );
+
+            try {
+              await expectAuthenticatedAccessPassState(
+                page,
+                user,
+              );
+
+              await expect(
+                page
+                  .getByText(
+                    new RegExp(
+                      escapeRegExp(
+                        user.expectedPostLoginText,
+                      ),
+                      "i",
+                    ),
+                  )
+                  .first(),
+              ).toBeVisible({
+                timeout: 45_000,
+              });
+
+              await expectPageSnapshot(
+                page,
+                testInfo,
+                "authenticated-access-pass-loaded.png",
+                {
+                  mask:
+                    sensitiveTextMasks(page),
+                },
+              );
+            } finally {
+              await context.close();
+            }
+          },
         );
 
-        const { page, context } = await openAuthenticatedAccessPassPage(
-          browser,
-          user,
+        /*
+         * Name A:
+         *   confirms both Name D and Name E rows.
+         *
+         * Name D and Name E:
+         *   confirms the configured empty or forbidden state.
+         */
+        test(
+          `Tenant outcome is ${user.expectedEntraResult}`,
+          async ({
+            browser,
+          }, testInfo) => {
+            test.skip(
+              !user.tenantId,
+              `No tenantId configured for ${user.id}.`,
+            );
+
+            const {
+              page,
+              context,
+            } =
+              await openAuthenticatedAccessPassPage(
+                browser,
+                user,
+                viewport,
+              );
+
+            try {
+              await expectAuthenticatedAccessPassState(
+                page,
+                user,
+              );
+
+              await test.step(
+                "Change or confirm tenant ID",
+                async () => {
+                  await changeTenantIdIfAvailable(
+                    page,
+                    user.tenantId!,
+                  );
+                },
+              );
+
+              await test.step(
+                `Assert ${user.expectedEntraResult} tenant outcome`,
+                async () => {
+                  await expectConfiguredTenantOutcome(
+                    page,
+                    user,
+                  );
+                },
+              );
+
+              await expectPageSnapshot(
+                page,
+                testInfo,
+                `${user.expectedEntraResult}-tenant-outcome.png`,
+                {
+                  mask:
+                    sensitiveTextMasks(page),
+                },
+              );
+            } finally {
+              await context.close();
+            }
+          },
         );
 
-        try {
-          await expectAuthenticatedAccessPassState(page, user);
+        /*
+         * Only accounts expecting user rows generate these tests.
+         *
+         * For Name A this creates:
+         * - Access Pass action is available for name-d
+         * - Access Pass action is available for name-e
+         */
+        if (
+          user.expectedEntraResult ===
+          "users"
+        ) {
+          for (const target of targets) {
+            test(
+              `Access Pass action is available for ${target.id}`,
+              async ({
+                browser,
+              }, testInfo) => {
+                test.skip(
+                  !user.tenantId,
+                  `No tenantId configured for ${user.id}.`,
+                );
 
-          await test.step("Change or confirm tenant ID", async () => {
-            await changeTenantIdIfAvailable(page, user.tenantId!);
-          });
+                const {
+                  page,
+                  context,
+                } =
+                  await openAuthenticatedAccessPassPage(
+                    browser,
+                    user,
+                    viewport,
+                  );
 
-          await test.step("Tenant controls load", async () => {
-            await expectTenantLoaded(page);
-          });
+                try {
+                  await expectAuthenticatedAccessPassState(
+                    page,
+                    user,
+                  );
 
-          await expectPageSnapshot(
-            page,
-            testInfo,
-            "tenant-loaded.png",
-            {
-              mask: sensitiveTextMasks(page),
-            },
-          );
-        } finally {
-          await context.close();
-        }
-      });
+                  await changeTenantIdIfAvailable(
+                    page,
+                    user.tenantId!,
+                  );
 
-      test("Select Entra User for Access Pass Creation", async ({
-        browser,
-      }, testInfo) => {
-        test.skip(
-          !user.targetEntraUserEmail,
-          `No targetEntraUserEmail configured for ${user.id}.`,
-        );
+                  await expectEntraUserListLoaded(
+                    page,
+                  );
 
-        const { page, context } = await openAuthenticatedAccessPassPage(
-          browser,
-          user,
-        );
+                  await expectEntraUserAvailable(
+                    page,
+                    target,
+                  );
 
-        try {
-          await expectAuthenticatedAccessPassState(page, user);
+                  await expectPageSnapshot(
+                    page,
+                    testInfo,
+                    `${target.id}-access-pass-action-ready.png`,
+                    {
+                      mask:
+                        sensitiveTextMasks(
+                          page,
+                        ),
+                    },
+                  );
+                } finally {
+                  await context.close();
+                }
+              },
+            );
 
-          if (user.tenantId) {
-            await changeTenantIdIfAvailable(page, user.tenantId);
+            /*
+             * Destructive test.
+             *
+             * It is restricted to Desktop so enabling the environment
+             * variable does not create a TAP once for Desktop and again
+             * for Mobile.
+             */
+            test(
+              `Creating Temporary Access Pass for ${target.id}`,
+              async ({
+                browser,
+              }, testInfo) => {
+                test.skip(
+                  viewportName !==
+                    "Desktop",
+                  "Real Temporary Access Pass creation runs once on Desktop.",
+                );
+
+                test.skip(
+                  process.env
+                    .RUN_ACCESS_PASS_CREATION !==
+                    "true",
+                  "Set RUN_ACCESS_PASS_CREATION=true to run real Access Pass creation.",
+                );
+
+                test.skip(
+                  !user.canCreateAccessPass,
+                  `${user.id} is not allowed to create access passes.`,
+                );
+
+                test.skip(
+                  !target.allowRealAccessPassCreation,
+                  `Real Access Pass creation is disabled for ${target.id}.`,
+                );
+
+                test.skip(
+                  !user.tenantId,
+                  `No tenantId configured for ${user.id}.`,
+                );
+
+                const {
+                  page,
+                  context,
+                } =
+                  await openAuthenticatedAccessPassPage(
+                    browser,
+                    user,
+                    viewport,
+                  );
+
+                try {
+                  await expectAuthenticatedAccessPassState(
+                    page,
+                    user,
+                  );
+
+                  await changeTenantIdIfAvailable(
+                    page,
+                    user.tenantId!,
+                  );
+
+                  await expectEntraUserListLoaded(
+                    page,
+                  );
+
+                  const {
+                    createAccessPassButton,
+                  } =
+                    await expectEntraUserAvailable(
+                      page,
+                      target,
+                    );
+
+                  await createAccessPassButton.click();
+
+                  await expect(
+                    page
+                      .getByText(
+                        /temporary access pass|access pass created|expires|copy/i,
+                      )
+                      .first(),
+                  ).toBeVisible({
+                    timeout: 60_000,
+                  });
+
+                  const possibleTemporaryAccessPassSecret =
+                    page
+                      .getByText(
+                        /[A-Za-z0-9!@#$%^&*()_\-+=]{6,}/,
+                      )
+                      .last();
+
+                  await expectPageSnapshot(
+                    page,
+                    testInfo,
+                    `${target.id}-temporary-access-pass-created.png`,
+                    {
+                      mask: [
+                        ...sensitiveTextMasks(
+                          page,
+                        ),
+                        possibleTemporaryAccessPassSecret,
+                      ],
+                    },
+                  );
+                } finally {
+                  await context.close();
+                }
+              },
+            );
           }
-
-          await expectTenantLoaded(page);
-
-          await selectEntraUser(page, user.targetEntraUserEmail!);
-
-          await expectAccessPassCreationReady(page);
-
-          await expectPageSnapshot(
-            page,
-            testInfo,
-            "entra-user-selected-ready-for-access-pass.png",
-            {
-              mask: sensitiveTextMasks(page),
-            },
-          );
-        } finally {
-          await context.close();
         }
-      });
-
-      test("Creating Temporary Access Pass", async ({
-        browser,
-      }, testInfo) => {
-        test.skip(
-          process.env.RUN_ACCESS_PASS_CREATION !== "true",
-          "Skipping real Access Pass creation. Set RUN_ACCESS_PASS_CREATION=true to run this test.",
-        );
-
-        test.skip(
-          !user.canCreateAccessPass,
-          `${user.id} is not marked as allowed to create access passes.`,
-        );
-
-        test.skip(
-          !user.targetEntraUserEmail,
-          `No targetEntraUserEmail configured for ${user.id}.`,
-        );
-
-        const { page, context } = await openAuthenticatedAccessPassPage(
-          browser,
-          user,
-        );
-
-        try {
-          await expectAuthenticatedAccessPassState(page, user);
-
-          if (user.tenantId) {
-            await changeTenantIdIfAvailable(page, user.tenantId);
-          }
-
-          await expectTenantLoaded(page);
-
-          await selectEntraUser(page, user.targetEntraUserEmail!);
-
-          const createButton = await expectAccessPassCreationReady(page);
-
-          await createButton.click();
-
-          await expect(
-            page
-              .getByText(/temporary access pass|access pass created|expires|copy/i)
-              .first(),
-          ).toBeVisible({
-            timeout: 60_000,
-          });
-
-          const possibleTemporaryAccessPassSecret = page
-            .getByText(/[A-Za-z0-9!@#$%^&*()_\-+=]{6,}/)
-            .last();
-
-          await expectPageSnapshot(
-            page,
-            testInfo,
-            "temporary-access-pass-created-masked.png",
-            {
-              mask: [
-                ...sensitiveTextMasks(page),
-                possibleTemporaryAccessPassSecret,
-              ],
-            },
-          );
-        } finally {
-          await context.close();
-        }
-      });
-    });
+      },
+    );
   }
-});
+}); // AP-Auth
 
-});
-  }
+    }); // AP-Desktop / AP-Mobile
+  } // viewports loop
+  
 
 
 

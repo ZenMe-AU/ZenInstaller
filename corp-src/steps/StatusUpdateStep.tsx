@@ -2,6 +2,9 @@ import type { CardStatus } from "../types";
 import StepWrapper from "../components/StepWrapper";
 import StatusCard from "../cards/StatusCard";
 
+import { reactPlugin } from "../monitor/applicationInsights";
+import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";
+
 type Props = {
   // ── PipelineCard chrome ──────────────────────────────────────────────────
   status: CardStatus;
@@ -28,6 +31,7 @@ export default function StatusUpdateStep({
   onRun, runError, lastRunId, statusFileRunId, repoFullName, workflowId,
 }: Props) {
   return (
+    <AppInsightsErrorBoundary onError={() => <p>Error: Unable to load component!</p>} appInsights={reactPlugin}>
     <StepWrapper
       title="Run Status Update"
       subtitle={statusFileRunId ? `Last run #${statusFileRunId}` : "Trigger the GitHub Actions workflow to check deployment state"}
@@ -50,5 +54,6 @@ export default function StatusUpdateStep({
         workflowId={workflowId}
       />
     </StepWrapper>
+    </AppInsightsErrorBoundary>
   );
 }

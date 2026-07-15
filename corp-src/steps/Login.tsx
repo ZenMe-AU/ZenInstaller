@@ -22,7 +22,7 @@ type Props = {
   onDirectLogout: () => void;
 };
 
-export default function LoginStep({ status, expanded, onToggle, authLoading, user, onLogin, onLogout, onPatLogin, onDirectLogout }: Props) {
+export default function Login({ status, expanded, onToggle, authLoading, user, onLogin, onLogout, onPatLogin, onDirectLogout }: Props) {
   const [mode, setModeState] = useState<"backend" | "direct">("backend");
   const [pat, setPat] = useState(sessionStorage.getItem("pat_token") ?? "");
   const [patError, setPatError] = useState("");

@@ -25,7 +25,7 @@ type Props = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function PRCard({
+export default function PRDetail({
   pullRequests, selectedPR, onSelectPR, loading, refreshFailed, onRefresh, envList, validEnvs,
 }: Props) {
   const prevLoadingRef = useRef(false);

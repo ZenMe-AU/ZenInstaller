@@ -113,7 +113,7 @@ type Props = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function RepoCard({
+export default function RepoDetail({
   accounts,
   selectedAccount,
   onAccountChange,

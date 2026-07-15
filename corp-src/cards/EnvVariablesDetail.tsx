@@ -46,7 +46,7 @@ type Props = {
 // from their own setup cards. This section only manages deployment variables
 // (Company & Domain).
 
-export default function VariablesSection({
+export default function EnvVariablesDetail({
   account,
   repo,
   selectedEnv,

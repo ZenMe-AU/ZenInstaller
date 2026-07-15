@@ -52,7 +52,7 @@ type Props = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function SecretsSection({
+export default function EnvSecretsDetail({
   account,
   repo,
   selectedEnv,

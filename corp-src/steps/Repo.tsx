@@ -2,7 +2,7 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { Button } from "@mui/material";
 import type { Account, CardStatus, Repo, RepoOption } from "../types";
 import StepWrapper from "../components/StepWrapper";
-import RepoCard from "../cards/RepoCard";
+import RepoDetail from "../cards/RepoDetail";
 
 import { reactPlugin } from "../monitor/applicationInsights";
 import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";
@@ -39,7 +39,7 @@ type Props = {
   repoFullName: string | null;
 };
 
-export default function RepoStep({
+export default function Repo({
   status,
   expanded,
   onToggle,
@@ -104,7 +104,7 @@ export default function RepoStep({
           ) : undefined
         }
       >
-        <RepoCard
+        <RepoDetail
           accounts={accounts}
           selectedAccount={selectedAccount}
           onAccountChange={onAccountChange}

@@ -29,7 +29,7 @@ type Props = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function BranchSection({
+export default function EnvBranchDetail({
   targetBranch,
   branches,
   sourceBranch,

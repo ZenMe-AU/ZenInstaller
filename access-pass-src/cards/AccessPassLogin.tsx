@@ -1,8 +1,8 @@
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import type { CardStatus } from "../types";
 import type { useAzureAccessPass } from "../hooks/useAccessPass";
-import StepWrapper from "../../access-pass-src/components/StepWrapper";
-import AccessPassLoginCard from "../cards/AccessPassLoginCard";
+import StepWrapper from "../components/StepWrapper";
+import AccessPassLoginCard from "./AccessPassLoginDetails";
 import { logEvent } from "../monitor/telemetry";
 
 type Props = Pick<

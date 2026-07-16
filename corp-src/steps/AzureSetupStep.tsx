@@ -4,6 +4,9 @@ import type { useAzureSetup } from "../hooks/useAzureSetup";
 import StepWrapper from "../components/StepWrapper";
 import AzureAppCard from "../cards/AzureAppCard";
 
+import { reactPlugin } from "../monitor/applicationInsights";
+import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";
+
 type Props = ReturnType<typeof useAzureSetup> & {
   status: CardStatus;
   expanded: boolean;
@@ -45,6 +48,7 @@ export default function AzureSetupStep({
       : undefined;
 
   return (
+    <AppInsightsErrorBoundary onError={() => <p>Error: Unable to load component!</p>} appInsights={reactPlugin}>
     <StepWrapper title="Let GitHub deploy to Azure" subtitle={subtitle} status={status} expanded={expanded} onToggle={onToggle} disabled={disabled}>
       <AzureAppCard
         {...azureSetup}
@@ -57,5 +61,6 @@ export default function AzureSetupStep({
         onAzureValid={onAzureValid}
       />
     </StepWrapper>
+    </AppInsightsErrorBoundary>
   );
 }

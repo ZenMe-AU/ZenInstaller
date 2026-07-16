@@ -46,7 +46,6 @@ function prereqLabel(prereq: Prerequisite, variableValues: Record<string, string
         auth: "Authenticated",
         repo: "Repo selected",
         azure_setup: "Azure setup",
-        azure_access_pass: "Azure access pass",
         aws_setup: "AWS setup",
         pr: "PR selected",
         env: "Env configured",
@@ -224,12 +223,14 @@ export function StageItem({
   const togglePrereq = (i: number) => setExpandedPrereqs((prev) => ({ ...prev, [i]: !prev[i] }));
 
   // Plan data (inlined from usePlanData)
-  const [planItems, setPlanItems]   = useState<PlanItem[]>([]);
+  const [planItems, setPlanItems] = useState<PlanItem[]>([]);
   const [planSummary, setPlanSummary] = useState<PlanSummary>({ create: 0, update: 0, delete: 0, replace: 0 });
   const [planLoading, setPlanLoading] = useState(false);
-  const [planError, setPlanError]   = useState<string | null>(null);
+  const [planError, setPlanError] = useState<string | null>(null);
   const onPlanSummaryRef = useRef(onPlanSummary);
-  useLayoutEffect(() => { onPlanSummaryRef.current = onPlanSummary; });
+  useLayoutEffect(() => {
+    onPlanSummaryRef.current = onPlanSummary;
+  });
   const prevRepoName = useRef(repoName);
   const lastPlanFetchKey = useRef<string | null>(null);
   useEffect(() => {
@@ -255,7 +256,10 @@ export function StageItem({
         onPlanSummaryRef.current?.(s);
       })
       .catch((err: Error) => setPlanError(err.message))
-      .finally(() => { clearTimeout(t); setPlanLoading(false); });
+      .finally(() => {
+        clearTimeout(t);
+        setPlanLoading(false);
+      });
     return () => clearTimeout(t);
   }, [stage.planJsonId, stage.status, account, repoName]);
 
@@ -436,14 +440,7 @@ export function StageItem({
 
       {/* ── Plan ── */}
       {hasDetails && (
-        <PlanCard
-          items={planItems}
-          summary={planSummary}
-          loading={planLoading}
-          error={planError}
-          onDeploy={onDeploy}
-          stagesStale={stagesStale}
-        />
+        <PlanCard items={planItems} summary={planSummary} loading={planLoading} error={planError} onDeploy={onDeploy} stagesStale={stagesStale} />
       )}
 
       {/* ── No plan message ── */}

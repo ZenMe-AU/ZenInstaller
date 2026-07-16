@@ -5,6 +5,9 @@ import type { CardStatus, User } from "../types";
 import { switchToDirect, switchToBackend } from "../api";
 import StepWrapper from "../components/StepWrapper";
 
+import { reactPlugin } from "../monitor/applicationInsights";
+import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";
+
 type Props = {
   // ── PipelineCard chrome ──────────────────────────────────────────────────
   status: CardStatus;
@@ -48,6 +51,7 @@ export default function LoginStep({ status, expanded, onToggle, authLoading, use
   const monoSx = { fontFamily: "'IBM Plex Mono', monospace" };
 
   return (
+    <AppInsightsErrorBoundary onError={() => <p>Error: Unable to load component!</p>} appInsights={reactPlugin}>
     <StepWrapper
       title="Login to GitHub"
       subtitle={user ? `Signed in as ${user.login}` : "Connect your GitHub account to get started"}
@@ -172,5 +176,6 @@ export default function LoginStep({ status, expanded, onToggle, authLoading, use
         </Box>
       )}
     </StepWrapper>
+    </AppInsightsErrorBoundary>
   );
 }

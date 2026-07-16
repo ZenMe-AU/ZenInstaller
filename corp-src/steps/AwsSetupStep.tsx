@@ -3,6 +3,9 @@ import type { useAwsSetup } from "../hooks/useAwsSetup";
 import StepWrapper from "../components/StepWrapper";
 import AwsCfnCard from "../cards/AwsCfnCard";
 
+import { reactPlugin } from "../monitor/applicationInsights";
+import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";
+
 type Props = ReturnType<typeof useAwsSetup> & {
   status: CardStatus;
   expanded: boolean;
@@ -36,23 +39,22 @@ export default function AwsSetupStep({
         ? `Signed in as ${awsSetup.identity?.username ?? "AWS"}`
         : "Not yet connected — give GitHub Actions access to deploy to AWS";
 
-  const githubUrl =
-    repoFullName && selectedEnv
-      ? `https://github.com/${repoFullName}/settings/environments/${selectedEnv.id}/edit`
-      : undefined;
+  const githubUrl = repoFullName && selectedEnv ? `https://github.com/${repoFullName}/settings/environments/${selectedEnv.id}/edit` : undefined;
 
   return (
-    <StepWrapper title="Let GitHub deploy to AWS" subtitle={subtitle} status={status} expanded={expanded} onToggle={onToggle} disabled={disabled}>
-      <AwsCfnCard
-        {...awsSetup}
-        account={account}
-        repoName={repoName}
-        selectedEnv={selectedEnv}
-        disabled={disabled}
-        onComplete={onComplete}
-        githubUrl={githubUrl}
-        onAwsValid={onAwsValid}
-      />
-    </StepWrapper>
+    <AppInsightsErrorBoundary onError={() => <p>Error: Unable to load component!</p>} appInsights={reactPlugin}>
+      <StepWrapper title="Let GitHub deploy to AWS" subtitle={subtitle} status={status} expanded={expanded} onToggle={onToggle} disabled={disabled}>
+        <AwsCfnCard
+          {...awsSetup}
+          account={account}
+          repoName={repoName}
+          selectedEnv={selectedEnv}
+          disabled={disabled}
+          onComplete={onComplete}
+          githubUrl={githubUrl}
+          onAwsValid={onAwsValid}
+        />
+      </StepWrapper>
+    </AppInsightsErrorBoundary>
   );
 }

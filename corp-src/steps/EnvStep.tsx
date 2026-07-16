@@ -10,6 +10,9 @@ import type {
 import StepWrapper from "../components/StepWrapper";
 import EnvironmentCard from "../cards/EnvironmentCard";
 
+import { reactPlugin } from "../monitor/applicationInsights";
+import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";
+
 type Props = {
   // ── PipelineCard chrome ──────────────────────────────────────────────────
   status: CardStatus;
@@ -62,6 +65,7 @@ export default function EnvStep({
   creatingBranch, createBranchError, onCreateBranch,
 }: Props) {
   return (
+    <AppInsightsErrorBoundary onError={() => <p>Error: Unable to load component!</p>} appInsights={reactPlugin}>
     <StepWrapper
       title="Choose the environment to set up"
       subtitle={selectedEnv ? selectedEnv.name : `${validEnvs.length === 2 ? validEnvs.join(" and ") : validEnvs.join(", ")} are set up separately`}
@@ -126,5 +130,6 @@ export default function EnvStep({
         onCreateBranch={onCreateBranch}
       />
     </StepWrapper>
+    </AppInsightsErrorBoundary>
   );
 }

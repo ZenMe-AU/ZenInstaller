@@ -1,4 +1,4 @@
-/** @moved src/component/PlanView.tsx → src/cards/PlanCard.tsx */
+/** @moved src/component/PlanView.tsx → src/cards/StagePlanDetail.tsx */
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import { getActionType } from "../logic/plan";
 import { ACTION_CONFIG } from "../config/planConfig";
@@ -39,7 +39,7 @@ const sectionLabelSx = {
   mb: 1,
 };
 
-export default function PlanCard({
+export default function StagePlanDetail({
   items,
   summary,
   loading,

@@ -21,7 +21,7 @@ import type {
 import { createVariable, fetchDeployLog, fetchPlan, updateVariable } from "../api";
 import { computePlanSummary } from "../logic/plan";
 import { getVariableDisplayName } from "../logic/variables";
-import PlanCard from "./PlanCard";
+import StagePlanDetail from "./StagePlanDetail";
 import VariablesCard from "../components/VariablesCard";
 
 // ─── Prerequisite helpers ─────────────────────────────────────────────────────
@@ -191,7 +191,7 @@ function relativeTime(unixSeconds: number): string {
 
 // ─── Single stage card ────────────────────────────────────────────────────────
 
-export function StageItem({
+export function StageDetail({
   stageDef,
   stage,
   cardStatus,
@@ -440,7 +440,7 @@ export function StageItem({
 
       {/* ── Plan ── */}
       {hasDetails && (
-        <PlanCard items={planItems} summary={planSummary} loading={planLoading} error={planError} onDeploy={onDeploy} stagesStale={stagesStale} />
+        <StagePlanDetail items={planItems} summary={planSummary} loading={planLoading} error={planError} onDeploy={onDeploy} stagesStale={stagesStale} />
       )}
 
       {/* ── No plan message ── */}
@@ -541,7 +541,7 @@ type Props = {
   repoName: string;
 };
 
-// ─── Component (used only when StageItem is rendered via StagesCard) ──────────
+// ─── Component (used only when StageDetail is rendered via StagesCard) ──────────
 
 export default function StagesCard({ stages, stageDefinitions, statusFileFound, loading, cardStatus, variableValues, account, repoName }: Props) {
   if (loading) {
@@ -575,7 +575,7 @@ export default function StagesCard({ stages, stageDefinitions, statusFileFound, 
           const def = stageDefinitions.find((d) => d.key === stage.stage);
           if (!def) return null;
           return (
-            <StageItem
+            <StageDetail
               key={stage.stage}
               stageDef={def}
               stage={stage}

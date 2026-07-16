@@ -1,6 +1,6 @@
 import type { CardStatus } from "../types";
 import StepWrapper from "../components/StepWrapper";
-import StatusCard from "../cards/StatusCard";
+import StatusUpdateDetail from "../cards/StatusUpdateDetail";
 
 import { reactPlugin } from "../monitor/applicationInsights";
 import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";
@@ -25,7 +25,7 @@ type Props = {
   workflowId: string;
 };
 
-export default function StatusUpdateStep({
+export default function StatusUpdate({
   status, expanded, onToggle, disabled,
   running, countdown, lastRunTime, lastTriggeredAt, retryCount,
   onRun, runError, lastRunId, statusFileRunId, repoFullName, workflowId,
@@ -40,7 +40,7 @@ export default function StatusUpdateStep({
       onToggle={onToggle}
       disabled={disabled}
     >
-      <StatusCard
+      <StatusUpdateDetail
         running={running}
         countdown={countdown}
         lastRunTime={lastRunTime}

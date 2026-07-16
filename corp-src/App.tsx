@@ -16,14 +16,14 @@ import Connector from "./components/Connector";
 import NavBar from "./components/NavBar";
 import RestoreToast from "./components/RestoreToast";
 import SessionOverlay from "./components/SessionOverlay";
-import LoginStep from "./steps/LoginStep";
-import RepoStep from "./steps/RepoStep";
-import PRStep from "./steps/PRStep";
-import EnvStep from "./steps/EnvStep";
-import StatusUpdateStep from "./steps/StatusUpdateStep";
-import StageStep from "./steps/StageStep";
-import AzureSetupStep from "./steps/AzureSetupStep";
-import AwsSetupStep from "./steps/AwsSetupStep";
+import Login from "./steps/Login";
+import Repo from "./steps/Repo";
+import PR from "./steps/PR";
+import Env from "./steps/Env";
+import StatusUpdate from "./steps/StatusUpdate";
+import Stage from "./steps/Stage";
+import AzureDeploy from "./steps/AzureDeploy";
+import AwsDeploy from "./steps/AwsDeploy";
 
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
@@ -200,7 +200,7 @@ function AppDashboard() {
           </Box>
 
           <Connector>
-            <LoginStep
+            <Login
               status={cardStatus.auth}
               expanded={expanded.auth}
               onToggle={() => toggle("auth")}
@@ -216,7 +216,7 @@ function AppDashboard() {
               }}
             />
 
-            <RepoStep
+            <Repo
               status={cardStatus.repo}
               expanded={expanded.repo}
               onToggle={() => toggle("repo")}
@@ -246,7 +246,7 @@ function AppDashboard() {
               disabled={!isAuthed}
             />
 
-            <PRStep
+            <PR
               status={prStatus}
               expanded={expanded.pr}
               onToggle={() => toggle("pr")}
@@ -265,7 +265,7 @@ function AppDashboard() {
               validEnvs={repo.pipeline.validEnvs}
             />
 
-            <EnvStep
+            <Env
               status={effectiveEnvStatus}
               expanded={expanded.env}
               onToggle={() => toggle("env")}
@@ -302,7 +302,7 @@ function AppDashboard() {
               onCreateBranch={repo.onCreateBranch}
             />
 
-            <AzureSetupStep
+            <AzureDeploy
               {...azureSetup}
               status={cardStatus.azure_setup}
               expanded={expanded.azure_setup}
@@ -316,7 +316,7 @@ function AppDashboard() {
               onAzureValid={env.onAzureValid}
             />
 
-            <AwsSetupStep
+            <AwsDeploy
               {...awsSetup}
               status={cardStatus.aws_setup}
               expanded={expanded.aws_setup}
@@ -330,7 +330,7 @@ function AppDashboard() {
               onAwsValid={env.onAwsValid}
             />
 
-            <StatusUpdateStep
+            <StatusUpdate
               status={effectiveStatusUpdateStatus}
               expanded={expanded.status_update}
               onToggle={() => toggle("status_update")}
@@ -401,7 +401,7 @@ function AppDashboard() {
                     }
                   : undefined;
               return (
-                <StageStep
+                <Stage
                   key={stageDef.key}
                   status={isAuthed ? stageToCardStatus(effectiveStatus, plan.isStale, plan.stagesLoading) : "idle"}
                   expanded={!!stagesExpanded[stageDef.key]}

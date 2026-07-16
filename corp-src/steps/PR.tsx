@@ -2,7 +2,7 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { Button } from "@mui/material";
 import type { CardStatus, GhEnv, PullRequest } from "../types";
 import StepWrapper from "../components/StepWrapper";
-import PRCard from "../cards/PRCard";
+import PRDetail from "../cards/PRDetail";
 
 import { reactPlugin } from "../monitor/applicationInsights";
 import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";
@@ -29,7 +29,7 @@ type Props = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function PRStep({
+export default function PR({
   status, expanded, onToggle, disabled,
   pullRequests, selectedPR, onSelectPR, loading, refreshFailed, onRefresh, envList, validEnvs, repoFullName,
 }: Props) {
@@ -65,7 +65,7 @@ export default function PRStep({
         </Button>
       }
     >
-      <PRCard
+      <PRDetail
         pullRequests={pullRequests}
         selectedPR={selectedPR}
         onSelectPR={onSelectPR}

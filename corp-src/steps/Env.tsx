@@ -8,7 +8,7 @@ import type {
   SecretsStatus,
 } from "../types";
 import StepWrapper from "../components/StepWrapper";
-import EnvironmentCard from "../cards/EnvironmentCard";
+import EnvDetail from "../cards/EnvDetail";
 
 import { reactPlugin } from "../monitor/applicationInsights";
 import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";
@@ -52,7 +52,7 @@ type Props = {
   onCreateBranch: (target: string) => void;
 };
 
-export default function EnvStep({
+export default function Env({
   status, expanded, onToggle, disabled,
   envList, validEnvs, selectedEnv, onEnvChange,
   lockedByPR, branchMatchWarning, branchMatchError,
@@ -97,7 +97,7 @@ export default function EnvStep({
         </Button>
       }
     >
-      <EnvironmentCard
+      <EnvDetail
         envList={envList}
         validEnvs={validEnvs}
         selectedEnv={selectedEnv}

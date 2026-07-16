@@ -51,7 +51,7 @@ type Props = {
   onSaved?: (keys: string[]) => void;
 };
 
-export default function VariableEditor({
+export default function CloudVariableDetail({
   account,
   repo,
   envName,

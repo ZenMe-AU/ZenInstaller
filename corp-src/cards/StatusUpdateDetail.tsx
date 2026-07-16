@@ -44,7 +44,7 @@ type Props = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function StatusCard({
+export default function StatusUpdateDetail({
   running,
   countdown,
   lastRunTime,

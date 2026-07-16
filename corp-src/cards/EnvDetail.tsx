@@ -7,9 +7,9 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { Account, Branch, GhEnv, SecretsStatus } from "../types";
 import { isValidEnvName } from "../logic/env";
-import BranchSection from "./BranchSection";
-import SecretsSection from "./SecretsSection";
-import VariablesSection from "./VariablesSection";
+import EnvBranchDetail from "./EnvBranchDetail";
+import EnvSecretsDetail from "./EnvSecretsDetail";
+import EnvVariablesDetail from "./EnvVariablesDetail";
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
 
@@ -62,7 +62,7 @@ type Props = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function EnvironmentCard({
+export default function EnvDetail({
   envList,
   validEnvs,
   selectedEnv,
@@ -111,7 +111,7 @@ export default function EnvironmentCard({
 
   const filteredEnvs = envList.filter((e) => isValidEnvName(e.name, validEnvs));
   const secretsReady = !!selectedEnv && !branchMatchError;
-  // Show BranchSection only when the error is "no branch found" (not PR mismatch / multiple)
+  // Show EnvBranchDetail only when the error is "no branch found" (not PR mismatch / multiple)
   const showBranchCreate = !!selectedEnv && !!branchMatchError && branchMatchError.startsWith("No branch found");
   const githubSecretsUrl = repoFullName && selectedEnv ? `https://github.com/${repoFullName}/settings/environments/${selectedEnv.id}/edit` : null;
   const secretsVisible = false;
@@ -168,7 +168,7 @@ export default function EnvironmentCard({
 
       {/* Create branch — only when the selected env has no matching branch */}
       {showBranchCreate && (
-        <BranchSection
+        <EnvBranchDetail
           targetBranch={selectedEnv!.name}
           branches={branches}
           sourceBranch={sourceBranch}
@@ -237,7 +237,7 @@ export default function EnvironmentCard({
 
           {/* ── Secrets section (hidden) ── */}
           {secretsVisible && (
-            <SecretsSection
+            <EnvSecretsDetail
               key={selectedEnv.id}
               account={account}
               repo={repo}
@@ -252,7 +252,7 @@ export default function EnvironmentCard({
           )}
 
           {/* ── Variables section ── */}
-          <VariablesSection
+          <EnvVariablesDetail
             key={selectedEnv.id}
             account={account}
             repo={repo}

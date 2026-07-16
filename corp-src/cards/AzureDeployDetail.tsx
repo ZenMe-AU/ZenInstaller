@@ -11,7 +11,7 @@ import type { useAzureSetup } from "../hooks/useAzureSetup";
 import type { SetupStep } from "../hooks/useAzureSetup";
 import { AZURE_VARIABLE_KEYS } from "../logic/variables";
 import { CLOUD_DOCS } from "../config/docsConfig";
-import VariableEditor from "./VariableEditor";
+import CloudVariableDetail from "./CloudVariableDetail";
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 const labelSx = { fontSize: "0.68rem", color: "#94a3b8", textTransform: "uppercase" as const, letterSpacing: "0.08em", ...mono };
@@ -51,7 +51,7 @@ type Props = ReturnType<typeof useAzureSetup> & {
   onAzureValid?: (valid: boolean | null) => void;
 };
 
-export default function AzureAppCard({
+export default function AzureDeployDetail({
   azureAccount,
   subscriptions,
   selectedSubs,
@@ -493,7 +493,7 @@ export default function AzureAppCard({
 
       {/* ── Variable editor (Collapse keeps it mounted so onLoaded fires) ── */}
       <Collapse in={varExpanded} timeout={300} unmountOnExit={false}>
-        <VariableEditor
+        <CloudVariableDetail
           account={account}
           repo={repoName}
           envName={selectedEnv?.name ?? null}

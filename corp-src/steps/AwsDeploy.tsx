@@ -1,7 +1,7 @@
 import type { Account, CardStatus, GhEnv } from "../types";
 import type { useAwsSetup } from "../hooks/useAwsSetup";
 import StepWrapper from "../components/StepWrapper";
-import AwsCfnCard from "../cards/AwsCfnCard";
+import AwsDeployDetail from "../cards/AwsDeployDetail";
 
 import { reactPlugin } from "../monitor/applicationInsights";
 import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";
@@ -19,7 +19,7 @@ type Props = ReturnType<typeof useAwsSetup> & {
   onAwsValid?: (valid: boolean | null) => void;
 };
 
-export default function AwsSetupStep({
+export default function AwsDeploy({
   status,
   expanded,
   onToggle,
@@ -44,7 +44,7 @@ export default function AwsSetupStep({
   return (
     <AppInsightsErrorBoundary onError={() => <p>Error: Unable to load component!</p>} appInsights={reactPlugin}>
       <StepWrapper title="Let GitHub deploy to AWS" subtitle={subtitle} status={status} expanded={expanded} onToggle={onToggle} disabled={disabled}>
-        <AwsCfnCard
+        <AwsDeployDetail
           {...awsSetup}
           account={account}
           repoName={repoName}

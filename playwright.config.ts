@@ -14,15 +14,14 @@ export default defineConfig({
     timeout: 10_000,
 
       toHaveScreenshot: {
-      animations: "disabled",
-      caret: "hide",
-      scale: "css",
-      maxDiffPixelRatio: 0.02,
+        animations: "disabled",
+        caret: "hide",
+        scale: "css",
+        maxDiffPixelRatio: 0.02,
+
+        pathTemplate: "{testDir}/snapshots/{arg}{ext}"
     },
   },
-
-  snapshotPathTemplate:
-    "playwright-tests/snapshots/{testName}/{arg}{ext}",
 
   use: {
     baseURL: "http://localhost:5173",

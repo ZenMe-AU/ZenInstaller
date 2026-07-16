@@ -1,8 +1,8 @@
 import type { CardStatus } from "../types";
 import { AZURE_CLIENT_ID } from "../config/accessPassConfig";
 import type { useAzureAccessPass } from "../hooks/useAccessPass";
-import StepWrapper from "../../access-pass-src/components/StepWrapper";
-import AzureAccessPassCard from "../cards/AccessPassCard";
+import StepWrapper from "../components/StepWrapper";
+import AzureAccessPassCard from "./AccessPassDetails";
 
 type Props = ReturnType<typeof useAzureAccessPass> & {
   status: CardStatus;
@@ -22,7 +22,7 @@ export default function AzureAccessPass({ status, expanded, onToggle, disabled, 
     : azureSetup.result
     ? `Access pass created`
     : azureSetup.azureAccount
-      ? `Signed in as ${azureSetup.azureAccount.username}`
+      ? `Choose a user and create an access pass directly from the table.`
       : "Create Temporary Access Pass for selected user";
 
   return (

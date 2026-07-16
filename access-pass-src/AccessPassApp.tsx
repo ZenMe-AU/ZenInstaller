@@ -3,8 +3,8 @@ import { Box, Typography } from "@mui/material";
 import { useAzureAccessPass } from "./hooks/useAccessPass";
 import Connector from "./components/Connector";
 import NavBar from "./components/NavBar";
-import AccessPassLogin from "./steps/AccessPassLogin";
-import AzureAccessPass from "./steps/AccessPass";
+import AccessPassLogin from "./cards/AccessPassLogin";
+import AzureAccessPass from "./cards/AccessPass";
 import { logPageView } from "./monitor/telemetry";
 
 // ─── App ──────────────────────────────────────────────────────────────────────

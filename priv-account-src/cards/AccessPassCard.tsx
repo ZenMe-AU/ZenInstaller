@@ -446,7 +446,7 @@ export default function AzureAccessPassCard({
                                           style={{ margin: 0, width: 14, height: 14 }}
                                         />
                                         <Typography sx={{ fontSize: "0.7rem", color: "#1e3a8a", ...mono }}>
-                                          Confirm that you have given the temporary access pass to the person
+                                          Confirm that the person has successfully logged in and created their long term access pass on <a href="https://mysignins.microsoft.com/" target="_blank" rel="noopener noreferrer">https://mysignins.microsoft.com/</a>
                                         </Typography>
                                       </Box>
                                       <Box sx={{ display: "flex", justifyContent: "flex-end" }}>

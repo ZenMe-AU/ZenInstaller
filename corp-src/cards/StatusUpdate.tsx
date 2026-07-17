@@ -1,7 +1,6 @@
 import type { CardStatus } from "../types";
 import StepWrapper from "../components/StepWrapper";
-import StatusUpdateDetail from "../cards/StatusUpdateDetail";
-
+import StatusUpdateDetail from "./StatusUpdateDetail";
 import { reactPlugin } from "../monitor/applicationInsights";
 import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";
 
@@ -26,34 +25,46 @@ type Props = {
 };
 
 export default function StatusUpdate({
-  status, expanded, onToggle, disabled,
-  running, countdown, lastRunTime, lastTriggeredAt, retryCount,
-  onRun, runError, lastRunId, statusFileRunId, repoFullName, workflowId,
+  status,
+  expanded,
+  onToggle,
+  disabled,
+  running,
+  countdown,
+  lastRunTime,
+  lastTriggeredAt,
+  retryCount,
+  onRun,
+  runError,
+  lastRunId,
+  statusFileRunId,
+  repoFullName,
+  workflowId,
 }: Props) {
   return (
     <AppInsightsErrorBoundary onError={() => <p>Error: Unable to load component!</p>} appInsights={reactPlugin}>
-    <StepWrapper
-      title="Run Status Update"
-      subtitle={statusFileRunId ? `Last run #${statusFileRunId}` : "Trigger the GitHub Actions workflow to check deployment state"}
-      status={status}
-      expanded={expanded}
-      onToggle={onToggle}
-      disabled={disabled}
-    >
-      <StatusUpdateDetail
-        running={running}
-        countdown={countdown}
-        lastRunTime={lastRunTime}
-        lastTriggeredAt={lastTriggeredAt}
-        retryCount={retryCount}
-        onRun={onRun}
-        runError={runError}
-        lastRunId={lastRunId}
-        statusFileRunId={statusFileRunId}
-        repoFullName={repoFullName}
-        workflowId={workflowId}
-      />
-    </StepWrapper>
+      <StepWrapper
+        title="Run Status Update"
+        subtitle={statusFileRunId ? `Last run #${statusFileRunId}` : "Trigger the GitHub Actions workflow to check deployment state"}
+        status={status}
+        expanded={expanded}
+        onToggle={onToggle}
+        disabled={disabled}
+      >
+        <StatusUpdateDetail
+          running={running}
+          countdown={countdown}
+          lastRunTime={lastRunTime}
+          lastTriggeredAt={lastTriggeredAt}
+          retryCount={retryCount}
+          onRun={onRun}
+          runError={runError}
+          lastRunId={lastRunId}
+          statusFileRunId={statusFileRunId}
+          repoFullName={repoFullName}
+          workflowId={workflowId}
+        />
+      </StepWrapper>
     </AppInsightsErrorBoundary>
   );
 }

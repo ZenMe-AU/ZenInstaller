@@ -2,8 +2,7 @@ import type { Account, CardStatus, GhEnv } from "../types";
 import { AZURE_CLIENT_ID } from "../config/azureConfig";
 import type { useAzureSetup } from "../hooks/useAzureSetup";
 import StepWrapper from "../components/StepWrapper";
-import AzureDeployDetail from "../cards/AzureDeployDetail";
-
+import AzureDeployDetail from "./AzureDeployDetail";
 import { reactPlugin } from "../monitor/applicationInsights";
 import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";
 
@@ -42,25 +41,22 @@ export default function AzureDeploy({
         ? `Signed in as ${azureSetup.azureAccount.username}`
         : "Not yet connected — give GitHub Actions access to deploy to Azure";
 
-  const githubUrl =
-    repoFullName && selectedEnv
-      ? `https://github.com/${repoFullName}/settings/environments/${selectedEnv.id}/edit`
-      : undefined;
+  const githubUrl = repoFullName && selectedEnv ? `https://github.com/${repoFullName}/settings/environments/${selectedEnv.id}/edit` : undefined;
 
   return (
     <AppInsightsErrorBoundary onError={() => <p>Error: Unable to load component!</p>} appInsights={reactPlugin}>
-    <StepWrapper title="Let GitHub deploy to Azure" subtitle={subtitle} status={status} expanded={expanded} onToggle={onToggle} disabled={disabled}>
-      <AzureDeployDetail
-        {...azureSetup}
-        disabled={disabled}
-        account={account}
-        repoName={repoName}
-        selectedEnv={selectedEnv}
-        onComplete={onComplete}
-        githubUrl={githubUrl}
-        onAzureValid={onAzureValid}
-      />
-    </StepWrapper>
+      <StepWrapper title="Let GitHub deploy to Azure" subtitle={subtitle} status={status} expanded={expanded} onToggle={onToggle} disabled={disabled}>
+        <AzureDeployDetail
+          {...azureSetup}
+          disabled={disabled}
+          account={account}
+          repoName={repoName}
+          selectedEnv={selectedEnv}
+          onComplete={onComplete}
+          githubUrl={githubUrl}
+          onAzureValid={onAzureValid}
+        />
+      </StepWrapper>
     </AppInsightsErrorBoundary>
   );
 }

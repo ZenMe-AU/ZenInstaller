@@ -1,8 +1,7 @@
 import type { Account, CardStatus, GhEnv } from "../types";
 import type { useAwsSetup } from "../hooks/useAwsSetup";
 import StepWrapper from "../components/StepWrapper";
-import AwsDeployDetail from "../cards/AwsDeployDetail";
-
+import AwsDeployDetail from "./AwsDeployDetail";
 import { reactPlugin } from "../monitor/applicationInsights";
 import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";
 

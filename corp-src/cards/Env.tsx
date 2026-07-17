@@ -8,7 +8,7 @@ import type {
   SecretsStatus,
 } from "../types";
 import StepWrapper from "../components/StepWrapper";
-import EnvDetail from "../cards/EnvDetail";
+import EnvDetail from "./EnvDetail";
 
 import { reactPlugin } from "../monitor/applicationInsights";
 import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";

@@ -2,8 +2,7 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { Button } from "@mui/material";
 import type { Account, CardStatus, Repo, RepoOption } from "../types";
 import StepWrapper from "../components/StepWrapper";
-import RepoDetail from "../cards/RepoDetail";
-
+import RepoDetail from "./RepoDetail";
 import { reactPlugin } from "../monitor/applicationInsights";
 import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";
 

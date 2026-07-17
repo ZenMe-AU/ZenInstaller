@@ -3,8 +3,7 @@ import type { Account, CardId, CardStatus, GhEnv, PlanSummary, Stage, StageDefin
 import { isNoChanges } from "../logic/stage";
 import SummaryChip from "../components/SummaryChip";
 import StepWrapper from "../components/StepWrapper";
-import { StageDetail } from "../cards/StageDetail";
-
+import { StageDetail } from "./StageDetail";
 import { reactPlugin } from "../monitor/applicationInsights";
 import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";
 type Props = {

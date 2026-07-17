@@ -169,7 +169,16 @@ function AppDashboard() {
       <SessionOverlay sessionExpired={auth.sessionExpired} redirecting={auth.redirecting} onLogin={auth.onLogin} />
 
       <Box sx={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a", fontFamily: "'IBM Plex Sans', sans-serif" }}>
-        <NavBar authLoading={auth.authLoading} user={auth.user} selectedRepo={repo.selectedRepo} siblingPages={[{ label: "Corp Setup", href: "/" }]} />
+        <NavBar
+          authLoading={auth.authLoading}
+          user={auth.user}
+          selectedRepo={repo.selectedRepo}
+          siblingPages={[
+            { label: "Corp Setup", href: "/" },
+            { label: "Cost Management", href: "/costManagement.html" },
+            { label: "User Access", href: "/userAccess.html" },
+          ]}
+        />
 
         <Box sx={{ maxWidth: 860, mx: "auto", px: 4, py: 5 }}>
           {/* Intro */}

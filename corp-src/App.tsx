@@ -177,6 +177,9 @@ function AppDashboard() {
           siblingPages={[
             { label: "Access Pass", href: "/accessPass.html" },
             { label: "Private Account", href: "/privAccount.html" },
+            { label: "AWS Hosting", href: "/awsHosting.html" },
+            { label: "Cost Management", href: "/costManagement.html" },
+            { label: "User Access", href: "/userAccess.html" },
           ]}
         />
 

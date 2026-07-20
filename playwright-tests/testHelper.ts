@@ -45,6 +45,7 @@ export function escapeRegExp(value: string,): string {
  */
 export function sensitiveTextMasks(page: Page,): Locator[] {
   return [page.getByTestId("txtAzureUsername",),
+    page.getByTestId("txtUPN"),
     page.getByText(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i,),
   ];
 }
@@ -266,7 +267,7 @@ export async function changeTenantIdIfAvailable(
   await tenantInput.fill(tenantId);
 
   const loadTenantButton =
-    page.getByRole("button", {name: /load tenant|confirm tenant|save tenant/i,});
+    page.getByTestId("btnConfirmTenant");
 
   await expect(loadTenantButton,).toBeEnabled();
   await loadTenantButton.click();
@@ -452,25 +453,24 @@ export async function expectConfiguredTenantOutcome(
   switch (user.expectedEntraResult) {
     case "users": {
       await expectEntraUserListLoaded(page,);
+
       /*
-       * The fallback keeps this helper compatible while
-       * targetEntraUsers remains optional in AccessPassUser.
-       */
-      const targets = user.targetEntraUsers ?? [];
+      * Tenant Outcome only verifies that the tenant returned
+      * an actionable users result.
+      *
+      * Individual users are checked in entra-user-action.spec.ts.
+      */
+      await expect(
+        page
+          .getByRole("button", {
+            name: /create access pass/i,
+          })
+          .first(),
+      ).toBeVisible({
+        timeout: 45_000,
+      });
 
-      for (const target of targets) {
-        await test.step(
-          `Verify target user ${target.email}`,
-          async () => {
-            await expectEntraUserAvailable(
-              page,
-              target,
-            );
-          },
-        );
-      }
-
-      return;
+  return;
     }
 
     case "empty": {

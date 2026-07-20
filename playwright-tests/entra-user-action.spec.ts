@@ -56,56 +56,82 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
           );
         });
 
-        for (const target of targets) {
-          test(
-            `Access Pass action is available for ${target.id}`,
-            async ({ browser }, testInfo) => {
-              test.skip(
-                !user.tenantId,
-                `No tenantId configured for ${user.id}.`,
-              );
+test(
+  "Access Pass actions are available for configured Entra users",
+  async ({ browser }, testInfo) => {
+    test.skip(
+      !user.tenantId,
+      `No tenantId configured for ${user.id}.`,
+    );
 
-              const {
-                page,
-                context,
-              } = await openAuthenticatedAccessPassPage(
-                browser,
-                user,
-                viewport,
-              );
+    test.skip(
+      targets.length === 0,
+      `No target Entra users configured for ${user.id}.`,
+    );
 
-              try {
-                await expectAuthenticatedAccessPassState(
-                  page,
-                  user,
-                );
+    const {
+      page,
+      context,
+    } = await openAuthenticatedAccessPassPage(
+      browser,
+      user,
+      viewport,
+    );
 
-                await changeTenantIdIfAvailable(
-                  page,
-                  user.tenantId!,
-                );
+    try {
+      /*
+       * Restore and verify Name A only once.
+       */
+      await expectAuthenticatedAccessPassState(
+        page,
+        user,
+      );
 
-                await expectEntraUserListLoaded(page);
+      /*
+       * Load the tenant only once.
+       */
+      await changeTenantIdIfAvailable(
+        page,
+        user.tenantId!,
+      );
 
-                await expectEntraUserAvailable(
-                  page,
-                  target,
-                );
+      await expectEntraUserListLoaded(
+        page,
+      );
 
-                await expectPageSnapshot(
-                  page,
-                  testInfo,
-                  `${target.id}-access-pass-action-ready.png`,
-                  {userId: user.id, viewportName,
-                    mask: sensitiveTextMasks(page),
-                  },
-                );
-              } finally {
-                await context.close();
-              }
-            },
-          );
-        }
+      /*
+       * Check Name D and Name E using the already loaded table.
+       */
+      for (const target of targets) {
+        await test.step(
+          `Verify Access Pass action for ${target.id}`,
+          async () => {
+            await expectEntraUserAvailable(
+              page,
+              target,
+            );
+          },
+        );
+      }
+
+      /*
+       * One screenshot contains the complete Entra-user table.
+       */
+      await expectPageSnapshot(
+        page,
+        testInfo,
+        "all-entra-user-actions-ready.png",
+        {
+          userId: user.id,
+          viewportName,
+          mask: sensitiveTextMasks(page),
+        },
+      );
+    } finally {
+      await context.close();
+    }
+  },
+);
       });
     }
   });

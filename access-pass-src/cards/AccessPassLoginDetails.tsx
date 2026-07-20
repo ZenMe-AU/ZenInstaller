@@ -91,7 +91,7 @@ export default function AccessPassLoginCard({
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
               Signed in as{" "}
-              <Box component="span" data-testid="azure-account-username" sx={{ fontWeight: 600, ...mono }}>
+              <Box component="span" test-id="txtAzureUsername" sx={{ fontWeight: 600, ...mono }}>
                 {azureAccount.username}
               </Box>
             </Typography>
@@ -135,6 +135,7 @@ export default function AccessPassLoginCard({
                 />
                 <Button
                   variant="contained"
+                  test-id="btnConfirmTenant"
                   size="small"
                   onClick={confirmTenantId}
                   sx={{ background: "#d97706", textTransform: "none", ...mono, fontSize: "0.78rem", "&:hover": { background: "#b45309" } }}

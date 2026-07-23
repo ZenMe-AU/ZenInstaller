@@ -72,7 +72,6 @@ export default function CardTile({ title, summary, status, locked = false, requi
         overflow: "hidden",
         boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
         transition: "border-color 0.2s, background 0.2s",
-        height: expanded ? "auto" : "100%",
       }}
     >
       {/* Header (always clickable — even when locked) */}

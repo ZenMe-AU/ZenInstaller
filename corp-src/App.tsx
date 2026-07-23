@@ -25,10 +25,8 @@ import LoginDetail from "./cards/LoginDetail";
 import RepoDetail from "./cards/RepoDetail";
 import EnvDetail from "./cards/EnvDetail";
 import EnvVariablesDetail from "./cards/EnvVariablesDetail";
-import EnvSecretsDetail from "./cards/EnvSecretsDetail";
 import AzureLoginDetail from "./cards/AzureLoginDetail";
 import AzureDeployDetail from "./cards/AzureDeployDetail";
-import AzureVarsDetail from "./cards/AzureVarsDetail";
 import CreateDomainDetail from "./cards/CreateDomainDetail";
 import TfBackendDetail from "./cards/TfBackendDetail";
 
@@ -37,7 +35,9 @@ import { reactPlugin } from "./monitor/applicationInsights";
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 const groupLabelSx = { fontSize: "0.72rem", color: "#94a3b8", ...mono, mt: 3.5, mb: 1.25, letterSpacing: "0.02em", textTransform: "uppercase" as const };
-const gridSx = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 1.5 } as const;
+// Collapsed tiles are a uniform fixed width and wrap; only the expanded tile takes the full row.
+const TILE_W = 300;
+const groupSx = { display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "flex-start" } as const;
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
@@ -245,6 +245,7 @@ function AppDashboard() {
       onToggle: () => toggle(id),
     };
   };
+  const itemSx = (id: CardId) => ({ width: expandedId === id ? "100%" : TILE_W, maxWidth: "100%" });
 
   // ── URL sync (persist current state; restore is handled by useUrlRestore) ──
   useEffect(() => {
@@ -318,8 +319,8 @@ function AppDashboard() {
 
           {/* ── Sign in ── */}
           <Typography sx={groupLabelSx}>Sign in</Typography>
-          <Box sx={gridSx}>
-            <Box sx={{ gridColumn: expandedId === "auth" ? "1 / -1" : "auto" }}>
+          <Box sx={groupSx}>
+            <Box sx={itemSx("auth")}>
               <CardTile title="GitHub login" {...tileProps("auth")}>
                 <LoginDetail
                   authLoading={auth.authLoading}
@@ -336,7 +337,7 @@ function AppDashboard() {
               </CardTile>
             </Box>
             {AZURE_CLIENT_ID && (
-              <Box sx={{ gridColumn: expandedId === "azure_login" ? "1 / -1" : "auto" }}>
+              <Box sx={itemSx("azure_login")}>
                 <CardTile title="Azure login" {...tileProps("azure_login")}>
                   <AzureLoginDetail
                     azureAccount={azureSetup.azureAccount}
@@ -352,8 +353,8 @@ function AppDashboard() {
 
           {/* ── Target ── */}
           <Typography sx={groupLabelSx}>Target</Typography>
-          <Box sx={gridSx}>
-            <Box sx={{ gridColumn: "1 / -1" }}>
+          <Box sx={groupSx}>
+            <Box sx={itemSx("repo")}>
               <CardTile title="Repository & environment" action={viewRepoAction} {...tileProps("repo")}>
                 <RepoDetail
                   accounts={repo.accounts}
@@ -420,8 +421,8 @@ function AppDashboard() {
 
           {/* ── Resources ── */}
           <Typography sx={groupLabelSx}>Resources</Typography>
-          <Box sx={gridSx}>
-            <Box sx={{ gridColumn: expandedId === "company_info" ? "1 / -1" : "auto" }}>
+          <Box sx={groupSx}>
+            <Box sx={itemSx("company_info")}>
               <CardTile title="Company info" {...tileProps("company_info")}>
                 {env.selectedEnv && (
                   <EnvVariablesDetail
@@ -440,7 +441,7 @@ function AppDashboard() {
             </Box>
 
             {AZURE_CLIENT_ID && (
-              <Box sx={{ gridColumn: expandedId === "azure_setup" ? "1 / -1" : "auto" }}>
+              <Box sx={itemSx("azure_setup")}>
                 <CardTile title="Azure app registration" {...tileProps("azure_setup")}>
                   <AzureDeployDetail
                     {...azureSetup}
@@ -456,39 +457,7 @@ function AppDashboard() {
               </Box>
             )}
 
-            {AZURE_CLIENT_ID && (
-              <Box sx={{ gridColumn: expandedId === "azure_vars" ? "1 / -1" : "auto" }}>
-                <CardTile title="Azure connection vars" {...tileProps("azure_vars")}>
-                  <AzureVarsDetail
-                    variableValues={env.presentVariableValues}
-                    onRecheck={env.onVariableRecheck}
-                    rechecking={env.variablesRechecking}
-                    recheckFailed={env.varRecheckFailed}
-                    githubUrl={githubEnvUrl}
-                  />
-                </CardTile>
-              </Box>
-            )}
-
-            <Box sx={{ gridColumn: expandedId === "secrets" ? "1 / -1" : "auto" }}>
-              <CardTile title="Secrets" {...tileProps("secrets")}>
-                {env.selectedEnv && (
-                  <EnvSecretsDetail
-                    account={repo.selectedAccount}
-                    repo={repo.selectedRepo?.name ?? ""}
-                    selectedEnv={env.selectedEnv}
-                    presentKeys={env.presentSecretKeys}
-                    azureSecretsStatus={env.azureSecrets}
-                    awsSecretsStatus={env.awsSecrets}
-                    onRecheck={env.onRecheck}
-                    rechecking={env.rechecking}
-                    recheckFailed={env.recheckFailed}
-                  />
-                )}
-              </CardTile>
-            </Box>
-
-            <Box sx={{ gridColumn: expandedId === "create_domain" ? "1 / -1" : "auto" }}>
+            <Box sx={itemSx("create_domain")}>
               <CardTile title="Corp domain setup" {...tileProps("create_domain")}>
                 <CreateDomainDetail
                   {...createDomain}
@@ -501,7 +470,7 @@ function AppDashboard() {
               </CardTile>
             </Box>
 
-            <Box sx={{ gridColumn: expandedId === "tf_backend" ? "1 / -1" : "auto" }}>
+            <Box sx={itemSx("tf_backend")}>
               <CardTile title="Terraform backend" {...tileProps("tf_backend")}>
                 <TfBackendDetail
                   {...tfSetup}

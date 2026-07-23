@@ -44,8 +44,12 @@ function prereqLabel(prereq: Prerequisite, variableValues: Record<string, string
     case "card": {
       const labels: Record<CardId, string> = {
         auth: "Authenticated",
+        azure_login: "Azure signed in",
         repo: "Repo selected",
+        company_info: "Company info set",
         azure_setup: "Azure setup",
+        azure_vars: "Azure connection vars",
+        secrets: "Secrets configured",
         create_domain: "Create domain",
         tf_backend: "Terraform backend",
         aws_setup: "AWS setup",

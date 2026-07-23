@@ -3,14 +3,12 @@ import { Autocomplete, Box, Button, CircularProgress, Collapse, MenuItem, Select
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { Account, GhEnv } from "../types";
 import type { useAzureSetup } from "../hooks/useAzureSetup";
 import type { SetupStep } from "../hooks/useAzureSetup";
 import { AZURE_VARIABLE_KEYS } from "../logic/variables";
-import { CLOUD_DOCS } from "../config/docsConfig";
 import CloudVariableDetail from "./CloudVariableDetail";
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
@@ -62,9 +60,7 @@ export default function AzureDeployDetail({
   steps,
   result,
   running,
-  loggingIn,
   consentFailed,
-  loginError,
   subsError,
   needsTenantId,
   availableTenants,
@@ -72,8 +68,6 @@ export default function AzureDeployDetail({
   setManualTenantId,
   tenantIdError,
   confirmTenantId,
-  login,
-  logout,
   reset,
   run,
   changeTenant,
@@ -97,10 +91,6 @@ export default function AzureDeployDetail({
   const varHasAny = !!loadedVars && Object.keys(loadedVars).length > 0;
 
   // Action handlers that also dismiss the banner.
-  const handleLogout = () => {
-    setBannerState("none");
-    logout();
-  };
   const handleRetry = () => {
     setBannerState("none");
     reset();
@@ -204,92 +194,19 @@ export default function AzureDeployDetail({
         </Box>
       )}
 
-      {/* ── Login / Create section ── */}
+      {/* ── App registration section ── */}
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        {/* Description — always visible, regardless of banner/sign-in state */}
+        {/* Description — always visible */}
         <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
           <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
-            Sign in with Azure and we'll create an app registration for GitHub Actions and save the connection details automatically. We never store
-            your Azure credentials — sign-in happens directly with Microsoft, and only a short-lived access token is used.
+            Create an app registration for GitHub Actions. Pick the target subscription and a name, then create it — the AZURE_* connection variables
+            are written to GitHub automatically.
           </Typography>
         </Box>
 
-        {/* Not signed in */}
-        {!azureAccount && (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>
-            {loggingIn ? (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <CircularProgress size={14} sx={{ color: "#2563eb" }} />
-                <Typography sx={{ fontSize: "0.72rem", color: "#64748b" }}>Checking session...</Typography>
-              </Box>
-            ) : (
-              <>
-                <Button
-                  variant="contained"
-                  onClick={login}
-                  disabled={disabled}
-                  sx={{
-                    alignSelf: "flex-start",
-                    background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
-                    textTransform: "none",
-                    ...mono,
-                    fontSize: "0.85rem",
-                    py: 1,
-                    px: 2.5,
-                    borderRadius: "8px",
-                    boxShadow: "0 2px 8px #2563eb33",
-                    "&:hover": { background: "linear-gradient(135deg, #1d4ed8, #1e40af)", boxShadow: "0 4px 12px #2563eb44" },
-                    "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
-                  }}
-                >
-                  Sign in with Azure
-                </Button>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  <Typography sx={{ fontSize: "0.7rem", color: "#94a3b8" }}>No Azure account?</Typography>
-                  <Box
-                    component="a"
-                    href={CLOUD_DOCS.azure.createAccount}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 0.25,
-                      color: "#64748b",
-                      textDecoration: "none",
-                      "&:hover": { color: "#2563eb" },
-                    }}
-                  >
-                    <Typography sx={{ fontSize: "0.7rem" }}>Create a free one</Typography>
-                    <OpenInNewIcon sx={{ fontSize: 11 }} />
-                  </Box>
-                </Box>
-              </>
-            )}
-            {loginError && <Typography sx={{ fontSize: "0.72rem", color: "#ef4444" }}>{loginError}</Typography>}
-          </Box>
-        )}
-
-        {/* Signed in */}
+        {/* Requires the Azure sign-in from the Azure login card */}
         {azureAccount && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-            {/* Account info */}
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
-                Signed in as{" "}
-                <Box component="span" data-id="txtAzureUsername" sx={{ fontWeight: 600, ...mono }}>
-                  {azureAccount.username}
-                </Box>
-              </Typography>
-              <Button
-                size="small"
-                onClick={handleLogout}
-                sx={{ minWidth: 0, fontSize: "0.68rem", color: "#94a3b8", textTransform: "none", ...mono, py: 0.25, "&:hover": { color: "#ef4444" } }}
-              >
-                Sign out
-              </Button>
-            </Box>
-
             {/* Tenant ID input (personal accounts) */}
             {needsTenantId && (
               <Box

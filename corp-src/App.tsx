@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Box, Typography } from "@mui/material";
+import { Box, Button, Typography } from "@mui/material";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 
-import { type CardId, type CardStatus, type PendingRestore, type StageStatus } from "./types";
+import { type CardId, type CardStatus, type PendingRestore } from "./types";
+import { AZURE_CLIENT_ID } from "./config/azureConfig";
+import { AZURE_VARIABLE_KEYS, AZURE_SECRET_KEYS, AWS_SECRET_KEYS } from "./logic/variables";
+import { tileRequirements, type TileFlags } from "./logic/tileRequirements";
 import { useActiveAuth as useAuth } from "./hooks/useActiveAuth";
 import { useAccountRepo } from "./hooks/useAccountRepo";
 import { useAzureSetup } from "./hooks/useAzureSetup";
@@ -12,25 +16,28 @@ import { useDeploymentPlan } from "./hooks/useDeploymentPlan";
 import { useEnv } from "./hooks/useEnv";
 import { usePR } from "./hooks/usePR";
 import { useUrlRestore } from "./hooks/useUrlRestore";
-import { getEffectiveStatus, stageToCardStatus, hasVariableDiff } from "./logic/stage";
 
-import Connector from "./components/Connector";
+import CardTile from "./components/CardTile";
 import NavBar from "./components/NavBar";
 import RestoreToast from "./components/RestoreToast";
 import SessionOverlay from "./components/SessionOverlay";
-import Login from "./cards/Login";
-import Repo from "./cards/Repo";
-import PR from "./cards/PR";
-import Env from "./cards/Env";
-import StatusUpdate from "./cards/StatusUpdate";
-import Stage from "./cards/Stage";
-import AzureDeploy from "./cards/AzureDeploy";
-import CreateDomain from "./cards/CreateDomain";
-import TfBackend from "./cards/TfBackend";
-import AwsDeploy from "./cards/AwsDeploy";
+import LoginDetail from "./cards/LoginDetail";
+import RepoDetail from "./cards/RepoDetail";
+import EnvDetail from "./cards/EnvDetail";
+import EnvVariablesDetail from "./cards/EnvVariablesDetail";
+import EnvSecretsDetail from "./cards/EnvSecretsDetail";
+import AzureLoginDetail from "./cards/AzureLoginDetail";
+import AzureDeployDetail from "./cards/AzureDeployDetail";
+import AzureVarsDetail from "./cards/AzureVarsDetail";
+import CreateDomainDetail from "./cards/CreateDomainDetail";
+import TfBackendDetail from "./cards/TfBackendDetail";
 
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
+
+const mono = { fontFamily: "'IBM Plex Mono', monospace" };
+const groupLabelSx = { fontSize: "0.72rem", color: "#94a3b8", ...mono, mt: 3.5, mb: 1.25, letterSpacing: "0.02em", textTransform: "uppercase" as const };
+const gridSx = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 1.5 } as const;
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
@@ -130,25 +137,19 @@ function AppDashboard() {
     onAwsValid: env.onAwsValid,
   });
 
-  // ── Expanded state ─────────────────────────────────────────────────────────
-  const [expanded, setExpanded] = useState<Record<CardId, boolean>>({
-    auth: true,
-    repo: true,
-    azure_setup: true,
-    create_domain: true,
-    tf_backend: true,
-    aws_setup: true,
-    pr: true,
-    env: true,
-    status_update: true,
-    stages: true,
-  });
-  const toggle = (id: CardId) => setExpanded((p) => ({ ...p, [id]: !p[id] }));
-  const [stagesExpanded, setStagesExpanded] = useState<Record<string, boolean>>({});
+  // ── Accordion + completion flags ───────────────────────────────────────────
+  const [expandedId, setExpandedId] = useState<CardId | null>("auth");
+  const toggle = (id: CardId) => setExpandedId((cur) => (cur === id ? null : id));
   const [azureSetupDone, setAzureSetupDone] = useState(false);
   const [awsSetupDone, setAwsSetupDone] = useState(false);
 
   // ── Derived card statuses ──────────────────────────────────────────────────
+  const azureSignedIn = !!azureSetup.azureAccount;
+  const hasCompanyInfo = !!corpName && !!dnsName;
+  const allAzureVars = AZURE_VARIABLE_KEYS.every((k) => !!env.presentVariableValues[k]);
+  const secretKeys = [...AZURE_SECRET_KEYS, ...AWS_SECRET_KEYS];
+  const missingSecrets = secretKeys.filter((k) => !env.presentSecretKeys.includes(k));
+
   const prStatus: CardStatus = !isAuthed
     ? "idle"
     : pr.selectedPR
@@ -165,9 +166,16 @@ function AppDashboard() {
       ? "loading"
       : plan.statusUpdateStatus;
 
+  // Merged Repository & environment tile: complete only when the repo is cloned AND an env is picked.
+  const repoEnvStatus: CardStatus = !isAuthed ? "idle" : repo.isCloneRepo && env.selectedEnv ? "complete" : repo.status === "idle" ? "idle" : "loading";
+
   const cardStatus: Record<CardId, CardStatus> = {
     auth: isAuthed ? "complete" : "loading",
-    repo: isAuthed ? repo.status : "idle",
+    azure_login: azureSignedIn ? "complete" : "idle",
+    repo: repoEnvStatus,
+    company_info: !env.selectedEnv ? "idle" : hasCompanyInfo ? "complete" : "warning",
+    azure_vars: !azureSetup.result ? "idle" : allAzureVars ? "complete" : "warning",
+    secrets: !env.selectedEnv ? "idle" : missingSecrets.length === 0 ? "complete" : "warning",
     pr: prStatus,
     env: effectiveEnvStatus,
     status_update: effectiveStatusUpdateStatus,
@@ -180,7 +188,7 @@ function AppDashboard() {
             ? "error"
             : "complete", // filled in — validated (true) or not yet run (null) both count as complete
     aws_setup:
-      !isAuthed || !repo.isCloneRepo || !env.selectedEnv ? "idle" : !awsSetupDone ? "warning" : env.awsSecrets.valid === false ? "error" : "complete", // filled in — validated (true) or not yet run (null) both count as complete
+      !isAuthed || !repo.isCloneRepo || !env.selectedEnv ? "idle" : !awsSetupDone ? "warning" : env.awsSecrets.valid === false ? "error" : "complete",
     create_domain:
       !isAuthed || !repo.isCloneRepo || !env.selectedEnv
         ? "idle"
@@ -189,6 +197,53 @@ function AppDashboard() {
           : "warning",
     tf_backend: !isAuthed || !repo.isCloneRepo || !env.selectedEnv ? "idle" : tfSetup.done ? "complete" : "warning",
     stages: isAuthed && plan.hasPlan ? (plan.stages.some((s) => s.status === "failed") ? "warning" : "complete") : "idle",
+  };
+
+  // ── Lock / requirements + face summaries ───────────────────────────────────
+  const flags: TileFlags = {
+    isAuthed,
+    isCloneRepo: repo.isCloneRepo,
+    envSelected: !!env.selectedEnv,
+    azureSignedIn,
+    hasCompanyInfo,
+    hasSubscription: !!corpSubscriptionId,
+    appRegDone: !!azureSetup.result,
+    domainStorageReady: createDomain.resourcesDone,
+    hasAzureClientId: !!corpSpClientId,
+  };
+  const reqs = (id: CardId) => tileRequirements(id, flags);
+
+  const summaries: Partial<Record<CardId, string>> = {
+    auth: isAuthed ? `Signed in as ${auth.user?.login ?? ""}` : "Connect your GitHub account",
+    azure_login: azureSignedIn ? azureSetup.azureAccount?.username ?? "Signed in" : "Sign in to Azure",
+    repo:
+      repo.repoFullName && env.selectedEnv
+        ? `${repo.repoFullName} · ${env.selectedEnv.name}`
+        : repo.repoFullName
+          ? repo.repoFullName
+          : "Select repository and environment",
+    company_info: hasCompanyInfo ? `${corpName} · ${dnsName}` : "Set company NAME and DNS",
+    azure_setup: azureSetup.result ? "App registration ready" : "Create the app registration",
+    azure_vars: allAzureVars ? "Connection details saved" : "Not configured yet",
+    secrets:
+      missingSecrets.length === 0 ? "All secrets configured" : `${missingSecrets.length} of ${secretKeys.length} secret${secretKeys.length !== 1 ? "s" : ""} missing`,
+    create_domain: cardStatus.create_domain === "complete" ? "Domain verified and primary" : "Set up the corp domain",
+    tf_backend: tfSetup.done ? "Terraform state container ready" : "Set up the terraform backend",
+  };
+
+  const githubEnvUrl =
+    repo.repoFullName && env.selectedEnv ? `https://github.com/${repo.repoFullName}/settings/environments/${env.selectedEnv.id}/edit` : undefined;
+
+  const tileProps = (id: CardId) => {
+    const requirements = reqs(id);
+    return {
+      status: cardStatus[id],
+      summary: summaries[id],
+      locked: requirements.length > 0,
+      requirements,
+      expanded: expandedId === id,
+      onToggle: () => toggle(id),
+    };
   };
 
   // ── URL sync (persist current state; restore is handled by useUrlRestore) ──
@@ -204,6 +259,25 @@ function AppDashboard() {
     const search = params.toString();
     window.history.replaceState(null, "", search ? `?${search}` : window.location.pathname);
   }, [isAuthed, repo.selectedAccount, repo.selectedRepo, pr.selectedPR, env.selectedEnv, restore.pendingRestore]);
+
+  const viewRepoAction = repo.repoFullName ? (
+    <Button
+      size="small"
+      variant="outlined"
+      endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />}
+      onClick={() => window.open(`https://github.com/${repo.repoFullName}`, "_blank")}
+      sx={{
+        borderColor: "#e2e8f0",
+        color: "#475569",
+        fontSize: "0.72rem",
+        textTransform: "none",
+        ...mono,
+        "&:hover": { borderColor: "#cbd5e1", color: "#0f172a", background: "#f8fafc" },
+      }}
+    >
+      View on GitHub
+    </Button>
+  ) : undefined;
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -224,7 +298,7 @@ function AppDashboard() {
           ]}
         />
 
-        <Box sx={{ maxWidth: 860, mx: "auto", px: 4, py: 5 }}>
+        <Box sx={{ maxWidth: 1040, mx: "auto", px: 4, py: 5 }}>
           {/* Intro */}
           <Box
             sx={{
@@ -233,139 +307,214 @@ function AppDashboard() {
               border: "1px solid #e2e8f0",
               px: 3,
               py: 2.5,
-              mb: 3,
               boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
             }}
           >
-            <Typography sx={{ fontSize: "0.85rem", color: "#475569", lineHeight: 1.7, fontFamily: "'IBM Plex Sans', sans-serif" }}>
+            <Typography sx={{ fontSize: "0.85rem", color: "#475569", lineHeight: 1.7 }}>
               The ZenInstaller is used to deploy Zenblox to your environment. It requires a Github repository in your own account, an Azure, and AWS
-              subscription in your name. ZenInstaller will guide you through each step of the process starting from nothing.
+              subscription in your name. Complete the tiles below in any order — each shows what it needs before it can run.
             </Typography>
           </Box>
 
-          <Connector>
-            <Login
-              status={cardStatus.auth}
-              expanded={expanded.auth}
-              onToggle={() => toggle("auth")}
-              authLoading={auth.authLoading}
-              user={auth.user}
-              onLogin={auth.onLogin}
-              onLogout={auth.onLogout}
-              onPatLogin={auth.onPatLogin}
-              onDirectLogout={() => {
-                auth.onDirectLogout();
-                repo.setSelectedAccount(null);
-                repo.setSelectedRepo(null);
-              }}
-            />
+          {/* ── Sign in ── */}
+          <Typography sx={groupLabelSx}>Sign in</Typography>
+          <Box sx={gridSx}>
+            <Box sx={{ gridColumn: expandedId === "auth" ? "1 / -1" : "auto" }}>
+              <CardTile title="GitHub login" {...tileProps("auth")}>
+                <LoginDetail
+                  authLoading={auth.authLoading}
+                  user={auth.user}
+                  onLogin={auth.onLogin}
+                  onLogout={auth.onLogout}
+                  onPatLogin={auth.onPatLogin}
+                  onDirectLogout={() => {
+                    auth.onDirectLogout();
+                    repo.setSelectedAccount(null);
+                    repo.setSelectedRepo(null);
+                  }}
+                />
+              </CardTile>
+            </Box>
+            {AZURE_CLIENT_ID && (
+              <Box sx={{ gridColumn: expandedId === "azure_login" ? "1 / -1" : "auto" }}>
+                <CardTile title="Azure login" {...tileProps("azure_login")}>
+                  <AzureLoginDetail
+                    azureAccount={azureSetup.azureAccount}
+                    loggingIn={azureSetup.loggingIn}
+                    loginError={azureSetup.loginError}
+                    login={azureSetup.login}
+                    logout={azureSetup.logout}
+                  />
+                </CardTile>
+              </Box>
+            )}
+          </Box>
 
-            <Repo
-              status={cardStatus.repo}
-              expanded={expanded.repo}
-              onToggle={() => toggle("repo")}
-              accounts={repo.accounts}
-              selectedAccount={repo.selectedAccount}
-              onAccountChange={repo.setSelectedAccount}
-              repos={repo.repos}
-              selectedRepo={repo.selectedRepo}
-              onRepoChange={repo.setSelectedRepo}
-              templateStatus={repo.templateStatus}
-              templateName={repo.templateName}
-              defaultTemplateRepo="ZenMe-AU/ZBCorpArchitecture"
-              isPrivate={repo.isPrivate}
-              onIsPrivateChange={repo.setIsPrivate}
-              includeAllBranch={repo.includeAllBranch}
-              onIncludeAllBranchChange={repo.setIncludeAllBranch}
-              cloning={repo.cloning}
-              cloneError={repo.cloneError}
-              onClone={repo.onClone}
-              createEnvs={repo.createEnvs}
-              onCreateEnvsChange={repo.setCreateEnvs}
-              cloneEnvWarning={repo.cloneEnvWarning}
-              repoLoading={repo.repoLoading}
-              repoRefreshFailed={repo.repoRefreshFailed}
-              onRefresh={repo.onRefresh}
-              repoFullName={repo.repoFullName}
-              disabled={!isAuthed}
-            />
+          {/* ── Target ── */}
+          <Typography sx={groupLabelSx}>Target</Typography>
+          <Box sx={gridSx}>
+            <Box sx={{ gridColumn: "1 / -1" }}>
+              <CardTile title="Repository & environment" action={viewRepoAction} {...tileProps("repo")}>
+                <RepoDetail
+                  accounts={repo.accounts}
+                  selectedAccount={repo.selectedAccount}
+                  onAccountChange={repo.setSelectedAccount}
+                  repos={repo.repos}
+                  selectedRepo={repo.selectedRepo}
+                  onRepoChange={repo.setSelectedRepo}
+                  templateStatus={repo.templateStatus}
+                  templateName={repo.templateName}
+                  defaultTemplateRepo="ZenMe-AU/ZBCorpArchitecture"
+                  isPrivate={repo.isPrivate}
+                  onIsPrivateChange={repo.setIsPrivate}
+                  includeAllBranch={repo.includeAllBranch}
+                  onIncludeAllBranchChange={repo.setIncludeAllBranch}
+                  cloning={repo.cloning}
+                  cloneError={repo.cloneError}
+                  onClone={repo.onClone}
+                  createEnvs={repo.createEnvs}
+                  onCreateEnvsChange={repo.setCreateEnvs}
+                  cloneEnvWarning={repo.cloneEnvWarning}
+                  repoLoading={repo.repoLoading}
+                  repoRefreshFailed={repo.repoRefreshFailed}
+                  onRefresh={repo.onRefresh}
+                />
+                <Box sx={{ mt: 2.5, pt: 2.5, borderTop: "1px solid #f1f5f9" }}>
+                  <EnvDetail
+                    showConfig={false}
+                    envList={env.envList}
+                    validEnvs={repo.pipeline.validEnvs}
+                    selectedEnv={env.selectedEnv}
+                    onEnvChange={env.setSelectedEnv}
+                    lockedByPR={!!pr.selectedPR}
+                    branchMatchWarning={env.branchMatchWarning}
+                    branchMatchError={env.branchMatchError}
+                    loading={env.envLoading}
+                    refreshFailed={env.envRefreshFailed}
+                    onRefresh={env.onRefresh}
+                    presentKeys={env.presentSecretKeys}
+                    azureSecretsStatus={env.azureSecrets}
+                    awsSecretsStatus={env.awsSecrets}
+                    repoFullName={repo.repoFullName}
+                    onRecheck={env.onRecheck}
+                    rechecking={env.rechecking}
+                    recheckFailed={env.recheckFailed}
+                    account={repo.selectedAccount}
+                    repo={repo.selectedRepo?.name ?? ""}
+                    variableValues={env.presentVariableValues}
+                    onVariableRecheck={env.onVariableRecheck}
+                    variablesRechecking={env.variablesRechecking}
+                    varRecheckFailed={env.varRecheckFailed}
+                    onVariableConfirmed={env.onVariableConfirmed}
+                    branches={repo.branches}
+                    sourceBranch={repo.sourceBranch}
+                    onSourceBranchChange={repo.setSourceBranch}
+                    creatingBranch={repo.creatingBranch}
+                    createBranchError={repo.createBranchError}
+                    onCreateBranch={repo.onCreateBranch}
+                  />
+                </Box>
+              </CardTile>
+            </Box>
+          </Box>
 
-            <Env
-              status={effectiveEnvStatus}
-              expanded={expanded.env}
-              onToggle={() => toggle("env")}
-              disabled={!isAuthed || !repo.isCloneRepo}
-              envList={env.envList}
-              validEnvs={repo.pipeline.validEnvs}
-              selectedEnv={env.selectedEnv}
-              onEnvChange={env.setSelectedEnv}
-              lockedByPR={!!pr.selectedPR}
-              branchMatchWarning={env.branchMatchWarning}
-              branchMatchError={env.branchMatchError}
-              loading={env.envLoading}
-              refreshFailed={env.envRefreshFailed}
-              onRefresh={env.onRefresh}
-              presentKeys={env.presentSecretKeys}
-              azureSecretsStatus={env.azureSecrets}
-              awsSecretsStatus={env.awsSecrets}
-              repoFullName={repo.repoFullName}
-              onRecheck={env.onRecheck}
-              rechecking={env.rechecking}
-              recheckFailed={env.recheckFailed}
-              account={repo.selectedAccount}
-              repo={repo.selectedRepo?.name ?? ""}
-              variableValues={env.presentVariableValues}
-              onVariableRecheck={env.onVariableRecheck}
-              variablesRechecking={env.variablesRechecking}
-              varRecheckFailed={env.varRecheckFailed}
-              onVariableConfirmed={env.onVariableConfirmed}
-              branches={repo.branches}
-              sourceBranch={repo.sourceBranch}
-              onSourceBranchChange={repo.setSourceBranch}
-              creatingBranch={repo.creatingBranch}
-              createBranchError={repo.createBranchError}
-              onCreateBranch={repo.onCreateBranch}
-            />
+          {/* ── Resources ── */}
+          <Typography sx={groupLabelSx}>Resources</Typography>
+          <Box sx={gridSx}>
+            <Box sx={{ gridColumn: expandedId === "company_info" ? "1 / -1" : "auto" }}>
+              <CardTile title="Company info" {...tileProps("company_info")}>
+                {env.selectedEnv && (
+                  <EnvVariablesDetail
+                    account={repo.selectedAccount}
+                    repo={repo.selectedRepo?.name ?? ""}
+                    selectedEnv={env.selectedEnv}
+                    variableValues={env.presentVariableValues}
+                    onVariableRecheck={env.onVariableRecheck}
+                    variablesRechecking={env.variablesRechecking}
+                    varRecheckFailed={env.varRecheckFailed}
+                    onVariableConfirmed={env.onVariableConfirmed}
+                    githubUrl={githubEnvUrl}
+                  />
+                )}
+              </CardTile>
+            </Box>
 
-            <AzureDeploy
-              {...azureSetup}
-              status={cardStatus.azure_setup}
-              expanded={expanded.azure_setup}
-              onToggle={() => toggle("azure_setup")}
-              disabled={!isAuthed || !repo.isCloneRepo || !env.selectedEnv}
-              account={repo.selectedAccount}
-              repoName={repo.selectedRepo?.name ?? ""}
-              repoFullName={repo.repoFullName}
-              selectedEnv={env.selectedEnv}
-              onComplete={setAzureSetupDone}
-              onAzureValid={env.onAzureValid}
-            />
+            {AZURE_CLIENT_ID && (
+              <Box sx={{ gridColumn: expandedId === "azure_setup" ? "1 / -1" : "auto" }}>
+                <CardTile title="Azure app registration" {...tileProps("azure_setup")}>
+                  <AzureDeployDetail
+                    {...azureSetup}
+                    disabled={reqs("azure_setup").length > 0}
+                    account={repo.selectedAccount}
+                    repoName={repo.selectedRepo?.name ?? ""}
+                    selectedEnv={env.selectedEnv}
+                    onComplete={setAzureSetupDone}
+                    githubUrl={githubEnvUrl}
+                    onAzureValid={env.onAzureValid}
+                  />
+                </CardTile>
+              </Box>
+            )}
 
-            <CreateDomain
-              {...createDomain}
-              status={cardStatus.create_domain}
-              expanded={expanded.create_domain}
-              onToggle={() => toggle("create_domain")}
-              disabled={!isAuthed || !repo.isCloneRepo || !env.selectedEnv}
-              azureAccount={azureSetup.azureAccount}
-              corpName={corpName}
-              dnsName={dnsName}
-              subscriptions={azureSetup.subscriptions}
-            />
+            {AZURE_CLIENT_ID && (
+              <Box sx={{ gridColumn: expandedId === "azure_vars" ? "1 / -1" : "auto" }}>
+                <CardTile title="Azure connection vars" {...tileProps("azure_vars")}>
+                  <AzureVarsDetail
+                    variableValues={env.presentVariableValues}
+                    onRecheck={env.onVariableRecheck}
+                    rechecking={env.variablesRechecking}
+                    recheckFailed={env.varRecheckFailed}
+                    githubUrl={githubEnvUrl}
+                  />
+                </CardTile>
+              </Box>
+            )}
 
-            <TfBackend
-              {...tfSetup}
-              status={cardStatus.tf_backend}
-              expanded={expanded.tf_backend}
-              onToggle={() => toggle("tf_backend")}
-              disabled={!isAuthed || !repo.isCloneRepo || !env.selectedEnv}
-              azureAccount={azureSetup.azureAccount}
-              corpName={corpName}
-              subscriptionId={createDomain.subscriptionId}
-              spClientId={corpSpClientId}
-              storageReady={createDomain.resourcesDone}
-            />
-          </Connector>
+            <Box sx={{ gridColumn: expandedId === "secrets" ? "1 / -1" : "auto" }}>
+              <CardTile title="Secrets" {...tileProps("secrets")}>
+                {env.selectedEnv && (
+                  <EnvSecretsDetail
+                    account={repo.selectedAccount}
+                    repo={repo.selectedRepo?.name ?? ""}
+                    selectedEnv={env.selectedEnv}
+                    presentKeys={env.presentSecretKeys}
+                    azureSecretsStatus={env.azureSecrets}
+                    awsSecretsStatus={env.awsSecrets}
+                    onRecheck={env.onRecheck}
+                    rechecking={env.rechecking}
+                    recheckFailed={env.recheckFailed}
+                  />
+                )}
+              </CardTile>
+            </Box>
+
+            <Box sx={{ gridColumn: expandedId === "create_domain" ? "1 / -1" : "auto" }}>
+              <CardTile title="Corp domain setup" {...tileProps("create_domain")}>
+                <CreateDomainDetail
+                  {...createDomain}
+                  disabled={reqs("create_domain").length > 0}
+                  azureAccount={azureSetup.azureAccount}
+                  corpName={corpName}
+                  dnsName={dnsName}
+                  subscriptions={azureSetup.subscriptions}
+                />
+              </CardTile>
+            </Box>
+
+            <Box sx={{ gridColumn: expandedId === "tf_backend" ? "1 / -1" : "auto" }}>
+              <CardTile title="Terraform backend" {...tileProps("tf_backend")}>
+                <TfBackendDetail
+                  {...tfSetup}
+                  disabled={reqs("tf_backend").length > 0}
+                  azureAccount={azureSetup.azureAccount}
+                  corpName={corpName}
+                  subscriptionId={createDomain.subscriptionId}
+                  spClientId={corpSpClientId}
+                  storageReady={createDomain.resourcesDone}
+                />
+              </CardTile>
+            </Box>
+          </Box>
         </Box>
       </Box>
 

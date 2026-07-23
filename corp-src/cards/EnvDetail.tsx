@@ -58,6 +58,8 @@ type Props = {
   creatingBranch: boolean;
   createBranchError: string | null;
   onCreateBranch: (target: string) => void;
+  /** When false, the variables/secrets sections are hidden — they render as their own tiles. */
+  showConfig?: boolean;
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -93,6 +95,7 @@ export default function EnvDetail({
   creatingBranch,
   createBranchError,
   onCreateBranch,
+  showConfig = true,
 }: Props) {
   const prevLoadingRef = useRef(false);
   const clickedRef = useRef(false);
@@ -231,7 +234,7 @@ export default function EnvDetail({
       )}
 
       {/* ── Sections — shown once env is selected and valid ── */}
-      {secretsReady && (
+      {showConfig && secretsReady && (
         <>
           <Divider sx={{ mt: 2.5, mb: 2.5, borderColor: "#f1f5f9" }} />
 

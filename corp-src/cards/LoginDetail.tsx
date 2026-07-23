@@ -1,19 +1,12 @@
 import { useEffect, useState } from "react";
 import { Box, Button, CircularProgress, IconButton, InputAdornment, TextField, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import ClearIcon from "@mui/icons-material/Clear";
-import type { CardStatus, User } from "../types";
+import type { User } from "../types";
 import { switchToDirect, switchToBackend } from "../api";
-import CardLayout from "../components/CardLayout";
 
-import { reactPlugin } from "../monitor/applicationInsights";
-import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";
+const monoSx = { fontFamily: "'IBM Plex Mono', monospace" };
 
 type Props = {
-  // ── PipelineCard chrome ──────────────────────────────────────────────────
-  status: CardStatus;
-  expanded: boolean;
-  onToggle: () => void;
-  // ── Domain ───────────────────────────────────────────────────────────────
   authLoading: boolean;
   user: User | null;
   onLogin: () => void;
@@ -22,7 +15,7 @@ type Props = {
   onDirectLogout: () => void;
 };
 
-export default function Login({ status, expanded, onToggle, authLoading, user, onLogin, onLogout, onPatLogin, onDirectLogout }: Props) {
+export default function LoginDetail({ authLoading, user, onLogin, onLogout, onPatLogin, onDirectLogout }: Props) {
   const [mode, setModeState] = useState<"backend" | "direct">("backend");
   const [pat, setPat] = useState(sessionStorage.getItem("pat_token") ?? "");
   const [patError, setPatError] = useState("");
@@ -48,17 +41,9 @@ export default function Login({ status, expanded, onToggle, authLoading, user, o
     switchToDirect(trimmed);
     onPatLogin(trimmed);
   };
-  const monoSx = { fontFamily: "'IBM Plex Mono', monospace" };
 
   return (
-    <AppInsightsErrorBoundary onError={() => <p>Error: Unable to load component!</p>} appInsights={reactPlugin}>
-    <CardLayout
-      title="Login to GitHub"
-      subtitle={user ? `Signed in as ${user.login}` : "Connect your GitHub account to get started"}
-      status={status}
-      expanded={expanded}
-      onToggle={onToggle}
-    >
+    <Box>
       {/* Mode toggle — hidden once logged in */}
       {!user && (
         <Box sx={{ mb: 2 }}>
@@ -87,14 +72,25 @@ export default function Login({ status, expanded, onToggle, authLoading, user, o
               size="small"
               placeholder="ghp_… or github_pat_…"
               value={pat}
-              onChange={(e) => { setPat(e.target.value); setPatError(""); }}
+              onChange={(e) => {
+                setPat(e.target.value);
+                setPatError("");
+              }}
               error={!!patError}
               helperText={patError || "Personal Access Token with repo + workflow scopes"}
               inputProps={{ style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" } }}
               InputProps={{
                 endAdornment: pat ? (
                   <InputAdornment position="end">
-                    <IconButton size="small" onClick={() => { setPat(""); setPatError(""); }} edge="end" tabIndex={-1}>
+                    <IconButton
+                      size="small"
+                      onClick={() => {
+                        setPat("");
+                        setPatError("");
+                      }}
+                      edge="end"
+                      tabIndex={-1}
+                    >
                       <ClearIcon sx={{ fontSize: 14, color: "#94a3b8" }} />
                     </IconButton>
                   </InputAdornment>
@@ -148,7 +144,12 @@ export default function Login({ status, expanded, onToggle, authLoading, user, o
             <Box component="span" sx={{ ...monoSx, fontWeight: 600 }}>
               {user.login}
             </Box>
-            {mode === "direct" && <Box component="span" sx={{ color: "#94a3b8" }}> · PAT mode</Box>}
+            {mode === "direct" && (
+              <Box component="span" sx={{ color: "#94a3b8" }}>
+                {" "}
+                · PAT mode
+              </Box>
+            )}
             . You can sign out and connect a different account below.
           </Typography>
           <Button
@@ -175,7 +176,6 @@ export default function Login({ status, expanded, onToggle, authLoading, user, o
           </Button>
         </Box>
       )}
-    </CardLayout>
-    </AppInsightsErrorBoundary>
+    </Box>
   );
 }

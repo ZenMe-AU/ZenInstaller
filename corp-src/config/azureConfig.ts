@@ -19,6 +19,7 @@ export const GRAPH_SCOPES = [
 ];
 
 export const ARM_SCOPES = ["https://management.azure.com/user_impersonation"];
+export const DOMAIN_SCOPES = ["https://graph.microsoft.com/Domain.ReadWrite.All"];
 
 // ── Individual Graph application permissions ───────────────────────────────────
 
@@ -43,6 +44,7 @@ export type GraphPermissionKey = keyof typeof GRAPH_PERMISSIONS;
 export const RBAC_ROLE_IDS: Record<string, string> = {
   Contributor: "b24988ac-6180-42a0-ab88-20f7382dd24c",
   "User Access Administrator": "18d7d88d-d35e-4fb5-a5c3-7773c20a72d9",
+  "Storage Blob Data Contributor": "ba92f5b4-2d11-453d-a403-e96b0029c9fe",
 };
 
 // ── Aggregate helpers ─────────────────────────────────────────────────────────

@@ -28,6 +28,6 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src/**/*", "access-pass-src/**/*", "corp-src/**/*"],
+  "include": ["*-src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

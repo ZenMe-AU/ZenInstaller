@@ -46,6 +46,8 @@ function prereqLabel(prereq: Prerequisite, variableValues: Record<string, string
         auth: "Authenticated",
         repo: "Repo selected",
         azure_setup: "Azure setup",
+        create_domain: "Create domain",
+        tf_backend: "Terraform backend",
         aws_setup: "AWS setup",
         pr: "PR selected",
         env: "Env configured",

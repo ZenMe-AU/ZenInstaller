@@ -40,16 +40,8 @@ export const PIPELINES: Record<string, PipelineConfig> = {
           { type: "varGroup", keys: AZURE_VARIABLE_KEYS, label: "Azure variables configured" },
         ],
       },
-      {
-        key: "c05",
-        label: "c05rootrg",
-        azurePermissions: [],
-        prerequisites: [
-          { type: "var", key: "NAME" },
-          { type: "var", key: "DNS" },
-          { type: "varGroup", keys: AZURE_VARIABLE_KEYS, label: "Azure variables configured" },
-        ],
-      },
+      // c05rootrg was replaced by the Corp Domain Setup + Terraform Setup cards,
+      // which create the same resources directly via ARM/Graph from the browser.
       {
         key: "c07",
         label: "c07userAccounts",

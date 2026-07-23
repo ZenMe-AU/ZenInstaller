@@ -5,6 +5,8 @@ import { type CardId, type CardStatus, type PendingRestore, type StageStatus } f
 import { useActiveAuth as useAuth } from "./hooks/useActiveAuth";
 import { useAccountRepo } from "./hooks/useAccountRepo";
 import { useAzureSetup } from "./hooks/useAzureSetup";
+import { useCreateDomainSetup } from "./hooks/useCreateDomainSetup";
+import { useTerraformSetup } from "./hooks/useTerraformSetup";
 import { useAwsSetup } from "./hooks/useAwsSetup";
 import { useDeploymentPlan } from "./hooks/useDeploymentPlan";
 import { useEnv } from "./hooks/useEnv";
@@ -16,14 +18,16 @@ import Connector from "./components/Connector";
 import NavBar from "./components/NavBar";
 import RestoreToast from "./components/RestoreToast";
 import SessionOverlay from "./components/SessionOverlay";
-import Login from "./steps/Login";
-import Repo from "./steps/Repo";
-import PR from "./steps/PR";
-import Env from "./steps/Env";
-import StatusUpdate from "./steps/StatusUpdate";
-import Stage from "./steps/Stage";
-import AzureDeploy from "./steps/AzureDeploy";
-import AwsDeploy from "./steps/AwsDeploy";
+import Login from "./cards/Login";
+import Repo from "./cards/Repo";
+import PR from "./cards/PR";
+import Env from "./cards/Env";
+import StatusUpdate from "./cards/StatusUpdate";
+import Stage from "./cards/Stage";
+import AzureDeploy from "./cards/AzureDeploy";
+import CreateDomain from "./cards/CreateDomain";
+import TfBackend from "./cards/TfBackend";
+import AwsDeploy from "./cards/AwsDeploy";
 
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
@@ -78,6 +82,33 @@ function AppDashboard() {
     validEnvs: repo.pipeline.validEnvs,
     stages: repo.pipeline.stages,
   });
+
+  // Shared inputs for the corp-domain / terraform cards, sourced from repo variables
+  // (the pipeline's source of truth) with the Azure card's live selection as fallback.
+  const corpName = env.presentVariableValues.NAME ?? "";
+  const dnsName = env.presentVariableValues.DNS ?? "";
+  const corpSubscriptionId = env.presentVariableValues.AZURE_SUBSCRIPTION_ID || azureSetup.result?.subscriptionIds[0] || azureSetup.selectedSubs[0] || "";
+  const corpSpClientId = env.presentVariableValues.AZURE_CLIENT_ID || azureSetup.result?.clientId || "";
+  // MSA (personal) accounts sign in via the consumer tenant, so ARM/Graph calls need the real AAD tenant passed explicitly.
+  const corpTenantId = env.presentVariableValues.AZURE_TENANT_ID || azureSetup.result?.tenantId || azureSetup.manualTenantId.trim() || undefined;
+
+  const createDomain = useCreateDomainSetup({
+    azureAccount: azureSetup.azureAccount,
+    defaultSubscriptionId: corpSubscriptionId,
+    corpName,
+    dnsName,
+    tenantId: corpTenantId,
+  });
+  // Terraform's storage account lives wherever Corp Domain Setup created it, so it must
+  // follow that card's resolved subscription (which the user can override), not the raw env default.
+  const tfSetup = useTerraformSetup({
+    azureAccount: azureSetup.azureAccount,
+    subscriptionId: createDomain.subscriptionId,
+    corpName,
+    spClientId: corpSpClientId,
+    tenantId: corpTenantId,
+  });
+
   const awsSetup = useAwsSetup({
     org: repo.selectedAccount?.login ?? "",
     repo: repo.selectedRepo?.name ?? "",
@@ -103,6 +134,8 @@ function AppDashboard() {
     auth: true,
     repo: true,
     azure_setup: true,
+    create_domain: true,
+    tf_backend: true,
     aws_setup: true,
     pr: true,
     env: true,
@@ -147,6 +180,13 @@ function AppDashboard() {
             : "complete", // filled in — validated (true) or not yet run (null) both count as complete
     aws_setup:
       !isAuthed || !repo.isCloneRepo || !env.selectedEnv ? "idle" : !awsSetupDone ? "warning" : env.awsSecrets.valid === false ? "error" : "complete", // filled in — validated (true) or not yet run (null) both count as complete
+    create_domain:
+      !isAuthed || !repo.isCloneRepo || !env.selectedEnv
+        ? "idle"
+        : createDomain.resourcesDone && createDomain.domainVerified && createDomain.isPrimary
+          ? "complete"
+          : "warning",
+    tf_backend: !isAuthed || !repo.isCloneRepo || !env.selectedEnv ? "idle" : tfSetup.done ? "complete" : "warning",
     stages: isAuthed && plan.hasPlan ? (plan.stages.some((s) => s.status === "failed") ? "warning" : "complete") : "idle",
   };
 
@@ -177,6 +217,9 @@ function AppDashboard() {
           siblingPages={[
             { label: "Access Pass", href: "/accessPass.html" },
             { label: "Private Account", href: "/privAccount.html" },
+            { label: "AWS Hosting", href: "/awsHosting.html" },
+            { label: "Cost Management", href: "/costManagement.html" },
+            { label: "User Access", href: "/userAccess.html" },
           ]}
         />
 
@@ -314,6 +357,31 @@ function AppDashboard() {
               selectedEnv={env.selectedEnv}
               onComplete={setAzureSetupDone}
               onAzureValid={env.onAzureValid}
+            />
+
+            <CreateDomain
+              {...createDomain}
+              status={cardStatus.create_domain}
+              expanded={expanded.create_domain}
+              onToggle={() => toggle("create_domain")}
+              disabled={!isAuthed || !repo.isCloneRepo || !env.selectedEnv}
+              azureAccount={azureSetup.azureAccount}
+              corpName={corpName}
+              dnsName={dnsName}
+              subscriptions={azureSetup.subscriptions}
+            />
+
+            <TfBackend
+              {...tfSetup}
+              status={cardStatus.tf_backend}
+              expanded={expanded.tf_backend}
+              onToggle={() => toggle("tf_backend")}
+              disabled={!isAuthed || !repo.isCloneRepo || !env.selectedEnv}
+              azureAccount={azureSetup.azureAccount}
+              corpName={corpName}
+              subscriptionId={createDomain.subscriptionId}
+              spClientId={corpSpClientId}
+              storageReady={createDomain.resourcesDone}
             />
 
             <AwsDeploy

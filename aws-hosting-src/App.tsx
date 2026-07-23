@@ -174,9 +174,9 @@ function AppDashboard() {
           user={auth.user}
           selectedRepo={repo.selectedRepo}
           siblingPages={[
-            { label: "Corp Setup", href: "/" },
-            { label: "Cost Management", href: "/costManagement.html" },
-            { label: "User Access", href: "/userAccess.html" },
+            { label: "Corp Setup", href: "/", carryQuery: true },
+            { label: "Cost Management", href: "/costManagement.html", carryQuery: true },
+            { label: "User Access", href: "/userAccess.html", carryQuery: true },
           ]}
         />
 

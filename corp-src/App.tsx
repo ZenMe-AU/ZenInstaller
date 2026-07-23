@@ -87,7 +87,8 @@ function AppDashboard() {
   // (the pipeline's source of truth) with the Azure card's live selection as fallback.
   const corpName = env.presentVariableValues.NAME ?? "";
   const dnsName = env.presentVariableValues.DNS ?? "";
-  const corpSubscriptionId = env.presentVariableValues.AZURE_SUBSCRIPTION_ID || azureSetup.result?.subscriptionIds[0] || azureSetup.selectedSubs[0] || "";
+  const corpSubscriptionId =
+    env.presentVariableValues.AZURE_SUBSCRIPTION_ID || azureSetup.result?.subscriptionIds[0] || azureSetup.selectedSubs[0] || "";
   const corpSpClientId = env.presentVariableValues.AZURE_CLIENT_ID || azureSetup.result?.clientId || "";
   // MSA (personal) accounts sign in via the consumer tenant, so ARM/Graph calls need the real AAD tenant passed explicitly.
   const corpTenantId = env.presentVariableValues.AZURE_TENANT_ID || azureSetup.result?.tenantId || azureSetup.manualTenantId.trim() || undefined;
@@ -217,9 +218,9 @@ function AppDashboard() {
           siblingPages={[
             { label: "Access Pass", href: "/accessPass.html" },
             { label: "Private Account", href: "/privAccount.html" },
-            { label: "AWS Hosting", href: "/awsHosting.html" },
-            { label: "Cost Management", href: "/costManagement.html" },
-            { label: "User Access", href: "/userAccess.html" },
+            { label: "AWS Hosting", href: "/awsHosting.html", carryQuery: true },
+            { label: "Cost Management", href: "/costManagement.html", carryQuery: true },
+            { label: "User Access", href: "/userAccess.html", carryQuery: true },
           ]}
         />
 

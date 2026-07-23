@@ -1,8 +1,9 @@
+// Container for the Azure Access Pass step: gates rendering by Azure config, derives a step-level subtitle from auth/result state, and delegates detailed user interactions to AzureAccessPassCard inside StepWrapper.
 import type { CardStatus } from "../types";
 import { AZURE_CLIENT_ID } from "../config/azureConfig";
 import type { useAzureAccessPass } from "../hooks/useAzureAccessPass";
-import StepWrapper from "../../access-pass-src/components/StepWrapper";
-import AzureAccessPassCard from "../cards/AzureAccessPassDetails";
+import StepWrapper from "../components/StepWrapper";
+import AzureAccessPassCard from "./AzureAccessPassPanel";
 
 type Props = ReturnType<typeof useAzureAccessPass> & {
   status: CardStatus;

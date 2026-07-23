@@ -10,7 +10,7 @@ import { ClickAnalyticsPlugin } from "@microsoft/applicationinsights-clickanalyt
 const appInsightsConnectionString =
   import.meta.env.VITE_APPINSIGHTS_CONNECTION_STRING || "";
 
-const reactPlugin = new ReactPlugin();
+export const reactPlugin = new ReactPlugin();
 
 // *** Add the Click Analytics plug-in. ***
 const clickPluginInstance = new ClickAnalyticsPlugin();
@@ -57,3 +57,5 @@ appInsights.addTelemetryInitializer((envelope) => {
 appInsights.loadAppInsights();
 
 export { appInsights };
+
+

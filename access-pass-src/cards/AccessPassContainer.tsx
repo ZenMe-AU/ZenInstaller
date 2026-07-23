@@ -2,7 +2,9 @@ import type { CardStatus } from "../types";
 import { AZURE_CLIENT_ID } from "../config/accessPassConfig";
 import type { useAzureAccessPass } from "../hooks/useAccessPass";
 import StepWrapper from "../components/StepWrapper";
-import AzureAccessPassCard from "./AccessPassDetails";
+import AzureAccessPassCard from "./AccessPassWorkflowPanel";
+import { reactPlugin } from "../monitor/applicationInsights";
+import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";
 
 type Props = ReturnType<typeof useAzureAccessPass> & {
   status: CardStatus;
@@ -26,8 +28,11 @@ export default function AzureAccessPass({ status, expanded, onToggle, disabled, 
       : "Create Temporary Access Pass for selected user";
 
   return (
-    <StepWrapper title="Azure Access Pass" subtitle={subtitle} status={status} expanded={expanded} onToggle={onToggle}>
-      <AzureAccessPassCard {...azureSetup} disabled={disabled} locked={locked} validEnvs={validEnvs} onComplete={onComplete} />
-    </StepWrapper>
+    <AppInsightsErrorBoundary onError={() => <p>Error: Unable to load component!</p>} appInsights={reactPlugin}>
+      <StepWrapper title="Azure Access Pass" subtitle={subtitle} status={status} expanded={expanded} onToggle={onToggle}>
+        <AzureAccessPassCard {...azureSetup} disabled={disabled} locked={locked} validEnvs={validEnvs} onComplete={onComplete} />
+      </StepWrapper>
+    </AppInsightsErrorBoundary>
+    
   );
 }

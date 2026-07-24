@@ -7,7 +7,6 @@ export type TileFlags = {
   envSelected: boolean;
   azureSignedIn: boolean;
   hasCompanyInfo: boolean; // NAME + DNS present
-  appRegDone: boolean;
   domainStorageReady: boolean;
   hasAzureClientId: boolean;
 };
@@ -37,12 +36,9 @@ export function tileRequirements(id: CardId, f: TileFlags): Requirement[] {
     case "repo":
       return github;
     case "company_info":
-    case "secrets":
       return [...github, ...repoEnvRequirements(f)];
     case "azure_setup":
       return [...github, ...repoEnvRequirements(f), ...azure];
-    case "azure_vars":
-      return f.appRegDone ? [] : [{ label: "Create the Azure app registration", target: "azure_setup" }];
     case "create_domain":
       return [...azure, ...env, ...(f.hasCompanyInfo ? [] : [{ label: "Set company info", target: "company_info" as CardId }])];
     case "tf_backend":

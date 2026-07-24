@@ -4,15 +4,12 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 
 import { type CardId, type CardStatus, type PendingRestore } from "./types";
 import { AZURE_CLIENT_ID } from "./config/azureConfig";
-import { AZURE_VARIABLE_KEYS, AZURE_SECRET_KEYS, AWS_SECRET_KEYS } from "./logic/variables";
 import { tileRequirements, type TileFlags } from "./logic/tileRequirements";
 import { useActiveAuth as useAuth } from "./hooks/useActiveAuth";
 import { useAccountRepo } from "./hooks/useAccountRepo";
 import { useAzureSetup } from "./hooks/useAzureSetup";
 import { useCreateDomainSetup } from "./hooks/useCreateDomainSetup";
 import { useTerraformSetup } from "./hooks/useTerraformSetup";
-import { useAwsSetup } from "./hooks/useAwsSetup";
-import { useDeploymentPlan } from "./hooks/useDeploymentPlan";
 import { useEnv } from "./hooks/useEnv";
 import { usePR } from "./hooks/usePR";
 import { useUrlRestore } from "./hooks/useUrlRestore";
@@ -128,31 +125,10 @@ function AppDashboard() {
     tenantId: corpTenantId,
   });
 
-  const awsSetup = useAwsSetup({
-    org: repo.selectedAccount?.login ?? "",
-    repo: repo.selectedRepo?.name ?? "",
-    validEnvs: repo.pipeline.validEnvs,
-  });
-
-  const plan = useDeploymentPlan({
-    account: repo.selectedAccount,
-    repoName: repo.selectedRepo?.name ?? null,
-    pipeline: repo.pipeline,
-    selectedEnv: env.selectedEnv,
-    branches: repo.branches,
-    branchMatchError: env.branchMatchError,
-    isCloneRepo: repo.isCloneRepo,
-    selectedPR: pr.selectedPR,
-    envReady: env.envReady,
-    onAzureValid: env.onAzureValid,
-    onAwsValid: env.onAwsValid,
-  });
-
   // ── Accordion + completion flags ───────────────────────────────────────────
   const [expandedId, setExpandedId] = useState<CardId | null>("auth");
   const toggle = (id: CardId) => setExpandedId((cur) => (cur === id ? null : id));
   const [azureSetupDone, setAzureSetupDone] = useState(false);
-  const [awsSetupDone, setAwsSetupDone] = useState(false);
 
   // ── Derived card statuses ──────────────────────────────────────────────────
   // Azure-dependent cards need VITE_AZURE_CLIENT_ID at build time — when it's
@@ -161,25 +137,6 @@ function AppDashboard() {
   const azureConfigured = !!AZURE_CLIENT_ID;
   const azureSignedIn = !!azureSetup.azureAccount;
   const hasCompanyInfo = !!corpName && !!dnsName;
-  const allAzureVars = AZURE_VARIABLE_KEYS.every((k) => !!env.presentVariableValues[k]);
-  const secretKeys = [...AZURE_SECRET_KEYS, ...AWS_SECRET_KEYS];
-  const missingSecrets = secretKeys.filter((k) => !env.presentSecretKeys.includes(k));
-
-  const prStatus: CardStatus = !isAuthed
-    ? "idle"
-    : pr.selectedPR
-      ? "complete"
-      : env.selectedEnv
-        ? "skipped"
-        : repo.status === "complete"
-          ? "loading"
-          : "idle";
-  const effectiveEnvStatus: CardStatus = !isAuthed ? "idle" : env.status === "idle" && repo.status === "complete" ? "loading" : env.status;
-  const effectiveStatusUpdateStatus: CardStatus = !isAuthed
-    ? "idle"
-    : plan.statusUpdateStatus === "idle" && env.envReady
-      ? "loading"
-      : plan.statusUpdateStatus;
 
   // Merged Repository & environment tile: complete only when the repo is cloned AND an env is picked.
   const repoEnvStatus: CardStatus = !isAuthed
@@ -195,11 +152,6 @@ function AppDashboard() {
     azure_login: !azureConfigured ? "error" : azureSignedIn ? "complete" : "idle",
     repo: repoEnvStatus,
     company_info: !env.selectedEnv ? "idle" : hasCompanyInfo ? "complete" : "warning",
-    azure_vars: !azureSetup.result ? "idle" : allAzureVars ? "complete" : "warning",
-    secrets: !env.selectedEnv ? "idle" : missingSecrets.length === 0 ? "complete" : "warning",
-    pr: prStatus,
-    env: effectiveEnvStatus,
-    status_update: effectiveStatusUpdateStatus,
     azure_setup: !azureConfigured
       ? "error"
       : !isAuthed || !repo.isCloneRepo || !env.selectedEnv
@@ -209,8 +161,6 @@ function AppDashboard() {
           : env.azureSecrets.valid === false
             ? "error"
             : "complete", // filled in — validated (true) or not yet run (null) both count as complete
-    aws_setup:
-      !isAuthed || !repo.isCloneRepo || !env.selectedEnv ? "idle" : !awsSetupDone ? "warning" : env.awsSecrets.valid === false ? "error" : "complete",
     create_domain:
       !isAuthed || !repo.isCloneRepo || !env.selectedEnv
         ? "idle"
@@ -218,7 +168,6 @@ function AppDashboard() {
           ? "complete"
           : "warning",
     tf_backend: !isAuthed || !repo.isCloneRepo || !env.selectedEnv ? "idle" : tfSetup.done ? "complete" : "warning",
-    stages: isAuthed && plan.hasPlan ? (plan.stages.some((s) => s.status === "failed") ? "warning" : "complete") : "idle",
   };
 
   // ── Lock / requirements + face summaries ───────────────────────────────────
@@ -228,7 +177,6 @@ function AppDashboard() {
     envSelected: !!env.selectedEnv,
     azureSignedIn,
     hasCompanyInfo,
-    appRegDone: !!azureSetup.result,
     domainStorageReady: createDomain.resourcesDone,
     hasAzureClientId: !!corpSpClientId,
   };
@@ -243,13 +191,8 @@ function AppDashboard() {
         : repo.repoFullName
           ? repo.repoFullName
           : "Select repository and environment",
-    company_info: hasCompanyInfo ? `${corpName} · ${dnsName}` : "Set company NAME and DNS",
+    company_info: hasCompanyInfo ? `${corpName} · ${dnsName}` : "Set company info",
     azure_setup: !azureConfigured ? "Unavailable" : azureSetup.result ? "App registration ready" : "Create the app registration",
-    azure_vars: allAzureVars ? "Connection details saved" : "Not configured yet",
-    secrets:
-      missingSecrets.length === 0
-        ? "All secrets configured"
-        : `${missingSecrets.length} of ${secretKeys.length} secret${secretKeys.length !== 1 ? "s" : ""} missing`,
     create_domain: cardStatus.create_domain === "complete" ? "Domain verified and primary" : "Set up the corp domain",
     tf_backend: tfSetup.done ? "Terraform state container ready" : "Set up the terraform backend",
   };

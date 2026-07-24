@@ -2,7 +2,7 @@ import type { CardStatus } from "../types";
 import { AZURE_CLIENT_ID } from "../config/accessPassConfig";
 import type { useAzureAccessPass } from "../hooks/useAccessPass";
 import StepWrapper from "../components/StepWrapper";
-import AzureAccessPassCard from "./AccessPassWorkflowPanel";
+import AzureAccessPassCard from "./AccessPassDetails";
 import { reactPlugin } from "../monitor/applicationInsights";
 import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";
 

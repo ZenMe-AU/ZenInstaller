@@ -166,9 +166,9 @@ function App() {
           user={auth.user}
           selectedRepo={repo.selectedRepo}
           siblingPages={[
-            { label: "Corp Setup", href: "/" },
-            { label: "AWS Hosting", href: "/awsHosting.html" },
-            { label: "User Access", href: "/userAccess.html" },
+            { label: "Corp Setup", href: "/", carryQuery: true },
+            { label: "AWS Hosting", href: "/awsHosting.html", carryQuery: true },
+            { label: "User Access", href: "/userAccess.html", carryQuery: true },
           ]}
         />
 

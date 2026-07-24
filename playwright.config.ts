@@ -2,6 +2,20 @@
 
 import { defineConfig, devices } from "@playwright/test";
 
+const signedOutTests = [
+  /access-pass-render\.spec\.ts/,
+  /azure-help-link\.spec\.ts/,
+  /zeninstaller-link\.spec\.ts/,
+];
+
+const authenticatedTests = [
+  /authenticated-page-load\.spec\.ts/,
+  /azure-connection\.spec\.ts/,
+  /entra-user-action\.spec\.ts/,
+  /tenant-outcome\.spec\.ts/,
+  /access-pass-creation\.spec\.ts/,
+];
+
 export default defineConfig({
   testDir: "./playwright-tests",
   fullyParallel: true,
@@ -12,6 +26,15 @@ export default defineConfig({
   timeout: 60_000,
   expect: {
     timeout: 10_000,
+
+      toHaveScreenshot: {
+        animations: "disabled",
+        caret: "hide",
+        scale: "css",
+        maxDiffPixelRatio: 0.02,
+
+        pathTemplate: "{testDir}/snapshots/{arg}{ext}"
+    },
   },
 
   use: {
@@ -43,15 +66,31 @@ export default defineConfig({
      */
     {
       name: "chromium",
+      testMatch: signedOutTests,
+      fullyParallel: true,
+      use: {
+        ...devices["Desktop Chrome"],
+      },
+    },
+
+    /**
+     * Normal signed-out Access Pass tests in Chromium.
+     *
+     * This ignores authenticated tests and setup tests.
+     */
+    {
+      name: "chromium-authenticated",
+      testMatch: authenticatedTests,
+      // no parallel tests to avoid MSAL timeout when two test using same account
+      fullyParallel: false,
+      workers: 1,
+      retries: 1,
       use: {
         ...devices["Desktop Chrome"],
       },
       dependencies: ["azure-passkey-setup"],
-      testIgnore: [
-        /access-pass-authenticated\.spec\.ts/,
-        /azure-passkey\.setup\.ts/,
-      ],
     },
+
 
     /**
      * Normal signed-out Access Pass tests in Firefox.
@@ -62,10 +101,6 @@ export default defineConfig({
         ...devices["Desktop Firefox"],
       },
        dependencies: ["azure-passkey-setup"],
-      testIgnore: [
-        /access-pass-authenticated\.spec\.ts/,
-        /azure-passkey\.setup\.ts/,
-      ],
     },
 
     /**
@@ -77,10 +112,6 @@ export default defineConfig({
         ...devices["Desktop Safari"],
       },
        dependencies: ["azure-passkey-setup"],
-      testIgnore: [
-        /access-pass-authenticated\.spec\.ts/,
-        /azure-passkey\.setup\.ts/,
-      ],
     },
   ],
 

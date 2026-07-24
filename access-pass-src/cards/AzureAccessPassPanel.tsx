@@ -156,7 +156,7 @@ export default function AzureAccessPassCard({
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
               Signed in as{" "}
-              <Box component="span" sx={{ fontWeight: 600, ...mono }}>
+              <Box component="span" data-testid="azure-account-username" sx={{ fontWeight: 600, ...mono }}>
                 {azureAccount.username}
               </Box>
             </Typography>

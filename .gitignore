@@ -37,3 +37,4 @@ deploy/.env
 /playwright/.cache/
 /playwright/.auth/
 /playwright-tests/.auth/
+playwright-tests/data/access-pass-users.local.json

@@ -18,6 +18,7 @@ import { usePR } from "./hooks/usePR";
 import { useUrlRestore } from "./hooks/useUrlRestore";
 
 import CardTile from "./components/CardTile";
+import ConfigErrorNotice from "./components/ConfigErrorNotice";
 import NavBar from "./components/NavBar";
 import RestoreToast from "./components/RestoreToast";
 import SessionOverlay from "./components/SessionOverlay";
@@ -146,6 +147,10 @@ function AppDashboard() {
   const [awsSetupDone, setAwsSetupDone] = useState(false);
 
   // ── Derived card statuses ──────────────────────────────────────────────────
+  // Azure-dependent cards need VITE_AZURE_CLIENT_ID at build time — when it's
+  // missing, keep the cards visible but show a "contact admin" error instead
+  // of hiding them (a missing card reads as broken, not as "step complete").
+  const azureConfigured = !!AZURE_CLIENT_ID;
   const azureSignedIn = !!azureSetup.azureAccount;
   const hasCompanyInfo = !!corpName && !!dnsName;
   const allAzureVars = AZURE_VARIABLE_KEYS.every((k) => !!env.presentVariableValues[k]);
@@ -173,7 +178,7 @@ function AppDashboard() {
 
   const cardStatus: Record<CardId, CardStatus> = {
     auth: isAuthed ? "complete" : "loading",
-    azure_login: azureSignedIn ? "complete" : "idle",
+    azure_login: !azureConfigured ? "error" : azureSignedIn ? "complete" : "idle",
     repo: repoEnvStatus,
     company_info: !env.selectedEnv ? "idle" : hasCompanyInfo ? "complete" : "warning",
     azure_vars: !azureSetup.result ? "idle" : allAzureVars ? "complete" : "warning",
@@ -181,8 +186,9 @@ function AppDashboard() {
     pr: prStatus,
     env: effectiveEnvStatus,
     status_update: effectiveStatusUpdateStatus,
-    azure_setup:
-      !isAuthed || !repo.isCloneRepo || !env.selectedEnv
+    azure_setup: !azureConfigured
+      ? "error"
+      : !isAuthed || !repo.isCloneRepo || !env.selectedEnv
         ? "idle"
         : !azureSetupDone
           ? "warning"
@@ -217,7 +223,11 @@ function AppDashboard() {
 
   const summaries: Partial<Record<CardId, string>> = {
     auth: isAuthed ? `Signed in as ${auth.user?.login ?? ""}` : "Connect your GitHub account",
-    azure_login: azureSignedIn ? azureSetup.azureAccount?.username ?? "Signed in" : "Sign in to Azure",
+    azure_login: !azureConfigured
+      ? "Unavailable — contact your administrator"
+      : azureSignedIn
+        ? azureSetup.azureAccount?.username ?? "Signed in"
+        : "Sign in to Azure",
     repo:
       repo.repoFullName && env.selectedEnv
         ? `${repo.repoFullName} · ${env.selectedEnv.name}`
@@ -225,7 +235,11 @@ function AppDashboard() {
           ? repo.repoFullName
           : "Select repository and environment",
     company_info: hasCompanyInfo ? `${corpName} · ${dnsName}` : "Set company NAME and DNS",
-    azure_setup: azureSetup.result ? "App registration ready" : "Create the app registration",
+    azure_setup: !azureConfigured
+      ? "Unavailable — contact your administrator"
+      : azureSetup.result
+        ? "App registration ready"
+        : "Create the app registration",
     azure_vars: allAzureVars ? "Connection details saved" : "Not configured yet",
     secrets:
       missingSecrets.length === 0 ? "All secrets configured" : `${missingSecrets.length} of ${secretKeys.length} secret${secretKeys.length !== 1 ? "s" : ""} missing`,
@@ -241,7 +255,10 @@ function AppDashboard() {
     requestAnimationFrame(() => document.getElementById(`tile-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
   };
   const tileProps = (id: CardId) => {
-    const requirements = reqs(id);
+    // A misconfigured Azure card isn't "locked" behind other steps — it's broken
+    // regardless of progress, so skip the normal prerequisite list for it.
+    const misconfigured = !azureConfigured && (id === "azure_login" || id === "azure_setup");
+    const requirements = misconfigured ? [] : reqs(id);
     return {
       status: cardStatus[id],
       summary: summaries[id],
@@ -343,9 +360,9 @@ function AppDashboard() {
                 />
               </CardTile>
             </Box>
-            {AZURE_CLIENT_ID && (
-              <Box {...itemProps("azure_login")}>
-                <CardTile title="Azure login" {...tileProps("azure_login")}>
+            <Box {...itemProps("azure_login")}>
+              <CardTile title="Azure login" {...tileProps("azure_login")}>
+                {azureConfigured ? (
                   <AzureLoginDetail
                     azureAccount={azureSetup.azureAccount}
                     loggingIn={azureSetup.loggingIn}
@@ -353,9 +370,11 @@ function AppDashboard() {
                     login={azureSetup.login}
                     logout={azureSetup.logout}
                   />
-                </CardTile>
-              </Box>
-            )}
+                ) : (
+                  <ConfigErrorNotice />
+                )}
+              </CardTile>
+            </Box>
           </Box>
 
           {/* ── Target ── */}
@@ -447,9 +466,9 @@ function AppDashboard() {
               </CardTile>
             </Box>
 
-            {AZURE_CLIENT_ID && (
-              <Box {...itemProps("azure_setup")}>
-                <CardTile title="Azure app registration" {...tileProps("azure_setup")}>
+            <Box {...itemProps("azure_setup")}>
+              <CardTile title="Azure app registration" {...tileProps("azure_setup")}>
+                {azureConfigured ? (
                   <AzureDeployDetail
                     {...azureSetup}
                     disabled={reqs("azure_setup").length > 0}
@@ -460,9 +479,11 @@ function AppDashboard() {
                     githubUrl={githubEnvUrl}
                     onAzureValid={env.onAzureValid}
                   />
-                </CardTile>
-              </Box>
-            )}
+                ) : (
+                  <ConfigErrorNotice />
+                )}
+              </CardTile>
+            </Box>
 
             <Box {...itemProps("create_domain")}>
               <CardTile title="Corp domain setup" {...tileProps("create_domain")}>

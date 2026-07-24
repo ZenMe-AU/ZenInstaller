@@ -90,7 +90,6 @@ export default function CardTile({
   // Unlike locked, an unavailable tile still shows its summary - that IS the
   // "here's what's wrong" message, not a prerequisite result worth hiding.
   const showSummary = !expanded && !!summary && !locked;
-  const ICON_COL = 26; // icon width + row gap - the summary row indents to sit under the title
 
   return (
     <Box
@@ -105,9 +104,15 @@ export default function CardTile({
         "&:hover": { borderColor: "#93c5fd" },
       }}
     >
-      {/* Header (always clickable - even when locked/unavailable) */}
+      {/* Header (always clickable - even when locked/unavailable). Single flex
+          row so the icon and expand button always center against whatever the
+          tile actually contains - a tile with no summary is simply shorter,
+          not padded out with reserved invisible space. */}
       <Box
         sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 1.25,
           px: 2,
           py: 1.5,
           cursor: "pointer",
@@ -115,15 +120,10 @@ export default function CardTile({
         }}
         onClick={onToggle}
       >
-        {/* Title row - icon / title / button always center against each other
-            here, regardless of whether the summary row below is shown. The
-            reserved summary space below must never shift this row's alignment. */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-          <StatusIcon status={status} locked={locked} unavailable={unavailable} />
+        <StatusIcon status={status} locked={locked} unavailable={unavailable} />
+        <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography
             sx={{
-              flex: 1,
-              minWidth: 0,
               fontSize: "0.8rem",
               fontWeight: 600,
               color: muted ? "#94a3b8" : "#0f172a",
@@ -136,31 +136,37 @@ export default function CardTile({
           >
             {title}
           </Typography>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
-            {expanded && !muted && action}
-            <IconButton size="small" sx={{ color: "#cbd5e1", "&:hover": { color: "#94a3b8" } }}>
-              {expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
-            </IconButton>
-          </Box>
+          {showSummary && (
+            <Typography
+              sx={{
+                fontSize: "0.72rem",
+                color: unavailable
+                  ? "#64748b"
+                  : status === "complete"
+                    ? "#16a34a"
+                    : status === "warning"
+                      ? "#ea580c"
+                      : status === "error"
+                        ? "#dc2626"
+                        : "#64748b",
+                ...mono,
+                mt: 0.25,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {summary}
+            </Typography>
+          )}
         </Box>
 
-        {/* Summary row - always reserved (visibility, not mount) so every
-            collapsed tile lines up at the same height regardless of content. */}
-        <Typography
-          sx={{
-            fontSize: "0.72rem",
-            color: status === "complete" ? "#16a34a" : status === "warning" ? "#ea580c" : status === "error" ? "#dc2626" : "#64748b",
-            ...mono,
-            mt: 0.25,
-            ml: `${ICON_COL}px`,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            visibility: showSummary ? "visible" : "hidden",
-          }}
-        >
-          {summary || " "}
-        </Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
+          {expanded && !muted && action}
+          <IconButton size="small" sx={{ color: "#cbd5e1", "&:hover": { color: "#94a3b8" } }}>
+            {expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+          </IconButton>
+        </Box>
       </Box>
 
       {/* Content */}

@@ -228,7 +228,6 @@ function AppDashboard() {
     envSelected: !!env.selectedEnv,
     azureSignedIn,
     hasCompanyInfo,
-    hasSubscription: !!corpSubscriptionId,
     appRegDone: !!azureSetup.result,
     domainStorageReady: createDomain.resourcesDone,
     hasAzureClientId: !!corpSpClientId,

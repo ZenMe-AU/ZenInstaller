@@ -169,16 +169,16 @@ export default function CardTile({
         </Box>
       </Box>
 
-      {/* Content */}
+      {/* Content - a locked tile shows ONLY what's missing, not the (unusable)
+          real content dimmed underneath it. */}
       <Collapse in={expanded}>
         <Box sx={{ borderTop: "1px solid #f1f5f9", px: 2.5, py: 2.5 }}>
-          {locked && requirements.length > 0 && (
+          {locked ? (
             <Box
               sx={{
                 display: "flex",
                 flexDirection: "column",
                 gap: 0.75,
-                mb: 2.5,
                 px: 1.75,
                 py: 1.5,
                 background: "#f1f5f9",
@@ -217,8 +217,9 @@ export default function CardTile({
                 </Box>
               ))}
             </Box>
+          ) : (
+            children
           )}
-          <Box sx={{ opacity: locked ? 0.45 : 1, pointerEvents: locked ? "none" : "auto" }}>{children}</Box>
         </Box>
       </Collapse>
     </Box>

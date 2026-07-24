@@ -72,7 +72,9 @@ export default function CardTile({ title, summary, status, locked = false, requi
         border: "1px solid",
         borderColor: locked ? "#e2e8f0" : BORDER[status],
         borderRadius: "10px",
-        background: locked ? "#f8fafc" : "#ffffff",
+        // Locked (prereqs unmet) and error (broken) both read as "not usable right
+        // now" — mute the fill for both, keep the border color carrying the status.
+        background: locked || status === "error" ? "#f8fafc" : "#ffffff",
         overflow: "hidden",
         boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
         transition: "border-color 0.2s, background 0.2s",
@@ -127,7 +129,10 @@ export default function CardTile({ title, summary, status, locked = false, requi
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
           {expanded && !locked && action}
-          <IconButton size="small" sx={{ color: "#cbd5e1", "&:hover": { color: "#94a3b8" } }}>
+          {/* p:0 — otherwise the button's own min touch-target padding sets the header's
+              height floor, making a two-line (title+summary) row barely taller than a
+              one-line row. The header Box already handles the click / hover target. */}
+          <IconButton size="small" sx={{ p: 0, color: "#cbd5e1", "&:hover": { color: "#94a3b8", background: "transparent" } }}>
             {expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
           </IconButton>
         </Box>

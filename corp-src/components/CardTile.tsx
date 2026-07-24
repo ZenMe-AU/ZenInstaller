@@ -32,7 +32,10 @@ const ICON_COLOR: Record<CardStatus, string> = {
   skipped: "#94a3b8",
 };
 
-function StatusIcon({ status, locked }: { status: CardStatus; locked: boolean }) {
+function StatusIcon({ status, locked, unavailable }: { status: CardStatus; locked: boolean; unavailable: boolean }) {
+  // Same muted grey as the lock icon — unavailable is styled identically to
+  // locked, the glyph is the only thing that tells them apart.
+  if (unavailable) return <WarningAmberIcon sx={{ fontSize: 15, color: "#cbd5e1" }} />;
   if (locked) return <LockIcon sx={{ fontSize: 16, color: "#cbd5e1" }} />;
   const c = ICON_COLOR[status];
   switch (status) {
@@ -55,6 +58,11 @@ type Props = {
   /** Prerequisites unmet — the tile still expands, but shows the requirements instead of live content. */
   locked?: boolean;
   requirements?: Requirement[];
+  /** Broken from the start (e.g. missing required config), not something the user
+   *  unlocks by completing other steps. Same muted styling as `locked` — grey
+   *  fill, grey border, hidden summary — but with a warning icon instead of a
+   *  lock, and its content (the explanation) is left fully visible, not dimmed. */
+  unavailable?: boolean;
   expanded: boolean;
   onToggle: () => void;
   onRequirementClick?: (id: CardId) => void;
@@ -65,23 +73,38 @@ type Props = {
 // A tile that collapses to a compact summary and expands (accordion) to the full
 // card. Unlike StepWrapper, a locked tile can still be expanded — it then shows
 // what's missing rather than blocking every pointer event.
-export default function CardTile({ title, summary, status, locked = false, requirements = [], expanded, onToggle, onRequirementClick, action, children }: Props) {
+export default function CardTile({
+  title,
+  summary,
+  status,
+  locked = false,
+  requirements = [],
+  unavailable = false,
+  expanded,
+  onToggle,
+  onRequirementClick,
+  action,
+  children,
+}: Props) {
+  // locked and unavailable share the same muted chrome — the only visual
+  // difference between them is the icon (padlock vs warning triangle).
+  const muted = locked || unavailable;
+  const showSummary = !expanded && !!summary && !muted;
+
   return (
     <Box
       sx={{
         border: "1px solid",
-        borderColor: locked ? "#e2e8f0" : BORDER[status],
+        borderColor: muted ? "#e2e8f0" : BORDER[status],
         borderRadius: "10px",
-        // Locked (prereqs unmet) and error (broken) both read as "not usable right
-        // now" — mute the fill for both, keep the border color carrying the status.
-        background: locked || status === "error" ? "#f8fafc" : "#ffffff",
+        background: muted ? "#f8fafc" : "#ffffff",
         overflow: "hidden",
         boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
         transition: "border-color 0.2s, background 0.2s",
         "&:hover": { borderColor: "#93c5fd" },
       }}
     >
-      {/* Header (always clickable — even when locked) */}
+      {/* Header (always clickable — even when locked/unavailable) */}
       <Box
         sx={{
           display: "flex",
@@ -90,17 +113,17 @@ export default function CardTile({ title, summary, status, locked = false, requi
           px: 2,
           py: 1.5,
           cursor: "pointer",
-          "&:hover": { background: locked ? "#f1f5f9" : "#fafafa" },
+          "&:hover": { background: muted ? "#f1f5f9" : "#fafafa" },
         }}
         onClick={onToggle}
       >
-        <StatusIcon status={status} locked={locked} />
+        <StatusIcon status={status} locked={locked} unavailable={unavailable} />
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography
             sx={{
               fontSize: "0.8rem",
               fontWeight: 600,
-              color: locked ? "#94a3b8" : "#0f172a",
+              color: muted ? "#94a3b8" : "#0f172a",
               ...mono,
               letterSpacing: "-0.01em",
               whiteSpace: "nowrap",
@@ -110,29 +133,28 @@ export default function CardTile({ title, summary, status, locked = false, requi
           >
             {title}
           </Typography>
-          {!expanded && summary && !locked && (
-            <Typography
-              sx={{
-                fontSize: "0.72rem",
-                color: status === "complete" ? "#16a34a" : status === "warning" ? "#ea580c" : status === "error" ? "#dc2626" : "#64748b",
-                ...mono,
-                mt: 0.25,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {summary}
-            </Typography>
-          )}
+          {/* Always reserve the summary line's height (visibility, not mount)
+              so every collapsed tile — with or without a summary — lines up
+              at the same height instead of title-only tiles looking shorter. */}
+          <Typography
+            sx={{
+              fontSize: "0.72rem",
+              color: status === "complete" ? "#16a34a" : status === "warning" ? "#ea580c" : status === "error" ? "#dc2626" : "#64748b",
+              ...mono,
+              mt: 0.25,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              visibility: showSummary ? "visible" : "hidden",
+            }}
+          >
+            {summary || " "}
+          </Typography>
         </Box>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
-          {expanded && !locked && action}
-          {/* p:0 — otherwise the button's own min touch-target padding sets the header's
-              height floor, making a two-line (title+summary) row barely taller than a
-              one-line row. The header Box already handles the click / hover target. */}
-          <IconButton size="small" sx={{ p: 0, color: "#cbd5e1", "&:hover": { color: "#94a3b8", background: "transparent" } }}>
+          {expanded && !muted && action}
+          <IconButton size="small" sx={{ color: "#cbd5e1", "&:hover": { color: "#94a3b8" } }}>
             {expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
           </IconButton>
         </Box>

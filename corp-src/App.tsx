@@ -35,7 +35,15 @@ import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
-const groupLabelSx = { fontSize: "0.72rem", color: "#94a3b8", ...mono, mt: 3.5, mb: 1.25, letterSpacing: "0.02em", textTransform: "uppercase" as const };
+const groupLabelSx = {
+  fontSize: "0.72rem",
+  color: "#94a3b8",
+  ...mono,
+  mt: 3.5,
+  mb: 1.25,
+  letterSpacing: "0.02em",
+  textTransform: "uppercase" as const,
+};
 // Collapsed tiles are a uniform fixed width and wrap 3-per-row; an expanded tile
 // spans exactly that 3-tile width (3 tiles + two 12px gaps) so its right edge lines up.
 const TILE_W = 300;
@@ -174,7 +182,13 @@ function AppDashboard() {
       : plan.statusUpdateStatus;
 
   // Merged Repository & environment tile: complete only when the repo is cloned AND an env is picked.
-  const repoEnvStatus: CardStatus = !isAuthed ? "idle" : repo.isCloneRepo && env.selectedEnv ? "complete" : repo.status === "idle" ? "idle" : "loading";
+  const repoEnvStatus: CardStatus = !isAuthed
+    ? "idle"
+    : repo.isCloneRepo && env.selectedEnv
+      ? "complete"
+      : repo.status === "idle"
+        ? "idle"
+        : "loading";
 
   const cardStatus: Record<CardId, CardStatus> = {
     auth: isAuthed ? "complete" : "loading",
@@ -223,11 +237,7 @@ function AppDashboard() {
 
   const summaries: Partial<Record<CardId, string>> = {
     auth: isAuthed ? `Signed in as ${auth.user?.login ?? ""}` : "Connect your GitHub account",
-    azure_login: !azureConfigured
-      ? "Unavailable — contact your administrator"
-      : azureSignedIn
-        ? azureSetup.azureAccount?.username ?? "Signed in"
-        : "Sign in to Azure",
+    azure_login: !azureConfigured ? "Unavailable" : azureSignedIn ? (azureSetup.azureAccount?.username ?? "Signed in") : "Sign in to Azure",
     repo:
       repo.repoFullName && env.selectedEnv
         ? `${repo.repoFullName} · ${env.selectedEnv.name}`
@@ -235,14 +245,12 @@ function AppDashboard() {
           ? repo.repoFullName
           : "Select repository and environment",
     company_info: hasCompanyInfo ? `${corpName} · ${dnsName}` : "Set company NAME and DNS",
-    azure_setup: !azureConfigured
-      ? "Unavailable — contact your administrator"
-      : azureSetup.result
-        ? "App registration ready"
-        : "Create the app registration",
+    azure_setup: !azureConfigured ? "Unavailable" : azureSetup.result ? "App registration ready" : "Create the app registration",
     azure_vars: allAzureVars ? "Connection details saved" : "Not configured yet",
     secrets:
-      missingSecrets.length === 0 ? "All secrets configured" : `${missingSecrets.length} of ${secretKeys.length} secret${secretKeys.length !== 1 ? "s" : ""} missing`,
+      missingSecrets.length === 0
+        ? "All secrets configured"
+        : `${missingSecrets.length} of ${secretKeys.length} secret${secretKeys.length !== 1 ? "s" : ""} missing`,
     create_domain: cardStatus.create_domain === "complete" ? "Domain verified and primary" : "Set up the corp domain",
     tf_backend: tfSetup.done ? "Terraform state container ready" : "Set up the terraform backend",
   };
@@ -264,6 +272,7 @@ function AppDashboard() {
       summary: summaries[id],
       locked: requirements.length > 0,
       requirements,
+      unavailable: misconfigured,
       expanded: expandedId === id,
       onToggle: () => toggle(id),
       onRequirementClick: openTile,

@@ -236,6 +236,10 @@ function AppDashboard() {
   const githubEnvUrl =
     repo.repoFullName && env.selectedEnv ? `https://github.com/${repo.repoFullName}/settings/environments/${env.selectedEnv.id}/edit` : undefined;
 
+  const openTile = (id: CardId) => {
+    setExpandedId(id);
+    requestAnimationFrame(() => document.getElementById(`tile-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
+  };
   const tileProps = (id: CardId) => {
     const requirements = reqs(id);
     return {
@@ -245,9 +249,10 @@ function AppDashboard() {
       requirements,
       expanded: expandedId === id,
       onToggle: () => toggle(id),
+      onRequirementClick: openTile,
     };
   };
-  const itemSx = (id: CardId) => ({ width: expandedId === id ? EXPANDED_W : TILE_W, maxWidth: "100%" });
+  const itemProps = (id: CardId) => ({ id: `tile-${id}`, sx: { width: expandedId === id ? EXPANDED_W : TILE_W, maxWidth: "100%" as const } });
 
   // ── URL sync (persist current state; restore is handled by useUrlRestore) ──
   useEffect(() => {
@@ -322,7 +327,7 @@ function AppDashboard() {
           {/* ── Sign in ── */}
           <Typography sx={groupLabelSx}>Sign in</Typography>
           <Box sx={groupSx}>
-            <Box sx={itemSx("auth")}>
+            <Box {...itemProps("auth")}>
               <CardTile title="GitHub login" {...tileProps("auth")}>
                 <LoginDetail
                   authLoading={auth.authLoading}
@@ -339,7 +344,7 @@ function AppDashboard() {
               </CardTile>
             </Box>
             {AZURE_CLIENT_ID && (
-              <Box sx={itemSx("azure_login")}>
+              <Box {...itemProps("azure_login")}>
                 <CardTile title="Azure login" {...tileProps("azure_login")}>
                   <AzureLoginDetail
                     azureAccount={azureSetup.azureAccount}
@@ -356,7 +361,7 @@ function AppDashboard() {
           {/* ── Target ── */}
           <Typography sx={groupLabelSx}>Target</Typography>
           <Box sx={groupSx}>
-            <Box sx={itemSx("repo")}>
+            <Box {...itemProps("repo")}>
               <CardTile title="Repository & environment" action={viewRepoAction} {...tileProps("repo")}>
                 <RepoDetail
                   accounts={repo.accounts}
@@ -424,7 +429,7 @@ function AppDashboard() {
           {/* ── Resources ── */}
           <Typography sx={groupLabelSx}>Resources</Typography>
           <Box sx={groupSx}>
-            <Box sx={itemSx("company_info")}>
+            <Box {...itemProps("company_info")}>
               <CardTile title="Company info" {...tileProps("company_info")}>
                 {env.selectedEnv && (
                   <EnvVariablesDetail
@@ -443,7 +448,7 @@ function AppDashboard() {
             </Box>
 
             {AZURE_CLIENT_ID && (
-              <Box sx={itemSx("azure_setup")}>
+              <Box {...itemProps("azure_setup")}>
                 <CardTile title="Azure app registration" {...tileProps("azure_setup")}>
                   <AzureDeployDetail
                     {...azureSetup}
@@ -459,7 +464,7 @@ function AppDashboard() {
               </Box>
             )}
 
-            <Box sx={itemSx("create_domain")}>
+            <Box {...itemProps("create_domain")}>
               <CardTile title="Corp domain setup" {...tileProps("create_domain")}>
                 <CreateDomainDetail
                   {...createDomain}
@@ -472,7 +477,7 @@ function AppDashboard() {
               </CardTile>
             </Box>
 
-            <Box sx={itemSx("tf_backend")}>
+            <Box {...itemProps("tf_backend")}>
               <CardTile title="Terraform backend" {...tileProps("tf_backend")}>
                 <TfBackendDetail
                   {...tfSetup}

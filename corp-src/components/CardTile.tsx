@@ -4,16 +4,19 @@ import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import LockIcon from "@mui/icons-material/Lock";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import type { CardStatus } from "../types";
+import type { CardStatus, CardId } from "../types";
+import type { Requirement } from "../logic/tileRequirements";
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 
-// Border color by status — mirrors StepWrapper for visual continuity.
+// Border color by status. "loading" (the next actionable step) stays neutral —
+// the blue highlight is reserved for hover, not a persistent suggestion outline.
 const BORDER: Record<CardStatus, string> = {
   idle: "#e2e8f0",
-  loading: "#bfdbfe",
+  loading: "#e2e8f0",
   complete: "#bbf7d0",
   warning: "#fed7aa",
   error: "#fecaca",
@@ -51,9 +54,10 @@ type Props = {
   status: CardStatus;
   /** Prerequisites unmet — the tile still expands, but shows the requirements instead of live content. */
   locked?: boolean;
-  requirements?: string[];
+  requirements?: Requirement[];
   expanded: boolean;
   onToggle: () => void;
+  onRequirementClick?: (id: CardId) => void;
   action?: React.ReactNode;
   children: React.ReactNode;
 };
@@ -61,7 +65,7 @@ type Props = {
 // A tile that collapses to a compact summary and expands (accordion) to the full
 // card. Unlike StepWrapper, a locked tile can still be expanded — it then shows
 // what's missing rather than blocking every pointer event.
-export default function CardTile({ title, summary, status, locked = false, requirements = [], expanded, onToggle, action, children }: Props) {
+export default function CardTile({ title, summary, status, locked = false, requirements = [], expanded, onToggle, onRequirementClick, action, children }: Props) {
   return (
     <Box
       sx={{
@@ -72,6 +76,7 @@ export default function CardTile({ title, summary, status, locked = false, requi
         overflow: "hidden",
         boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
         transition: "border-color 0.2s, background 0.2s",
+        "&:hover": { borderColor: "#93c5fd" },
       }}
     >
       {/* Header (always clickable — even when locked) */}
@@ -149,9 +154,30 @@ export default function CardTile({ title, summary, status, locked = false, requi
                 Complete these first
               </Typography>
               {requirements.map((r) => (
-                <Box key={r} sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                  <LockIcon sx={{ fontSize: 13, color: "#94a3b8", flexShrink: 0 }} />
-                  <Typography sx={{ fontSize: "0.76rem", color: "#475569" }}>{r}</Typography>
+                <Box
+                  key={r.label}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRequirementClick?.(r.target);
+                  }}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                    cursor: "pointer",
+                    borderRadius: "6px",
+                    px: 0.75,
+                    py: 0.4,
+                    mx: -0.75,
+                    transition: "background 0.15s",
+                    "&:hover": { background: "#e0e7ff" },
+                    "&:hover .req-label": { textDecoration: "underline" },
+                  }}
+                >
+                  <ChevronRightIcon sx={{ fontSize: 15, color: "#2563eb", flexShrink: 0 }} />
+                  <Typography className="req-label" sx={{ fontSize: "0.76rem", color: "#2563eb", fontWeight: 500 }}>
+                    {r.label}
+                  </Typography>
                 </Box>
               ))}
             </Box>

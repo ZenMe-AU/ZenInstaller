@@ -13,13 +13,16 @@ export type TileFlags = {
   hasAzureClientId: boolean;
 };
 
-// Human-readable list of the prerequisites a tile is still missing. An empty
-// list means the tile is unlocked. The order follows the natural dependency chain.
-export function tileRequirements(id: CardId, f: TileFlags): string[] {
-  const github = f.isAuthed ? [] : ["Sign in to GitHub"];
-  const repo = f.isCloneRepo ? [] : ["Select the target repository"];
-  const env = f.envSelected ? [] : ["Choose an environment"];
-  const azure = f.azureSignedIn ? [] : ["Sign in to Azure"];
+// A missing prerequisite, plus the tile that resolves it (so it can be clicked to jump there).
+export type Requirement = { label: string; target: CardId };
+
+// The prerequisites a tile is still missing. An empty list means the tile is
+// unlocked. Order follows the natural dependency chain.
+export function tileRequirements(id: CardId, f: TileFlags): Requirement[] {
+  const github: Requirement[] = f.isAuthed ? [] : [{ label: "Sign in to GitHub", target: "auth" }];
+  const repo: Requirement[] = f.isCloneRepo ? [] : [{ label: "Select the target repository", target: "repo" }];
+  const env: Requirement[] = f.envSelected ? [] : [{ label: "Choose an environment", target: "repo" }];
+  const azure: Requirement[] = f.azureSignedIn ? [] : [{ label: "Sign in to Azure", target: "azure_login" }];
 
   switch (id) {
     case "repo":
@@ -30,20 +33,20 @@ export function tileRequirements(id: CardId, f: TileFlags): string[] {
     case "azure_setup":
       return [...github, ...repo, ...env, ...azure];
     case "azure_vars":
-      return f.appRegDone ? [] : ["Create the Azure app registration"];
+      return f.appRegDone ? [] : [{ label: "Create the Azure app registration", target: "azure_setup" }];
     case "create_domain":
       return [
         ...azure,
         ...env,
-        ...(f.hasCompanyInfo ? [] : ["Set company NAME and DNS"]),
-        ...(f.hasSubscription ? [] : ["Select a subscription"]),
+        ...(f.hasCompanyInfo ? [] : [{ label: "Set company NAME and DNS", target: "company_info" as CardId }]),
+        ...(f.hasSubscription ? [] : [{ label: "Select a subscription", target: "azure_setup" as CardId }]),
       ];
     case "tf_backend":
       return [
         ...azure,
         ...env,
-        ...(f.domainStorageReady ? [] : ["Complete corp domain setup"]),
-        ...(f.hasAzureClientId ? [] : ["Save AZURE_CLIENT_ID"]),
+        ...(f.domainStorageReady ? [] : [{ label: "Complete corp domain setup", target: "create_domain" as CardId }]),
+        ...(f.hasAzureClientId ? [] : [{ label: "Save AZURE_CLIENT_ID", target: "azure_setup" as CardId }]),
       ];
     default:
       return [];

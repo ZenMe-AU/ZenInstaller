@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
-import CheckIcon from "@mui/icons-material/Check";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import RefreshIcon from "@mui/icons-material/Refresh";
 import type { Account, UpsertStatus } from "../types";
 import { fetchVariables, createVariable, updateVariable } from "../api";
 import VariablesCard from "../components/VariablesCard";
-import { MONO as mono, refreshBtnSx, sectionLabelSx } from "../config/styles";
+import RefreshButton from "../components/RefreshButton";
+import SaveButton from "../components/SaveButton";
+import { MONO as mono, sectionLabelSx } from "../config/styles";
 
 type Props = {
   account: Account | null;
@@ -227,32 +227,7 @@ export default function CloudVariableDetail({
           )}
         </Box>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-          <Button
-            size="small"
-            onClick={handleRefresh}
-            disabled={!account || !repo || !envName || rechecking}
-            startIcon={
-              rechecking ? (
-                <CircularProgress size={12} sx={{ color: "#94a3b8" }} />
-              ) : refreshResult === "done" ? (
-                <CheckIcon sx={{ fontSize: 14 }} />
-              ) : refreshResult === "failed" ? (
-                <ErrorOutlineIcon sx={{ fontSize: 14 }} />
-              ) : (
-                <RefreshIcon sx={{ fontSize: 14 }} />
-              )
-            }
-            sx={{
-              ...refreshBtnSx,
-              ...(refreshResult && {
-                color: refreshResult === "done" ? "#22c55e" : "#ef4444",
-                "&:hover": { color: refreshResult === "done" ? "#16a34a" : "#b91c1c" },
-                transition: "color 0.15s",
-              }),
-            }}
-          >
-            {refreshResult === "done" ? "Done" : refreshResult === "failed" ? "Failed" : "Refresh"}
-          </Button>
+          <RefreshButton busy={rechecking} result={refreshResult} disabled={!account || !repo || !envName || rechecking} onClick={handleRefresh} />
         </Box>
       </Box>
 
@@ -267,31 +242,14 @@ export default function CloudVariableDetail({
       />
 
       <Box sx={{ mt: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
-        <Button
-          onClick={() => void handleSave()}
+        <SaveButton
+          verb="Save"
+          noun="variable"
+          count={dirtyKeys.length}
+          loading={updating}
           disabled={!!disabled || !account || !repo || !envName || updating || dirtyKeys.length === 0}
-          variant="contained"
-          size="small"
-          sx={{
-            background: "#2563eb",
-            ...mono,
-            fontSize: "0.75rem",
-            textTransform: "none",
-            py: 0.75,
-            px: 2,
-            "&:hover": { background: "#1d4ed8" },
-            "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
-          }}
-        >
-          {updating ? (
-            <>
-              <CircularProgress size={12} sx={{ mr: 1, color: "#93c5fd" }} />
-              Updating...
-            </>
-          ) : (
-            `Save ${dirtyKeys.length > 0 ? dirtyKeys.length : ""} variable${dirtyKeys.length !== 1 ? "s" : ""}`.trim()
-          )}
-        </Button>
+          onClick={() => void handleSave()}
+        />
         {githubUrl && (
           <Button
             size="small"

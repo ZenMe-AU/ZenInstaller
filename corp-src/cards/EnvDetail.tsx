@@ -1,16 +1,14 @@
-import { useState, useEffect, useRef } from "react";
-import { Box, Button, CircularProgress, Divider, Typography } from "@mui/material";
-import CheckIcon from "@mui/icons-material/Check";
+import { Box, CircularProgress, Divider, Typography } from "@mui/material";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import LockIcon from "@mui/icons-material/Lock";
-import RefreshIcon from "@mui/icons-material/Refresh";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { Account, Branch, GhEnv, SecretsStatus } from "../types";
 import { isValidEnvName } from "../logic/env";
 import EnvBranchDetail from "./EnvBranchDetail";
 import EnvSecretsDetail from "./EnvSecretsDetail";
 import EnvVariablesDetail from "./EnvVariablesDetail";
-import { refreshBtnSx } from "../config/styles";
+import RefreshButton from "../components/RefreshButton";
+import { useRefreshIndicator } from "../hooks/useRefreshIndicator";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -87,20 +85,7 @@ export default function EnvDetail({
   onCreateBranch,
   showConfig = true,
 }: Props) {
-  const prevLoadingRef = useRef(false);
-  const clickedRef = useRef(false);
-  const [refreshResult, setRefreshResult] = useState<"done" | "failed" | null>(null);
-  useEffect(() => {
-    const was = prevLoadingRef.current;
-    prevLoadingRef.current = loading;
-    if (was && !loading && clickedRef.current) {
-      clickedRef.current = false;
-      const result: "done" | "failed" = refreshFailed ? "failed" : "done";
-      const t1 = setTimeout(() => setRefreshResult(result), 0);
-      const t2 = setTimeout(() => setRefreshResult(null), 1500);
-      return () => { clearTimeout(t1); clearTimeout(t2); };
-    }
-  }, [loading, refreshFailed]);
+  const { refreshResult, markClicked } = useRefreshIndicator(loading, refreshFailed);
 
   const filteredEnvs = envList.filter((e) => isValidEnvName(e.name, validEnvs));
   const secretsReady = !!selectedEnv && !branchMatchError;
@@ -123,23 +108,15 @@ export default function EnvDetail({
           are set up separately — everything below applies to the one you pick.
         </Typography>
         {!lockedByPR && (
-          <Button
-            size="small"
-            onClick={() => { clickedRef.current = true; onRefresh(); }}
-            disabled={loading}
-            startIcon={
-              loading
-                ? <CircularProgress size={12} sx={{ color: "#94a3b8" }} />
-                : refreshResult === "done"
-                  ? <CheckIcon sx={{ fontSize: 14 }} />
-                  : refreshResult === "failed"
-                    ? <ErrorOutlineIcon sx={{ fontSize: 14 }} />
-                    : <RefreshIcon sx={{ fontSize: 14 }} />
-            }
-            sx={{ ml: 2, ...refreshBtnSx, ...(refreshResult && { color: refreshResult === "done" ? "#22c55e" : "#ef4444", "&:hover": { color: refreshResult === "done" ? "#16a34a" : "#b91c1c" }, transition: "color 0.15s" }) }}
-          >
-            {refreshResult === "done" ? "Done" : refreshResult === "failed" ? "Failed" : "Refresh"}
-          </Button>
+          <RefreshButton
+            busy={loading}
+            result={refreshResult}
+            sx={{ ml: 2 }}
+            onClick={() => {
+              markClicked();
+              onRefresh();
+            }}
+          />
         )}
       </Box>
 

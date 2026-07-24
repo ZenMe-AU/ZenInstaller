@@ -1,17 +1,15 @@
-import { useState, useEffect, useRef } from "react";
 import { Box, Button, CircularProgress, Collapse, FormControlLabel, MenuItem, Select, Switch, TextField, Tooltip, Typography } from "@mui/material";
 import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 import AddIcon from "@mui/icons-material/Add";
 import BusinessIcon from "@mui/icons-material/Business";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import CheckIcon from "@mui/icons-material/Check";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import PersonIcon from "@mui/icons-material/Person";
-import RefreshIcon from "@mui/icons-material/Refresh";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { Account, Repo, RepoOption } from "../types";
-import { refreshBtnSx } from "../config/styles";
+import RefreshButton from "../components/RefreshButton";
+import { useRefreshIndicator } from "../hooks/useRefreshIndicator";
 
 // ─── Template status badge ────────────────────────────────────────────────────
 
@@ -132,58 +130,26 @@ export default function RepoDetail({
   const isNewRepo = selectedRepo?.isNew ?? false;
   const repoOptions: RepoOption[] = repos.map((r) => ({ id: r.id, name: r.name }));
 
-  const clickedRef = useRef(false);
-  const prevLoadingRef = useRef(false);
-  const [refreshResult, setRefreshResult] = useState<"done" | "failed" | null>(null);
-  useEffect(() => {
-    const was = prevLoadingRef.current;
-    prevLoadingRef.current = repoLoading;
-    if (was && !repoLoading && clickedRef.current) {
-      clickedRef.current = false;
-      setRefreshResult(repoRefreshFailed ? "failed" : "done");
-      const t = setTimeout(() => setRefreshResult(null), 1500);
-      return () => clearTimeout(t);
-    }
-  }, [repoLoading, repoRefreshFailed]);
+  const { refreshResult, markClicked } = useRefreshIndicator(repoLoading, repoRefreshFailed);
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
       {/* ── Description + Refresh ── */}
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
-          We use GitHub repositories to store your custom configuration and settings. 
+          We use GitHub repositories to store your custom configuration and settings.
           That repository will also run GitHub actions to deploy your configuration into the target cloud environments. <br />
         </Typography>
-        <Button
-          size="small"
+        <RefreshButton
+          busy={repoLoading}
+          result={refreshResult}
+          label="Refresh List"
+          sx={{ ml: 2 }}
           onClick={() => {
-            clickedRef.current = true;
+            markClicked();
             onRefresh();
           }}
-          disabled={repoLoading}
-          startIcon={
-            repoLoading ? (
-              <CircularProgress size={12} sx={{ color: "#94a3b8" }} />
-            ) : refreshResult === "done" ? (
-              <CheckIcon sx={{ fontSize: 14 }} />
-            ) : refreshResult === "failed" ? (
-              <ErrorOutlineIcon sx={{ fontSize: 14 }} />
-            ) : (
-              <RefreshIcon sx={{ fontSize: 14 }} />
-            )
-          }
-          sx={{
-            ml: 2,
-            ...refreshBtnSx,
-            ...(refreshResult && {
-              color: refreshResult === "done" ? "#22c55e" : "#ef4444",
-              "&:hover": { color: refreshResult === "done" ? "#16a34a" : "#b91c1c" },
-              transition: "color 0.15s",
-            }),
-          }}
-        >
-          {refreshResult === "done" ? "Done" : refreshResult === "failed" ? "Failed" : "Refresh List"}
-        </Button>
+        />
       </Box>
 
       {/* ── Selectors row ── */}

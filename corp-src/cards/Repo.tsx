@@ -1,7 +1,7 @@
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { Button } from "@mui/material";
 import type { Account, CardStatus, Repo, RepoOption } from "../types";
-import StepWrapper from "../components/StepWrapper";
+import CardLayout from "../components/CardLayout";
 import RepoDetail from "./RepoDetail";
 import { reactPlugin } from "../monitor/applicationInsights";
 import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";
@@ -75,7 +75,7 @@ export default function Repo({
 
   return (
     <AppInsightsErrorBoundary onError={() => <p>Error: Unable to load component!</p>} appInsights={reactPlugin}>
-      <StepWrapper
+      <CardLayout
         title="Select Target Repository"
         subtitle={subtitle}
         status={status}
@@ -127,7 +127,7 @@ export default function Repo({
           repoRefreshFailed={repoRefreshFailed}
           onRefresh={onRefresh}
         />
-      </StepWrapper>
+      </CardLayout>
     </AppInsightsErrorBoundary>
   );
 }

@@ -1,7 +1,7 @@
 import type { Account, CardStatus, GhEnv } from "../types";
 import { AZURE_CLIENT_ID } from "../config/azureConfig";
 import type { useAzureSetup } from "../hooks/useAzureSetup";
-import StepWrapper from "../components/StepWrapper";
+import CardLayout from "../components/CardLayout";
 import AzureDeployDetail from "./AzureDeployDetail";
 import { reactPlugin } from "../monitor/applicationInsights";
 import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";
@@ -45,7 +45,7 @@ export default function AzureDeploy({
 
   return (
     <AppInsightsErrorBoundary onError={() => <p>Error: Unable to load component!</p>} appInsights={reactPlugin}>
-      <StepWrapper title="Let GitHub deploy to Azure" subtitle={subtitle} status={status} expanded={expanded} onToggle={onToggle} disabled={disabled}>
+      <CardLayout title="Let GitHub deploy to Azure" subtitle={subtitle} status={status} expanded={expanded} onToggle={onToggle} disabled={disabled}>
         <AzureDeployDetail
           {...azureSetup}
           disabled={disabled}
@@ -56,7 +56,7 @@ export default function AzureDeploy({
           githubUrl={githubUrl}
           onAzureValid={onAzureValid}
         />
-      </StepWrapper>
+      </CardLayout>
     </AppInsightsErrorBoundary>
   );
 }

@@ -7,7 +7,7 @@ import type {
   GhEnv,
   SecretsStatus,
 } from "../types";
-import StepWrapper from "../components/StepWrapper";
+import CardLayout from "../components/CardLayout";
 import EnvDetail from "./EnvDetail";
 
 import { reactPlugin } from "../monitor/applicationInsights";
@@ -66,7 +66,7 @@ export default function Env({
 }: Props) {
   return (
     <AppInsightsErrorBoundary onError={() => <p>Error: Unable to load component!</p>} appInsights={reactPlugin}>
-    <StepWrapper
+    <CardLayout
       title="Choose the environment to set up"
       subtitle={selectedEnv ? selectedEnv.name : `${validEnvs.length === 2 ? validEnvs.join(" and ") : validEnvs.join(", ")} are set up separately`}
       status={status}
@@ -129,7 +129,7 @@ export default function Env({
         createBranchError={createBranchError}
         onCreateBranch={onCreateBranch}
       />
-    </StepWrapper>
+    </CardLayout>
     </AppInsightsErrorBoundary>
   );
 }

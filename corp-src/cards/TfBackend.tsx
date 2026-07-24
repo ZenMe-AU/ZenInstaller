@@ -1,7 +1,7 @@
 import type { AccountInfo } from "@azure/msal-browser";
 import type { CardStatus } from "../types";
 import type { useTerraformSetup } from "../hooks/useTerraformSetup";
-import StepWrapper from "../components/StepWrapper";
+import CardLayout from "../components/CardLayout";
 import TfBackendDetail from "./TfBackendDetail";
 import { reactPlugin } from "../monitor/applicationInsights";
 import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";
@@ -23,7 +23,7 @@ export default function TfBackend({ status, expanded, onToggle, disabled, azureA
 
   return (
     <AppInsightsErrorBoundary onError={() => <p>Error: Unable to load component!</p>} appInsights={reactPlugin}>
-      <StepWrapper title="Terraform Setup" subtitle={subtitle} status={status} expanded={expanded} onToggle={onToggle} disabled={disabled}>
+      <CardLayout title="Terraform Setup" subtitle={subtitle} status={status} expanded={expanded} onToggle={onToggle} disabled={disabled}>
         <TfBackendDetail
           {...setup}
           disabled={disabled}
@@ -33,7 +33,7 @@ export default function TfBackend({ status, expanded, onToggle, disabled, azureA
           spClientId={spClientId}
           storageReady={storageReady}
         />
-      </StepWrapper>
+      </CardLayout>
     </AppInsightsErrorBoundary>
   );
 }

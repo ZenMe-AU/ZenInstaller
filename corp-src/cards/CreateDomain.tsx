@@ -2,7 +2,7 @@ import type { AccountInfo } from "@azure/msal-browser";
 import type { CardStatus } from "../types";
 import type { useCreateDomainSetup } from "../hooks/useCreateDomainSetup";
 import type { Subscription } from "../api/azureGraph";
-import StepWrapper from "../components/StepWrapper";
+import CardLayout from "../components/CardLayout";
 import CreateDomainDetail from "./CreateDomainDetail";
 import { reactPlugin } from "../monitor/applicationInsights";
 import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";
@@ -31,7 +31,7 @@ export default function CreateDomain({ status, expanded, onToggle, disabled, azu
 
   return (
     <AppInsightsErrorBoundary onError={() => <p>Error: Unable to load component!</p>} appInsights={reactPlugin}>
-      <StepWrapper title="Corp Domain Setup" subtitle={subtitle} status={status} expanded={expanded} onToggle={onToggle} disabled={disabled}>
+      <CardLayout title="Corp Domain Setup" subtitle={subtitle} status={status} expanded={expanded} onToggle={onToggle} disabled={disabled}>
         <CreateDomainDetail
           {...setup}
           disabled={disabled}
@@ -40,7 +40,7 @@ export default function CreateDomain({ status, expanded, onToggle, disabled, azu
           dnsName={dnsName}
           subscriptions={subscriptions}
         />
-      </StepWrapper>
+      </CardLayout>
     </AppInsightsErrorBoundary>
   );
 }

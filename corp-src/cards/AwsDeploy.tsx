@@ -1,6 +1,6 @@
 import type { Account, CardStatus, GhEnv } from "../types";
 import type { useAwsSetup } from "../hooks/useAwsSetup";
-import StepWrapper from "../components/StepWrapper";
+import CardLayout from "../components/CardLayout";
 import AwsDeployDetail from "./AwsDeployDetail";
 import { reactPlugin } from "../monitor/applicationInsights";
 import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";
@@ -42,7 +42,7 @@ export default function AwsDeploy({
 
   return (
     <AppInsightsErrorBoundary onError={() => <p>Error: Unable to load component!</p>} appInsights={reactPlugin}>
-      <StepWrapper title="Let GitHub deploy to AWS" subtitle={subtitle} status={status} expanded={expanded} onToggle={onToggle} disabled={disabled}>
+      <CardLayout title="Let GitHub deploy to AWS" subtitle={subtitle} status={status} expanded={expanded} onToggle={onToggle} disabled={disabled}>
         <AwsDeployDetail
           {...awsSetup}
           account={account}
@@ -53,7 +53,7 @@ export default function AwsDeploy({
           githubUrl={githubUrl}
           onAwsValid={onAwsValid}
         />
-      </StepWrapper>
+      </CardLayout>
     </AppInsightsErrorBoundary>
   );
 }

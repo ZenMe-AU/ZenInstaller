@@ -3,7 +3,7 @@ import { Box, Button, CircularProgress, IconButton, InputAdornment, TextField, T
 import ClearIcon from "@mui/icons-material/Clear";
 import type { CardStatus, User } from "../types";
 import { switchToDirect, switchToBackend } from "../api";
-import StepWrapper from "../components/StepWrapper";
+import CardLayout from "../components/CardLayout";
 
 import { reactPlugin } from "../monitor/applicationInsights";
 import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";
@@ -52,7 +52,7 @@ export default function Login({ status, expanded, onToggle, authLoading, user, o
 
   return (
     <AppInsightsErrorBoundary onError={() => <p>Error: Unable to load component!</p>} appInsights={reactPlugin}>
-    <StepWrapper
+    <CardLayout
       title="Login to GitHub"
       subtitle={user ? `Signed in as ${user.login}` : "Connect your GitHub account to get started"}
       status={status}
@@ -175,7 +175,7 @@ export default function Login({ status, expanded, onToggle, authLoading, user, o
           </Button>
         </Box>
       )}
-    </StepWrapper>
+    </CardLayout>
     </AppInsightsErrorBoundary>
   );
 }

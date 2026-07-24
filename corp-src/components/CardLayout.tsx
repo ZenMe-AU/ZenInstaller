@@ -14,7 +14,7 @@ type Props = {
   action?: React.ReactNode;
 };
 
-export default function StepWrapper({ title, subtitle, status, expanded, onToggle, disabled = false, children, action }: Props) {
+export default function CardLayout({ title, subtitle, status, expanded, onToggle, disabled = false, children, action }: Props) {
   return (
     <Box
       sx={{

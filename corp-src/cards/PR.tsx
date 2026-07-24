@@ -1,7 +1,7 @@
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { Button } from "@mui/material";
 import type { CardStatus, GhEnv, PullRequest } from "../types";
-import StepWrapper from "../components/StepWrapper";
+import CardLayout from "../components/CardLayout";
 import PRDetail from "./PRDetail";
 import { reactPlugin } from "../monitor/applicationInsights";
 import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";
@@ -45,7 +45,7 @@ export default function PR({
 }: Props) {
   return (
     <AppInsightsErrorBoundary onError={() => <p>Error: Unable to load component!</p>} appInsights={reactPlugin}>
-      <StepWrapper
+      <CardLayout
         title="Pull Request"
         subtitle={selectedPR ? `#${selectedPR.number} · ${selectedPR.title}` : "Optional — select a PR to deploy from"}
         status={status}
@@ -81,7 +81,7 @@ export default function PR({
           envList={envList}
           validEnvs={validEnvs}
         />
-      </StepWrapper>
+      </CardLayout>
     </AppInsightsErrorBoundary>
   );
 }

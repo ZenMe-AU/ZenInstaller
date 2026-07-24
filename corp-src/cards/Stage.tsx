@@ -2,7 +2,7 @@ import { Box, Button } from "@mui/material";
 import type { Account, CardId, CardStatus, GhEnv, PlanSummary, Stage, StageDefinition, StageStatus } from "../types";
 import { isNoChanges } from "../logic/stage";
 import SummaryChip from "../components/SummaryChip";
-import StepWrapper from "../components/StepWrapper";
+import CardLayout from "../components/CardLayout";
 import { StageDetail } from "./StageDetail";
 import { reactPlugin } from "../monitor/applicationInsights";
 import { AppInsightsErrorBoundary } from "@microsoft/applicationinsights-react-js";
@@ -98,7 +98,7 @@ export default function Stage({
 
   return (
     <AppInsightsErrorBoundary onError={() => <p>Error: Unable to load component!</p>} appInsights={reactPlugin}>
-      <StepWrapper
+      <CardLayout
         title={stageDef.label}
         subtitle={subtitle}
         status={status}
@@ -121,7 +121,7 @@ export default function Stage({
           deployedEnv={deployedEnv}
           onPlanSummary={onPlanSummary}
         />
-      </StepWrapper>
+      </CardLayout>
     </AppInsightsErrorBoundary>
   );
 }

@@ -12,8 +12,6 @@ import type { Requirement } from "../logic/tileRequirements";
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 
-// Border color by status. "loading" (the next actionable step) stays neutral —
-// the blue highlight is reserved for hover, not a persistent suggestion outline.
 const BORDER: Record<CardStatus, string> = {
   idle: "#e2e8f0",
   loading: "#e2e8f0",
@@ -33,7 +31,7 @@ const ICON_COLOR: Record<CardStatus, string> = {
 };
 
 function StatusIcon({ status, locked, unavailable }: { status: CardStatus; locked: boolean; unavailable: boolean }) {
-  // Same muted grey as the lock icon — unavailable is styled identically to
+  // Same muted grey as the lock icon - unavailable is styled identically to
   // locked, the glyph is the only thing that tells them apart.
   if (unavailable) return <WarningAmberIcon sx={{ fontSize: 15, color: "#cbd5e1" }} />;
   if (locked) return <LockIcon sx={{ fontSize: 16, color: "#cbd5e1" }} />;
@@ -55,13 +53,13 @@ type Props = {
   /** Result value (when complete) or short prompt (when actionable) shown on the tile face. */
   summary?: string;
   status: CardStatus;
-  /** Prerequisites unmet — the tile still expands, but shows the requirements instead of live content. */
+  /** Prerequisites unmet - the tile still expands, but shows the requirements instead of live content. */
   locked?: boolean;
   requirements?: Requirement[];
   /** Broken from the start (e.g. missing required config), not something the user
-   *  unlocks by completing other steps. Same muted styling as `locked` — grey
-   *  fill, grey border, hidden summary — but with a warning icon instead of a
-   *  lock, and its content (the explanation) is left fully visible, not dimmed. */
+   *  unlocks by completing other steps. Same muted chrome as `locked` - grey
+   *  fill, grey border - but with a warning icon instead of a lock, and its
+   *  summary/content stay visible since that's the explanation the user needs. */
   unavailable?: boolean;
   expanded: boolean;
   onToggle: () => void;
@@ -71,7 +69,7 @@ type Props = {
 };
 
 // A tile that collapses to a compact summary and expands (accordion) to the full
-// card. Unlike StepWrapper, a locked tile can still be expanded — it then shows
+// card. Unlike StepWrapper, a locked tile can still be expanded - it then shows
 // what's missing rather than blocking every pointer event.
 export default function CardTile({
   title,
@@ -86,10 +84,13 @@ export default function CardTile({
   action,
   children,
 }: Props) {
-  // locked and unavailable share the same muted chrome — the only visual
+  // locked and unavailable share the same muted chrome - the only visual
   // difference between them is the icon (padlock vs warning triangle).
   const muted = locked || unavailable;
-  const showSummary = !expanded && !!summary && !muted;
+  // Unlike locked, an unavailable tile still shows its summary - that IS the
+  // "here's what's wrong" message, not a prerequisite result worth hiding.
+  const showSummary = !expanded && !!summary && !locked;
+  const ICON_COL = 26; // icon width + row gap - the summary row indents to sit under the title
 
   return (
     <Box
@@ -104,12 +105,9 @@ export default function CardTile({
         "&:hover": { borderColor: "#93c5fd" },
       }}
     >
-      {/* Header (always clickable — even when locked/unavailable) */}
+      {/* Header (always clickable - even when locked/unavailable) */}
       <Box
         sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 1.25,
           px: 2,
           py: 1.5,
           cursor: "pointer",
@@ -117,10 +115,15 @@ export default function CardTile({
         }}
         onClick={onToggle}
       >
-        <StatusIcon status={status} locked={locked} unavailable={unavailable} />
-        <Box sx={{ flex: 1, minWidth: 0 }}>
+        {/* Title row - icon / title / button always center against each other
+            here, regardless of whether the summary row below is shown. The
+            reserved summary space below must never shift this row's alignment. */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+          <StatusIcon status={status} locked={locked} unavailable={unavailable} />
           <Typography
             sx={{
+              flex: 1,
+              minWidth: 0,
               fontSize: "0.8rem",
               fontWeight: 600,
               color: muted ? "#94a3b8" : "#0f172a",
@@ -133,31 +136,31 @@ export default function CardTile({
           >
             {title}
           </Typography>
-          {/* Always reserve the summary line's height (visibility, not mount)
-              so every collapsed tile — with or without a summary — lines up
-              at the same height instead of title-only tiles looking shorter. */}
-          <Typography
-            sx={{
-              fontSize: "0.72rem",
-              color: status === "complete" ? "#16a34a" : status === "warning" ? "#ea580c" : status === "error" ? "#dc2626" : "#64748b",
-              ...mono,
-              mt: 0.25,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              visibility: showSummary ? "visible" : "hidden",
-            }}
-          >
-            {summary || " "}
-          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
+            {expanded && !muted && action}
+            <IconButton size="small" sx={{ color: "#cbd5e1", "&:hover": { color: "#94a3b8" } }}>
+              {expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+            </IconButton>
+          </Box>
         </Box>
 
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
-          {expanded && !muted && action}
-          <IconButton size="small" sx={{ color: "#cbd5e1", "&:hover": { color: "#94a3b8" } }}>
-            {expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
-          </IconButton>
-        </Box>
+        {/* Summary row - always reserved (visibility, not mount) so every
+            collapsed tile lines up at the same height regardless of content. */}
+        <Typography
+          sx={{
+            fontSize: "0.72rem",
+            color: status === "complete" ? "#16a34a" : status === "warning" ? "#ea580c" : status === "error" ? "#dc2626" : "#64748b",
+            ...mono,
+            mt: 0.25,
+            ml: `${ICON_COL}px`,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            visibility: showSummary ? "visible" : "hidden",
+          }}
+        >
+          {summary || " "}
+        </Typography>
       </Box>
 
       {/* Content */}

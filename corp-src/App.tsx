@@ -35,8 +35,10 @@ import { reactPlugin } from "./monitor/applicationInsights";
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 const groupLabelSx = { fontSize: "0.72rem", color: "#94a3b8", ...mono, mt: 3.5, mb: 1.25, letterSpacing: "0.02em", textTransform: "uppercase" as const };
-// Collapsed tiles are a uniform fixed width and wrap; only the expanded tile takes the full row.
+// Collapsed tiles are a uniform fixed width and wrap 3-per-row; an expanded tile
+// spans exactly that 3-tile width (3 tiles + two 12px gaps) so its right edge lines up.
 const TILE_W = 300;
+const EXPANDED_W = TILE_W * 3 + 24;
 const groupSx = { display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "flex-start" } as const;
 
 // ─── App ──────────────────────────────────────────────────────────────────────
@@ -245,7 +247,7 @@ function AppDashboard() {
       onToggle: () => toggle(id),
     };
   };
-  const itemSx = (id: CardId) => ({ width: expandedId === id ? "100%" : TILE_W, maxWidth: "100%" });
+  const itemSx = (id: CardId) => ({ width: expandedId === id ? EXPANDED_W : TILE_W, maxWidth: "100%" });
 
   // ── URL sync (persist current state; restore is handled by useUrlRestore) ──
   useEffect(() => {
@@ -299,7 +301,7 @@ function AppDashboard() {
           ]}
         />
 
-        <Box sx={{ maxWidth: 1040, mx: "auto", px: 4, py: 5 }}>
+        <Box sx={{ maxWidth: EXPANDED_W, mx: "auto", px: 4, py: 5 }}>
           {/* Intro */}
           <Box
             sx={{

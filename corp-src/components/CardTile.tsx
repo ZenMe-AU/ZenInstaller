@@ -9,8 +9,7 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import type { CardStatus, CardId } from "../types";
 import type { Requirement } from "../logic/tileRequirements";
-
-const mono = { fontFamily: "'IBM Plex Mono', monospace" };
+import { MONO as mono } from "../config/styles";
 
 const BORDER: Record<CardStatus, string> = {
   idle: "#e2e8f0",

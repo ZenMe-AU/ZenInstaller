@@ -12,9 +12,9 @@ export type EnvMatchResult =
 
 export function matchEnv(name: string, envList: GhEnv[], validEnvs: readonly string[]): EnvMatchResult {
   const filtered = envList.filter((e) => isValidEnvName(e.name, validEnvs));
-  const matches  = filtered.filter((e) => e.name.toLowerCase() === name.toLowerCase());
+  const matches = filtered.filter((e) => e.name.toLowerCase() === name.toLowerCase());
   if (matches.length === 0) return { status: "none" };
-  if (matches.length > 1)  return { status: "multiple", envs: matches };
+  if (matches.length > 1) return { status: "multiple", envs: matches };
   const match = matches[0];
   return match.name === name ? { status: "exact", env: match } : { status: "case", env: match };
 }
@@ -28,7 +28,7 @@ export type BranchMatchResult =
 export function matchBranch(envName: string, branches: Branch[]): BranchMatchResult {
   const matches = branches.filter((b) => b.name.toLowerCase() === envName.toLowerCase());
   if (matches.length === 0) return { status: "none" };
-  if (matches.length > 1)  return { status: "multiple", branches: matches };
+  if (matches.length > 1) return { status: "multiple", branches: matches };
   const match = matches[0];
   return match.name === envName ? { status: "exact", branch: match } : { status: "case", branch: match };
 }

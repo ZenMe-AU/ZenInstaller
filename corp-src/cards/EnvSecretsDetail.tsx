@@ -8,15 +8,10 @@ import { AZURE_SECRET_KEYS, AWS_SECRET_KEYS } from "../logic/variables";
 import { fetchPublicKey, upsertSecret } from "../api";
 import { encryptSecret } from "../logic/crypto";
 import SecretsCard from "../components/SecretsCard";
+import { refreshBtnSx, sectionLabelSx as sectionLabelBase } from "../config/styles";
 
-const sectionLabelSx = {
-  fontSize: "0.7rem",
-  fontWeight: 700,
-  color: "#94a3b8",
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.1em",
-  fontFamily: "'IBM Plex Mono', monospace",
-};
+// Muted variant of the shared section label (whose default is the darker #0f172a).
+const sectionLabelSx = { ...sectionLabelBase, color: "#94a3b8" };
 
 const subLabelSx = {
   fontSize: "0.67rem",
@@ -25,15 +20,6 @@ const subLabelSx = {
   textTransform: "uppercase" as const,
   letterSpacing: "0.08em",
   fontFamily: "'IBM Plex Mono', monospace",
-};
-
-const refreshBtnSx = {
-  flexShrink: 0,
-  color: "#94a3b8",
-  fontSize: "0.72rem",
-  textTransform: "none" as const,
-  fontFamily: "'IBM Plex Mono', monospace",
-  "&:hover": { color: "#475569" },
 };
 
 // ─── Props ────────────────────────────────────────────────────────────────────

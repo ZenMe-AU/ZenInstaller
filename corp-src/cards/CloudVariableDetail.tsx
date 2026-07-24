@@ -7,26 +7,7 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import type { Account, UpsertStatus } from "../types";
 import { fetchVariables, createVariable, updateVariable } from "../api";
 import VariablesCard from "../components/VariablesCard";
-
-const sectionLabelSx = {
-  fontSize: "0.7rem",
-  fontWeight: 700,
-  color: "#0f172a",
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.1em",
-  fontFamily: "'IBM Plex Mono', monospace",
-};
-
-const refreshBtnSx = {
-  flexShrink: 0,
-  color: "#94a3b8",
-  fontSize: "0.72rem",
-  textTransform: "none" as const,
-  fontFamily: "'IBM Plex Mono', monospace",
-  "&:hover": { color: "#475569" },
-};
-
-const mono = { fontFamily: "'IBM Plex Mono', monospace" };
+import { MONO as mono, refreshBtnSx, sectionLabelSx } from "../config/styles";
 
 type Props = {
   account: Account | null;

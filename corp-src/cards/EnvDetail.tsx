@@ -10,17 +10,7 @@ import { isValidEnvName } from "../logic/env";
 import EnvBranchDetail from "./EnvBranchDetail";
 import EnvSecretsDetail from "./EnvSecretsDetail";
 import EnvVariablesDetail from "./EnvVariablesDetail";
-
-// ─── Shared styles ────────────────────────────────────────────────────────────
-
-const refreshBtnSx = {
-  flexShrink: 0,
-  color: "#94a3b8",
-  fontSize: "0.72rem",
-  textTransform: "none" as const,
-  fontFamily: "'IBM Plex Mono', monospace",
-  "&:hover": { color: "#475569" },
-};
+import { refreshBtnSx } from "../config/styles";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 

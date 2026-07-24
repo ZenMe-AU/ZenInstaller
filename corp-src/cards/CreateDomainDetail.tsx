@@ -12,9 +12,7 @@ import type { useCreateDomainSetup } from "../hooks/useCreateDomainSetup";
 import type { SetupStep } from "../hooks/useAzureSetup";
 import type { Subscription } from "../api/azureGraph";
 import { getVariableDisplayName } from "../logic/variables";
-
-const mono = { fontFamily: "'IBM Plex Mono', monospace" };
-const labelSx = { fontSize: "0.68rem", color: "#94a3b8", textTransform: "uppercase" as const, letterSpacing: "0.08em", ...mono };
+import { MONO as mono, labelSx } from "../config/styles";
 
 function StepRow({ step }: { step: SetupStep }) {
   const icon =

@@ -4,6 +4,7 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 
 import { type CardId, type CardStatus, type PendingRestore } from "./types";
 import { AZURE_CLIENT_ID } from "./config/azureConfig";
+import { MONO as mono } from "./config/styles";
 import { tileRequirements, type TileFlags } from "./logic/tileRequirements";
 import { useActiveAuth as useAuth } from "./hooks/useActiveAuth";
 import { useAccountRepo } from "./hooks/useAccountRepo";
@@ -31,7 +32,6 @@ import TfBackendDetail from "./cards/TfBackendDetail";
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
 
-const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 const groupLabelSx = {
   fontSize: "0.72rem",
   color: "#94a3b8",
@@ -126,7 +126,7 @@ function AppDashboard() {
   });
 
   // ── Accordion + completion flags ───────────────────────────────────────────
-  const [expandedId, setExpandedId] = useState<CardId | null>("auth");
+  const [expandedId, setExpandedId] = useState<CardId | null>(null);
   const toggle = (id: CardId) => setExpandedId((cur) => (cur === id ? null : id));
   const [azureSetupDone, setAzureSetupDone] = useState(false);
 

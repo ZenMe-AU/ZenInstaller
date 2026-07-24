@@ -11,6 +11,7 @@ import PersonIcon from "@mui/icons-material/Person";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { Account, Repo, RepoOption } from "../types";
+import { refreshBtnSx } from "../config/styles";
 
 // ─── Template status badge ────────────────────────────────────────────────────
 
@@ -74,15 +75,6 @@ const selectSx = {
 };
 
 const filterOptions = createFilterOptions<RepoOption>();
-
-const refreshBtnSx = {
-  flexShrink: 0,
-  color: "#94a3b8",
-  fontSize: "0.72rem",
-  textTransform: "none" as const,
-  fontFamily: "'IBM Plex Mono', monospace",
-  "&:hover": { color: "#475569" },
-};
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 

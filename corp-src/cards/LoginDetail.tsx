@@ -3,8 +3,7 @@ import { Box, Button, CircularProgress, IconButton, InputAdornment, TextField, T
 import ClearIcon from "@mui/icons-material/Clear";
 import type { User } from "../types";
 import { switchToDirect, switchToBackend } from "../api";
-
-const monoSx = { fontFamily: "'IBM Plex Mono', monospace" };
+import { MONO as monoSx } from "../config/styles";
 
 type Props = {
   authLoading: boolean;

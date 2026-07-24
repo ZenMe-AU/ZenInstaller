@@ -2,8 +2,7 @@ import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import type { AccountInfo } from "@azure/msal-browser";
 import { CLOUD_DOCS } from "../config/docsConfig";
-
-const mono = { fontFamily: "'IBM Plex Mono', monospace" };
+import { MONO as mono } from "../config/styles";
 
 type Props = {
   azureAccount: AccountInfo | null;

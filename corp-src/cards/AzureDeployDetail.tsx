@@ -10,9 +10,7 @@ import type { useAzureSetup } from "../hooks/useAzureSetup";
 import type { SetupStep } from "../hooks/useAzureSetup";
 import { AZURE_VARIABLE_KEYS } from "../logic/variables";
 import CloudVariableDetail from "./CloudVariableDetail";
-
-const mono = { fontFamily: "'IBM Plex Mono', monospace" };
-const labelSx = { fontSize: "0.68rem", color: "#94a3b8", textTransform: "uppercase" as const, letterSpacing: "0.08em", ...mono };
+import { MONO as mono, labelSx } from "../config/styles";
 
 function StepRow({ step }: { step: SetupStep }) {
   const icon =

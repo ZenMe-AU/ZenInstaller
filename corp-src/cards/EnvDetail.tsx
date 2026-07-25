@@ -9,6 +9,7 @@ import EnvSecretsDetail from "./EnvSecretsDetail";
 import EnvVariablesDetail from "./EnvVariablesDetail";
 import RefreshButton from "../components/RefreshButton";
 import { useRefreshIndicator } from "../hooks/useRefreshIndicator";
+import { getEnvSettingsUrl } from "../logic/github";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -91,7 +92,7 @@ export default function EnvDetail({
   const secretsReady = !!selectedEnv && !branchMatchError;
   // Show EnvBranchDetail only when the error is "no branch found" (not PR mismatch / multiple)
   const showBranchCreate = !!selectedEnv && !!branchMatchError && branchMatchError.startsWith("No branch found");
-  const githubSecretsUrl = repoFullName && selectedEnv ? `https://github.com/${repoFullName}/settings/environments/${selectedEnv.id}/edit` : null;
+  const githubSecretsUrl = repoFullName && selectedEnv ? getEnvSettingsUrl(repoFullName, selectedEnv.id) : null;
   const secretsVisible = false;
 
   return (

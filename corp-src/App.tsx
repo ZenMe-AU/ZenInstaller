@@ -5,8 +5,10 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { type CardId, type PendingRestore } from "./types";
 import { AZURE_CLIENT_ID } from "./config/azureConfig";
 import { MONO as mono } from "./config/styles";
+import { groupLabelSx, groupSx, TILE_W, EXPANDED_W } from "./config/tileLayout";
 import { tileRequirements } from "./logic/tileRequirements";
 import { deriveCardStatus, deriveTileFlags, deriveTileSummaries, type TileStateInput } from "./logic/tileState";
+import { getRepoUrl, getEnvSettingsUrl } from "./logic/github";
 import { useActiveAuth as useAuth } from "./hooks/useActiveAuth";
 import { useAccountRepo } from "./hooks/useAccountRepo";
 import { useAzureSetup } from "./hooks/useAzureSetup";
@@ -32,21 +34,6 @@ import TfBackendDetail from "./cards/TfBackendDetail";
 
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
-
-const groupLabelSx = {
-  fontSize: "0.72rem",
-  color: "#94a3b8",
-  ...mono,
-  mt: 3.5,
-  mb: 1.25,
-  letterSpacing: "0.02em",
-  textTransform: "uppercase" as const,
-};
-// Collapsed tiles are a uniform fixed width and wrap 3-per-row; an expanded tile
-// spans exactly that 3-tile width (3 tiles + two 12px gaps) so its right edge lines up.
-const TILE_W = 300;
-const EXPANDED_W = TILE_W * 3 + 24;
-const groupSx = { display: "flex", flexWrap: "wrap", gap: 1.5, alignItems: "flex-start" } as const;
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
@@ -171,8 +158,7 @@ function AppDashboard() {
   const reqs = (id: CardId) => tileRequirements(id, flags);
   const summaries = deriveTileSummaries(tileState);
 
-  const githubEnvUrl =
-    repo.repoFullName && env.selectedEnv ? `https://github.com/${repo.repoFullName}/settings/environments/${env.selectedEnv.id}/edit` : undefined;
+  const githubEnvUrl = repo.repoFullName && env.selectedEnv ? getEnvSettingsUrl(repo.repoFullName, env.selectedEnv.id) : undefined;
 
   const openTile = (id: CardId) => {
     setExpandedId(id);
@@ -218,7 +204,7 @@ function AppDashboard() {
       size="small"
       variant="outlined"
       endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />}
-      onClick={() => window.open(`https://github.com/${repo.repoFullName}`, "_blank")}
+      onClick={() => window.open(getRepoUrl(repo.repoFullName!), "_blank")}
       sx={{
         borderColor: "#e2e8f0",
         color: "#475569",

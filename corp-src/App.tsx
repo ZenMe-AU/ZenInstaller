@@ -325,41 +325,43 @@ function AppDashboard() {
                   repoRefreshFailed={repo.repoRefreshFailed}
                   onRefresh={repo.onRefresh}
                 />
-                <Box sx={{ mt: 2.5, pt: 2.5, borderTop: "1px solid #f1f5f9" }}>
-                  <EnvDetail
-                    showConfig={false}
-                    envList={env.envList}
-                    validEnvs={repo.pipeline.validEnvs}
-                    selectedEnv={env.selectedEnv}
-                    onEnvChange={env.setSelectedEnv}
-                    lockedByPR={!!pr.selectedPR}
-                    branchMatchWarning={env.branchMatchWarning}
-                    branchMatchError={env.branchMatchError}
-                    loading={env.envLoading}
-                    refreshFailed={env.envRefreshFailed}
-                    onRefresh={env.onRefresh}
-                    presentKeys={env.presentSecretKeys}
-                    azureSecretsStatus={env.azureSecrets}
-                    awsSecretsStatus={env.awsSecrets}
-                    repoFullName={repo.repoFullName}
-                    onRecheck={env.onRecheck}
-                    rechecking={env.rechecking}
-                    recheckFailed={env.recheckFailed}
-                    account={repo.selectedAccount}
-                    repo={repo.selectedRepo?.name ?? ""}
-                    variableValues={env.presentVariableValues}
-                    onVariableRecheck={env.onVariableRecheck}
-                    variablesRechecking={env.variablesRechecking}
-                    varRecheckFailed={env.varRecheckFailed}
-                    onVariableConfirmed={env.onVariableConfirmed}
-                    branches={repo.branches}
-                    sourceBranch={repo.sourceBranch}
-                    onSourceBranchChange={repo.setSourceBranch}
-                    creatingBranch={repo.creatingBranch}
-                    createBranchError={repo.createBranchError}
-                    onCreateBranch={repo.onCreateBranch}
-                  />
-                </Box>
+                {!repo.selectedRepo?.isNew && (
+                  <Box sx={{ mt: 2.5, pt: 2.5, borderTop: "1px solid #f1f5f9" }}>
+                    <EnvDetail
+                      showConfig={false}
+                      envList={env.envList}
+                      validEnvs={repo.pipeline.validEnvs}
+                      selectedEnv={env.selectedEnv}
+                      onEnvChange={env.setSelectedEnv}
+                      lockedByPR={!!pr.selectedPR}
+                      branchMatchWarning={env.branchMatchWarning}
+                      branchMatchError={env.branchMatchError}
+                      loading={env.envLoading}
+                      refreshFailed={env.envRefreshFailed}
+                      onRefresh={env.onRefresh}
+                      presentKeys={env.presentSecretKeys}
+                      azureSecretsStatus={env.azureSecrets}
+                      awsSecretsStatus={env.awsSecrets}
+                      repoFullName={repo.repoFullName}
+                      onRecheck={env.onRecheck}
+                      rechecking={env.rechecking}
+                      recheckFailed={env.recheckFailed}
+                      account={repo.selectedAccount}
+                      repo={repo.selectedRepo?.name ?? ""}
+                      variableValues={env.presentVariableValues}
+                      onVariableRecheck={env.onVariableRecheck}
+                      variablesRechecking={env.variablesRechecking}
+                      varRecheckFailed={env.varRecheckFailed}
+                      onVariableConfirmed={env.onVariableConfirmed}
+                      branches={repo.branches}
+                      sourceBranch={repo.sourceBranch}
+                      onSourceBranchChange={repo.setSourceBranch}
+                      creatingBranch={repo.creatingBranch}
+                      createBranchError={repo.createBranchError}
+                      onCreateBranch={repo.onCreateBranch}
+                    />
+                  </Box>
+                )}
               </CardTile>
             </Box>
           </Box>

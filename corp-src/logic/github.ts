@@ -7,3 +7,7 @@ export function getRepoUrl(repoFullName: string): string {
 export function getEnvSettingsUrl(repoFullName: string, envId: number): string {
   return `https://github.com/${repoFullName}/settings/environments/${envId}/edit`;
 }
+
+export function getEnvironmentsUrl(repoFullName: string): string {
+  return `https://github.com/${repoFullName}/settings/environments`;
+}

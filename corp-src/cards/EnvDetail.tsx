@@ -1,6 +1,7 @@
-import { Box, CircularProgress, Divider, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, Divider, Typography } from "@mui/material";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import LockIcon from "@mui/icons-material/Lock";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { Account, Branch, GhEnv, SecretsStatus } from "../types";
 import { isValidEnvName } from "../logic/env";
@@ -9,7 +10,7 @@ import EnvSecretsDetail from "./EnvSecretsDetail";
 import EnvVariablesDetail from "./EnvVariablesDetail";
 import RefreshButton from "../components/RefreshButton";
 import { useRefreshIndicator } from "../hooks/useRefreshIndicator";
-import { getEnvSettingsUrl } from "../logic/github";
+import { getEnvironmentsUrl, getEnvSettingsUrl } from "../logic/github";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -92,6 +93,8 @@ export default function EnvDetail({
   // Show EnvBranchDetail only when the error is "no branch found" (not PR mismatch / multiple)
   const showBranchCreate = !!selectedEnv && !!branchMatchError && branchMatchError.startsWith("No branch found");
   const githubSecretsUrl = repoFullName && selectedEnv ? getEnvSettingsUrl(repoFullName, selectedEnv.id) : null;
+  // Always available once a repo is known — points at the specific env once one's picked, otherwise the environments list (e.g. to add a new one).
+  const githubEnvironmentsUrl = repoFullName ? (selectedEnv ? getEnvSettingsUrl(repoFullName, selectedEnv.id) : getEnvironmentsUrl(repoFullName)) : null;
   const secretsVisible = false;
 
   return (
@@ -150,55 +153,75 @@ export default function EnvDetail({
       )}
 
       {/* Env chips */}
-      {loading ? (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
-          <CircularProgress size={14} sx={{ color: "#cbd5e1" }} />
-          <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>Loading environments...</Typography>
-        </Box>
-      ) : filteredEnvs.length === 0 ? (
-        <Box sx={{ py: 2, textAlign: "center" }}>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5, py: 1, mt: showBranchCreate ? 2.5 : 0 }}>
+        {loading ? (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <CircularProgress size={14} sx={{ color: "#cbd5e1" }} />
+            <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>Loading environments...</Typography>
+          </Box>
+        ) : filteredEnvs.length === 0 ? (
           <Typography sx={{ fontSize: "0.78rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>No environment found.</Typography>
-        </Box>
-      ) : (
-        <Box sx={{ display: !selectedEnv && lockedByPR ? "none" : "flex", gap: 1.5, mt: showBranchCreate ? 2.5 : 0 }}>
-          {filteredEnvs.map((env) => {
-            const isSelected = selectedEnv?.id === env.id;
-            return (
-              <Box
-                key={env.id}
-                onClick={() => !lockedByPR && onEnvChange(isSelected ? null : env)}
-                sx={{
-                  display: isSelected || !lockedByPR ? "inline-flex" : "none",
-                  alignItems: "center",
-                  gap: 0.75,
-                  px: 2,
-                  py: 0.75,
-                  borderRadius: "8px",
-                  border: "1px solid",
-                  borderColor: isSelected ? "#2563eb" : "#e2e8f0",
-                  background: isSelected ? "#2563eb" : "#ffffff",
-                  color: isSelected ? "#ffffff" : "#475569",
-                  fontSize: "0.82rem",
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  fontWeight: isSelected ? 700 : 400,
-                  cursor: lockedByPR ? "default" : "pointer",
-                  userSelect: "none",
-                  transition: "all 0.15s",
-                  "&:hover": !lockedByPR ? { borderColor: isSelected ? "#1d4ed8" : "#cbd5e1", background: isSelected ? "#1d4ed8" : "#f8fafc" } : {},
-                }}
-              >
-                {isSelected && lockedByPR && <LockIcon sx={{ fontSize: 13 }} />}
-                {env.name}
-                {isSelected && lockedByPR && (
-                  <Typography component="span" sx={{ fontSize: "0.65rem", fontFamily: "'IBM Plex Mono', monospace", opacity: 0.75, ml: 0.25 }}>
-                    from PR
-                  </Typography>
-                )}
-              </Box>
-            );
-          })}
-        </Box>
-      )}
+        ) : (
+          <Box sx={{ display: !selectedEnv && lockedByPR ? "none" : "flex", gap: 1.5, flexWrap: "wrap" }}>
+            {filteredEnvs.map((env) => {
+              const isSelected = selectedEnv?.id === env.id;
+              return (
+                <Box
+                  key={env.id}
+                  onClick={() => !lockedByPR && onEnvChange(isSelected ? null : env)}
+                  sx={{
+                    display: isSelected || !lockedByPR ? "inline-flex" : "none",
+                    alignItems: "center",
+                    gap: 0.75,
+                    px: 2,
+                    py: 0.75,
+                    borderRadius: "8px",
+                    border: "1px solid",
+                    borderColor: isSelected ? "#2563eb" : "#e2e8f0",
+                    background: isSelected ? "#2563eb" : "#ffffff",
+                    color: isSelected ? "#ffffff" : "#475569",
+                    fontSize: "0.82rem",
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontWeight: isSelected ? 700 : 400,
+                    cursor: lockedByPR ? "default" : "pointer",
+                    userSelect: "none",
+                    transition: "all 0.15s",
+                    "&:hover": !lockedByPR ? { borderColor: isSelected ? "#1d4ed8" : "#cbd5e1", background: isSelected ? "#1d4ed8" : "#f8fafc" } : {},
+                  }}
+                >
+                  {isSelected && lockedByPR && <LockIcon sx={{ fontSize: 13 }} />}
+                  {env.name}
+                  {isSelected && lockedByPR && (
+                    <Typography component="span" sx={{ fontSize: "0.65rem", fontFamily: "'IBM Plex Mono', monospace", opacity: 0.75, ml: 0.25 }}>
+                      from PR
+                    </Typography>
+                  )}
+                </Box>
+              );
+            })}
+          </Box>
+        )}
+        {githubEnvironmentsUrl && (
+          <Button
+            size="small"
+            aria-label="Manage on GitHub"
+            endIcon={<OpenInNewIcon sx={{ fontSize: 12 }} />}
+            onClick={() => window.open(githubEnvironmentsUrl, "_blank")}
+            sx={{
+              flexShrink: 0,
+              fontSize: "0.7rem",
+              color: "#64748b",
+              textTransform: "none",
+              fontFamily: "'IBM Plex Mono', monospace",
+              "&:hover": { color: "#0f172a" },
+            }}
+          >
+            <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+              Manage on GitHub
+            </Box>
+          </Button>
+        )}
+      </Box>
 
       {/* ── Sections — shown once env is selected and valid ── */}
       {showConfig && secretsReady && (

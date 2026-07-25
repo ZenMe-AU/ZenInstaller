@@ -2,13 +2,13 @@ import { useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import type { Account, GhEnv, UpsertStatus } from "../types";
+import type { Account, GhEnv } from "../types";
 import { GITHUB_VARIABLE_KEYS } from "../logic/variables";
-import { createVariable, updateVariable } from "../api";
 import VariablesCard from "../components/VariablesCard";
 import RefreshButton from "../components/RefreshButton";
 import SaveButton from "../components/SaveButton";
 import { useRefreshIndicator } from "../hooks/useRefreshIndicator";
+import { useVariableEditor } from "../hooks/useVariableEditor";
 import { sectionLabelSx } from "../config/styles";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -43,50 +43,33 @@ export default function EnvVariablesDetail({
 }: Props) {
   const { refreshResult, markClicked } = useRefreshIndicator(variablesRechecking, varRecheckFailed);
 
-  const [localVarValues, setLocalVarValues] = useState<Record<string, string>>(variableValues);
-  const [varUpsertStatuses, setVarUpsertStatuses] = useState<UpsertStatus[]>([]);
-  const [updatingVars, setUpdatingVars] = useState(false);
+  const {
+    localValues: localVarValues,
+    setLocalValues: setLocalVarValues,
+    upsertStatuses: varUpsertStatuses,
+    setUpsertStatuses: setVarUpsertStatuses,
+    updating: updatingVars,
+    dirtyKeys: dirtyVarKeys,
+    onChange: handleVarChange,
+    onRevert: handleVarRevert,
+    save,
+  } = useVariableEditor({
+    keys: GITHUB_VARIABLE_KEYS,
+    savedValues: variableValues,
+    account,
+    repo,
+    envName: selectedEnv.name,
+    onSavedKey: onVariableConfirmed,
+  });
 
-  // Sync local state when parent refreshes variableValues (e.g. after Recheck).
-  // Using setState-during-render: React re-renders immediately and skips the stale frame.
+  // Controlled sync: reset local edits when the parent refreshes variableValues
+  // (e.g. after Recheck). setState-during-render skips the stale frame.
   const [prevVariableValues, setPrevVariableValues] = useState(variableValues);
   if (prevVariableValues !== variableValues) {
     setPrevVariableValues(variableValues);
     setLocalVarValues(variableValues);
     setVarUpsertStatuses([]);
   }
-
-  const dirtyVarKeys = GITHUB_VARIABLE_KEYS.filter((k) => (localVarValues[k] ?? "") !== (variableValues[k] ?? ""));
-
-  const handleVarChange = (key: string, value: string) => {
-    setLocalVarValues((prev) => ({ ...prev, [key]: value }));
-    setVarUpsertStatuses((prev) => prev.filter((s) => s.key !== key));
-  };
-
-  const handleVarRevert = (key: string) => {
-    setLocalVarValues((prev) => ({ ...prev, [key]: variableValues[key] ?? "" }));
-    setVarUpsertStatuses((prev) => prev.filter((s) => s.key !== key));
-  };
-
-  const handleUpdateVars = async () => {
-    if (!account || !repo || dirtyVarKeys.length === 0) return;
-    setUpdatingVars(true);
-    const statuses: UpsertStatus[] = [];
-    for (const key of dirtyVarKeys) {
-      const value = localVarValues[key] ?? "";
-      const isNew = !variableValues[key];
-      try {
-        await (isNew ? createVariable : updateVariable)(account, repo, key, value, selectedEnv.name);
-        statuses.push({ key, status: "success" });
-        onVariableConfirmed(key, value);
-      } catch (e) {
-        console.error(`Failed to ${isNew ? "create" : "update"} variable "${key}":`, e);
-        statuses.push({ key, status: "error", error: "Update failed" });
-      }
-    }
-    setVarUpsertStatuses(statuses);
-    setUpdatingVars(false);
-  };
 
   return (
     <Box>
@@ -135,7 +118,7 @@ export default function EnvVariablesDetail({
 
       {/* Save button row */}
       <Box sx={{ mt: 2, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
-        <SaveButton verb="Save" noun="variable" count={dirtyVarKeys.length} loading={updatingVars} onClick={handleUpdateVars} />
+        <SaveButton verb="Save" noun="variable" count={dirtyVarKeys.length} loading={updatingVars} onClick={() => void save()} />
         {githubUrl && (
           <Button
             size="small"

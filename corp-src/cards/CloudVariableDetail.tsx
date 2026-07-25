@@ -2,11 +2,12 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import type { Account, UpsertStatus } from "../types";
-import { fetchVariables, createVariable, updateVariable } from "../api";
+import type { Account } from "../types";
+import { fetchVariables } from "../api";
 import VariablesCard from "../components/VariablesCard";
 import RefreshButton from "../components/RefreshButton";
 import SaveButton from "../components/SaveButton";
+import { useVariableEditor } from "../hooks/useVariableEditor";
 import { MONO as mono, sectionLabelSx } from "../config/styles";
 
 type Props = {
@@ -49,12 +50,11 @@ export default function CloudVariableDetail({
   onSaved,
 }: Props) {
   const [savedValues, setSavedValues] = useState<Record<string, string>>({});
-  const [localValues, setLocalValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [rechecking, setRechecking] = useState(false);
   const [refreshResult, setRefreshResult] = useState<"done" | "failed" | null>(null);
-  const [upsertStatuses, setUpsertStatuses] = useState<UpsertStatus[]>([]);
-  const [updating, setUpdating] = useState(false);
+  const { localValues, setLocalValues, upsertStatuses, setUpsertStatuses, updating, dirtyKeys, onChange: handleChange, onRevert: handleRevert, save: editorSave } =
+    useVariableEditor({ keys, savedValues, account, repo, envName });
   const prevPopulateRef = useRef<Record<string, string> | undefined>(undefined);
   const prevFillKeyRef = useRef<number | undefined>(undefined);
   const prevAutoSaveCounterRef = useRef(autoSaveCounter);
@@ -147,18 +147,7 @@ export default function CloudVariableDetail({
     }
   }, [rechecking]);
 
-  const dirtyKeys = keys.filter((k) => (localValues[k] ?? "") !== (savedValues[k] ?? ""));
   const notConfigured = keys.filter((k) => !savedValues[k]).length;
-
-  const handleChange = (key: string, value: string) => {
-    setLocalValues((prev) => ({ ...prev, [key]: value }));
-    setUpsertStatuses((prev) => prev.filter((s) => s.key !== key));
-  };
-
-  const handleRevert = (key: string) => {
-    setLocalValues((prev) => ({ ...prev, [key]: savedValues[key] ?? "" }));
-    setUpsertStatuses((prev) => prev.filter((s) => s.key !== key));
-  };
 
   const handleRefresh = async () => {
     clickedRef.current = true;
@@ -166,37 +155,18 @@ export default function CloudVariableDetail({
     setRefreshResult(ok ? "done" : "failed");
   };
 
-  const handleSave = useCallback(async (overrideValues?: Record<string, string>): Promise<"saved" | "no-changes" | "error"> => {
-    if (!account || !repo || !envName) return "error";
-    const vals = overrideValues ?? localValues;
-    const curr = savedValues;
-    const dirty = keys.filter((k) => (vals[k] ?? "") !== (curr[k] ?? ""));
-    if (dirty.length === 0) return "no-changes";
-    setUpdating(true);
-    const statuses: UpsertStatus[] = [];
-    const newlySaved = { ...curr };
-    let hasError = false;
-    for (const key of dirty) {
-      const value = vals[key] ?? "";
-      const isNew = !curr[key];
-      try {
-        await (isNew ? createVariable : updateVariable)(account, repo, key, value, envName);
-        statuses.push({ key, status: "success" });
-        setSavedValues((prev) => ({ ...prev, [key]: value }));
-        newlySaved[key] = value;
-      } catch (e) {
-        console.error(`Failed to ${isNew ? "create" : "update"} variable "${key}":`, e);
-        statuses.push({ key, status: "error", error: "Save failed" });
-        hasError = true;
+  const handleSave = useCallback(
+    async (overrideValues?: Record<string, string>): Promise<"saved" | "no-changes" | "error"> => {
+      const { result, savedKeys, newlySaved } = await editorSave(overrideValues);
+      if (result !== "no-changes") {
+        setSavedValues(newlySaved);
+        checkComplete(newlySaved);
       }
-    }
-    setUpsertStatuses(statuses);
-    setUpdating(false);
-    checkComplete(newlySaved);
-    const savedKeys = statuses.filter((s) => s.status === "success").map((s) => s.key);
-    if (savedKeys.length > 0) onSavedRef.current?.(savedKeys);
-    return hasError ? "error" : "saved";
-  }, [account, repo, envName, savedValues, localValues, keys]); // eslint-disable-line react-hooks/exhaustive-deps
+      if (savedKeys.length > 0) onSavedRef.current?.(savedKeys);
+      return result;
+    },
+    [editorSave], // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   // Always-current ref so auto-save effect gets the latest closure.
   const handleSaveRef = useRef(handleSave);

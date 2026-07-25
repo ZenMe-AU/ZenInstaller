@@ -1,4 +1,5 @@
-import { Button, CircularProgress } from "@mui/material";
+import { Box, Button, CircularProgress } from "@mui/material";
+import SaveIcon from "@mui/icons-material/Save";
 import { MONO } from "../config/styles";
 
 type Props = {
@@ -15,12 +16,15 @@ type Props = {
  * variable and secret editors.
  */
 export default function SaveButton({ verb, noun, count, loading, disabled, onClick }: Props) {
+  const text = loading ? "Updating..." : `${verb} ${count > 0 ? count : ""} ${noun}${count !== 1 ? "s" : ""}`.trim();
   return (
     <Button
       onClick={onClick}
       disabled={disabled ?? (loading || count === 0)}
       variant="contained"
       size="small"
+      aria-label={text}
+      startIcon={loading ? <CircularProgress size={12} sx={{ color: "#93c5fd" }} /> : <SaveIcon sx={{ fontSize: 14 }} />}
       sx={{
         background: "#2563eb",
         ...MONO,
@@ -32,14 +36,9 @@ export default function SaveButton({ verb, noun, count, loading, disabled, onCli
         "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
       }}
     >
-      {loading ? (
-        <>
-          <CircularProgress size={12} sx={{ mr: 1, color: "#93c5fd" }} />
-          Updating...
-        </>
-      ) : (
-        `${verb} ${count > 0 ? count : ""} ${noun}${count !== 1 ? "s" : ""}`.trim()
-      )}
+      <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+        {text}
+      </Box>
     </Button>
   );
 }

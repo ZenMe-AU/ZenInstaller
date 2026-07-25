@@ -1,4 +1,4 @@
-import { Button, CircularProgress } from "@mui/material";
+import { Box, Button, CircularProgress } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
@@ -20,11 +20,13 @@ type Props = {
  * remote state. Pair with useRefreshIndicator for the transient result state.
  */
 export default function RefreshButton({ busy, result, onClick, label = "Refresh", disabled, sx }: Props) {
+  const text = result === "done" ? "Done" : result === "failed" ? "Failed" : label;
   return (
     <Button
       size="small"
       onClick={onClick}
       disabled={disabled ?? busy}
+      aria-label={text}
       startIcon={
         busy ? (
           <CircularProgress size={12} sx={{ color: "#94a3b8" }} />
@@ -46,7 +48,9 @@ export default function RefreshButton({ busy, result, onClick, label = "Refresh"
         ...sx,
       }}
     >
-      {result === "done" ? "Done" : result === "failed" ? "Failed" : label}
+      <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+        {text}
+      </Box>
     </Button>
   );
 }

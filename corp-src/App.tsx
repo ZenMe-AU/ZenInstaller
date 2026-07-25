@@ -205,6 +205,7 @@ function AppDashboard() {
     <Button
       size="small"
       variant="outlined"
+      aria-label="View on GitHub"
       endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />}
       onClick={() => window.open(getRepoUrl(repo.repoFullName!), "_blank")}
       sx={{
@@ -216,7 +217,9 @@ function AppDashboard() {
         "&:hover": { borderColor: "#cbd5e1", color: "#0f172a", background: "#f8fafc" },
       }}
     >
-      View on GitHub
+      <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+        View on GitHub
+      </Box>
     </Button>
   ) : undefined;
 
@@ -239,14 +242,14 @@ function AppDashboard() {
           ]}
         />
 
-        <Box sx={{ maxWidth: EXPANDED_W, mx: "auto", px: 4, py: 5 }}>
+        <Box sx={{ maxWidth: EXPANDED_W, mx: "auto", px: { xs: 2, sm: 4 }, py: { xs: 3, sm: 5 } }}>
           {/* Intro */}
           <Box
             sx={{
               background: "#ffffff",
               borderRadius: "12px",
               border: "1px solid #e2e8f0",
-              px: 3,
+              px: { xs: 2, sm: 3 },
               py: 2.5,
               boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
             }}

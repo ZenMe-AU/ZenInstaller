@@ -125,6 +125,7 @@ export default function EnvVariablesDetail({
         {githubUrl && (
           <Button
             size="small"
+            aria-label="Manage on GitHub"
             endIcon={<OpenInNewIcon sx={{ fontSize: 12 }} />}
             onClick={() => window.open(githubUrl, "_blank")}
             sx={{
@@ -136,7 +137,9 @@ export default function EnvVariablesDetail({
               "&:hover": { color: "#0f172a" },
             }}
           >
-            Manage on GitHub
+            <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+              Manage on GitHub
+            </Box>
           </Button>
         )}
       </Box>

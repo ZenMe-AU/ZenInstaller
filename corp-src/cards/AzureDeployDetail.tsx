@@ -235,7 +235,7 @@ export default function AzureDeployDetail({
                     options={availableTenants}
                     inputValue={manualTenantId}
                     onInputChange={(_, v) => setManualTenantId(v)}
-                    sx={{ minWidth: 320 }}
+                    sx={{ minWidth: { xs: 0, sm: 320 }, width: "100%" }}
                     renderInput={(params) => (
                       <TextField
                         {...params}
@@ -295,7 +295,7 @@ export default function AzureDeployDetail({
                     const name = subscriptions.find((s) => s.id === v)?.displayName ?? v;
                     return <Typography sx={{ fontSize: "0.8rem", ...mono }}>{name}</Typography>;
                   }}
-                  sx={{ minWidth: 380, fontSize: "0.8rem", ...mono }}
+                  sx={{ minWidth: { xs: 0, sm: 380 }, width: "100%", fontSize: "0.8rem", ...mono }}
                 >
                   {subscriptions.map((s) => (
                     <MenuItem key={s.id} value={s.id} sx={{ py: 0.75 }}>

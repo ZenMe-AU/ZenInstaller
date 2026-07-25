@@ -61,7 +61,7 @@ export type PullRequest = {
 
 // ─── URL Restore ─────────────────────────────────────────────────────────────
 
-/** Shared across hooks that participate in URL-parameter restoration. */
+// Shared across hooks that participate in URL-parameter restoration.
 export type PendingRestore = {
   account: string | null;
   repo: string | null;
@@ -84,13 +84,12 @@ export type WorkflowRun = {
 export type PrerequisiteCard = { type: "card"; cardId: CardId };
 export type PrerequisiteVar = { type: "var"; key: string };
 export type PrerequisiteVarGroup = { type: "varGroup"; keys: readonly string[]; label: string };
-/** Stage-local editable variables — checked like varGroup but also rendered as inline edit fields inside the stage card */
+// Stage-local editable variables — checked like varGroup but also rendered as inline edit fields inside the stage card
 export type PrerequisiteStageVar = {
   type: "stageVar";
   keys: readonly string[];
   label: string;
-  /** Optional per-key hint shown below the input field */
-  descriptions?: Partial<Record<string, string>>;
+  descriptions?: Partial<Record<string, string>>; // Optional per-key hint shown below the input field
 };
 export type Prerequisite = PrerequisiteCard | PrerequisiteVar | PrerequisiteVarGroup | PrerequisiteStageVar;
 
@@ -98,10 +97,8 @@ export type StageDefinition = {
   key: string;
   label: string;
   prerequisites: Prerequisite[];
-  /** When true, a pending stage is treated as skipped rather than waiting. */
-  optional?: boolean;
-  /** Microsoft Graph application permission IDs required by this stage. */
-  azurePermissions?: readonly string[];
+  optional?: boolean; // When true, a pending stage is treated as skipped rather than waiting.
+  azurePermissions?: readonly string[]; // Microsoft Graph application permission IDs required by this stage.
 };
 
 export type PipelineConfig = {

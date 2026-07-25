@@ -30,8 +30,10 @@ const ICON_COLOR: Record<CardStatus, string> = {
 };
 
 function StatusIcon({ status, locked, unavailable }: { status: CardStatus; locked: boolean; unavailable: boolean }) {
-  // Same muted grey as the lock icon - unavailable is styled identically to
-  // locked, the glyph is the only thing that tells them apart.
+  /*
+   * Same muted grey as the lock icon - unavailable is styled identically to
+   * locked, the glyph is the only thing that tells them apart.
+   */
   if (unavailable) return <WarningAmberIcon sx={{ fontSize: 15, color: "#cbd5e1" }} />;
   if (locked) return <LockIcon sx={{ fontSize: 16, color: "#cbd5e1" }} />;
   const c = ICON_COLOR[status];
@@ -49,16 +51,14 @@ function StatusIcon({ status, locked, unavailable }: { status: CardStatus; locke
 
 type Props = {
   title: string;
-  /** Result value (when complete) or short prompt (when actionable) shown on the tile face. */
-  summary?: string;
+  summary?: string; // Result value (when complete) or short prompt (when actionable) shown on the tile face.
   status: CardStatus;
-  /** Prerequisites unmet - the tile still expands, but shows the requirements instead of live content. */
-  locked?: boolean;
+  locked?: boolean; // Prerequisites unmet - the tile still expands, but shows the requirements instead of live content.
   requirements?: Requirement[];
-  /** Broken from the start (e.g. missing required config), not something the user
-   *  unlocks by completing other steps. Same muted chrome as `locked` - grey
-   *  fill, grey border - but with a warning icon instead of a lock, and its
-   *  summary/content stay visible since that's the explanation the user needs. */
+  /*
+   * Broken from the start (e.g. missing config), not something to unlock. Same muted
+   * chrome as `locked` but with a warning icon, and summary/content stay visible.
+   */
   unavailable?: boolean;
   expanded: boolean;
   onToggle: () => void;
@@ -67,9 +67,10 @@ type Props = {
   children: React.ReactNode;
 };
 
-// A tile that collapses to a compact summary and expands (accordion) to the full
-// card. Unlike StepWrapper, a locked tile can still be expanded - it then shows
-// what's missing rather than blocking every pointer event.
+/*
+ * Collapses to a compact summary, expands (accordion) to the full card. Unlike
+ * StepWrapper, a locked tile still expands — it shows what's missing instead of blocking.
+ */
 export default function CardTile({
   title,
   summary,
@@ -83,11 +84,15 @@ export default function CardTile({
   action,
   children,
 }: Props) {
-  // locked and unavailable share the same muted chrome - the only visual
-  // difference between them is the icon (padlock vs warning triangle).
+  /*
+   * locked and unavailable share the same muted chrome - the only visual
+   * difference between them is the icon (padlock vs warning triangle).
+   */
   const muted = locked || unavailable;
-  // Unlike locked, an unavailable tile still shows its summary - that IS the
-  // "here's what's wrong" message, not a prerequisite result worth hiding.
+  /*
+   * Unlike locked, an unavailable tile still shows its summary - that IS the
+   * "here's what's wrong" message, not a prerequisite result worth hiding.
+   */
   const showSummary = !expanded && !!summary && !locked;
 
   return (
@@ -103,10 +108,10 @@ export default function CardTile({
         "&:hover": { borderColor: "#93c5fd" },
       }}
     >
-      {/* Header (always clickable - even when locked/unavailable). Single flex
-          row so the icon and expand button always center against whatever the
-          tile actually contains - a tile with no summary is simply shorter,
-          not padded out with reserved invisible space. */}
+      {/*
+       * Header (always clickable, even when locked/unavailable) — single flex row so the
+       * icon/button always center; a tile with no summary is simply shorter, not padded.
+       */}
       <Box
         sx={{
           display: "flex",
@@ -168,8 +173,10 @@ export default function CardTile({
         </Box>
       </Box>
 
-      {/* Content - a locked tile shows ONLY what's missing, not the (unusable)
-          real content dimmed underneath it. */}
+      {/*
+       * Content - a locked tile shows ONLY what's missing, not the (unusable)
+       * real content dimmed underneath it.
+       */}
       <Collapse in={expanded}>
         <Box sx={{ borderTop: "1px solid #f1f5f9", px: 2.5, py: 2.5 }}>
           {locked ? (

@@ -1,9 +1,10 @@
 import type { CardId, CardStatus } from "../types";
 import type { TileFlags } from "./tileRequirements";
 
-// Raw hook-state pulled together once in App and fed to every derivation below —
-// cardStatus, the lock flags, and the face summaries all read overlapping slices
-// of the same underlying state, so they share one input shape.
+/*
+ * Raw hook-state pulled together once in App and fed to every derivation below —
+ * cardStatus, lock flags, and summaries share this one input shape.
+ */
 export type TileStateInput = {
   isAuthed: boolean;
   userLogin?: string;
@@ -29,8 +30,10 @@ export type TileStateInput = {
   domainResourcesDone: boolean;
   domainVerified: boolean;
   domainIsPrimary: boolean;
-  /** Independent of dnsName — true once the storage account itself exists, regardless of
-   *  whether the domain has since been reconfigured. See useCreateDomainSetup. */
+  /*
+   * Independent of dnsName — true once the storage account itself exists, regardless of
+   * whether the domain has since been reconfigured. See useCreateDomainSetup.
+   */
   storageAccountReady: boolean;
 
   tfDone: boolean;
@@ -50,9 +53,10 @@ export function deriveCardStatus(f: TileStateInput): Record<CardId, CardStatus> 
 
   return {
     auth: f.isAuthed ? "complete" : "loading",
-    // Azure-dependent cards need VITE_AZURE_CLIENT_ID at build time — when it's
-    // missing, keep the cards visible but show a "contact admin" error instead
-    // of hiding them (a missing card reads as broken, not as "step complete").
+    /*
+     * Azure-dependent cards need VITE_AZURE_CLIENT_ID at build time — when missing, keep
+     * them visible with a "contact admin" error instead of hiding them as if unused.
+     */
     azure_login: !f.azureConfigured ? "error" : f.azureSignedIn ? "complete" : "idle",
     repo: repoEnvStatus,
     company_info: !f.envSelected ? "idle" : f.hasCompanyInfo ? "complete" : "warning",

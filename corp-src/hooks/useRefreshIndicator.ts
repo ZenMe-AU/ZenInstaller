@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from "react";
 
 export type RefreshResult = "done" | "failed" | null;
 
-// The transient "Refresh → Done/Failed → (clears)" indicator shared by every card
-// that re-fetches remote state. Call markClicked() right before kicking off the
-// refresh; when `busy` falls back to false it flips to done/failed based on
-// `failed`, then clears itself after 1.5s.
+/*
+ * Transient "Refresh → Done/Failed → (clears)" indicator shared by every refresh
+ * button. Call markClicked() before refreshing; clears itself 1.5s after busy ends.
+ */
 export function useRefreshIndicator(busy: boolean, failed?: boolean) {
   const prevBusy = useRef(false);
   const clicked = useRef(false);

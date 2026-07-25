@@ -12,14 +12,11 @@ export interface UseAuth {
   user: User | null;
   sessionExpired: boolean;
   redirecting: "login" | "logout" | null;
-  /** "loading" while the auth check is in-flight; "complete" once signed in; "idle" otherwise. */
-  status: CardStatus;
+  status: CardStatus; // "loading" while the auth check is in-flight; "complete" once signed in; "idle" otherwise.
   onLogin: () => void;
   onLogout: () => void;
-  /** Direct/PAT mode: token is already stored in api/mode.ts; just re-verify and update state. */
-  onPatLogin: (token: string) => void;
-  /** Direct/PAT mode: clear user state locally without redirecting to backend logout. */
-  onDirectLogout: () => void;
+  onPatLogin: (token: string) => void; // Direct/PAT mode: token is already stored in api/mode.ts; just re-verify and update state.
+  onDirectLogout: () => void; // Direct/PAT mode: clear user state locally without redirecting to backend logout.
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────

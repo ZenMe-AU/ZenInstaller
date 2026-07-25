@@ -189,12 +189,9 @@ type Props = {
   localValues: Record<string, string>;
   upsertStatuses: UpsertStatus[];
   validStatus?: boolean | null;
-  /** Optional per-key hint shown as a tooltip on the ⓘ icon */
-  descriptions?: Partial<Record<string, string>>;
-  /** Values from the last deployed corp.env snapshot — used to highlight changed rows */
-  deployedValues?: Record<string, string>;
-  /** When true, dirty rows that replace a non-empty saved value show an "overwrites" warning */
-  overwriteWarning?: boolean;
+  descriptions?: Partial<Record<string, string>>; // Optional per-key hint shown as a tooltip on the ⓘ icon
+  deployedValues?: Record<string, string>; // Values from the last deployed corp.env snapshot — used to highlight changed rows
+  overwriteWarning?: boolean; // When true, dirty rows that replace a non-empty saved value show an "overwrites" warning
   onChange: (key: string, value: string) => void;
   onRevert: (key: string) => void;
 };

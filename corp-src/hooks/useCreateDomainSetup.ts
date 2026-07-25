@@ -64,12 +64,10 @@ export function useCreateDomainSetup({
   tenantId,
 }: {
   azureAccount: AccountInfo | null;
-  /** Subscription to prefill from — typically the AZURE_SUBSCRIPTION_ID env variable. Overridable via setSubscriptionId. */
-  defaultSubscriptionId: string;
+  defaultSubscriptionId: string; // Subscription to prefill from — typically the AZURE_SUBSCRIPTION_ID env variable. Overridable via setSubscriptionId.
   corpName: string;
   dnsName: string;
-  /** Target AAD tenant — required for MSA (personal) accounts where account.tenantId is the consumer tenant. */
-  tenantId?: string;
+  tenantId?: string; // Target AAD tenant — required for MSA (personal) accounts where account.tenantId is the consumer tenant.
 }) {
   const [subscriptionId, setSubscriptionIdState] = useState(defaultSubscriptionId);
   const userPickedSubRef = useRef(false);
@@ -100,10 +98,10 @@ export function useCreateDomainSetup({
   // A persisted result only counts if it matches the current NAME/DNS/subscription.
   const resultMatches = !!result && result.corpName === corpName && result.dnsName === dnsName && result.subscriptionId === subscriptionId;
   const resourcesDone = resultMatches;
-  // The storage account's name only depends on corpName (see getStorageAccountName), not on the
-  // domain — so its readiness shouldn't be tied to whether dnsName currently matches. Otherwise
-  // changing DNS_DOMAIN later would falsely re-lock Terraform backend even though the account
-  // (created in the same run as everything else) still physically exists.
+  /*
+   * Storage-account name depends only on corpName, not dnsName — so readiness must not
+   * require dnsName to match, or changing DNS_DOMAIN would falsely re-lock Terraform backend.
+   */
   const storageAccountReady = !!result && result.corpName === corpName && result.subscriptionId === subscriptionId;
 
   // Drop stale persisted state when the target changes.
@@ -145,9 +143,10 @@ export function useCreateDomainSetup({
     };
   }, [azureAccount, subscriptionId, tenantId]);
 
-  // Once a subscription is known (default or user-picked), check Microsoft Graph directly for
-  // whether this domain is already done — verified AND set primary — instead of only trusting
-  // localStorage, which won't reflect setup done previously, on another device, or by hand.
+  /*
+   * Once a subscription is known, check Graph directly for verified+primary status instead of
+   * trusting localStorage, which won't reflect setup done on another device or by hand.
+   */
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [checkStatusError, setCheckStatusError] = useState<string | null>(null);
 
@@ -170,8 +169,10 @@ export function useCreateDomainSetup({
       .catch((err) => {
         if (cancelled) return;
         const msg = err instanceof Error ? err.message : "";
-        // Consent errors are expected before Domain.ReadWrite.All has been granted —
-        // don't surface or redirect here; run()/verify() prompt for consent on user action.
+        /*
+         * Consent errors are expected before Domain.ReadWrite.All has been granted —
+         * don't surface or redirect here; run()/verify() prompt for consent on user action.
+         */
         if (!isConsentError(msg)) setCheckStatusError(msg || "Failed to check domain status");
       })
       .finally(() => {

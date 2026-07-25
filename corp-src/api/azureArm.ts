@@ -16,7 +16,7 @@ type ArmResource = {
   };
 };
 
-/** GET that treats 404 as null instead of throwing. */
+// GET that treats 404 as null instead of throwing.
 async function armGet(token: string, path: string): Promise<ArmResource | null> {
   try {
     return await gFetch(token, ARM, path);
@@ -26,7 +26,7 @@ async function armGet(token: string, path: string): Promise<ArmResource | null> 
   }
 }
 
-/** Polls fetchState until it returns "Succeeded". Throws on "Failed"/"Canceled" or timeout. */
+// Polls fetchState until it returns "Succeeded". Throws on "Failed"/"Canceled" or timeout.
 async function pollProvisioning(fetchState: () => Promise<string | undefined>, resourceLabel: string, timeoutMs = 120_000): Promise<void> {
   const start = Date.now();
   for (;;) {
@@ -44,7 +44,7 @@ export type EnsureResult = "created" | "exists";
 
 export type AzureLocation = { name: string; displayName: string };
 
-/** Lists physical Azure regions available to the subscription (excludes logical/paired regions). */
+// Lists physical Azure regions available to the subscription (excludes logical/paired regions).
 export async function listLocations(account: AccountInfo, subscriptionId: string, overrideTenantId?: string): Promise<AzureLocation[]> {
   const token = await getToken(account, ARM_SCOPES, overrideTenantId);
   const data = await gFetch(token, ARM, `/subscriptions/${subscriptionId}/locations?api-version=2022-12-01`);
@@ -161,7 +161,7 @@ export async function ensureDnsZone(
   return { nameServers: created?.properties?.nameServers ?? [], result: "created" };
 }
 
-/** Ensures the apex TXT record contains `value`. Merges with existing TXT values rather than overwriting. */
+// Ensures the apex TXT record contains `value`. Merges with existing TXT values rather than overwriting.
 export async function ensureDnsTxtRecord(
   account: AccountInfo,
   subscriptionId: string,

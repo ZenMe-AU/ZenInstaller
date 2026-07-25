@@ -1,8 +1,10 @@
 import { Box, Typography } from "@mui/material";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 
-// Shown in place of a card's normal content when a required env var / config
-// value is missing, so the card stays visible instead of silently disappearing.
+/*
+ * Shown in place of a card's normal content when a required env var / config
+ * value is missing, so the card stays visible instead of silently disappearing.
+ */
 export default function ConfigErrorNotice() {
   return (
     <Box

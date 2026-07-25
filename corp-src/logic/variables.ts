@@ -11,7 +11,7 @@ const VARIABLE_DISPLAY_NAMES: Record<string, string> = {
   DNS: "DNS_DOMAIN",
 };
 
-/** Returns the UI label for a variable key, falling back to the key itself */
+// Returns the UI label for a variable key, falling back to the key itself
 export function getVariableDisplayName(key: string): string {
   return VARIABLE_DISPLAY_NAMES[key] ?? key;
 }

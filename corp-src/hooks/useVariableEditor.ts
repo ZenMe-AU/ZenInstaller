@@ -10,20 +10,21 @@ export type SaveResult = {
 
 type Params = {
   keys: readonly string[];
-  /** Source of truth for "what's already saved". The caller owns it — a controlled
-   *  prop (EnvVariablesDetail) or its own fetched state (CloudVariableDetail). */
+  /*
+   * Source of truth for "what's already saved". The caller owns it — a controlled
+   * prop (EnvVariablesDetail) or its own fetched state (CloudVariableDetail).
+   */
   savedValues: Record<string, string>;
   account: Account | null;
   repo: string;
   envName: string | null;
-  /** Called once per key that saves successfully, so the caller can record it. */
-  onSavedKey?: (key: string, value: string) => void;
+  onSavedKey?: (key: string, value: string) => void; // Called once per key that saves successfully, so the caller can record it.
 };
 
-// The local/saved variable-editing core shared by the GitHub-variables editor and
-// the Azure connection-variables editor: tracks in-progress edits, computes what's
-// dirty, and runs the create/update save loop. Fetching, populate/prefill and
-// auto-save stay in each caller — this owns only the edit + save machinery.
+/*
+ * Local/saved variable-editing core shared by the GitHub- and Azure-variables editors:
+ * tracks edits, dirty state, and the save loop. Fetch/populate/auto-save stay in each caller.
+ */
 export function useVariableEditor({ keys, savedValues, account, repo, envName, onSavedKey }: Params) {
   const [localValues, setLocalValues] = useState<Record<string, string>>(savedValues);
   const [upsertStatuses, setUpsertStatuses] = useState<UpsertStatus[]>([]);

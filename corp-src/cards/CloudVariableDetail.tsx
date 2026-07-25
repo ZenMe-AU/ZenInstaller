@@ -21,15 +21,13 @@ type Props = {
   disabled?: boolean;
   onComplete?: (done: boolean) => void;
   githubUrl?: string;
-  /** Called after each initial load with the currently-saved values (scoped to `keys`). */
-  onLoaded?: (saved: Record<string, string>) => void;
-  /** Increment to auto-apply populate values and immediately save them to GitHub. */
-  autoSaveCounter?: number;
-  /** Called when auto-save (triggered by autoSaveCounter) completes. */
-  onAutoSaveResult?: (result: "saved" | "no-changes" | "error") => void;
-  /** Called with the keys that were actually written to GitHub, from either the
-   *  manual "Save" button or an auto-save. Lets callers invalidate anything that
-   *  was validated against the old values (e.g. a prior pipeline run's result). */
+  onLoaded?: (saved: Record<string, string>) => void; // Called after each initial load with the currently-saved values (scoped to `keys`).
+  autoSaveCounter?: number; // Increment to auto-apply populate values and immediately save them to GitHub.
+  onAutoSaveResult?: (result: "saved" | "no-changes" | "error") => void; // Called when auto-save (triggered by autoSaveCounter) completes.
+  /*
+   * Called with the keys actually written to GitHub (manual save or auto-save) so
+   * callers can invalidate anything validated against the old values.
+   */
   onSaved?: (keys: string[]) => void;
 };
 

@@ -6,9 +6,10 @@ const url = import.meta.env.VITE_API_URL;
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
-// Wrapper that auto-refreshes the Easy Auth session on 401.
-// On 401: attempt /auth/refresh → retry once. If still 401, redirect to login.
-// Not used by verifyAuth (initial check should show login button, not auto-redirect).
+/*
+ * Auto-refreshes the Easy Auth session on 401: retries once after /auth/refresh, else
+ * redirects to login. Not used by verifyAuth (initial check should show a login button).
+ */
 async function fetchWithAuth(input: string, init: RequestInit = {}): Promise<Response> {
   const headers = (init.method ?? "GET").toUpperCase() === "POST" ? { "X-CSRF-Token": "1", ...init.headers } : init.headers;
   const res = await fetch(input, { credentials: "include", ...init, headers });

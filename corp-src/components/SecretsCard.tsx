@@ -134,10 +134,12 @@ function SecretKeyRow({
   const isSet = present || isSuccess;
 
   // ── Left icon ────────────────────────────────────────────────────────────
-  // ✓  = set + validated
-  // ●  = set, not validated (or never run)
-  // ◉  = pending staged change (amber)
-  // ○  = not set
+  /*
+   * ✓  = set + validated
+   * ●  = set, not validated (or never run)
+   * ◉  = pending staged change (amber)
+   * ○  = not set
+   */
   let LeftIcon: typeof CheckCircleIcon;
   let iconColor: string;
   if (hasPending) {

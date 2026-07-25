@@ -36,7 +36,6 @@ import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
 
 // ─── App ──────────────────────────────────────────────────────────────────────
-
 function AppDashboard() {
   // ── Hooks ──────────────────────────────────────────────────────────────────
   const restore = useUrlRestore();
@@ -86,8 +85,10 @@ function AppDashboard() {
     stages: repo.pipeline.stages,
   });
 
-  // Shared inputs for the corp-domain / terraform cards, sourced from repo variables
-  // (the pipeline's source of truth) with the Azure card's live selection as fallback.
+  /*
+   * Shared inputs for the corp-domain / terraform cards, sourced from repo variables
+   * (the pipeline's source of truth) with the Azure card's live selection as fallback.
+   */
   const corpName = env.presentVariableValues.NAME ?? "";
   const dnsName = env.presentVariableValues.DNS ?? "";
   const corpSubscriptionId =
@@ -103,8 +104,10 @@ function AppDashboard() {
     dnsName,
     tenantId: corpTenantId,
   });
-  // Terraform's storage account lives wherever Corp Domain Setup created it, so it must
-  // follow that card's resolved subscription (which the user can override), not the raw env default.
+  /*
+   * Terraform's storage account lives wherever Corp Domain Setup created it, so it must
+   * follow that card's resolved subscription (which the user can override), not the raw env default.
+   */
   const tfSetup = useTerraformSetup({
     azureAccount: azureSetup.azureAccount,
     subscriptionId: createDomain.subscriptionId,
@@ -119,9 +122,6 @@ function AppDashboard() {
   const [azureSetupDone, setAzureSetupDone] = useState(false);
 
   // ── Derived card statuses ──────────────────────────────────────────────────
-  // Azure-dependent cards need VITE_AZURE_CLIENT_ID at build time — when it's
-  // missing, keep the cards visible but show a "contact admin" error instead
-  // of hiding them (a missing card reads as broken, not as "step complete").
   const azureConfigured = !!AZURE_CLIENT_ID;
   const azureSignedIn = !!azureSetup.azureAccount;
   const hasCompanyInfo = !!corpName && !!dnsName;
@@ -165,9 +165,11 @@ function AppDashboard() {
     requestAnimationFrame(() => document.getElementById(`tile-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
   };
   const tileProps = (id: CardId) => {
-    // A misconfigured Azure card isn't "locked" behind other steps — it's broken
-    // regardless of progress, so skip the normal prerequisite list for it.
-    const misconfigured = !azureConfigured && (id === "azure_login" || id === "azure_setup");
+    /*
+     * A misconfigured Azure card isn't "locked" behind other steps — it's broken
+     * regardless of progress, so skip the normal prerequisite list for it.
+     */
+    const misconfigured = !azureConfigured && id === "azure_login";
     const requirements = misconfigured ? [] : reqs(id);
     return {
       status: cardStatus[id],
@@ -382,20 +384,16 @@ function AppDashboard() {
 
             <Box {...itemProps("azure_setup")}>
               <CardTile title="Azure app registration" {...tileProps("azure_setup")}>
-                {azureConfigured ? (
-                  <AzureDeployDetail
-                    {...azureSetup}
-                    disabled={reqs("azure_setup").length > 0}
-                    account={repo.selectedAccount}
-                    repoName={repo.selectedRepo?.name ?? ""}
-                    selectedEnv={env.selectedEnv}
-                    onComplete={setAzureSetupDone}
-                    githubUrl={githubEnvUrl}
-                    onAzureValid={env.onAzureValid}
-                  />
-                ) : (
-                  <ConfigErrorNotice />
-                )}
+                <AzureDeployDetail
+                  {...azureSetup}
+                  disabled={reqs("azure_setup").length > 0}
+                  account={repo.selectedAccount}
+                  repoName={repo.selectedRepo?.name ?? ""}
+                  selectedEnv={env.selectedEnv}
+                  onComplete={setAzureSetupDone}
+                  githubUrl={githubEnvUrl}
+                  onAzureValid={env.onAzureValid}
+                />
               </CardTile>
             </Box>
 

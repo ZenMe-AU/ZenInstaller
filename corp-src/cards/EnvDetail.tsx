@@ -47,8 +47,7 @@ type Props = {
   creatingBranch: boolean;
   createBranchError: string | null;
   onCreateBranch: (target: string) => void;
-  /** When false, the variables/secrets sections are hidden — they render as their own tiles. */
-  showConfig?: boolean;
+  showConfig?: boolean; // When false, the variables/secrets sections are hidden — they render as their own tiles.
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────

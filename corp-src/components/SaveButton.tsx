@@ -6,13 +6,14 @@ type Props = {
   noun: string; // "variable" | "secret"
   count: number; // number of dirty/pending items
   loading: boolean;
-  /** Defaults to `loading || count === 0`; pass to add extra gating. */
-  disabled?: boolean;
+  disabled?: boolean; // Defaults to `loading || count === 0`; pass to add extra gating.
   onClick: () => void;
 };
 
-// The blue contained "Save N variables" / "Update N secrets" button shared by the
-// variable and secret editors.
+/*
+ * The blue contained "Save N variables" / "Update N secrets" button shared by the
+ * variable and secret editors.
+ */
 export default function SaveButton({ verb, noun, count, loading, disabled, onClick }: Props) {
   return (
     <Button

@@ -15,8 +15,10 @@ type Props = {
   sx?: SxProps<Theme>;
 };
 
-// The slim "Refresh / Done / Failed" button used by every card that re-fetches
-// remote state. Pair with useRefreshIndicator for the transient result state.
+/*
+ * The slim "Refresh / Done / Failed" button used by every card that re-fetches
+ * remote state. Pair with useRefreshIndicator for the transient result state.
+ */
 export default function RefreshButton({ busy, result, onClick, label = "Refresh", disabled, sx }: Props) {
   return (
     <Button

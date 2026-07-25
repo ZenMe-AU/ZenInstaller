@@ -1,5 +1,7 @@
-// Pure PKCE (Proof Key for Code Exchange) crypto utilities.
-// No side effects — safe to test in isolation.
+/*
+ * Pure PKCE (Proof Key for Code Exchange) crypto utilities.
+ * No side effects — safe to test in isolation.
+ */
 
 export function generateRandomString(length = 64): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";

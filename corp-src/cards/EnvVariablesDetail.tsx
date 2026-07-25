@@ -26,9 +26,10 @@ type Props = {
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
-// Azure/AWS infrastructure variables (AZURE_CLIENT_ID, AWS_ROLE_ARN, …) are saved
-// from their own setup cards. This section only manages deployment variables
-// (Company & Domain).
+/*
+ * Azure/AWS infra variables (AZURE_CLIENT_ID, AWS_ROLE_ARN, …) save from their own
+ * setup cards — this section only manages deployment variables (Company & Domain).
+ */
 
 export default function EnvVariablesDetail({
   account,
@@ -62,8 +63,10 @@ export default function EnvVariablesDetail({
     onSavedKey: onVariableConfirmed,
   });
 
-  // Controlled sync: reset local edits when the parent refreshes variableValues
-  // (e.g. after Recheck). setState-during-render skips the stale frame.
+  /*
+   * Controlled sync: reset local edits when the parent refreshes variableValues
+   * (e.g. after Recheck). setState-during-render skips the stale frame.
+   */
   const [prevVariableValues, setPrevVariableValues] = useState(variableValues);
   if (prevVariableValues !== variableValues) {
     setPrevVariableValues(variableValues);

@@ -42,8 +42,10 @@ type Props = ReturnType<typeof useAzureSetup> & {
   selectedEnv: GhEnv | null;
   onComplete: (done: boolean) => void;
   githubUrl?: string;
-  /** Invalidates the last pipeline run's Azure-connectivity result — call when a
-   *  connection-detail variable is edited, since the old validation no longer applies. */
+  /*
+   * Invalidates the last pipeline run's Azure-connectivity result — call when a
+   * connection-detail variable is edited, since the old validation no longer applies.
+   */
   onAzureValid?: (valid: boolean | null) => void;
 };
 
@@ -122,8 +124,10 @@ export default function AzureDeployDetail({
     tenantPrefillDoneRef.current = false;
   }, [selectedEnv?.name]);
 
-  // Allow app name prefill to retry when subscriptions first load
-  // (MSA accounts need effectiveTenantId, which only becomes available after tenant confirmation).
+  /*
+   * Allow app name prefill to retry when subscriptions first load
+   * (MSA accounts need effectiveTenantId, which only becomes available after tenant confirmation).
+   */
   useEffect(() => {
     if (subscriptions.length > 0) prefilledNameRef.current = false;
   }, [subscriptions.length]);

@@ -14,8 +14,10 @@ export type TileFlags = {
 // A missing prerequisite, plus the tile that resolves it (so it can be clicked to jump there).
 export type Requirement = { label: string; target: CardId };
 
-// Repo-clone and env-selection are both satisfied by the same merged tile, so
-// when both are missing, show one combined line instead of two separate ones.
+/*
+ * Repo-clone and env-selection are both satisfied by the same merged tile, so
+ * when both are missing, show one combined line instead of two separate ones.
+ */
 function repoEnvRequirements(f: TileFlags): Requirement[] {
   const needRepo = !f.isCloneRepo;
   const needEnv = !f.envSelected;
@@ -25,10 +27,10 @@ function repoEnvRequirements(f: TileFlags): Requirement[] {
   return [];
 }
 
-// The prerequisites a tile is still missing. An empty list means the tile is
-// unlocked. Every list follows the same fixed order — GitHub, Azure, repo/env,
-// company info, app registration, domain — so the same step always appears in
-// the same position regardless of which tile is asking.
+/*
+ * Prerequisites a tile is still missing (empty = unlocked). Fixed order — GitHub, Azure,
+ * repo/env, company info, app registration, domain — regardless of which tile is asking.
+ */
 export function tileRequirements(id: CardId, f: TileFlags): Requirement[] {
   const github: Requirement[] = f.isAuthed ? [] : [{ label: "Sign in to GitHub", target: "auth" }];
   const azure: Requirement[] = f.azureSignedIn ? [] : [{ label: "Sign in to Azure", target: "azure_login" }];

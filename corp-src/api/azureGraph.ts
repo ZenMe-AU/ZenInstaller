@@ -11,8 +11,10 @@ const ARM = "https://management.azure.com";
 
 export const MSA_TENANT = "9188040d-6c67-4c5b-b112-36a304b66dad"; // Microsoft consumer tenant (MSA accounts)
 
-// overrideTenantId is used for MSA accounts to target a specific AAD tenant
-// for BOTH Graph and ARM calls (MSA consumer directory doesn't support app management)
+/*
+ * overrideTenantId is used for MSA accounts to target a specific AAD tenant
+ * for BOTH Graph and ARM calls (MSA consumer directory doesn't support app management)
+ */
 export async function getToken(account: AccountInfo, scopes: string[], overrideTenantId?: string): Promise<string> {
   const msal = await getMsal();
   if (!msal) throw new Error("MSAL not configured");
@@ -22,9 +24,10 @@ export async function getToken(account: AccountInfo, scopes: string[], overrideT
     throw new Error("MSA_NEEDS_TENANT");
   }
 
-  // Always use tenant-specific authority to avoid consumer token issues.
-  // overrideTenantId takes precedence; otherwise use the account's own tenantId,
-  // but skip authority override for MSA consumer tenant (it has no managed directory).
+  /*
+   * Always use a tenant-specific authority to avoid consumer token issues — overrideTenantId
+   * takes precedence, else the account's tenantId, skipped for the MSA consumer tenant.
+   */
   const tenant = overrideTenantId ?? account.tenantId;
   const authority = tenant !== MSA_TENANT ? `https://login.microsoftonline.com/${tenant}` : undefined;
 
@@ -78,7 +81,7 @@ export async function getExistingApp(
   return data.value?.[0] ? { appId: data.value[0].appId, id: data.value[0].id } : null;
 }
 
-/** Reverse lookup: resolve an app registration's display name from its client (app) id. */
+// Reverse lookup: resolve an app registration's display name from its client (app) id.
 export async function getAppNameByAppId(account: AccountInfo, appId: string, overrideTenantId?: string): Promise<string | null> {
   const token = await getToken(account, GRAPH_SCOPES, overrideTenantId);
   const data = await gFetch(token, GRAPH, `/applications?$filter=appId eq '${appId}'&$select=displayName`);
@@ -237,8 +240,10 @@ export async function revokeOAuth2Grants(account: AccountInfo, appClientId: stri
 }
 
 // ── Entra custom domains ──────────────────────────────────────────────────────
-// All use DOMAIN_SCOPES (incremental consent) — first call may throw
-// interaction_required until the user consents to Domain.ReadWrite.All.
+/*
+ * All use DOMAIN_SCOPES (incremental consent) — first call may throw
+ * interaction_required until the user consents to Domain.ReadWrite.All.
+ */
 
 export type EntraDomain = { id: string; isVerified: boolean; isDefault: boolean };
 
@@ -259,7 +264,7 @@ export async function createEntraDomain(account: AccountInfo, domainName: string
   return { id: data.id, isVerified: !!data.isVerified, isDefault: !!data.isDefault };
 }
 
-/** Returns the TXT verification token (e.g. "MS=ms12345678") for an unverified domain. */
+// Returns the TXT verification token (e.g. "MS=ms12345678") for an unverified domain.
 export async function getDomainVerificationTxt(account: AccountInfo, domainName: string, overrideTenantId?: string): Promise<string | null> {
   const token = await getToken(account, DOMAIN_SCOPES, overrideTenantId);
   const data = await gFetch(token, GRAPH, `/domains/${domainName}/verificationDnsRecords`);
@@ -267,14 +272,14 @@ export async function getDomainVerificationTxt(account: AccountInfo, domainName:
   return txt?.text ?? null;
 }
 
-/** Triggers domain verification. Throws if the DNS record hasn't propagated yet. */
+// Triggers domain verification. Throws if the DNS record hasn't propagated yet.
 export async function verifyEntraDomain(account: AccountInfo, domainName: string, overrideTenantId?: string): Promise<EntraDomain> {
   const token = await getToken(account, DOMAIN_SCOPES, overrideTenantId);
   const data = await gFetch(token, GRAPH, `/domains/${domainName}/verify`, { method: "POST", body: JSON.stringify({}) });
   return { id: data.id, isVerified: !!data.isVerified, isDefault: !!data.isDefault };
 }
 
-/** Makes the domain the tenant's primary (default) domain. Requires the domain to be verified. */
+// Makes the domain the tenant's primary (default) domain. Requires the domain to be verified.
 export async function setPrimaryEntraDomain(account: AccountInfo, domainName: string, overrideTenantId?: string): Promise<void> {
   const token = await getToken(account, DOMAIN_SCOPES, overrideTenantId);
   await gFetch(token, GRAPH, `/domains/${domainName}`, { method: "PATCH", body: JSON.stringify({ isDefault: true }) });

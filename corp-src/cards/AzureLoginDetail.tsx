@@ -12,9 +12,10 @@ type Props = {
   logout: () => void;
 };
 
-// The Azure sign-in step on its own — independent of GitHub, and not gated by
-// which environment is selected. App-registration, domain and terraform cards
-// all reuse the session it establishes.
+/*
+ * Azure sign-in on its own — independent of GitHub, not gated by environment.
+ * App-registration, domain, and terraform cards all reuse the session it establishes.
+ */
 export default function AzureLoginDetail({ azureAccount, loggingIn, loginError, login, logout }: Props) {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>

@@ -34,10 +34,8 @@ export function useTerraformSetup({
   azureAccount: AccountInfo | null;
   subscriptionId: string;
   corpName: string;
-  /** Client id of the GitHub Actions app registration (AZURE_CLIENT_ID variable). */
-  spClientId: string;
-  /** Target AAD tenant — required for MSA (personal) accounts where account.tenantId is the consumer tenant. */
-  tenantId?: string;
+  spClientId: string; // Client id of the GitHub Actions app registration (AZURE_CLIENT_ID variable).
+  tenantId?: string; // Target AAD tenant — required for MSA (personal) accounts where account.tenantId is the consumer tenant.
 }) {
   const [steps, setSteps] = useState<SetupStep[]>([]);
   const [running, setRunning] = useState(false);

@@ -26,11 +26,16 @@ function repoEnvRequirements(f: TileFlags): Requirement[] {
 }
 
 // The prerequisites a tile is still missing. An empty list means the tile is
-// unlocked. Order follows the natural dependency chain.
+// unlocked. Every list follows the same fixed order — GitHub, Azure, repo/env,
+// company info, app registration, domain — so the same step always appears in
+// the same position regardless of which tile is asking.
 export function tileRequirements(id: CardId, f: TileFlags): Requirement[] {
   const github: Requirement[] = f.isAuthed ? [] : [{ label: "Sign in to GitHub", target: "auth" }];
-  const env: Requirement[] = f.envSelected ? [] : [{ label: "Choose an environment", target: "repo" }];
   const azure: Requirement[] = f.azureSignedIn ? [] : [{ label: "Sign in to Azure", target: "azure_login" }];
+  const env: Requirement[] = f.envSelected ? [] : [{ label: "Choose an environment", target: "repo" }];
+  const companyInfo: Requirement[] = f.hasCompanyInfo ? [] : [{ label: "Set company info", target: "company_info" }];
+  const appReg: Requirement[] = f.hasAzureClientId ? [] : [{ label: "Set app registration detail", target: "azure_setup" }];
+  const domain: Requirement[] = f.domainStorageReady ? [] : [{ label: "Verify corp domain", target: "create_domain" }];
 
   switch (id) {
     case "repo":
@@ -38,16 +43,11 @@ export function tileRequirements(id: CardId, f: TileFlags): Requirement[] {
     case "company_info":
       return [...github, ...repoEnvRequirements(f)];
     case "azure_setup":
-      return [...github, ...repoEnvRequirements(f), ...azure];
+      return [...github, ...azure, ...repoEnvRequirements(f)];
     case "create_domain":
-      return [...azure, ...env, ...(f.hasCompanyInfo ? [] : [{ label: "Set company info", target: "company_info" as CardId }])];
+      return [...azure, ...env, ...companyInfo];
     case "tf_backend":
-      return [
-        ...azure,
-        ...env,
-        ...(f.domainStorageReady ? [] : [{ label: "Complete corp domain setup", target: "create_domain" as CardId }]),
-        ...(f.hasAzureClientId ? [] : [{ label: "Set app registration detail", target: "azure_setup" as CardId }]),
-      ];
+      return [...azure, ...env, ...appReg, ...domain];
     default:
       return [];
   }

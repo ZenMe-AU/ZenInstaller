@@ -158,6 +158,7 @@ function AppDashboard() {
     corpName,
     dnsName,
     domainResourcesDone: createDomain.resourcesDone,
+    storageAccountReady: createDomain.storageAccountReady,
     domainVerified: createDomain.domainVerified,
     domainIsPrimary: createDomain.isPrimary,
     tfDone: tfSetup.done,
@@ -434,7 +435,7 @@ function AppDashboard() {
                   corpName={corpName}
                   subscriptionId={createDomain.subscriptionId}
                   spClientId={corpSpClientId}
-                  storageReady={createDomain.resourcesDone}
+                  storageReady={createDomain.storageAccountReady}
                 />
               </CardTile>
             </Box>

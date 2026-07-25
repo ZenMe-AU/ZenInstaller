@@ -29,6 +29,9 @@ export type TileStateInput = {
   domainResourcesDone: boolean;
   domainVerified: boolean;
   domainIsPrimary: boolean;
+  /** Independent of dnsName — true once the storage account itself exists, regardless of
+   *  whether the domain has since been reconfigured. See useCreateDomainSetup. */
+  storageAccountReady: boolean;
 
   tfDone: boolean;
 };
@@ -74,7 +77,7 @@ export function deriveTileFlags(f: TileStateInput): TileFlags {
     envSelected: f.envSelected,
     azureSignedIn: f.azureSignedIn,
     hasCompanyInfo: f.hasCompanyInfo,
-    domainStorageReady: f.domainResourcesDone,
+    domainStorageReady: f.storageAccountReady,
     hasAzureClientId: f.hasAzureClientId,
   };
 }

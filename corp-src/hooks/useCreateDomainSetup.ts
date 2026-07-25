@@ -100,6 +100,11 @@ export function useCreateDomainSetup({
   // A persisted result only counts if it matches the current NAME/DNS/subscription.
   const resultMatches = !!result && result.corpName === corpName && result.dnsName === dnsName && result.subscriptionId === subscriptionId;
   const resourcesDone = resultMatches;
+  // The storage account's name only depends on corpName (see getStorageAccountName), not on the
+  // domain — so its readiness shouldn't be tied to whether dnsName currently matches. Otherwise
+  // changing DNS_DOMAIN later would falsely re-lock Terraform backend even though the account
+  // (created in the same run as everything else) still physically exists.
+  const storageAccountReady = !!result && result.corpName === corpName && result.subscriptionId === subscriptionId;
 
   // Drop stale persisted state when the target changes.
   useEffect(() => {
@@ -374,6 +379,7 @@ export function useCreateDomainSetup({
     steps,
     running,
     resourcesDone,
+    storageAccountReady,
     nameServers,
     domainVerified,
     isPrimary,

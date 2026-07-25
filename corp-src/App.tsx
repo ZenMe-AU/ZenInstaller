@@ -2,10 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 
-import { type CardId, type CardStatus, type PendingRestore } from "./types";
+import { type CardId, type PendingRestore } from "./types";
 import { AZURE_CLIENT_ID } from "./config/azureConfig";
 import { MONO as mono } from "./config/styles";
-import { tileRequirements, type TileFlags } from "./logic/tileRequirements";
+import { tileRequirements } from "./logic/tileRequirements";
+import { deriveCardStatus, deriveTileFlags, deriveTileSummaries, type TileStateInput } from "./logic/tileState";
 import { useActiveAuth as useAuth } from "./hooks/useActiveAuth";
 import { useAccountRepo } from "./hooks/useAccountRepo";
 import { useAzureSetup } from "./hooks/useAzureSetup";
@@ -138,64 +139,36 @@ function AppDashboard() {
   const azureSignedIn = !!azureSetup.azureAccount;
   const hasCompanyInfo = !!corpName && !!dnsName;
 
-  // Merged Repository & environment tile: complete only when the repo is cloned AND an env is picked.
-  const repoEnvStatus: CardStatus = !isAuthed
-    ? "idle"
-    : repo.isCloneRepo && env.selectedEnv
-      ? "complete"
-      : repo.status === "idle"
-        ? "idle"
-        : "loading";
-
-  const cardStatus: Record<CardId, CardStatus> = {
-    auth: isAuthed ? "complete" : "loading",
-    azure_login: !azureConfigured ? "error" : azureSignedIn ? "complete" : "idle",
-    repo: repoEnvStatus,
-    company_info: !env.selectedEnv ? "idle" : hasCompanyInfo ? "complete" : "warning",
-    azure_setup: !azureConfigured
-      ? "error"
-      : !isAuthed || !repo.isCloneRepo || !env.selectedEnv
-        ? "idle"
-        : !azureSetupDone
-          ? "warning"
-          : env.azureSecrets.valid === false
-            ? "error"
-            : "complete", // filled in — validated (true) or not yet run (null) both count as complete
-    create_domain:
-      !isAuthed || !repo.isCloneRepo || !env.selectedEnv
-        ? "idle"
-        : createDomain.resourcesDone && createDomain.domainVerified && createDomain.isPrimary
-          ? "complete"
-          : "warning",
-    tf_backend: !isAuthed || !repo.isCloneRepo || !env.selectedEnv ? "idle" : tfSetup.done ? "complete" : "warning",
+  const tileState: TileStateInput = {
+    isAuthed,
+    userLogin: auth.user?.login,
+    azureConfigured,
+    azureSignedIn,
+    azureUsername: azureSetup.azureAccount?.username,
+    azureSetupDone,
+    azureSecretsValid: env.azureSecrets.valid,
+    appRegResultPresent: !!azureSetup.result,
+    hasAzureClientId: !!corpSpClientId,
+    isCloneRepo: repo.isCloneRepo,
+    repoStatus: repo.status,
+    repoFullName: repo.repoFullName,
+    envSelected: !!env.selectedEnv,
+    envName: env.selectedEnv?.name,
+    hasCompanyInfo,
+    corpName,
+    dnsName,
+    domainResourcesDone: createDomain.resourcesDone,
+    domainVerified: createDomain.domainVerified,
+    domainIsPrimary: createDomain.isPrimary,
+    tfDone: tfSetup.done,
   };
+
+  const cardStatus = deriveCardStatus(tileState);
 
   // ── Lock / requirements + face summaries ───────────────────────────────────
-  const flags: TileFlags = {
-    isAuthed,
-    isCloneRepo: repo.isCloneRepo,
-    envSelected: !!env.selectedEnv,
-    azureSignedIn,
-    hasCompanyInfo,
-    domainStorageReady: createDomain.resourcesDone,
-    hasAzureClientId: !!corpSpClientId,
-  };
+  const flags = deriveTileFlags(tileState);
   const reqs = (id: CardId) => tileRequirements(id, flags);
-
-  const summaries: Partial<Record<CardId, string>> = {
-    auth: isAuthed ? `Signed in as ${auth.user?.login ?? ""}` : "Connect your GitHub account",
-    azure_login: !azureConfigured ? "Unavailable" : azureSignedIn ? (azureSetup.azureAccount?.username ?? "Signed in") : "Sign in to Azure",
-    repo:
-      repo.repoFullName && env.selectedEnv
-        ? `${repo.repoFullName} · ${env.selectedEnv.name}`
-        : repo.repoFullName
-          ? repo.repoFullName
-          : "Select repository and environment",
-    company_info: hasCompanyInfo ? `${corpName} · ${dnsName}` : "Set company info",
-    azure_setup: !azureConfigured ? "Unavailable" : azureSetup.result ? "App registration ready" : "Create the app registration",
-    create_domain: cardStatus.create_domain === "complete" ? "Domain verified and primary" : "Set up the corp domain",
-    tf_backend: tfSetup.done ? "Terraform state container ready" : "Set up the terraform backend",
-  };
+  const summaries = deriveTileSummaries(tileState);
 
   const githubEnvUrl =
     repo.repoFullName && env.selectedEnv ? `https://github.com/${repo.repoFullName}/settings/environments/${env.selectedEnv.id}/edit` : undefined;
@@ -220,7 +193,10 @@ function AppDashboard() {
       onRequirementClick: openTile,
     };
   };
-  const itemProps = (id: CardId) => ({ id: `tile-${id}`, sx: { width: expandedId === id ? EXPANDED_W : TILE_W, maxWidth: "100%" as const } });
+  const itemProps = (id: CardId) => ({
+    id: `tile-${id}`,
+    sx: { width: expandedId === id ? EXPANDED_W : TILE_W, maxWidth: "100%" as const, transition: "width 0.25s ease" },
+  });
 
   // ── URL sync (persist current state; restore is handled by useUrlRestore) ──
   useEffect(() => {

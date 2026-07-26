@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
@@ -21,6 +21,8 @@ type Props = {
   disabled?: boolean;
   onComplete?: (done: boolean) => void;
   githubUrl?: string;
+  saveHint?: ReactNode; // Rendered next to the Save button (e.g. an "unsaved change" warning).
+  keyErrors?: Partial<Record<string, string>>; // Per-key external validation error, shown as a row-level error icon.
   onLoaded?: (saved: Record<string, string>) => void; // Called after each initial load with the currently-saved values (scoped to `keys`).
   autoSaveCounter?: number; // Increment to auto-apply populate values and immediately save them to GitHub.
   onAutoSaveResult?: (result: "saved" | "no-changes" | "error") => void; // Called when auto-save (triggered by autoSaveCounter) completes.
@@ -42,6 +44,8 @@ export default function CloudVariableDetail({
   disabled,
   onComplete,
   githubUrl,
+  saveHint,
+  keyErrors,
   onLoaded,
   autoSaveCounter,
   onAutoSaveResult,
@@ -205,19 +209,23 @@ export default function CloudVariableDetail({
         localValues={localValues}
         upsertStatuses={upsertStatuses}
         overwriteWarning
+        keyErrors={keyErrors}
         onChange={handleChange}
         onRevert={handleRevert}
       />
 
-      <Box sx={{ mt: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
-        <SaveButton
-          verb="Save"
-          noun="variable"
-          count={dirtyKeys.length}
-          loading={updating}
-          disabled={!!disabled || !account || !repo || !envName || updating || dirtyKeys.length === 0}
-          onClick={() => void handleSave()}
-        />
+      <Box sx={{ mt: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, flexWrap: "wrap" }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <SaveButton
+            verb="Save"
+            noun="variable"
+            count={dirtyKeys.length}
+            loading={updating}
+            disabled={!!disabled || !account || !repo || !envName || updating || dirtyKeys.length === 0}
+            onClick={() => void handleSave()}
+          />
+          {saveHint}
+        </Box>
         {githubUrl && (
           <Button
             size="small"

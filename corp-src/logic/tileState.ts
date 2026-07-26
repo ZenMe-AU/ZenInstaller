@@ -1,5 +1,6 @@
 import type { CardId, CardStatus } from "../types";
 import type { TileFlags } from "./tileRequirements";
+import type { RbacCheckStatus } from "../hooks/useRbacCheck";
 
 /*
  * Raw hook-state pulled together once in App and fed to every derivation below —
@@ -16,7 +17,8 @@ export type TileStateInput = {
   azureSecretsValid: boolean | null;
   appRegResultPresent: boolean;
   hasAzureClientId: boolean;
-  rbacReady: boolean | null; // false = SP confirmed missing RBAC on the selected subscription
+  rbacStatus: RbacCheckStatus; // "sp-not-found" = app reg doesn't exist in this tenant; "missing-role" = exists but lacks RBAC on this subscription
+  planClientIdMismatch: boolean; // AZURE_PLAN_CLIENT_ID has drifted from AZURE_CLIENT_ID (the app's own flow always keeps them equal)
 
   isCloneRepo: boolean;
   repoStatus: CardStatus;
@@ -41,13 +43,7 @@ export type TileStateInput = {
 
 export function deriveCardStatus(f: TileStateInput): Record<CardId, CardStatus> {
   // Merged Repository & environment tile: complete only when the repo is cloned AND an env is picked.
-  const repoEnvStatus: CardStatus = !f.isAuthed
-    ? "idle"
-    : f.isCloneRepo && f.envSelected
-      ? "complete"
-      : f.repoStatus === "idle"
-        ? "idle"
-        : "loading";
+  const repoEnvStatus: CardStatus = !f.isAuthed ? "idle" : f.isCloneRepo && f.envSelected ? "complete" : f.repoStatus === "idle" ? "idle" : "loading";
 
   const targetReady = f.isAuthed && f.isCloneRepo && f.envSelected;
   // Target-level prereqs shared by the two setup tiles (env + a chosen subscription).
@@ -76,8 +72,8 @@ export function deriveCardStatus(f: TileStateInput): Record<CardId, CardStatus> 
         ? "idle"
         : !f.azureSetupDone
           ? "warning"
-          : f.rbacReady === false
-            ? "warning" // vars saved but the SP lost access after a subscription switch
+          : f.rbacStatus === "sp-not-found" || f.rbacStatus === "missing-role" || f.planClientIdMismatch
+            ? "warning" // vars saved but the app reg is gone from this tenant, the SP lost access, or AZURE_PLAN_CLIENT_ID drifted
             : f.azureSecretsValid === false
               ? "error"
               : "complete", // filled in — validated (true) or not yet run (null) both count as complete
@@ -113,16 +109,19 @@ export function deriveTileSummaries(f: TileStateInput): Partial<Record<CardId, s
           : f.subscriptionNoAccess
             ? "No subscriptions in this tenant"
             : "Select a subscription",
-    repo:
-      f.repoFullName && f.envName ? `${f.repoFullName} · ${f.envName}` : f.repoFullName ? f.repoFullName : "Select repository and environment",
+    repo: f.repoFullName && f.envName ? `${f.repoFullName} · ${f.envName}` : f.repoFullName ? f.repoFullName : "Select repository and environment",
     company_info: f.hasCompanyInfo ? `${f.corpName} · ${f.dnsName}` : "Set company info",
     azure_setup: !f.azureConfigured
       ? "Unavailable"
-      : f.rbacReady === false
-        ? "Missing access on the selected subscription"
-        : f.appRegResultPresent
-          ? "App registration ready"
-          : "Create the app registration",
+      : f.rbacStatus === "sp-not-found"
+        ? "Not found in the selected tenant — recreate it"
+        : f.rbacStatus === "missing-role"
+          ? "Missing access on the selected subscription"
+          : f.planClientIdMismatch
+            ? "AZURE_PLAN_CLIENT_ID doesn't match AZURE_CLIENT_ID"
+            : f.appRegResultPresent
+              ? "App registration ready"
+              : "Create the app registration",
     infra: !f.azureConfigured ? "Unavailable" : f.infraDone ? "Infrastructure ready" : "Set up corp infrastructure",
     create_domain: !f.azureConfigured ? "Unavailable" : domainComplete ? "Domain verified and primary" : "Set up the corp domain",
   };

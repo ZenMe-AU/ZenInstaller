@@ -8,6 +8,7 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { Account, GhEnv } from "../types";
 import type { useAzureSetup } from "../hooks/useAzureSetup";
 import type { SetupStep } from "../hooks/useAzureSetup";
+import type { RbacCheckStatus } from "../hooks/useRbacCheck";
 import { AZURE_APP_KEYS } from "../logic/variables";
 import CloudVariableDetail from "./CloudVariableDetail";
 import { MONO as mono, labelSx } from "../config/styles";
@@ -41,7 +42,8 @@ type Props = ReturnType<typeof useAzureSetup> & {
   repoName: string;
   selectedEnv: GhEnv | null;
   subscriptionId: string;
-  rbacReady: boolean | null;
+  rbacStatus: RbacCheckStatus;
+  planClientIdMismatch: boolean;
   onComplete: (done: boolean) => void;
   githubUrl?: string;
   /*
@@ -67,7 +69,8 @@ export default function AzureDeployDetail({
   repoName,
   selectedEnv,
   subscriptionId,
-  rbacReady,
+  rbacStatus,
+  planClientIdMismatch,
   onComplete,
   githubUrl,
   onAzureValid,
@@ -80,8 +83,10 @@ export default function AzureDeployDetail({
   const prefilledNameRef = useRef(false);
 
   const varHasAny = !!loadedVars && Object.keys(loadedVars).length > 0;
-  // App exists (persisted result) but the SP has no RBAC on the currently selected subscription.
-  const rbacMissing = !!result && rbacReady === false;
+  // App was created (persisted result) but doesn't exist in the currently selected tenant.
+  const spNotFound = !!result && rbacStatus === "sp-not-found";
+  // App exists in this tenant but its SP has no RBAC on the currently selected subscription.
+  const rbacMissing = !!result && rbacStatus === "missing-role";
 
   // Action handlers that also dismiss the banner.
   const handleRetry = () => {
@@ -126,6 +131,9 @@ export default function AzureDeployDetail({
   }, [azureAccount, loadedVars, prefillAppName]);
 
   const populate = result ? { AZURE_CLIENT_ID: result.clientId, AZURE_PLAN_CLIENT_ID: result.clientId } : undefined;
+  const keyErrors = spNotFound
+    ? { AZURE_CLIENT_ID: "Not found in the selected tenant", AZURE_PLAN_CLIENT_ID: "Not found in the selected tenant" }
+    : undefined;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -177,11 +185,29 @@ export default function AzureDeployDetail({
               </Box>
             )}
 
+            {spNotFound && (
+              <Box sx={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", px: 2, py: 1.25, display: "flex", gap: 1 }}>
+                <WarningAmberIcon sx={{ fontSize: 16, color: "#d97706", flexShrink: 0 }} />
+                <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>
+                  This app registration doesn't exist in the selected tenant — create a new one.
+                </Typography>
+              </Box>
+            )}
+
             {rbacMissing && (
               <Box sx={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", px: 2, py: 1.25, display: "flex", gap: 1 }}>
                 <WarningAmberIcon sx={{ fontSize: 16, color: "#d97706", flexShrink: 0 }} />
                 <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>
                   This app registration has no access on the selected subscription — re-run to grant it.
+                </Typography>
+              </Box>
+            )}
+
+            {planClientIdMismatch && (
+              <Box sx={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", px: 2, py: 1.25, display: "flex", gap: 1 }}>
+                <WarningAmberIcon sx={{ fontSize: 16, color: "#d97706", flexShrink: 0 }} />
+                <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>
+                  AZURE_PLAN_CLIENT_ID doesn't match AZURE_CLIENT_ID — re-run to bring it back in sync.
                 </Typography>
               </Box>
             )}
@@ -220,7 +246,7 @@ export default function AzureDeployDetail({
                   >
                     {rbacMissing ? "Grant access on this subscription" : "Create app registration"}
                   </Button>
-                  {varHasAny && !rbacMissing && (
+                  {varHasAny && !rbacMissing && !spNotFound && (
                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                       <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
                       <Typography sx={{ fontSize: "0.68rem", color: "#d97706" }}>This will overwrite your current connection details</Typography>
@@ -285,6 +311,7 @@ export default function AzureDeployDetail({
           populate={populate}
           title="Connection details"
           disabled={disabled}
+          keyErrors={keyErrors}
           onComplete={onComplete}
           onAutoSaveResult={(result) => setBannerState(result)}
           onSaved={() => onAzureValid?.(null)}

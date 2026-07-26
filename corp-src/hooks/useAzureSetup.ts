@@ -38,6 +38,15 @@ function loadResult(): AzureSetupResult | null {
   }
 }
 
+// Maps a raw MSAL/AADSTS failure to user-facing text — never surface the raw trace/correlation-id blob.
+function friendlySubsError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (msg.includes("AADSTS90072")) {
+    return "This account isn't a member of that tenant — sign in with a different account, or have an admin add it as a guest first.";
+  }
+  return "Couldn't load subscriptions for this tenant — check the tenant ID or your access, then try again.";
+}
+
 export function useAzureSetup({
   githubAccount,
   githubRepo,
@@ -110,9 +119,9 @@ export function useAzureSetup({
     if (manualTenantId || availableTenants.length === 0) return;
     const tid = availableTenants[0];
     setManualTenantId(tid);
-    loadSubs(azureAccount, tid).catch(() => {
-      /* silent failure — user picks a tenant */
-    });
+    // Surface a friendly error rather than leaving the user staring at "no subscriptions" with
+    // no explanation — the tenant dropdown (same tenantProfiles list) lets them pick another.
+    loadSubs(azureAccount, tid).catch((err) => setSubsError(friendlySubsError(err)));
   }, [azureAccount, availableTenants]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // On mount: handle redirect callback OR restore existing session
@@ -228,7 +237,7 @@ export function useAzureSetup({
         const msg = err instanceof Error ? err.message : "";
         const needsConsent = msg.includes("AADSTS65001") || msg.includes("interaction_required") || msg.includes("MSA_NEEDS_TENANT");
         if (!needsConsent) {
-          setSubsError(msg);
+          setSubsError(friendlySubsError(err));
           return;
         }
       }

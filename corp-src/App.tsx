@@ -93,6 +93,10 @@ function AppDashboard() {
   const corpName = env.presentVariableValues.NAME ?? "";
   const dnsName = env.presentVariableValues.DNS ?? "";
   const corpSpClientId = env.presentVariableValues.AZURE_CLIENT_ID || azureSetup.result?.clientId || "";
+  // The app's own save flow always writes AZURE_PLAN_CLIENT_ID equal to AZURE_CLIENT_ID — a saved
+  // mismatch means something else touched it (stale value, manual edit), so treat it as drift too.
+  const corpPlanClientId = env.presentVariableValues.AZURE_PLAN_CLIENT_ID || azureSetup.result?.clientId || "";
+  const planClientIdMismatch = !!corpSpClientId && !!corpPlanClientId && corpSpClientId !== corpPlanClientId;
   // MSA (personal) accounts sign in via the consumer tenant, so ARM/Graph calls need the real AAD tenant passed explicitly.
   const corpTenantId = env.presentVariableValues.AZURE_TENANT_ID || azureSetup.result?.tenantId || azureSetup.manualTenantId.trim() || undefined;
 
@@ -111,8 +115,8 @@ function AppDashboard() {
   const subscriptionDrift = !!pickedSubscriptionId && !subscriptionConfirmed;
   const subscriptionNoAccess = !!pickedTenant && !!azureSetup.subsError && azureSetup.subscriptions.length === 0;
 
-  // Live check: does the app-reg SP actually hold RBAC on the selected subscription?
-  const rbacReady = useRbacCheck({
+  // Live check: does the app reg exist in this tenant, and does its SP hold RBAC on the selected subscription?
+  const rbacStatus = useRbacCheck({
     azureAccount: azureSetup.azureAccount,
     spClientId: corpSpClientId,
     subscriptionId,
@@ -157,7 +161,8 @@ function AppDashboard() {
     azureSecretsValid: env.azureSecrets.valid,
     appRegResultPresent: !!azureSetup.result,
     hasAzureClientId: !!corpSpClientId,
-    rbacReady,
+    rbacStatus,
+    planClientIdMismatch,
     isCloneRepo: repo.isCloneRepo,
     repoStatus: repo.status,
     repoFullName: repo.repoFullName,
@@ -406,6 +411,7 @@ function AppDashboard() {
                     account={repo.selectedAccount}
                     repoName={repo.selectedRepo?.name ?? ""}
                     selectedEnv={env.selectedEnv}
+                    onVariableConfirmed={env.onVariableConfirmed}
                     githubUrl={githubEnvUrl}
                   />
                 ) : (
@@ -445,7 +451,8 @@ function AppDashboard() {
                   repoName={repo.selectedRepo?.name ?? ""}
                   selectedEnv={env.selectedEnv}
                   subscriptionId={subscriptionId}
-                  rbacReady={rbacReady}
+                  rbacStatus={rbacStatus}
+                  planClientIdMismatch={planClientIdMismatch}
                   onComplete={setAzureSetupDone}
                   githubUrl={githubEnvUrl}
                   onAzureValid={env.onAzureValid}

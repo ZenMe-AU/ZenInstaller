@@ -84,7 +84,6 @@ function AppDashboard() {
     githubAccount: repo.selectedAccount,
     githubRepo: repo.selectedRepo?.name ?? "",
     validEnvs: repo.pipeline.validEnvs,
-    stages: repo.pipeline.stages,
   });
 
   /*
@@ -132,6 +131,7 @@ function AppDashboard() {
     subscriptionId,
     corpName,
     dnsName,
+    spClientId: corpSpClientId,
     tenantId: corpTenantId,
   });
 

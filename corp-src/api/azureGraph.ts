@@ -1,6 +1,6 @@
 import type { AccountInfo } from "@azure/msal-browser";
 import { getMsal } from "./msal";
-import { GRAPH_SCOPES, ARM_SCOPES, DOMAIN_SCOPES } from "../config/azureConfig";
+import { APP_SCOPES, ARM_SCOPES, DOMAIN_SCOPES, GRANT_CONSENT_SCOPES } from "../config/azureConfig";
 import { RBAC_ROLE_IDS } from "../config/azureConfig";
 import { deterministicUuid } from "../logic/crypto";
 
@@ -10,6 +10,11 @@ const ARM = "https://management.azure.com";
 // ── Token helpers ──────────────────────────────────────────────────────────────
 
 export const MSA_TENANT = "9188040d-6c67-4c5b-b112-36a304b66dad"; // Microsoft consumer tenant (MSA accounts)
+
+// Whether an error message indicates missing/incremental consent (as opposed to a real failure).
+export function isConsentError(msg: string): boolean {
+  return msg.includes("interaction_required") || msg.includes("consent_required") || msg.includes("AADSTS65001") || msg.includes("MSA_NEEDS_TENANT");
+}
 
 /*
  * overrideTenantId is used for MSA accounts to target a specific AAD tenant
@@ -60,7 +65,6 @@ export async function gFetch(token: string, base: string, path: string, options?
 export type Subscription = { id: string; displayName: string };
 
 export async function listSubscriptions(account: AccountInfo, overrideTenantId?: string): Promise<Subscription[]> {
-  await getToken(account, GRAPH_SCOPES, overrideTenantId);
   const token = await getToken(account, ARM_SCOPES, overrideTenantId);
   const data = await gFetch(token, ARM, "/subscriptions?api-version=2020-01-01");
   return (data.value ?? []).map((s: { subscriptionId: string; displayName: string }) => ({
@@ -95,14 +99,14 @@ export async function getExistingApp(
   displayName: string,
   overrideTenantId?: string,
 ): Promise<{ appId: string; id: string } | null> {
-  const token = await getToken(account, GRAPH_SCOPES, overrideTenantId);
+  const token = await getToken(account, APP_SCOPES, overrideTenantId);
   const data = await gFetch(token, GRAPH, `/applications?$filter=displayName eq '${displayName}'&$select=appId,id`);
   return data.value?.[0] ? { appId: data.value[0].appId, id: data.value[0].id } : null;
 }
 
 // Reverse lookup: resolve an app registration's display name from its client (app) id.
 export async function getAppNameByAppId(account: AccountInfo, appId: string, overrideTenantId?: string): Promise<string | null> {
-  const token = await getToken(account, GRAPH_SCOPES, overrideTenantId);
+  const token = await getToken(account, APP_SCOPES, overrideTenantId);
   const data = await gFetch(token, GRAPH, `/applications?$filter=appId eq '${appId}'&$select=displayName`);
   return data.value?.[0]?.displayName ?? null;
 }
@@ -113,7 +117,7 @@ export async function createAppRegistration(
   permissions: readonly string[],
   overrideTenantId?: string,
 ): Promise<{ appId: string; id: string }> {
-  const token = await getToken(account, GRAPH_SCOPES, overrideTenantId);
+  const token = await getToken(account, APP_SCOPES, overrideTenantId);
   const data = await gFetch(token, GRAPH, "/applications", {
     method: "POST",
     body: JSON.stringify({
@@ -133,13 +137,13 @@ export async function createAppRegistration(
 // ── Service principal ──────────────────────────────────────────────────────────
 
 export async function getExistingSP(account: AccountInfo, appId: string, overrideTenantId?: string): Promise<{ id: string } | null> {
-  const token = await getToken(account, GRAPH_SCOPES, overrideTenantId);
+  const token = await getToken(account, APP_SCOPES, overrideTenantId);
   const data = await gFetch(token, GRAPH, `/servicePrincipals?$filter=appId eq '${appId}'&$select=id`);
   return data.value?.[0] ? { id: data.value[0].id } : null;
 }
 
 export async function createServicePrincipal(account: AccountInfo, appId: string, overrideTenantId?: string): Promise<{ id: string }> {
-  const token = await getToken(account, GRAPH_SCOPES, overrideTenantId);
+  const token = await getToken(account, APP_SCOPES, overrideTenantId);
   const res = await fetch(`${GRAPH}/servicePrincipals`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -172,7 +176,7 @@ export async function ensureFederatedCredential(
   const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "-");
   const base = `${slug(org)}-${slug(repo)}-${slug(environment)}`;
   const credName = base.length <= 113 ? `github-${base}` : base.slice(0, 120);
-  const token = await getToken(account, GRAPH_SCOPES, overrideTenantId);
+  const token = await getToken(account, APP_SCOPES, overrideTenantId);
   const existing = await gFetch(token, GRAPH, `/applications/${appObjectId}/federatedIdentityCredentials`);
   if (existing?.value?.some((c: { subject: string }) => c.subject === subject)) return;
   await gFetch(token, GRAPH, `/applications/${appObjectId}/federatedIdentityCredentials`, {
@@ -241,7 +245,7 @@ export async function grantAdminConsent(
   permissions: readonly string[],
   overrideTenantId?: string,
 ): Promise<void> {
-  const token = await getToken(account, GRAPH_SCOPES, overrideTenantId);
+  const token = await getToken(account, GRANT_CONSENT_SCOPES, overrideTenantId);
 
   const graphSP = await gFetch(token, GRAPH, "/servicePrincipals?$filter=appId eq '00000003-0000-0000-c000-000000000000'&$select=id");
   const graphSpId = graphSP?.value?.[0]?.id;
@@ -260,7 +264,7 @@ export async function grantAdminConsent(
 // ── Revoke delegated permission grants ────────────────────────────────────────
 
 export async function revokeOAuth2Grants(account: AccountInfo, appClientId: string, overrideTenantId?: string): Promise<void> {
-  const token = await getToken(account, GRAPH_SCOPES, overrideTenantId);
+  const token = await getToken(account, APP_SCOPES, overrideTenantId);
   const spRes = await gFetch(token, GRAPH, `/servicePrincipals?$filter=appId eq '${appClientId}'&$select=id`);
   const spId: string | undefined = spRes?.value?.[0]?.id;
   if (!spId) return;

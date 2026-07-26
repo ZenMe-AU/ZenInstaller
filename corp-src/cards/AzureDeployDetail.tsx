@@ -59,7 +59,6 @@ export default function AzureDeployDetail({
   steps,
   result,
   running,
-  consentFailed,
   reset,
   run,
   prefillAppName,
@@ -255,18 +254,6 @@ export default function AzureDeployDetail({
                     ↩ Try again
                   </Button>
                 )}
-              </Box>
-            )}
-
-            {/* Consent warning */}
-            {consentFailed && (
-              <Box sx={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", px: 2, py: 1.25 }}>
-                <Typography sx={{ fontSize: "0.78rem", color: "#713f12", ...mono, fontWeight: 600 }}>
-                  ⚠ Admin consent failed — grant manually
-                </Typography>
-                <Typography sx={{ fontSize: "0.72rem", color: "#854d0e", mt: 0.5 }}>
-                  Entra ID → App registrations → {appName} → API permissions → Grant admin consent for [tenant]
-                </Typography>
               </Box>
             )}
           </Box>

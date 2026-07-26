@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { AccountInfo } from "@azure/msal-browser";
 import { getMsal } from "../api/msal";
-import { DOMAIN_SCOPES } from "../config/azureConfig";
+import { DOMAIN_SCOPES, GRANT_CONSENT_SCOPES, GRAPH_PERMISSIONS } from "../config/azureConfig";
 import { ensureDnsZone, ensureDnsTxtRecord } from "../api/azureArm";
 import {
   getEntraDomain,
@@ -9,6 +9,9 @@ import {
   getDomainVerificationTxt,
   verifyEntraDomain,
   setPrimaryEntraDomain,
+  getExistingSP,
+  grantAdminConsent,
+  isConsentError,
 } from "../api/azureGraph";
 import { getRootResourceGroupName } from "../logic/naming";
 import type { SetupStep } from "./useAzureSetup";
@@ -36,9 +39,6 @@ function loadResult(): CreateDomainResult | null {
   }
 }
 
-const isConsentError = (msg: string) =>
-  msg.includes("interaction_required") || msg.includes("consent_required") || msg.includes("AADSTS65001");
-
 /*
  * The DNS + Entra custom-domain half of corp setup: create the DNS zone, add the domain to
  * Entra, write the verification TXT record, verify, and set it primary. The resource group /
@@ -50,12 +50,14 @@ export function useCreateDomainSetup({
   subscriptionId,
   corpName,
   dnsName,
+  spClientId,
   tenantId,
 }: {
   azureAccount: AccountInfo | null;
   subscriptionId: string;
   corpName: string;
   dnsName: string;
+  spClientId: string; // The pipeline's service principal — granted DomainReadWriteAll once the domain is set up.
   tenantId?: string; // Target AAD tenant — required for MSA (personal) accounts where account.tenantId is the consumer tenant.
 }) {
   const [steps, setSteps] = useState<SetupStep[]>([]);
@@ -139,6 +141,18 @@ export function useCreateDomainSetup({
     });
   }, [azureAccount, tenantId]);
 
+  // Redirects for AppRoleAssignment.ReadWrite.All incremental consent (granting DomainReadWriteAll to the pipeline's SP).
+  const requestGrantConsent = useCallback(async () => {
+    if (!azureAccount) return;
+    const msal = await getMsal();
+    if (!msal) return;
+    await msal.acquireTokenRedirect({
+      scopes: GRANT_CONSENT_SCOPES,
+      account: azureAccount,
+      authority: `https://login.microsoftonline.com/${tenantId || azureAccount.tenantId}`,
+    });
+  }, [azureAccount, tenantId]);
+
   const run = useCallback(async () => {
     if (!azureAccount || !subscriptionId || !corpName || !dnsName) return;
     setRunning(true);
@@ -149,6 +163,7 @@ export function useCreateDomainSetup({
       { id: "domain", label: "Add custom domain to Entra ID", status: "pending" },
       { id: "txt", label: "Create domain-verification TXT record", status: "pending" },
       { id: "primary", label: "Set as primary domain", status: "pending" },
+      { id: "grant", label: "Grant domain permission to the pipeline", status: "pending" },
     ];
     setSteps(initialSteps);
 
@@ -197,6 +212,17 @@ export function useCreateDomainSetup({
       }
       setIsPrimary(primaryNow);
 
+      currentStep = "grant";
+      if (!spClientId) {
+        updateStep("grant", "skipped", "No app registration client id yet");
+      } else {
+        updateStep("grant", "running");
+        const sp = await getExistingSP(azureAccount, spClientId, tenantId);
+        if (!sp) throw new Error(`Service principal for app ${spClientId} not found — run the app registration card first`);
+        await grantAdminConsent(azureAccount, sp.id, [GRAPH_PERMISSIONS.DomainReadWriteAll], tenantId);
+        updateStep("grant", "done");
+      }
+
       const r: CreateDomainResult = {
         corpName,
         dnsName,
@@ -211,14 +237,15 @@ export function useCreateDomainSetup({
       const msg = err instanceof Error ? err.message : "Failed";
       if (isConsentError(msg)) {
         updateStep(currentStep, "error", "Additional consent required — redirecting to Microsoft...");
-        await requestDomainConsent().catch(() => updateStep(currentStep, "error", "Consent redirect failed — try again"));
+        const requestConsent = currentStep === "grant" ? requestGrantConsent : requestDomainConsent;
+        await requestConsent().catch(() => updateStep(currentStep, "error", "Consent redirect failed — try again"));
       } else {
         updateStep(currentStep, "error", msg);
       }
     } finally {
       setRunning(false);
     }
-  }, [azureAccount, subscriptionId, corpName, dnsName, tenantId, resourceGroupName, updateStep, requestDomainConsent]);
+  }, [azureAccount, subscriptionId, corpName, dnsName, spClientId, tenantId, resourceGroupName, updateStep, requestDomainConsent, requestGrantConsent]);
 
   // Verifies the domain (if needed) and promotes it to primary — one button drives both.
   const verify = useCallback(async () => {

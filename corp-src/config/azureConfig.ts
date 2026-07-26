@@ -1,25 +1,21 @@
-import type { StageDefinition } from "../types";
-
 // ── App registration client ID (ZenInstaller SPA) ─────────────────────────────
 
 export const AZURE_CLIENT_ID = import.meta.env.VITE_AZURE_CLIENT_ID as string | undefined;
 
 // ── OAuth scopes ───────────────────────────────────────────────────────────────
 
-export const GRAPH_SCOPES = [
-  "https://graph.microsoft.com/Application.ReadWrite.All",
-  "https://graph.microsoft.com/AppRoleAssignment.ReadWrite.All",
-  "https://graph.microsoft.com/DelegatedPermissionGrant.ReadWrite.All",
-  "https://graph.microsoft.com/RoleManagement.ReadWrite.Directory",
-  "https://graph.microsoft.com/User.ReadWrite.All",
-  "https://graph.microsoft.com/Group.ReadWrite.All",
-  "https://graph.microsoft.com/GroupMember.ReadWrite.All",
-  "openid",
-  "profile",
-];
+// Requested at login — just enough to sign in and read the profile. Everything
+// else is requested incrementally, by the card that actually needs it.
+export const LOGIN_SCOPES = ["openid", "profile", "User.Read"];
+
+// App-registration card: create/read the app + SP, manage federated credentials.
+export const APP_SCOPES = ["https://graph.microsoft.com/Application.ReadWrite.All", "https://graph.microsoft.com/AppRoleAssignment.ReadWrite.All"];
 
 export const ARM_SCOPES = ["https://management.azure.com/user_impersonation"];
 export const DOMAIN_SCOPES = ["https://graph.microsoft.com/Domain.ReadWrite.All"];
+
+// Domain card: granting DomainReadWriteAll to the pipeline's service principal.
+export const GRANT_CONSENT_SCOPES = ["https://graph.microsoft.com/AppRoleAssignment.ReadWrite.All", "https://graph.microsoft.com/Application.Read.All"];
 
 // ── Individual Graph application permissions ───────────────────────────────────
 
@@ -46,9 +42,3 @@ export const RBAC_ROLE_IDS: Record<string, string> = {
   "User Access Administrator": "18d7d88d-d35e-4fb5-a5c3-7773c20a72d9",
   "Storage Blob Data Contributor": "ba92f5b4-2d11-453d-a403-e96b0029c9fe",
 };
-
-// ── Aggregate helpers ─────────────────────────────────────────────────────────
-
-export function getAllPermissions(stages: Pick<StageDefinition, "azurePermissions">[]): string[] {
-  return [...new Set(stages.flatMap((s) => s.azurePermissions ?? []))];
-}

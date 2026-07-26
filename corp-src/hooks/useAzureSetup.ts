@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AccountInfo } from "@azure/msal-browser";
 import { getMsal } from "../api/msal";
-import { GRAPH_SCOPES, ARM_SCOPES } from "../config/azureConfig";
+import { LOGIN_SCOPES, APP_SCOPES, ARM_SCOPES } from "../config/azureConfig";
 import {
   listSubscriptions,
   listTenants,
@@ -12,13 +12,12 @@ import {
   createServicePrincipal,
   ensureFederatedCredential,
   ensureRbacRole,
-  grantAdminConsent,
+  isConsentError,
   MSA_TENANT,
   type Subscription,
   type AzureTenant,
 } from "../api/azureGraph";
-import { getAllPermissions } from "../config/azureConfig";
-import type { Account, StageDefinition } from "../types";
+import type { Account } from "../types";
 
 export type StepStatus = "pending" | "running" | "done" | "skipped" | "error";
 export type SetupStep = { id: string; label: string; status: StepStatus; detail?: string };
@@ -43,12 +42,10 @@ export function useAzureSetup({
   githubAccount,
   githubRepo,
   validEnvs,
-  stages = [],
 }: {
   githubAccount: Account | null;
   githubRepo: string;
   validEnvs: readonly string[];
-  stages?: StageDefinition[];
 }) {
   const [azureAccount, setAzureAccount] = useState<AccountInfo | null>(null);
   const [tenants, setTenants] = useState<AzureTenant[]>([]);
@@ -61,7 +58,6 @@ export function useAzureSetup({
   const [result, setResult] = useState<AzureSetupResult | null>(loadResult);
   const [running, setRunning] = useState(false);
   const [loggingIn, setLoggingIn] = useState(true);
-  const [consentFailed, setConsentFailed] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [subsError, setSubsError] = useState<string | null>(null);
   const [manualTenantId, setManualTenantId] = useState("");
@@ -89,14 +85,12 @@ export function useAzureSetup({
   // Fetch the tenant list via ARM (display names); fall back to the account's known tenant IDs for MSA.
   const loadTenants = useCallback(async (account: AccountInfo) => {
     try {
-      console.log("👀Loading tenants for account", account.username, "...");
       const list = await listTenants(account);
       if (list.length > 0) {
         setTenants(list);
         return;
       }
-    } catch (err) {
-      console.log("👀Failed to load tenants for account", account.username, err);
+    } catch {
       /* MSA / consent — fall through to the tenantProfiles fallback */
     }
     if (account.tenantProfiles) {
@@ -189,7 +183,7 @@ export function useAzureSetup({
       const msal = await getMsal();
       if (!msal) return;
       await msal.loginRedirect({
-        scopes: GRAPH_SCOPES,
+        scopes: LOGIN_SCOPES,
         authority: "https://login.microsoftonline.com/common",
         prompt: "select_account",
       });
@@ -218,9 +212,9 @@ export function useAzureSetup({
       const tenantAccount = accounts.find((a) => a.tenantId === tid) ?? azureAccount;
 
       try {
-        // Silent GRAPH acquire first — may create a new AAD tenant account in MSAL cache
+        // Silent ARM acquire first (listTenants/listSubscriptions are ARM-only) — may create a new AAD tenant account in MSAL cache
         await msal.acquireTokenSilent({
-          scopes: GRAPH_SCOPES,
+          scopes: ARM_SCOPES,
           account: tenantAccount,
           authority: `https://login.microsoftonline.com/${tid}`,
         });
@@ -243,7 +237,7 @@ export function useAzureSetup({
       sessionStorage.setItem(SESSION_KEY, tid);
       try {
         await msal.loginRedirect({
-          scopes: GRAPH_SCOPES,
+          scopes: ARM_SCOPES,
           authority: `https://login.microsoftonline.com/${tid}`,
           prompt: "consent",
         });
@@ -292,7 +286,6 @@ export function useAzureSetup({
     setSteps([]);
     setResult(null);
     saveResult(null);
-    setConsentFailed(false);
   }, []);
 
   const clearSession = useCallback(async () => {
@@ -305,7 +298,6 @@ export function useAzureSetup({
     setResult(null);
     saveResult(null);
     setSteps([]);
-    setConsentFailed(false);
     setSubsError(null);
     setManualTenantId("");
     setTenantIdError(null);
@@ -315,10 +307,21 @@ export function useAzureSetup({
     await clearSession();
   }, [clearSession]);
 
+  // Redirects for Application/AppRoleAssignment.ReadWrite.All incremental consent; user re-runs after returning.
+  const requestAppConsent = useCallback(async () => {
+    if (!azureAccount) return;
+    const msal = await getMsal();
+    if (!msal) return;
+    await msal.acquireTokenRedirect({
+      scopes: APP_SCOPES,
+      account: azureAccount,
+      authority: `https://login.microsoftonline.com/${effectiveTenantId || azureAccount.tenantId}`,
+    });
+  }, [azureAccount, effectiveTenantId]);
+
   const run = useCallback(async () => {
     if (!azureAccount || !selectedSubscriptionId || !githubAccount) return;
     setRunning(true);
-    setConsentFailed(false);
 
     const org = githubAccount.login;
     const resolvedTenantId = effectiveTenantId ?? azureAccount.tenantId;
@@ -328,7 +331,6 @@ export function useAzureSetup({
       { id: "sp", label: "Create service principal", status: "pending" },
       { id: "creds", label: "Add federated credentials", status: "pending" },
       { id: "rbac", label: "Assign RBAC roles", status: "pending" },
-      { id: "consent", label: "Grant admin consent", status: "pending" },
     ];
     setSteps(initialSteps);
 
@@ -336,8 +338,6 @@ export function useAzureSetup({
     let appObjectId = "";
     let spObjectId = "";
     let currentStep = "app";
-
-    const permissions = getAllPermissions(stages);
 
     try {
       currentStep = "app";
@@ -348,7 +348,8 @@ export function useAzureSetup({
         appObjectId = existing.id;
         updateStep("app", "done", `Existing: ${appId}`);
       } else {
-        const created = await createAppRegistration(azureAccount, appName, permissions, effectiveTenantId);
+        // No pipeline-wide app permissions requested up front — cards that need one (e.g. domain) grant it themselves.
+        const created = await createAppRegistration(azureAccount, appName, [], effectiveTenantId);
         appId = created.appId;
         appObjectId = created.id;
         updateStep("app", "done", appId);
@@ -379,25 +380,32 @@ export function useAzureSetup({
       await ensureRbacRole(azureAccount, selectedSubscriptionId, spObjectId, "User Access Administrator", effectiveTenantId);
       updateStep("rbac", "done", subscriptions.find((s) => s.id === selectedSubscriptionId)?.displayName ?? selectedSubscriptionId);
 
-      currentStep = "consent";
-      updateStep("consent", "running");
-      try {
-        await grantAdminConsent(azureAccount, spObjectId, permissions, effectiveTenantId);
-        updateStep("consent", "done");
-      } catch {
-        updateStep("consent", "error", "Grant manually: Entra ID → App registrations → API permissions → Grant admin consent");
-        setConsentFailed(true);
-      }
-
       const r = { clientId: appId, tenantId: resolvedTenantId, subscriptionIds: [selectedSubscriptionId] };
       setResult(r);
       saveResult(r);
     } catch (err) {
-      updateStep(currentStep, "error", err instanceof Error ? err.message : "Failed");
+      const msg = err instanceof Error ? err.message : "Failed";
+      if (isConsentError(msg)) {
+        updateStep(currentStep, "error", "Additional consent required — redirecting to Microsoft...");
+        await requestAppConsent().catch(() => updateStep(currentStep, "error", "Consent redirect failed — try again"));
+      } else {
+        updateStep(currentStep, "error", msg);
+      }
     } finally {
       setRunning(false);
     }
-  }, [azureAccount, selectedSubscriptionId, subscriptions, githubAccount, appName, environments, githubRepo, effectiveTenantId, stages, updateStep]);
+  }, [
+    azureAccount,
+    selectedSubscriptionId,
+    subscriptions,
+    githubAccount,
+    appName,
+    environments,
+    githubRepo,
+    effectiveTenantId,
+    updateStep,
+    requestAppConsent,
+  ]);
 
   return {
     azureAccount,
@@ -413,7 +421,6 @@ export function useAzureSetup({
     result,
     running,
     loggingIn,
-    consentFailed,
     loginError,
     subsError,
     availableTenants,

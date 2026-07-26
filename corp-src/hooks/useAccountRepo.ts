@@ -356,6 +356,14 @@ export function useAccountRepo(opts: {
   }, []);
 
   const cardDependencyLabel: string = "Choose an environment";
+  //   const cardDependencyLabel: string = () => {
+  //   const needRepo = isCloneRepo;
+  //   const needEnv = selectenv !== null && !selectenv.isSelected;
+  //   if (needRepo && needEnv) return [{ label: "Select repository and environment", target: "repo" }];
+  //   if (needRepo) return [{ label: "Select the target repository", target: "repo" }];
+  //   if (needEnv) return [{ label: "Choose an environment", target: "repo" }];
+  //   return "";
+  // }
   
   return {
     accounts, selectedAccount, setSelectedAccount,

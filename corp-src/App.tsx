@@ -39,12 +39,12 @@ import { reactPlugin } from "./monitor/applicationInsights";
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 function AppDashboard() {
-const allCards: Record<string, CardHook> = {};
-  
-function addCard(newCard: CardHook): CardHook {
-  allCards[newCard.cardId] = newCard;
-  return newCard;
-}
+  const allCards: Record<string, CardHook> = {};
+
+  function addCard<T extends CardHook>(newCard: T): T {
+    allCards[newCard.cardId] = newCard;
+    return newCard;
+  }
   // ── Hooks ──────────────────────────────────────────────────────────────────
   const restore = useUrlRestore();
   const auth = addCard(useAuth());
@@ -60,13 +60,15 @@ function addCard(newCard: CardHook): CardHook {
   const addWarningGated = isAuthed ? restore.addRestoreWarning : _noop;
   const checkDoneGated = isAuthed ? restore.checkRestoreDone : _noop;
 
-  const repo = addCard(useAccountRepo({
-    user: auth.user,
-    pendingRestore: pendingRestoreGated,
-    urlAccountApplied: urlAccountAppliedGated,
-    addRestoreWarning: addWarningGated,
-    checkRestoreDone: checkDoneGated,
-  }));
+  const repo = addCard(
+    useAccountRepo({
+      user: auth.user,
+      pendingRestore: pendingRestoreGated,
+      urlAccountApplied: urlAccountAppliedGated,
+      addRestoreWarning: addWarningGated,
+      checkRestoreDone: checkDoneGated,
+    }),
+  );
 
   const pr = usePR({
     account: repo.selectedAccount,
@@ -76,22 +78,26 @@ function addCard(newCard: CardHook): CardHook {
     addRestoreWarning: addWarningGated,
     checkRestoreDone: checkDoneGated,
   });
-  const env = addCard(useEnv({
-    account: repo.selectedAccount,
-    repo: repo.selectedRepo,
-    isCloneRepo: repo.isCloneRepo,
-    selectedPR: pr.selectedPR,
-    branches: repo.branches,
-    validEnvs: repo.pipeline.validEnvs,
-    pendingRestore: pendingRestoreGated,
-    addRestoreWarning: addWarningGated,
-    checkRestoreDone: checkDoneGated,
-  }));
-  const azureSetup = useAzureSetup({
-    githubAccount: repo.selectedAccount,
-    githubRepo: repo.selectedRepo?.name ?? "",
-    validEnvs: repo.pipeline.validEnvs,
-  });
+  const env = addCard(
+    useEnv({
+      account: repo.selectedAccount,
+      repo: repo.selectedRepo,
+      isCloneRepo: repo.isCloneRepo,
+      selectedPR: pr.selectedPR,
+      branches: repo.branches,
+      validEnvs: repo.pipeline.validEnvs,
+      pendingRestore: pendingRestoreGated,
+      addRestoreWarning: addWarningGated,
+      checkRestoreDone: checkDoneGated,
+    }),
+  );
+  const azureSetup = addCard(
+    useAzureSetup({
+      githubAccount: repo.selectedAccount,
+      githubRepo: repo.selectedRepo?.name ?? "",
+      validEnvs: repo.pipeline.validEnvs,
+    }),
+  );
 
   /*
    * Shared inputs for the subscription / infrastructure / domain cards, sourced from repo
@@ -200,16 +206,21 @@ function addCard(newCard: CardHook): CardHook {
     setExpandedId(id);
     requestAnimationFrame(() => document.getElementById(`tile-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
   };
+
+  function getCardRequirementsRecursive(id: CardId): CardRequirements {
+    const directRequirements = allCards[id].cardRequirements ?? [];
+    const nestedRequirements = directRequirements.flatMap((reqId) => getCardRequirementsRecursive(reqId));
+    return [...directRequirements, ...nestedRequirements];
+  }
+
   const tileProps = (cardHook: CardHook) => {
-    const id = cardHook.cardId;
-    const misconfigured = !azureConfigured && id === "azure_login";  //  A misconfigured Azure card isn't "locked" behind other steps — it's broken regardless of progress, so skip the normal prerequisite list for it.
-
-
-    const cardRequirements = allCards[id].cardRequirements;
+    const id = cardHook.cardId as CardId;
+    const misconfigured = !azureConfigured && id === "azure_login"; //  A misconfigured Azure card isn't "locked" behind other steps — it's broken regardless of progress, so skip the normal prerequisite list for it.
+    const cardRequirementRecursive = getCardRequirementsRecursive(id);
     const requirementsForTile: Requirement[] = [];
-    for (const reqCardId of cardRequirements ?? []) {
+    for (const reqCardId of cardRequirementRecursive ?? []) {
       requirementsForTile.push({ label: allCards[reqCardId].cardDependencyLabel, target: reqCardId });
-    } 
+    }
     const requirements = misconfigured ? [] : requirementsForTile;
 
     return {
@@ -305,7 +316,7 @@ function addCard(newCard: CardHook): CardHook {
           <Typography sx={groupLabelSx}>Sign in</Typography>
           <Box sx={groupSx}>
             <Box {...itemProps("auth")}>
-              <CardTile title="GitHub login" {...tileProps("auth")}>
+              <CardTile title="GitHub login" {...tileProps(auth)}>
                 <LoginDetail
                   authLoading={auth.authLoading}
                   user={auth.user}
@@ -321,7 +332,7 @@ function addCard(newCard: CardHook): CardHook {
               </CardTile>
             </Box>
             <Box {...itemProps("azure_login")}>
-              <CardTile title="Azure login" {...tileProps("azure_login")}>
+              <CardTile title="Azure login" {...tileProps(azureSetup)}>
                 {azureConfigured ? (
                   <AzureLoginDetail
                     azureAccount={azureSetup.azureAccount}
@@ -341,7 +352,7 @@ function addCard(newCard: CardHook): CardHook {
           <Typography sx={groupLabelSx}>Target</Typography>
           <Box sx={groupSx}>
             <Box {...itemProps("repo")}>
-              <CardTile title="Repository & environment" action={viewRepoAction} {...tileProps("repo")}>
+              <CardTile title="Repository & environment" action={viewRepoAction} {...tileProps(repo)}>
                 <RepoDetail
                   accounts={repo.accounts}
                   selectedAccount={repo.selectedAccount}

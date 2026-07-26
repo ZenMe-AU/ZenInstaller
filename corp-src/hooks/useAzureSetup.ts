@@ -17,7 +17,7 @@ import {
   type Subscription,
   type AzureTenant,
 } from "../api/azureGraph";
-import type { Account } from "../types";
+import type { Account, CardHook } from "../types";
 
 export type StepStatus = "pending" | "running" | "done" | "skipped" | "error";
 export type SetupStep = { id: string; label: string; status: StepStatus; detail?: string };
@@ -417,6 +417,7 @@ export function useAzureSetup({
   ]);
 
   return {
+    cardId: "azure_setup" as const,
     azureAccount,
     tenants,
     subscriptions,

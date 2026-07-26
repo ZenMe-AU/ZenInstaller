@@ -4,6 +4,7 @@ import { getMsal } from "../api/msal";
 import { GRAPH_SCOPES, ARM_SCOPES } from "../config/azureConfig";
 import {
   listSubscriptions,
+  listTenants,
   getExistingApp,
   getAppNameByAppId,
   createAppRegistration,
@@ -14,6 +15,7 @@ import {
   grantAdminConsent,
   MSA_TENANT,
   type Subscription,
+  type AzureTenant,
 } from "../api/azureGraph";
 import { getAllPermissions } from "../config/azureConfig";
 import type { Account, StageDefinition } from "../types";
@@ -49,8 +51,9 @@ export function useAzureSetup({
   stages?: StageDefinition[];
 }) {
   const [azureAccount, setAzureAccount] = useState<AccountInfo | null>(null);
+  const [tenants, setTenants] = useState<AzureTenant[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-  const [selectedSubs, setSelectedSubs] = useState<string[]>([]);
+  const [selectedSubscriptionId, setSelectedSubscriptionId] = useState("");
   const [appName, setAppName] = useState("zeninstaller-github");
   const defaultSelected = ["PROD", "TEST"].filter((e) => validEnvs.includes(e));
   const [environments, setEnvironments] = useState<string[]>(defaultSelected.length > 0 ? defaultSelected : ["PROD", "TEST"]);
@@ -64,24 +67,13 @@ export function useAzureSetup({
   const [manualTenantId, setManualTenantId] = useState("");
   const [tenantIdError, setTenantIdError] = useState<string | null>(null);
 
+  // Tenant IDs the signed-in account already exposes — the MSA fallback when ARM /tenants can't run.
   const availableTenants = useMemo(() => {
     if (!azureAccount?.tenantProfiles) return [];
     return Array.from(azureAccount.tenantProfiles.keys()).filter((id) => id !== MSA_TENANT);
   }, [azureAccount]);
 
-  // Auto-select first tenant and attempt silent load when account is MSA and nothing is pre-filled
-  useEffect(() => {
-    if (!azureAccount || azureAccount.tenantId !== MSA_TENANT) return;
-    if (manualTenantId || availableTenants.length === 0) return;
-    const tid = availableTenants[0];
-    setManualTenantId(tid);
-    loadSubs(azureAccount, tid).catch(() => {
-      /* silent failure — user clicks Load */
-    });
-  }, [azureAccount, availableTenants]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const needsTenantId = (azureAccount?.tenantId === MSA_TENANT || manualTenantId !== "") && subscriptions.length === 0;
-  const effectiveTenantId = needsTenantId ? manualTenantId.trim() : undefined;
+  const effectiveTenantId = manualTenantId.trim() || undefined;
 
   const updateStep = useCallback((id: string, status: StepStatus, detail?: string) => {
     setSteps((prev) => prev.map((s) => (s.id === id ? { ...s, status, detail } : s)));
@@ -90,9 +82,44 @@ export function useAzureSetup({
   const loadSubs = useCallback(async (account: AccountInfo, overrideTenantId?: string) => {
     const subs = await listSubscriptions(account, overrideTenantId);
     setSubscriptions(subs);
-    if (subs.length === 1) setSelectedSubs([subs[0].id]);
+    if (subs.length === 1) setSelectedSubscriptionId(subs[0].id);
     if (subs.length === 0) setSubsError("No subscriptions found for this account.");
   }, []);
+
+  // Fetch the tenant list via ARM (display names); fall back to the account's known tenant IDs for MSA.
+  const loadTenants = useCallback(async (account: AccountInfo) => {
+    try {
+      console.log("👀Loading tenants for account", account.username, "...");
+      const list = await listTenants(account);
+      if (list.length > 0) {
+        setTenants(list);
+        return;
+      }
+    } catch (err) {
+      console.log("👀Failed to load tenants for account", account.username, err);
+      /* MSA / consent — fall through to the tenantProfiles fallback */
+    }
+    if (account.tenantProfiles) {
+      const ids = Array.from(account.tenantProfiles.keys()).filter((id) => id !== MSA_TENANT);
+      setTenants(ids.map((id) => ({ tenantId: id, displayName: id })));
+    }
+  }, []);
+
+  // Load the tenant list once signed in.
+  useEffect(() => {
+    if (azureAccount) void loadTenants(azureAccount);
+  }, [azureAccount, loadTenants]);
+
+  // Auto-select first tenant and attempt silent load when account is MSA and nothing is pre-filled.
+  useEffect(() => {
+    if (!azureAccount || azureAccount.tenantId !== MSA_TENANT) return;
+    if (manualTenantId || availableTenants.length === 0) return;
+    const tid = availableTenants[0];
+    setManualTenantId(tid);
+    loadSubs(azureAccount, tid).catch(() => {
+      /* silent failure — user picks a tenant */
+    });
+  }, [azureAccount, availableTenants]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // On mount: handle redirect callback OR restore existing session
   useEffect(() => {
@@ -172,62 +199,77 @@ export function useAzureSetup({
     }
   }, []);
 
-  const confirmTenantId = useCallback(async () => {
-    if (!azureAccount) return;
-    const tid = manualTenantId.trim();
-    if (!tid) {
-      setTenantIdError("Please enter your Tenant ID");
-      return;
-    }
-    setTenantIdError(null);
-    setSubsError(null);
-
-    const msal = await getMsal();
-    if (!msal) return;
-
-    // Use tenant-specific account from cache if available (avoids re-consent on repeat visits)
-    const accounts = msal.getAllAccounts();
-    const tenantAccount = accounts.find((a) => a.tenantId === tid) ?? azureAccount;
-
-    try {
-      // Silent GRAPH acquire first — may create a new AAD tenant account in MSAL cache
-      await msal.acquireTokenSilent({
-        scopes: GRAPH_SCOPES,
-        account: tenantAccount,
-        authority: `https://login.microsoftonline.com/${tid}`,
-      });
-      // Re-query cache and pick best account before loading subs
-      const refreshed = msal.getAllAccounts();
-      const bestAccount = refreshed.find((a) => a.tenantId === tid) ?? tenantAccount;
-      if (bestAccount !== azureAccount) setAzureAccount(bestAccount);
-      await loadSubs(bestAccount, tid);
-      return;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "";
-      const needsConsent = msg.includes("AADSTS65001") || msg.includes("interaction_required") || msg.includes("MSA_NEEDS_TENANT");
-      if (!needsConsent) {
-        setSubsError(msg);
+  const confirmTenantId = useCallback(
+    async (tenantIdArg?: string) => {
+      if (!azureAccount) return;
+      const tid = (tenantIdArg ?? manualTenantId).trim();
+      if (!tid) {
+        setTenantIdError("Please enter your Tenant ID");
         return;
       }
-    }
+      setTenantIdError(null);
+      setSubsError(null);
 
-    // No cached token for this tenant → redirect for consent
-    sessionStorage.setItem(SESSION_KEY, tid);
-    try {
-      await msal.loginRedirect({
-        scopes: GRAPH_SCOPES,
-        authority: `https://login.microsoftonline.com/${tid}`,
-        prompt: "consent",
-      });
-    } catch (err) {
-      sessionStorage.removeItem(SESSION_KEY);
-      setTenantIdError(err instanceof Error ? err.message : "Failed to redirect");
-    }
-  }, [azureAccount, manualTenantId, loadSubs]);
+      const msal = await getMsal();
+      if (!msal) return;
+
+      // Use tenant-specific account from cache if available (avoids re-consent on repeat visits)
+      const accounts = msal.getAllAccounts();
+      const tenantAccount = accounts.find((a) => a.tenantId === tid) ?? azureAccount;
+
+      try {
+        // Silent GRAPH acquire first — may create a new AAD tenant account in MSAL cache
+        await msal.acquireTokenSilent({
+          scopes: GRAPH_SCOPES,
+          account: tenantAccount,
+          authority: `https://login.microsoftonline.com/${tid}`,
+        });
+        // Re-query cache and pick best account before loading subs
+        const refreshed = msal.getAllAccounts();
+        const bestAccount = refreshed.find((a) => a.tenantId === tid) ?? tenantAccount;
+        if (bestAccount !== azureAccount) setAzureAccount(bestAccount);
+        await loadSubs(bestAccount, tid);
+        return;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "";
+        const needsConsent = msg.includes("AADSTS65001") || msg.includes("interaction_required") || msg.includes("MSA_NEEDS_TENANT");
+        if (!needsConsent) {
+          setSubsError(msg);
+          return;
+        }
+      }
+
+      // No cached token for this tenant → redirect for consent
+      sessionStorage.setItem(SESSION_KEY, tid);
+      try {
+        await msal.loginRedirect({
+          scopes: GRAPH_SCOPES,
+          authority: `https://login.microsoftonline.com/${tid}`,
+          prompt: "consent",
+        });
+      } catch (err) {
+        sessionStorage.removeItem(SESSION_KEY);
+        setTenantIdError(err instanceof Error ? err.message : "Failed to redirect");
+      }
+    },
+    [azureAccount, manualTenantId, loadSubs],
+  );
+
+  // Pick a tenant from the dropdown → reset subs and load the chosen tenant's subscriptions.
+  const selectTenant = useCallback(
+    (tid: string) => {
+      setManualTenantId(tid);
+      setSubscriptions([]);
+      setSelectedSubscriptionId("");
+      setSubsError(null);
+      void confirmTenantId(tid);
+    },
+    [confirmTenantId],
+  );
 
   const changeTenant = useCallback(() => {
     setSubscriptions([]);
-    setSelectedSubs([]);
+    setSelectedSubscriptionId("");
     setSubsError(null);
     setTenantIdError(null);
   }, []);
@@ -257,8 +299,9 @@ export function useAzureSetup({
     const msal = await getMsal();
     if (msal) await msal.clearCache().catch(() => {});
     setAzureAccount(null);
+    setTenants([]);
     setSubscriptions([]);
-    setSelectedSubs([]);
+    setSelectedSubscriptionId("");
     setResult(null);
     saveResult(null);
     setSteps([]);
@@ -273,7 +316,7 @@ export function useAzureSetup({
   }, [clearSession]);
 
   const run = useCallback(async () => {
-    if (!azureAccount || selectedSubs.length === 0 || !githubAccount) return;
+    if (!azureAccount || !selectedSubscriptionId || !githubAccount) return;
     setRunning(true);
     setConsentFailed(false);
 
@@ -332,17 +375,9 @@ export function useAzureSetup({
 
       currentStep = "rbac";
       updateStep("rbac", "running");
-      for (const sub of selectedSubs) {
-        await ensureRbacRole(azureAccount, sub, spObjectId, "Contributor", effectiveTenantId);
-        await ensureRbacRole(azureAccount, sub, spObjectId, "User Access Administrator", effectiveTenantId);
-      }
-      updateStep(
-        "rbac",
-        "done",
-        selectedSubs.length === 1
-          ? (subscriptions.find((s) => s.id === selectedSubs[0])?.displayName ?? selectedSubs[0])
-          : `${selectedSubs.length} subscriptions`,
-      );
+      await ensureRbacRole(azureAccount, selectedSubscriptionId, spObjectId, "Contributor", effectiveTenantId);
+      await ensureRbacRole(azureAccount, selectedSubscriptionId, spObjectId, "User Access Administrator", effectiveTenantId);
+      updateStep("rbac", "done", subscriptions.find((s) => s.id === selectedSubscriptionId)?.displayName ?? selectedSubscriptionId);
 
       currentStep = "consent";
       updateStep("consent", "running");
@@ -354,7 +389,7 @@ export function useAzureSetup({
         setConsentFailed(true);
       }
 
-      const r = { clientId: appId, tenantId: resolvedTenantId, subscriptionIds: selectedSubs };
+      const r = { clientId: appId, tenantId: resolvedTenantId, subscriptionIds: [selectedSubscriptionId] };
       setResult(r);
       saveResult(r);
     } catch (err) {
@@ -362,13 +397,14 @@ export function useAzureSetup({
     } finally {
       setRunning(false);
     }
-  }, [azureAccount, selectedSubs, githubAccount, appName, environments, githubRepo, effectiveTenantId, stages, updateStep]);
+  }, [azureAccount, selectedSubscriptionId, subscriptions, githubAccount, appName, environments, githubRepo, effectiveTenantId, stages, updateStep]);
 
   return {
     azureAccount,
+    tenants,
     subscriptions,
-    selectedSubs,
-    setSelectedSubs,
+    selectedSubscriptionId,
+    setSelectedSubscriptionId,
     appName,
     setAppName,
     environments,
@@ -380,12 +416,12 @@ export function useAzureSetup({
     consentFailed,
     loginError,
     subsError,
-    needsTenantId,
     availableTenants,
     manualTenantId,
     setManualTenantId,
     tenantIdError,
     confirmTenantId,
+    selectTenant,
     login,
     logout,
     reset,

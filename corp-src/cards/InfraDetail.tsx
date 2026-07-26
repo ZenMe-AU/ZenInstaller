@@ -1,10 +1,13 @@
-import { Box, Button, CircularProgress, Typography } from "@mui/material";
+import { useState } from "react";
+import { Box, Button, CircularProgress, IconButton, MenuItem, Select, TextField, Typography } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
+import EditIcon from "@mui/icons-material/Edit";
+import CheckIcon from "@mui/icons-material/Check";
 import type { AccountInfo } from "@azure/msal-browser";
-import type { useTerraformSetup } from "../hooks/useTerraformSetup";
+import type { useInfraSetup } from "../hooks/useInfraSetup";
 import type { SetupStep } from "../hooks/useAzureSetup";
 import { getVariableDisplayName } from "../logic/variables";
 import { MONO as mono, labelSx } from "../config/styles";
@@ -36,53 +39,61 @@ function StepRow({ step }: { step: SetupStep }) {
   );
 }
 
-type Props = ReturnType<typeof useTerraformSetup> & {
+type Props = ReturnType<typeof useInfraSetup> & {
   disabled: boolean;
   azureAccount: AccountInfo | null;
   corpName: string;
   subscriptionId: string;
   spClientId: string;
-  storageReady: boolean;
 };
 
-export default function TfBackendDetail({
+export default function InfraDetail({
+  location,
+  setLocation,
+  locations,
+  locationsLoading,
+  locationsError,
   steps,
   running,
   done,
   run,
   reset,
   resourceGroupName,
+  lawName,
   storageAccountName,
+  appInsightsName,
   containerName,
   disabled,
   azureAccount,
   corpName,
   subscriptionId,
   spClientId,
-  storageReady,
 }: Props) {
+  const [editingLocation, setEditingLocation] = useState(false);
+
   const missing: string[] = [];
   if (!corpName) missing.push(getVariableDisplayName("NAME"));
   if (!subscriptionId) missing.push("AZURE_SUBSCRIPTION_ID");
   if (!spClientId) missing.push("AZURE_CLIENT_ID");
-  const ready = !!azureAccount && missing.length === 0 && storageReady;
+  const ready = !!azureAccount && missing.length === 0;
+
+  const locationDisplayName = locations.find((l) => l.name === location)?.displayName ?? location;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
       <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
-        Creates the{" "}
+        Creates the root Azure resources — resource group, Log Analytics, Application Insights, the private storage account — then the{" "}
         <Box component="span" sx={mono}>
           {containerName}
         </Box>{" "}
-        container in the private storage account and grants the service principal <b>Storage Blob Data Contributor</b> role on it. The container is
-        used by Terraform to store state and lock files for the corp environment.
+        container Terraform uses for state, granting GitHub Actions access to it.
       </Typography>
 
       {/* Gating hints */}
       {!azureAccount && (
         <Box sx={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", px: 2, py: 1.25 }}>
           <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>
-            Sign in with Azure in the <b>Let GitHub deploy to Azure</b> card first — this card reuses that session.
+            Sign in with Azure first — this card reuses that session.
           </Typography>
         </Box>
       )}
@@ -93,28 +104,19 @@ export default function TfBackendDetail({
           </Typography>
         </Box>
       )}
-      {azureAccount && missing.length === 0 && !storageReady && (
-        <Box sx={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", px: 2, py: 1.25 }}>
-          <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>
-            Run <b>Corp Domain Setup</b> first — the storage account{" "}
-            <Box component="span" sx={mono}>
-              {storageAccountName}
-            </Box>{" "}
-            doesn't exist yet.
-          </Typography>
-        </Box>
-      )}
 
-      {/* Backend summary + run */}
+      {/* Planned resources */}
       {ready && steps.length === 0 && (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
           <Box>
-            <Typography sx={{ ...labelSx, mb: 0.75 }}>Backend config</Typography>
+            <Typography sx={{ ...labelSx, mb: 0.75 }}>Resources</Typography>
             <Box sx={{ borderLeft: "2px solid #e2e8f0", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
               {[
-                ["resource_group_name", resourceGroupName],
-                ["storage_account_name", storageAccountName],
-                ["container_name", containerName],
+                ["Resource group", resourceGroupName],
+                ["Log Analytics", lawName],
+                ["App Insights", appInsightsName],
+                ["Storage account", storageAccountName],
+                ["State container", containerName],
               ].map(([label, value]) => (
                 <Typography key={label} sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
                   {label}:{" "}
@@ -123,13 +125,73 @@ export default function TfBackendDetail({
                   </Box>
                 </Typography>
               ))}
+
+              {/* Location — inline editable */}
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minHeight: "1.6em" }}>
+                {editingLocation ? (
+                  <>
+                    <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>Location:</Typography>
+                    {locations.length > 0 ? (
+                      <Select
+                        size="small"
+                        value={location}
+                        onChange={(e) => setLocation(e.target.value)}
+                        sx={{ fontSize: "0.75rem", ...mono, minWidth: 220, "& .MuiSelect-select": { py: 0.35 } }}
+                      >
+                        {locations.map((l) => (
+                          <MenuItem key={l.name} value={l.name} sx={{ fontSize: "0.78rem", ...mono }}>
+                            {l.displayName}{" "}
+                            <Box component="span" sx={{ color: "#94a3b8", ml: 0.5 }}>
+                              ({l.name})
+                            </Box>
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    ) : (
+                      <TextField
+                        size="small"
+                        value={location}
+                        onChange={(e) => setLocation(e.target.value)}
+                        placeholder={locationsLoading ? "Loading regions..." : "e.g. australiaeast"}
+                        sx={{ minWidth: 220 }}
+                        inputProps={{ style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" } }}
+                      />
+                    )}
+                    {locationsLoading && <CircularProgress size={12} />}
+                    <IconButton size="small" onClick={() => setEditingLocation(false)} sx={{ color: "#22c55e", p: 0.25 }}>
+                      <CheckIcon sx={{ fontSize: 14 }} />
+                    </IconButton>
+                  </>
+                ) : (
+                  <>
+                    <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
+                      Location:{" "}
+                      <Box component="span" sx={{ color: "#0f172a" }}>
+                        {locationDisplayName}
+                      </Box>
+                    </Typography>
+                    <IconButton
+                      size="small"
+                      onClick={() => setEditingLocation(true)}
+                      sx={{ color: "#cbd5e1", p: 0.25, "&:hover": { color: "#2563eb" } }}
+                    >
+                      <EditIcon sx={{ fontSize: 12 }} />
+                    </IconButton>
+                  </>
+                )}
+              </Box>
+              {locationsError && (
+                <Typography sx={{ fontSize: "0.68rem", color: "#d97706", ...mono }}>
+                  Couldn't load Azure region list — type the region name manually.
+                </Typography>
+              )}
             </Box>
           </Box>
 
           <Button
             variant="contained"
             onClick={run}
-            disabled={disabled || running}
+            disabled={disabled || running || !location.trim()}
             sx={{
               alignSelf: "flex-start",
               background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
@@ -144,7 +206,7 @@ export default function TfBackendDetail({
               "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
             }}
           >
-            {done ? "Re-run setup" : "Create terraform backend"}
+            {done ? "Re-run setup" : "Create corp infrastructure"}
           </Button>
         </Box>
       )}

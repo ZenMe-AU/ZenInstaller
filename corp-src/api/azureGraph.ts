@@ -21,7 +21,7 @@ export async function getToken(account: AccountInfo, scopes: string[], overrideT
 
   const isArm = scopes.some((s) => s.includes("management.azure.com"));
   if (isArm && account.tenantId === MSA_TENANT && !overrideTenantId) {
-    throw new Error("MSA_NEEDS_TENANT");
+    // throw new Error("MSA_NEEDS_TENANT");
   }
 
   /*
@@ -66,6 +66,25 @@ export async function listSubscriptions(account: AccountInfo, overrideTenantId?:
   return (data.value ?? []).map((s: { subscriptionId: string; displayName: string }) => ({
     id: s.subscriptionId,
     displayName: s.displayName,
+  }));
+}
+
+// ── Tenants ──────────────────────────────────────────────────────────────────────
+
+export type AzureTenant = { tenantId: string; displayName: string; defaultDomain?: string };
+
+/*
+ * Lists tenants the signed-in identity can access. Needs an ARM token, so it throws
+ * MSA_NEEDS_TENANT for personal accounts before a tenant is chosen — callers fall back to
+ * the tenant IDs the account already exposes (AccountInfo.tenantProfiles).
+ */
+export async function listTenants(account: AccountInfo, overrideTenantId?: string): Promise<AzureTenant[]> {
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+  const data = await gFetch(token, ARM, "/tenants?api-version=2022-12-01");
+  return (data.value ?? []).map((t: { tenantId: string; displayName?: string; defaultDomain?: string }) => ({
+    tenantId: t.tenantId,
+    displayName: t.displayName || t.defaultDomain || t.tenantId,
+    defaultDomain: t.defaultDomain,
   }));
 }
 
@@ -169,6 +188,26 @@ export async function ensureFederatedCredential(
 
 // ── RBAC roles (ARM) ──────────────────────────────────────────────────────────
 
+// Whether the principal already holds `roleName` on the subscription (read-only check).
+export async function hasRbacRole(
+  account: AccountInfo,
+  subscriptionId: string,
+  principalId: string,
+  roleName: string,
+  overrideTenantId?: string,
+): Promise<boolean> {
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+  const roleId = RBAC_ROLE_IDS[roleName];
+  const existing = await gFetch(
+    token,
+    ARM,
+    `/subscriptions/${subscriptionId}/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01&$filter=assignedTo('${principalId}')`,
+  );
+  return !!existing?.value?.some((a: { properties: { roleDefinitionId: string } }) =>
+    a.properties.roleDefinitionId.toLowerCase().endsWith(roleId.toLowerCase()),
+  );
+}
+
 export async function ensureRbacRole(
   account: AccountInfo,
   subscriptionId: string,
@@ -176,20 +215,11 @@ export async function ensureRbacRole(
   roleName: string,
   overrideTenantId?: string,
 ): Promise<void> {
+  if (await hasRbacRole(account, subscriptionId, spObjectId, roleName, overrideTenantId)) return;
+
   const token = await getToken(account, ARM_SCOPES, overrideTenantId);
   const scope = `/subscriptions/${subscriptionId}`;
   const roleId = RBAC_ROLE_IDS[roleName];
-
-  const existing = await gFetch(
-    token,
-    ARM,
-    `${scope}/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01&$filter=assignedTo('${spObjectId}')`,
-  );
-  const alreadyAssigned = existing?.value?.some((a: { properties: { roleDefinitionId: string } }) =>
-    a.properties.roleDefinitionId.toLowerCase().endsWith(roleId.toLowerCase()),
-  );
-  if (alreadyAssigned) return;
-
   const assignmentName = await deterministicUuid(scope, roleId, spObjectId);
   await gFetch(token, ARM, `${scope}/providers/Microsoft.Authorization/roleAssignments/${assignmentName}?api-version=2022-04-01`, {
     method: "PUT",

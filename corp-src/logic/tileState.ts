@@ -16,6 +16,7 @@ export type TileStateInput = {
   azureSecretsValid: boolean | null;
   appRegResultPresent: boolean;
   hasAzureClientId: boolean;
+  rbacReady: boolean | null; // false = SP confirmed missing RBAC on the selected subscription
 
   isCloneRepo: boolean;
   repoStatus: CardStatus;
@@ -23,20 +24,19 @@ export type TileStateInput = {
   envSelected: boolean;
   envName?: string;
 
+  subscriptionSelected: boolean; // confirmed = saved GitHub vars match the current tenant/subscription pick
+  subscriptionLabel?: string;
+  subscriptionDrift: boolean; // a pick exists that differs from the saved vars
+  subscriptionNoAccess: boolean; // a tenant is chosen but exposes no subscriptions
+
   hasCompanyInfo: boolean;
   corpName: string;
   dnsName: string;
 
-  domainResourcesDone: boolean;
+  infraDone: boolean;
+
   domainVerified: boolean;
   domainIsPrimary: boolean;
-  /*
-   * Independent of dnsName — true once the storage account itself exists, regardless of
-   * whether the domain has since been reconfigured. See useCreateDomainSetup.
-   */
-  storageAccountReady: boolean;
-
-  tfDone: boolean;
 };
 
 export function deriveCardStatus(f: TileStateInput): Record<CardId, CardStatus> {
@@ -50,6 +50,9 @@ export function deriveCardStatus(f: TileStateInput): Record<CardId, CardStatus> 
         : "loading";
 
   const targetReady = f.isAuthed && f.isCloneRepo && f.envSelected;
+  // Target-level prereqs shared by the two setup tiles (env + a chosen subscription).
+  const setupReady = targetReady && f.subscriptionSelected;
+  const domainComplete = f.domainVerified && f.domainIsPrimary;
 
   return {
     auth: f.isAuthed ? "complete" : "loading",
@@ -58,6 +61,13 @@ export function deriveCardStatus(f: TileStateInput): Record<CardId, CardStatus> 
      * them visible with a "contact admin" error instead of hiding them as if unused.
      */
     azure_login: !f.azureConfigured ? "error" : f.azureSignedIn ? "complete" : "idle",
+    subscription: !f.azureConfigured
+      ? "error"
+      : f.subscriptionSelected
+        ? "complete"
+        : f.subscriptionDrift || f.subscriptionNoAccess
+          ? "warning"
+          : "idle",
     repo: repoEnvStatus,
     company_info: !f.envSelected ? "idle" : f.hasCompanyInfo ? "complete" : "warning",
     azure_setup: !f.azureConfigured
@@ -66,11 +76,13 @@ export function deriveCardStatus(f: TileStateInput): Record<CardId, CardStatus> 
         ? "idle"
         : !f.azureSetupDone
           ? "warning"
-          : f.azureSecretsValid === false
-            ? "error"
-            : "complete", // filled in — validated (true) or not yet run (null) both count as complete
-    create_domain: !targetReady ? "idle" : f.domainResourcesDone && f.domainVerified && f.domainIsPrimary ? "complete" : "warning",
-    tf_backend: !targetReady ? "idle" : f.tfDone ? "complete" : "warning",
+          : f.rbacReady === false
+            ? "warning" // vars saved but the SP lost access after a subscription switch
+            : f.azureSecretsValid === false
+              ? "error"
+              : "complete", // filled in — validated (true) or not yet run (null) both count as complete
+    infra: !f.azureConfigured ? "error" : !setupReady ? "idle" : f.infraDone ? "complete" : "warning",
+    create_domain: !f.azureConfigured ? "error" : !setupReady ? "idle" : domainComplete ? "complete" : "warning",
   };
 }
 
@@ -80,22 +92,38 @@ export function deriveTileFlags(f: TileStateInput): TileFlags {
     isCloneRepo: f.isCloneRepo,
     envSelected: f.envSelected,
     azureSignedIn: f.azureSignedIn,
+    subscriptionSelected: f.subscriptionSelected,
     hasCompanyInfo: f.hasCompanyInfo,
-    domainStorageReady: f.storageAccountReady,
     hasAzureClientId: f.hasAzureClientId,
+    infraDone: f.infraDone,
   };
 }
 
 export function deriveTileSummaries(f: TileStateInput): Partial<Record<CardId, string>> {
-  const domainComplete = f.domainResourcesDone && f.domainVerified && f.domainIsPrimary;
+  const domainComplete = f.domainVerified && f.domainIsPrimary;
   return {
     auth: f.isAuthed ? `Signed in as ${f.userLogin ?? ""}` : "Connect your GitHub account",
     azure_login: !f.azureConfigured ? "Unavailable" : f.azureSignedIn ? (f.azureUsername ?? "Signed in") : "Sign in to Azure",
+    subscription: !f.azureConfigured
+      ? "Unavailable"
+      : f.subscriptionSelected
+        ? (f.subscriptionLabel ?? "Subscription selected")
+        : f.subscriptionDrift
+          ? "Unsaved change — save to apply"
+          : f.subscriptionNoAccess
+            ? "No subscriptions in this tenant"
+            : "Select a subscription",
     repo:
       f.repoFullName && f.envName ? `${f.repoFullName} · ${f.envName}` : f.repoFullName ? f.repoFullName : "Select repository and environment",
     company_info: f.hasCompanyInfo ? `${f.corpName} · ${f.dnsName}` : "Set company info",
-    azure_setup: !f.azureConfigured ? "Unavailable" : f.appRegResultPresent ? "App registration ready" : "Create the app registration",
-    create_domain: domainComplete ? "Domain verified and primary" : "Set up the corp domain",
-    tf_backend: f.tfDone ? "Terraform state container ready" : "Set up the terraform backend",
+    azure_setup: !f.azureConfigured
+      ? "Unavailable"
+      : f.rbacReady === false
+        ? "Missing access on the selected subscription"
+        : f.appRegResultPresent
+          ? "App registration ready"
+          : "Create the app registration",
+    infra: !f.azureConfigured ? "Unavailable" : f.infraDone ? "Infrastructure ready" : "Set up corp infrastructure",
+    create_domain: !f.azureConfigured ? "Unavailable" : domainComplete ? "Domain verified and primary" : "Set up the corp domain",
   };
 }

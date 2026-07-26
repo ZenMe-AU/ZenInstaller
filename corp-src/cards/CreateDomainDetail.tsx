@@ -1,16 +1,12 @@
-import { useState } from "react";
-import { Box, Button, CircularProgress, IconButton, MenuItem, Select, TextField, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import EditIcon from "@mui/icons-material/Edit";
-import CheckIcon from "@mui/icons-material/Check";
 import type { AccountInfo } from "@azure/msal-browser";
 import type { useCreateDomainSetup } from "../hooks/useCreateDomainSetup";
 import type { SetupStep } from "../hooks/useAzureSetup";
-import type { Subscription } from "../api/azureGraph";
 import { getVariableDisplayName } from "../logic/variables";
 import { MONO as mono, labelSx } from "../config/styles";
 
@@ -46,19 +42,11 @@ type Props = ReturnType<typeof useCreateDomainSetup> & {
   azureAccount: AccountInfo | null;
   corpName: string;
   dnsName: string;
-  subscriptions: Subscription[];
 };
 
 export default function CreateDomainDetail({
-  subscriptionId,
-  setSubscriptionId,
   checkingStatus,
   checkStatusError,
-  location,
-  setLocation,
-  locations,
-  locationsLoading,
-  locationsError,
   steps,
   running,
   resourcesDone,
@@ -70,92 +58,46 @@ export default function CreateDomainDetail({
   verify,
   run,
   reset,
-  resourceGroupName,
-  lawName,
-  storageAccountName,
-  appInsightsName,
   disabled,
   azureAccount,
   corpName,
   dnsName,
-  subscriptions,
 }: Props) {
-  const [editingLocation, setEditingLocation] = useState(false);
-
   const missing: string[] = [];
   if (!corpName) missing.push(getVariableDisplayName("NAME"));
   if (!dnsName) missing.push(getVariableDisplayName("DNS"));
-  const ready = !!azureAccount && !!subscriptionId && missing.length === 0;
-
-  const locationDisplayName = locations.find((l) => l.name === location)?.displayName ?? location;
+  const ready = !!azureAccount && missing.length === 0;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
       <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
-        1. Creates the root Azure resources: resource group, Log Analytics, Application Insights, DNS zone, and the private storage account. 2. Sets
-        up the Entra custom domain (verified and set as primary).
+        Creates the DNS zone for <b>{dnsName || "your domain"}</b>, adds it to Entra ID as a custom domain, then verifies it and sets it as primary.
       </Typography>
 
       {/* Gating hints */}
       {!azureAccount && (
         <Box sx={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", px: 2, py: 1.25 }}>
           <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>
-            Sign in with Azure in the <b>Let GitHub deploy to Azure</b> card first — this card reuses that session.
+            Sign in with Azure first — this card reuses that session.
           </Typography>
         </Box>
       )}
-
-      {/* Subscription — prefilled from the environment's AZURE_SUBSCRIPTION_ID, overridable here */}
-      {azureAccount && (
-        <Box>
-          <Typography sx={{ ...labelSx, mb: 0.75 }}>Subscription</Typography>
-          {subscriptions.length > 0 ? (
-            <Select
-              size="small"
-              value={subscriptionId || ""}
-              onChange={(e) => setSubscriptionId(e.target.value)}
-              displayEmpty
-              renderValue={(v) => {
-                if (!v) return <Typography sx={{ fontSize: "0.8rem", color: "#94a3b8", ...mono }}>Select a subscription</Typography>;
-                const name = subscriptions.find((s) => s.id === v)?.displayName ?? v;
-                return <Typography sx={{ fontSize: "0.8rem", ...mono }}>{name}</Typography>;
-              }}
-              sx={{ minWidth: { xs: 0, sm: 380 }, width: "100%", fontSize: "0.8rem", ...mono }}
-            >
-              {subscriptions.map((s) => (
-                <MenuItem key={s.id} value={s.id} sx={{ py: 0.75 }}>
-                  <Box>
-                    <Typography sx={{ fontSize: "0.8rem", ...mono }}>{s.displayName}</Typography>
-                    <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono }}>{s.id}</Typography>
-                  </Box>
-                </MenuItem>
-              ))}
-            </Select>
-          ) : (
-            <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8" }}>
-              No subscriptions loaded yet — sign in and load subscriptions in the <b>Let GitHub deploy to Azure</b> card above.
-            </Typography>
-          )}
-          {checkingStatus && (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mt: 0.75 }}>
-              <CircularProgress size={12} />
-              <Typography sx={{ fontSize: "0.7rem", color: "#94a3b8", ...mono }}>Checking whether this domain is already set up...</Typography>
-            </Box>
-          )}
-          {checkStatusError && (
-            <Typography sx={{ fontSize: "0.68rem", color: "#d97706", ...mono, mt: 0.5 }}>
-              Couldn't check existing setup: {checkStatusError}
-            </Typography>
-          )}
-        </Box>
-      )}
-
       {azureAccount && missing.length > 0 && (
         <Box sx={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", px: 2, py: 1.25 }}>
           <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>
-            Missing before setup can run: <b>{missing.join(", ")}</b> — fill them in via the environment card.
+            Missing before setup can run: <b>{missing.join(", ")}</b> — fill them in via the Company info card.
           </Typography>
         </Box>
+      )}
+
+      {checkingStatus && (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+          <CircularProgress size={12} />
+          <Typography sx={{ fontSize: "0.7rem", color: "#94a3b8", ...mono }}>Checking whether this domain is already set up...</Typography>
+        </Box>
+      )}
+      {checkStatusError && (
+        <Typography sx={{ fontSize: "0.68rem", color: "#d97706", ...mono }}>Couldn't check existing setup: {checkStatusError}</Typography>
       )}
 
       {/* Planned resources */}
@@ -165,12 +107,8 @@ export default function CreateDomainDetail({
             <Typography sx={{ ...labelSx, mb: 0.75 }}>Resources</Typography>
             <Box sx={{ borderLeft: "2px solid #e2e8f0", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
               {[
-                ["Resource group", resourceGroupName],
-                ["Log Analytics", lawName],
-                ["App Insights", appInsightsName],
                 ["DNS zone", dnsName],
                 ["Custom domain", dnsName],
-                ["Storage account", storageAccountName],
               ].map(([label, value]) => (
                 <Typography key={label} sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
                   {label}:{" "}
@@ -179,73 +117,13 @@ export default function CreateDomainDetail({
                   </Box>
                 </Typography>
               ))}
-
-              {/* Location — inline editable */}
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minHeight: "1.6em" }}>
-                {editingLocation ? (
-                  <>
-                    <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>Location:</Typography>
-                    {locations.length > 0 ? (
-                      <Select
-                        size="small"
-                        value={location}
-                        onChange={(e) => setLocation(e.target.value)}
-                        sx={{ fontSize: "0.75rem", ...mono, minWidth: 220, "& .MuiSelect-select": { py: 0.35 } }}
-                      >
-                        {locations.map((l) => (
-                          <MenuItem key={l.name} value={l.name} sx={{ fontSize: "0.78rem", ...mono }}>
-                            {l.displayName}{" "}
-                            <Box component="span" sx={{ color: "#94a3b8", ml: 0.5 }}>
-                              ({l.name})
-                            </Box>
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    ) : (
-                      <TextField
-                        size="small"
-                        value={location}
-                        onChange={(e) => setLocation(e.target.value)}
-                        placeholder={locationsLoading ? "Loading regions..." : "e.g. australiaeast"}
-                        sx={{ minWidth: 220 }}
-                        inputProps={{ style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" } }}
-                      />
-                    )}
-                    {locationsLoading && <CircularProgress size={12} />}
-                    <IconButton size="small" onClick={() => setEditingLocation(false)} sx={{ color: "#22c55e", p: 0.25 }}>
-                      <CheckIcon sx={{ fontSize: 14 }} />
-                    </IconButton>
-                  </>
-                ) : (
-                  <>
-                    <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
-                      Location:{" "}
-                      <Box component="span" sx={{ color: "#0f172a" }}>
-                        {locationDisplayName}
-                      </Box>
-                    </Typography>
-                    <IconButton
-                      size="small"
-                      onClick={() => setEditingLocation(true)}
-                      sx={{ color: "#cbd5e1", p: 0.25, "&:hover": { color: "#2563eb" } }}
-                    >
-                      <EditIcon sx={{ fontSize: 12 }} />
-                    </IconButton>
-                  </>
-                )}
-              </Box>
-              {locationsError && (
-                <Typography sx={{ fontSize: "0.68rem", color: "#d97706", ...mono }}>
-                  Couldn't load Azure region list — type the region name manually.
-                </Typography>
-              )}
             </Box>
           </Box>
 
           <Button
             variant="contained"
             onClick={run}
-            disabled={disabled || running || !location.trim()}
+            disabled={disabled || running}
             sx={{
               alignSelf: "flex-start",
               background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
@@ -260,7 +138,7 @@ export default function CreateDomainDetail({
               "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
             }}
           >
-            {resourcesDone ? "Re-run setup" : "Create corp resources"}
+            {resourcesDone ? "Re-run setup" : "Set up corp domain"}
           </Button>
         </Box>
       )}

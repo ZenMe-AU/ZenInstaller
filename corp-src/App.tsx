@@ -13,7 +13,8 @@ import { useActiveAuth as useAuth } from "./hooks/useActiveAuth";
 import { useAccountRepo } from "./hooks/useAccountRepo";
 import { useAzureSetup } from "./hooks/useAzureSetup";
 import { useCreateDomainSetup } from "./hooks/useCreateDomainSetup";
-import { useTerraformSetup } from "./hooks/useTerraformSetup";
+import { useInfraSetup } from "./hooks/useInfraSetup";
+import { useRbacCheck } from "./hooks/useRbacCheck";
 import { useEnv } from "./hooks/useEnv";
 import { usePR } from "./hooks/usePR";
 import { useUrlRestore } from "./hooks/useUrlRestore";
@@ -29,8 +30,9 @@ import EnvDetail from "./cards/EnvDetail";
 import EnvVariablesDetail from "./cards/EnvVariablesDetail";
 import AzureLoginDetail from "./cards/AzureLoginDetail";
 import AzureDeployDetail from "./cards/AzureDeployDetail";
+import SubscriptionDetail from "./cards/SubscriptionDetail";
+import InfraDetail from "./cards/InfraDetail";
 import CreateDomainDetail from "./cards/CreateDomainDetail";
-import TfBackendDetail from "./cards/TfBackendDetail";
 
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
@@ -86,33 +88,50 @@ function AppDashboard() {
   });
 
   /*
-   * Shared inputs for the corp-domain / terraform cards, sourced from repo variables
-   * (the pipeline's source of truth) with the Azure card's live selection as fallback.
+   * Shared inputs for the subscription / infrastructure / domain cards, sourced from repo
+   * variables (the pipeline's source of truth) with the Azure card's live selection as fallback.
    */
   const corpName = env.presentVariableValues.NAME ?? "";
   const dnsName = env.presentVariableValues.DNS ?? "";
-  const corpSubscriptionId =
-    env.presentVariableValues.AZURE_SUBSCRIPTION_ID || azureSetup.result?.subscriptionIds[0] || azureSetup.selectedSubs[0] || "";
   const corpSpClientId = env.presentVariableValues.AZURE_CLIENT_ID || azureSetup.result?.clientId || "";
   // MSA (personal) accounts sign in via the consumer tenant, so ARM/Graph calls need the real AAD tenant passed explicitly.
   const corpTenantId = env.presentVariableValues.AZURE_TENANT_ID || azureSetup.result?.tenantId || azureSetup.manualTenantId.trim() || undefined;
 
-  const createDomain = useCreateDomainSetup({
+  /*
+   * The corp resource-target subscription. The saved GitHub vars are authoritative (they're what
+   * the pipeline uses); the Azure subscription card's live pick is only "confirmed" once it matches
+   * them. Downstream (infra/domain/app-reg) uses the saved value and stays locked until confirmed.
+   */
+  const savedTenant = env.presentVariableValues.AZURE_TENANT_ID ?? "";
+  const savedSubscriptionId = env.presentVariableValues.AZURE_SUBSCRIPTION_ID ?? "";
+  const pickedTenant = azureSetup.manualTenantId.trim();
+  const pickedSubscriptionId = azureSetup.selectedSubscriptionId;
+  const subscriptionId = savedSubscriptionId;
+
+  const subscriptionConfirmed = !!savedSubscriptionId && savedSubscriptionId === pickedSubscriptionId && savedTenant === pickedTenant;
+  const subscriptionDrift = !!pickedSubscriptionId && !subscriptionConfirmed;
+  const subscriptionNoAccess = !!pickedTenant && !!azureSetup.subsError && azureSetup.subscriptions.length === 0;
+
+  // Live check: does the app-reg SP actually hold RBAC on the selected subscription?
+  const rbacReady = useRbacCheck({
     azureAccount: azureSetup.azureAccount,
-    defaultSubscriptionId: corpSubscriptionId,
-    corpName,
-    dnsName,
+    spClientId: corpSpClientId,
+    subscriptionId,
     tenantId: corpTenantId,
   });
-  /*
-   * Terraform's storage account lives wherever Corp Domain Setup created it, so it must
-   * follow that card's resolved subscription (which the user can override), not the raw env default.
-   */
-  const tfSetup = useTerraformSetup({
+
+  const infra = useInfraSetup({
     azureAccount: azureSetup.azureAccount,
-    subscriptionId: createDomain.subscriptionId,
+    subscriptionId,
     corpName,
     spClientId: corpSpClientId,
+    tenantId: corpTenantId,
+  });
+  const createDomain = useCreateDomainSetup({
+    azureAccount: azureSetup.azureAccount,
+    subscriptionId,
+    corpName,
+    dnsName,
     tenantId: corpTenantId,
   });
 
@@ -125,6 +144,8 @@ function AppDashboard() {
   const azureConfigured = !!AZURE_CLIENT_ID;
   const azureSignedIn = !!azureSetup.azureAccount;
   const hasCompanyInfo = !!corpName && !!dnsName;
+  const subscriptionSelected = subscriptionConfirmed;
+  const subscriptionLabel = azureSetup.subscriptions.find((s) => s.id === subscriptionId)?.displayName ?? (subscriptionId || undefined);
 
   const tileState: TileStateInput = {
     isAuthed,
@@ -136,19 +157,22 @@ function AppDashboard() {
     azureSecretsValid: env.azureSecrets.valid,
     appRegResultPresent: !!azureSetup.result,
     hasAzureClientId: !!corpSpClientId,
+    rbacReady,
     isCloneRepo: repo.isCloneRepo,
     repoStatus: repo.status,
     repoFullName: repo.repoFullName,
     envSelected: !!env.selectedEnv,
     envName: env.selectedEnv?.name,
+    subscriptionSelected,
+    subscriptionLabel,
+    subscriptionDrift,
+    subscriptionNoAccess,
     hasCompanyInfo,
     corpName,
     dnsName,
-    domainResourcesDone: createDomain.resourcesDone,
-    storageAccountReady: createDomain.storageAccountReady,
+    infraDone: infra.done,
     domainVerified: createDomain.domainVerified,
     domainIsPrimary: createDomain.isPrimary,
-    tfDone: tfSetup.done,
   };
 
   const cardStatus = deriveCardStatus(tileState);
@@ -364,6 +388,31 @@ function AppDashboard() {
                 )}
               </CardTile>
             </Box>
+            <Box {...itemProps("subscription")}>
+              <CardTile title="Azure subscription" {...tileProps("subscription")}>
+                {azureConfigured ? (
+                  <SubscriptionDetail
+                    azureAccount={azureSetup.azureAccount}
+                    tenants={azureSetup.tenants}
+                    manualTenantId={azureSetup.manualTenantId}
+                    setManualTenantId={azureSetup.setManualTenantId}
+                    selectTenant={azureSetup.selectTenant}
+                    subscriptions={azureSetup.subscriptions}
+                    selectedSubscriptionId={azureSetup.selectedSubscriptionId}
+                    setSelectedSubscriptionId={azureSetup.setSelectedSubscriptionId}
+                    subsError={azureSetup.subsError}
+                    subscriptionDrift={subscriptionDrift}
+                    subscriptionNoAccess={subscriptionNoAccess}
+                    account={repo.selectedAccount}
+                    repoName={repo.selectedRepo?.name ?? ""}
+                    selectedEnv={env.selectedEnv}
+                    githubUrl={githubEnvUrl}
+                  />
+                ) : (
+                  <ConfigErrorNotice />
+                )}
+              </CardTile>
+            </Box>
           </Box>
 
           {/* ── Resources ── */}
@@ -395,6 +444,8 @@ function AppDashboard() {
                   account={repo.selectedAccount}
                   repoName={repo.selectedRepo?.name ?? ""}
                   selectedEnv={env.selectedEnv}
+                  subscriptionId={subscriptionId}
+                  rbacReady={rbacReady}
                   onComplete={setAzureSetupDone}
                   githubUrl={githubEnvUrl}
                   onAzureValid={env.onAzureValid}
@@ -402,29 +453,27 @@ function AppDashboard() {
               </CardTile>
             </Box>
 
+            <Box {...itemProps("infra")}>
+              <CardTile title="Corp infrastructure" {...tileProps("infra")}>
+                <InfraDetail
+                  {...infra}
+                  disabled={reqs("infra").length > 0}
+                  azureAccount={azureSetup.azureAccount}
+                  corpName={corpName}
+                  subscriptionId={subscriptionId}
+                  spClientId={corpSpClientId}
+                />
+              </CardTile>
+            </Box>
+
             <Box {...itemProps("create_domain")}>
-              <CardTile title="Corp domain setup" {...tileProps("create_domain")}>
+              <CardTile title="Corp domain" {...tileProps("create_domain")}>
                 <CreateDomainDetail
                   {...createDomain}
                   disabled={reqs("create_domain").length > 0}
                   azureAccount={azureSetup.azureAccount}
                   corpName={corpName}
                   dnsName={dnsName}
-                  subscriptions={azureSetup.subscriptions}
-                />
-              </CardTile>
-            </Box>
-
-            <Box {...itemProps("tf_backend")}>
-              <CardTile title="Terraform backend" {...tileProps("tf_backend")}>
-                <TfBackendDetail
-                  {...tfSetup}
-                  disabled={reqs("tf_backend").length > 0}
-                  azureAccount={azureSetup.azureAccount}
-                  corpName={corpName}
-                  subscriptionId={createDomain.subscriptionId}
-                  spClientId={corpSpClientId}
-                  storageReady={createDomain.storageAccountReady}
                 />
               </CardTile>
             </Box>

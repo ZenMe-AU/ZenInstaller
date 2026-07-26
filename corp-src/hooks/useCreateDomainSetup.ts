@@ -1,18 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { AccountInfo } from "@azure/msal-browser";
 import { getMsal } from "../api/msal";
 import { DOMAIN_SCOPES } from "../config/azureConfig";
-import {
-  ensureResourceGroup,
-  ensureLogAnalyticsWorkspace,
-  ensureSubscriptionDiagnostics,
-  ensureAppInsights,
-  ensureDnsZone,
-  ensureDnsTxtRecord,
-  ensureStorageAccount,
-  listLocations,
-  type AzureLocation,
-} from "../api/azureArm";
+import { ensureDnsZone, ensureDnsTxtRecord } from "../api/azureArm";
 import {
   getEntraDomain,
   createEntraDomain,
@@ -20,14 +10,7 @@ import {
   verifyEntraDomain,
   setPrimaryEntraDomain,
 } from "../api/azureGraph";
-import {
-  getRootResourceGroupName,
-  getLogAnalyticsWorkspaceName,
-  getStorageAccountName,
-  getAppInsightsName,
-  DIAGNOSTIC_SETTING_NAME,
-  DEFAULT_AZURE_LOCATION,
-} from "../logic/naming";
+import { getRootResourceGroupName } from "../logic/naming";
 import type { SetupStep } from "./useAzureSetup";
 
 export type CreateDomainResult = {
@@ -56,36 +39,25 @@ function loadResult(): CreateDomainResult | null {
 const isConsentError = (msg: string) =>
   msg.includes("interaction_required") || msg.includes("consent_required") || msg.includes("AADSTS65001");
 
+/*
+ * The DNS + Entra custom-domain half of corp setup: create the DNS zone, add the domain to
+ * Entra, write the verification TXT record, verify, and set it primary. The resource group /
+ * storage / observability live in useInfraSetup — this card locks behind it, so the RG the
+ * DNS zone needs already exists when this runs.
+ */
 export function useCreateDomainSetup({
   azureAccount,
-  defaultSubscriptionId,
+  subscriptionId,
   corpName,
   dnsName,
   tenantId,
 }: {
   azureAccount: AccountInfo | null;
-  defaultSubscriptionId: string; // Subscription to prefill from — typically the AZURE_SUBSCRIPTION_ID env variable. Overridable via setSubscriptionId.
+  subscriptionId: string;
   corpName: string;
   dnsName: string;
   tenantId?: string; // Target AAD tenant — required for MSA (personal) accounts where account.tenantId is the consumer tenant.
 }) {
-  const [subscriptionId, setSubscriptionIdState] = useState(defaultSubscriptionId);
-  const userPickedSubRef = useRef(false);
-
-  // Keep in sync with the env-derived default until the user explicitly picks one in this card.
-  useEffect(() => {
-    if (!userPickedSubRef.current && defaultSubscriptionId) setSubscriptionIdState(defaultSubscriptionId);
-  }, [defaultSubscriptionId]);
-
-  const setSubscriptionId = useCallback((id: string) => {
-    userPickedSubRef.current = true;
-    setSubscriptionIdState(id);
-  }, []);
-
-  const [location, setLocation] = useState(DEFAULT_AZURE_LOCATION);
-  const [locations, setLocations] = useState<AzureLocation[]>([]);
-  const [locationsLoading, setLocationsLoading] = useState(false);
-  const [locationsError, setLocationsError] = useState<string | null>(null);
   const [steps, setSteps] = useState<SetupStep[]>([]);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<CreateDomainResult | null>(loadResult);
@@ -98,11 +70,6 @@ export function useCreateDomainSetup({
   // A persisted result only counts if it matches the current NAME/DNS/subscription.
   const resultMatches = !!result && result.corpName === corpName && result.dnsName === dnsName && result.subscriptionId === subscriptionId;
   const resourcesDone = resultMatches;
-  /*
-   * Storage-account name depends only on corpName, not dnsName — so readiness must not
-   * require dnsName to match, or changing DNS_DOMAIN would falsely re-lock Terraform backend.
-   */
-  const storageAccountReady = !!result && result.corpName === corpName && result.subscriptionId === subscriptionId;
 
   // Drop stale persisted state when the target changes.
   useEffect(() => {
@@ -115,33 +82,6 @@ export function useCreateDomainSetup({
   }, [result, resultMatches]);
 
   const resourceGroupName = getRootResourceGroupName(corpName);
-  const lawName = getLogAnalyticsWorkspaceName(corpName);
-  const storageAccountName = getStorageAccountName(corpName);
-  const appInsightsName = getAppInsightsName(corpName);
-
-  // Load the subscription's available regions once an account + subscription are known.
-  useEffect(() => {
-    if (!azureAccount || !subscriptionId) {
-      setLocations([]);
-      return;
-    }
-    let cancelled = false;
-    setLocationsLoading(true);
-    setLocationsError(null);
-    listLocations(azureAccount, subscriptionId, tenantId)
-      .then((locs) => {
-        if (!cancelled) setLocations(locs);
-      })
-      .catch((err) => {
-        if (!cancelled) setLocationsError(err instanceof Error ? err.message : "Failed to load Azure regions");
-      })
-      .finally(() => {
-        if (!cancelled) setLocationsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [azureAccount, subscriptionId, tenantId]);
 
   /*
    * Once a subscription is known, check Graph directly for verified+primary status instead of
@@ -205,40 +145,15 @@ export function useCreateDomainSetup({
     setVerifyError(null);
 
     const initialSteps: SetupStep[] = [
-      { id: "rg", label: `Create resource group ${resourceGroupName}`, status: "pending" },
-      { id: "law", label: `Create Log Analytics workspace ${lawName}`, status: "pending" },
-      { id: "diag", label: "Configure subscription activity-log diagnostics", status: "pending" },
-      { id: "appins", label: `Create Application Insights ${appInsightsName}`, status: "pending" },
       { id: "dns", label: `Create DNS zone ${dnsName}`, status: "pending" },
       { id: "domain", label: "Add custom domain to Entra ID", status: "pending" },
       { id: "txt", label: "Create domain-verification TXT record", status: "pending" },
       { id: "primary", label: "Set as primary domain", status: "pending" },
-      { id: "storage", label: `Create storage account ${storageAccountName}`, status: "pending" },
     ];
     setSteps(initialSteps);
 
-    let currentStep = "rg";
+    let currentStep = "dns";
     try {
-      currentStep = "rg";
-      updateStep("rg", "running");
-      const rgResult = await ensureResourceGroup(azureAccount, subscriptionId, resourceGroupName, location, tenantId);
-      updateStep("rg", rgResult === "exists" ? "skipped" : "done", rgResult === "exists" ? "Already exists" : undefined);
-
-      currentStep = "law";
-      updateStep("law", "running");
-      const law = await ensureLogAnalyticsWorkspace(azureAccount, subscriptionId, resourceGroupName, lawName, location, tenantId);
-      updateStep("law", law.result === "exists" ? "skipped" : "done", law.result === "exists" ? "Already exists" : undefined);
-
-      currentStep = "diag";
-      updateStep("diag", "running");
-      const diag = await ensureSubscriptionDiagnostics(azureAccount, subscriptionId, DIAGNOSTIC_SETTING_NAME, law.id, tenantId);
-      updateStep("diag", diag === "exists" ? "skipped" : "done", diag === "exists" ? "Already configured" : undefined);
-
-      currentStep = "appins";
-      updateStep("appins", "running");
-      const appins = await ensureAppInsights(azureAccount, subscriptionId, resourceGroupName, appInsightsName, location, law.id, tenantId);
-      updateStep("appins", appins === "exists" ? "skipped" : "done", appins === "exists" ? "Already exists" : undefined);
-
       currentStep = "dns";
       updateStep("dns", "running");
       const zone = await ensureDnsZone(azureAccount, subscriptionId, resourceGroupName, dnsName, tenantId);
@@ -282,11 +197,6 @@ export function useCreateDomainSetup({
       }
       setIsPrimary(primaryNow);
 
-      currentStep = "storage";
-      updateStep("storage", "running");
-      const storage = await ensureStorageAccount(azureAccount, subscriptionId, resourceGroupName, storageAccountName, location, tenantId);
-      updateStep("storage", storage === "exists" ? "skipped" : "done", storage === "exists" ? "Already exists" : undefined);
-
       const r: CreateDomainResult = {
         corpName,
         dnsName,
@@ -308,11 +218,7 @@ export function useCreateDomainSetup({
     } finally {
       setRunning(false);
     }
-  }, [
-    azureAccount, subscriptionId, corpName, dnsName, location, tenantId,
-    resourceGroupName, lawName, storageAccountName, appInsightsName,
-    updateStep, requestDomainConsent,
-  ]);
+  }, [azureAccount, subscriptionId, corpName, dnsName, tenantId, resourceGroupName, updateStep, requestDomainConsent]);
 
   // Verifies the domain (if needed) and promotes it to primary — one button drives both.
   const verify = useCallback(async () => {
@@ -368,19 +274,11 @@ export function useCreateDomainSetup({
   }, []);
 
   return {
-    subscriptionId,
-    setSubscriptionId,
     checkingStatus,
     checkStatusError,
-    location,
-    setLocation,
-    locations,
-    locationsLoading,
-    locationsError,
     steps,
     running,
     resourcesDone,
-    storageAccountReady,
     nameServers,
     domainVerified,
     isPrimary,
@@ -389,9 +287,5 @@ export function useCreateDomainSetup({
     verify,
     run,
     reset,
-    resourceGroupName,
-    lawName,
-    storageAccountName,
-    appInsightsName,
   };
 }

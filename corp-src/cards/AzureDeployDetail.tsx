@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Autocomplete, Box, Button, CircularProgress, Collapse, MenuItem, Select, TextField, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, Collapse, TextField, Typography } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
@@ -8,7 +8,7 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { Account, GhEnv } from "../types";
 import type { useAzureSetup } from "../hooks/useAzureSetup";
 import type { SetupStep } from "../hooks/useAzureSetup";
-import { AZURE_VARIABLE_KEYS } from "../logic/variables";
+import { AZURE_APP_KEYS } from "../logic/variables";
 import CloudVariableDetail from "./CloudVariableDetail";
 import { MONO as mono, labelSx } from "../config/styles";
 
@@ -40,6 +40,8 @@ type Props = ReturnType<typeof useAzureSetup> & {
   account: Account | null;
   repoName: string;
   selectedEnv: GhEnv | null;
+  subscriptionId: string;
+  rbacReady: boolean | null;
   onComplete: (done: boolean) => void;
   githubUrl?: string;
   /*
@@ -51,9 +53,6 @@ type Props = ReturnType<typeof useAzureSetup> & {
 
 export default function AzureDeployDetail({
   azureAccount,
-  subscriptions,
-  selectedSubs,
-  setSelectedSubs,
   appName,
   setAppName,
   setEnvironments,
@@ -61,21 +60,15 @@ export default function AzureDeployDetail({
   result,
   running,
   consentFailed,
-  subsError,
-  needsTenantId,
-  availableTenants,
-  manualTenantId,
-  setManualTenantId,
-  tenantIdError,
-  confirmTenantId,
   reset,
   run,
-  changeTenant,
   prefillAppName,
   disabled,
   account,
   repoName,
   selectedEnv,
+  subscriptionId,
+  rbacReady,
   onComplete,
   githubUrl,
   onAzureValid,
@@ -86,9 +79,10 @@ export default function AzureDeployDetail({
   const [bannerState, setBannerState] = useState<"none" | "saved" | "no-changes" | "error">("none");
   const prevResultRef = useRef(result);
   const prefilledNameRef = useRef(false);
-  const tenantPrefillDoneRef = useRef(false);
 
   const varHasAny = !!loadedVars && Object.keys(loadedVars).length > 0;
+  // App exists (persisted result) but the SP has no RBAC on the currently selected subscription.
+  const rbacMissing = !!result && rbacReady === false;
 
   // Action handlers that also dismiss the banner.
   const handleRetry = () => {
@@ -118,35 +112,10 @@ export default function AzureDeployDetail({
     prevResultRef.current = result;
   }, [result]);
 
-  // Reset per-env guards when the target env changes.
+  // Reset per-env guard when the target env changes.
   useEffect(() => {
     prefilledNameRef.current = false;
-    tenantPrefillDoneRef.current = false;
   }, [selectedEnv?.name]);
-
-  /*
-   * Allow app name prefill to retry when subscriptions first load
-   * (MSA accounts need effectiveTenantId, which only becomes available after tenant confirmation).
-   */
-  useEffect(() => {
-    if (subscriptions.length > 0) prefilledNameRef.current = false;
-  }, [subscriptions.length]);
-
-  // Pre-fill tenant id once on first load. Use a ref so clearing the field doesn't re-trigger.
-  useEffect(() => {
-    if (tenantPrefillDoneRef.current) return;
-    const savedTid = loadedVars?.AZURE_TENANT_ID;
-    if (!savedTid) return;
-    tenantPrefillDoneRef.current = true;
-    setManualTenantId(savedTid);
-  }, [loadedVars, setManualTenantId]);
-
-  // Auto-select the saved subscription if present in the loaded list.
-  useEffect(() => {
-    if (subscriptions.length === 0 || selectedSubs.length > 0) return;
-    const savedSub = loadedVars?.AZURE_SUBSCRIPTION_ID;
-    if (savedSub && subscriptions.some((s) => s.id === savedSub)) setSelectedSubs([savedSub]);
-  }, [subscriptions, selectedSubs.length, loadedVars, setSelectedSubs]);
 
   // Prefill App registration name from the saved client id (falls back silently if not found).
   useEffect(() => {
@@ -157,15 +126,7 @@ export default function AzureDeployDetail({
     void prefillAppName(savedClientId);
   }, [azureAccount, loadedVars, prefillAppName]);
 
-  const chosenSub = result?.subscriptionIds[0] ?? "";
-  const populate = result
-    ? {
-        AZURE_CLIENT_ID: result.clientId,
-        AZURE_PLAN_CLIENT_ID: result.clientId,
-        AZURE_TENANT_ID: result.tenantId,
-        AZURE_SUBSCRIPTION_ID: chosenSub,
-      }
-    : undefined;
+  const populate = result ? { AZURE_CLIENT_ID: result.clientId, AZURE_PLAN_CLIENT_ID: result.clientId } : undefined;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -201,111 +162,28 @@ export default function AzureDeployDetail({
         {/* Description — always visible */}
         <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
           <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
-            Create an app registration for GitHub Actions. Pick the target subscription and a name, then create it — the AZURE_* connection variables
-            are written to GitHub automatically.
+            Create an app registration for GitHub Actions and grant it access on your selected subscription. Name it and create it — the
+            AZURE_CLIENT_ID connection variables are written to GitHub automatically.
           </Typography>
         </Box>
 
         {/* Requires the Azure sign-in from the Azure login card */}
         {azureAccount && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-            {/* Tenant ID input (personal accounts) */}
-            {needsTenantId && (
-              <Box
-                sx={{
-                  background: "#fef9c3",
-                  border: "1px solid #fde047",
-                  borderRadius: "8px",
-                  px: 2,
-                  py: 1.5,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 1.25,
-                }}
-              >
-                <Box>
-                  <Typography sx={{ fontSize: "0.78rem", color: "#713f12", fontWeight: 600 }}>Personal Microsoft account detected</Typography>
-                  <Typography sx={{ fontSize: "0.72rem", color: "#854d0e", mt: 0.25 }}>
-                    Enter your Azure Tenant ID to load subscriptions. Find it at: Entra ID → Overview → Tenant ID
-                  </Typography>
-                </Box>
-                <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start", flexDirection: "column" }}>
-                  <Autocomplete
-                    freeSolo
-                    options={availableTenants}
-                    inputValue={manualTenantId}
-                    onInputChange={(_, v) => setManualTenantId(v)}
-                    sx={{ minWidth: { xs: 0, sm: 320 }, width: "100%" }}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        size="small"
-                        placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                        onKeyDown={(e) => e.key === "Enter" && confirmTenantId()}
-                        inputProps={{ ...params.inputProps, style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" } }}
-                        error={!!tenantIdError}
-                        helperText={tenantIdError}
-                      />
-                    )}
-                  />
-                  <Button
-                    variant="contained"
-                    size="small"
-                    onClick={confirmTenantId}
-                    sx={{ background: "#d97706", textTransform: "none", ...mono, fontSize: "0.78rem", "&:hover": { background: "#b45309" } }}
-                  >
-                    Load subscriptions
-                  </Button>
-                </Box>
+            {!subscriptionId && (
+              <Box sx={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", px: 2, py: 1.25 }}>
+                <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>
+                  Pick a subscription in the <b>Azure subscription</b> card first — this app registration grants access on it.
+                </Typography>
               </Box>
             )}
 
-            {subsError && <Typography sx={{ fontSize: "0.72rem", color: "#ef4444" }}>{subsError}</Typography>}
-
-            {/* Subscription dropdown (single-select) */}
-            {subscriptions.length >= 1 && steps.length === 0 && (
-              <Box>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.75 }}>
-                  <Typography sx={{ ...labelSx }}>Subscription</Typography>
-                  {manualTenantId !== "" && (
-                    <Button
-                      size="small"
-                      onClick={changeTenant}
-                      sx={{
-                        minWidth: 0,
-                        fontSize: "0.65rem",
-                        color: "#94a3b8",
-                        textTransform: "none",
-                        ...mono,
-                        py: 0,
-                        "&:hover": { color: "#2563eb" },
-                      }}
-                    >
-                      Change tenant
-                    </Button>
-                  )}
-                </Box>
-                <Select
-                  size="small"
-                  value={selectedSubs[0] ?? ""}
-                  onChange={(e) => setSelectedSubs([e.target.value as string])}
-                  displayEmpty
-                  renderValue={(v) => {
-                    if (!v) return <Typography sx={{ fontSize: "0.8rem", color: "#94a3b8", ...mono }}>Select a subscription</Typography>;
-                    const name = subscriptions.find((s) => s.id === v)?.displayName ?? v;
-                    return <Typography sx={{ fontSize: "0.8rem", ...mono }}>{name}</Typography>;
-                  }}
-                  sx={{ minWidth: { xs: 0, sm: 380 }, width: "100%", fontSize: "0.8rem", ...mono }}
-                >
-                  {subscriptions.map((s) => (
-                    <MenuItem key={s.id} value={s.id} sx={{ py: 0.75 }}>
-                      <Box>
-                        <Typography sx={{ fontSize: "0.8rem", ...mono }}>{s.displayName}</Typography>
-                        <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono }}>{s.id}</Typography>
-                      </Box>
-                    </MenuItem>
-                  ))}
-                </Select>
+            {rbacMissing && (
+              <Box sx={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", px: 2, py: 1.25, display: "flex", gap: 1 }}>
+                <WarningAmberIcon sx={{ fontSize: 16, color: "#d97706", flexShrink: 0 }} />
+                <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>
+                  This app registration has no access on the selected subscription — re-run to grant it.
+                </Typography>
               </Box>
             )}
 
@@ -327,7 +205,7 @@ export default function AzureDeployDetail({
                   <Button
                     variant="contained"
                     onClick={handleRun}
-                    disabled={disabled || selectedSubs.length === 0 || !appName.trim()}
+                    disabled={disabled || !subscriptionId || !appName.trim()}
                     sx={{
                       background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
                       textTransform: "none",
@@ -341,9 +219,9 @@ export default function AzureDeployDetail({
                       "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
                     }}
                   >
-                    Create app registration
+                    {rbacMissing ? "Grant access on this subscription" : "Create app registration"}
                   </Button>
-                  {varHasAny && (
+                  {varHasAny && !rbacMissing && (
                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                       <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
                       <Typography sx={{ fontSize: "0.68rem", color: "#d97706" }}>This will overwrite your current connection details</Typography>
@@ -416,7 +294,7 @@ export default function AzureDeployDetail({
           account={account}
           repo={repoName}
           envName={selectedEnv?.name ?? null}
-          keys={AZURE_VARIABLE_KEYS}
+          keys={AZURE_APP_KEYS}
           populate={populate}
           title="Connection details"
           disabled={disabled}

@@ -6,6 +6,7 @@ import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
 import EditIcon from "@mui/icons-material/Edit";
 import CheckIcon from "@mui/icons-material/Check";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { AccountInfo } from "@azure/msal-browser";
 import type { useInfraSetup } from "../hooks/useInfraSetup";
 import type { SetupStep } from "../hooks/useAzureSetup";
@@ -56,6 +57,8 @@ export default function InfraDetail({
   steps,
   running,
   done,
+  infraRbacStatus,
+  resultMatches,
   run,
   reset,
   resourceGroupName,
@@ -77,6 +80,10 @@ export default function InfraDetail({
   if (!spClientId) missing.push("AZURE_CLIENT_ID");
   const ready = !!azureAccount && missing.length === 0;
 
+  // Previously completed for this target, but the live check now shows the resource group is gone or the SP lost access.
+  const rgNotFound = resultMatches && infraRbacStatus === "rg-not-found";
+  const rgRbacMissing = resultMatches && infraRbacStatus === "missing-role";
+
   const locationDisplayName = locations.find((l) => l.name === location)?.displayName ?? location;
 
   return (
@@ -92,15 +99,31 @@ export default function InfraDetail({
       {/* Gating hints */}
       {!azureAccount && (
         <Box sx={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", px: 2, py: 1.25 }}>
-          <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>
-            Sign in with Azure first — this card reuses that session.
-          </Typography>
+          <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>Sign in with Azure first — this card reuses that session.</Typography>
         </Box>
       )}
       {azureAccount && missing.length > 0 && (
         <Box sx={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", px: 2, py: 1.25 }}>
           <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>
             Missing before setup can run: <b>{missing.join(", ")}</b>
+          </Typography>
+        </Box>
+      )}
+
+      {rgNotFound && (
+        <Box sx={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", px: 2, py: 1.25, display: "flex", gap: 1 }}>
+          <WarningAmberIcon sx={{ fontSize: 16, color: "#d97706", flexShrink: 0 }} />
+          <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>
+            The resource group doesn't exist in the selected subscription anymore — re-run to recreate it.
+          </Typography>
+        </Box>
+      )}
+
+      {rgRbacMissing && (
+        <Box sx={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", px: 2, py: 1.25, display: "flex", gap: 1 }}>
+          <WarningAmberIcon sx={{ fontSize: 16, color: "#d97706", flexShrink: 0 }} />
+          <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>
+            GitHub Actions has no access on the resource group — re-run to grant it.
           </Typography>
         </Box>
       )}
@@ -206,7 +229,7 @@ export default function InfraDetail({
               "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
             }}
           >
-            {done ? "Re-run setup" : "Create corp infrastructure"}
+            {done ? "Re-run setup" : "Create core infrastructure"}
           </Button>
         </Box>
       )}

@@ -2,13 +2,16 @@ import { useCallback, useEffect, useState } from "react";
 import type { AccountInfo } from "@azure/msal-browser";
 import {
   ensureResourceGroup,
+  resourceGroupExists,
   ensureLogAnalyticsWorkspace,
   ensureSubscriptionDiagnostics,
   ensureAppInsights,
   ensureStorageAccount,
   ensureStorageContainer,
   ensureRbacRoleAtScope,
+  hasRbacRoleAtScope,
   storageAccountScope,
+  resourceGroupScope,
   listLocations,
   type AzureLocation,
 } from "../api/azureArm";
@@ -28,6 +31,8 @@ export type InfraSetupResult = {
   corpName: string;
   subscriptionId: string;
 };
+
+export type InfraRbacStatus = "unknown" | "rg-not-found" | "missing-role" | "ready";
 
 const RESULT_KEY = "zeninstaller_infra_result";
 
@@ -69,9 +74,12 @@ export function useInfraSetup({
   const [steps, setSteps] = useState<SetupStep[]>([]);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<InfraSetupResult | null>(loadResult);
+  const [infraRbacStatus, setInfraRbacStatus] = useState<InfraRbacStatus>("unknown");
 
   const resultMatches = !!result && result.corpName === corpName && result.subscriptionId === subscriptionId;
-  const done = resultMatches;
+  // Live rather than localStorage-trusting: the resource group could've been deleted, or the SP's
+  // access revoked, since this last ran (or on another device where nothing was ever persisted here).
+  const done = infraRbacStatus === "ready";
 
   useEffect(() => {
     if (result && !resultMatches) setSteps([]);
@@ -81,6 +89,41 @@ export function useInfraSetup({
   const lawName = getLogAnalyticsWorkspaceName(corpName);
   const storageAccountName = getStorageAccountName(corpName);
   const appInsightsName = getAppInsightsName(corpName);
+
+  // Live check: does the resource group exist, and does the SP hold Contributor on it (directly or
+  // inherited from the subscription)? Mirrors useRbacCheck's sp-not-found/missing-role split.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!azureAccount || !subscriptionId || !spClientId || !resourceGroupName) {
+        if (!cancelled) setInfraRbacStatus("unknown");
+        return;
+      }
+      if (!cancelled) setInfraRbacStatus("unknown");
+      try {
+        const exists = await resourceGroupExists(azureAccount, subscriptionId, resourceGroupName, tenantId);
+        if (cancelled) return;
+        if (!exists) {
+          setInfraRbacStatus("rg-not-found");
+          return;
+        }
+        const sp = await getExistingSP(azureAccount, spClientId, tenantId);
+        if (cancelled) return;
+        if (!sp) {
+          setInfraRbacStatus("missing-role");
+          return;
+        }
+        const hasRole = await hasRbacRoleAtScope(azureAccount, resourceGroupScope(subscriptionId, resourceGroupName), sp.id, "Contributor", tenantId);
+        if (!cancelled) setInfraRbacStatus(hasRole ? "ready" : "missing-role");
+      } catch {
+        // Consent/token errors — leave unknown rather than flag broken.
+        if (!cancelled) setInfraRbacStatus("unknown");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [azureAccount, subscriptionId, spClientId, resourceGroupName, tenantId]);
 
   // Load the subscription's available regions once an account + subscription are known.
   useEffect(() => {
@@ -116,6 +159,7 @@ export function useInfraSetup({
 
     const initialSteps: SetupStep[] = [
       { id: "rg", label: `Create resource group ${resourceGroupName}`, status: "pending" },
+      { id: "rg-rbac", label: "Grant GitHub Actions access to the resource group", status: "pending" },
       { id: "law", label: `Create Log Analytics workspace ${lawName}`, status: "pending" },
       { id: "diag", label: "Configure subscription activity-log diagnostics", status: "pending" },
       { id: "appins", label: `Create Application Insights ${appInsightsName}`, status: "pending" },
@@ -126,11 +170,20 @@ export function useInfraSetup({
     setSteps(initialSteps);
 
     let currentStep = "rg";
+    let sp: Awaited<ReturnType<typeof getExistingSP>> = null;
     try {
       currentStep = "rg";
       updateStep("rg", "running");
       const rgResult = await ensureResourceGroup(azureAccount, subscriptionId, resourceGroupName, location, tenantId);
       updateStep("rg", rgResult === "exists" ? "skipped" : "done", rgResult === "exists" ? "Already exists" : undefined);
+
+      currentStep = "rg-rbac";
+      updateStep("rg-rbac", "running");
+      sp = await getExistingSP(azureAccount, spClientId, tenantId);
+      if (!sp) throw new Error(`Service principal for app ${spClientId} not found — run the Azure card first`);
+      const rgScope = resourceGroupScope(subscriptionId, resourceGroupName);
+      const rgRbac = await ensureRbacRoleAtScope(azureAccount, rgScope, sp.id, "Contributor", tenantId);
+      updateStep("rg-rbac", rgRbac === "exists" ? "skipped" : "done", rgRbac === "exists" ? "Already assigned" : "Contributor");
 
       currentStep = "law";
       updateStep("law", "running");
@@ -159,8 +212,6 @@ export function useInfraSetup({
 
       currentStep = "rbac";
       updateStep("rbac", "running");
-      const sp = await getExistingSP(azureAccount, spClientId, tenantId);
-      if (!sp) throw new Error(`Service principal for app ${spClientId} not found — run the Azure card first`);
       const scope = storageAccountScope(subscriptionId, resourceGroupName, storageAccountName);
       const rbac = await ensureRbacRoleAtScope(azureAccount, scope, sp.id, "Storage Blob Data Contributor", tenantId);
       updateStep("rbac", rbac === "exists" ? "skipped" : "done", rbac === "exists" ? "Already assigned" : "Storage Blob Data Contributor");
@@ -193,6 +244,8 @@ export function useInfraSetup({
     steps,
     running,
     done,
+    infraRbacStatus,
+    resultMatches,
     run,
     reset,
     resourceGroupName,

@@ -116,7 +116,7 @@ function AppDashboard() {
   const subscriptionNoAccess = !!pickedTenant && !!azureSetup.subsError && azureSetup.subscriptions.length === 0;
 
   // Live check: does the app reg exist in this tenant, and does its SP hold RBAC on the selected subscription?
-  const rbacStatus = useRbacCheck({
+  const { status: rbacStatus, missingRoles: rbacMissingRoles } = useRbacCheck({
     azureAccount: azureSetup.azureAccount,
     spClientId: corpSpClientId,
     subscriptionId,
@@ -452,6 +452,7 @@ function AppDashboard() {
                   selectedEnv={env.selectedEnv}
                   subscriptionId={subscriptionId}
                   rbacStatus={rbacStatus}
+                  rbacMissingRoles={rbacMissingRoles}
                   planClientIdMismatch={planClientIdMismatch}
                   onComplete={setAzureSetupDone}
                   githubUrl={githubEnvUrl}
@@ -461,7 +462,7 @@ function AppDashboard() {
             </Box>
 
             <Box {...itemProps("infra")}>
-              <CardTile title="Corp infrastructure" {...tileProps("infra")}>
+              <CardTile title="Core infrastructure" {...tileProps("infra")}>
                 <InfraDetail
                   {...infra}
                   disabled={reqs("infra").length > 0}

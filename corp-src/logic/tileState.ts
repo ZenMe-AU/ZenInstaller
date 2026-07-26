@@ -1,5 +1,5 @@
 import type { CardId, CardStatus } from "../types";
-import type { TileFlags } from "./tileRequirements";
+import type { cardStatusFlags } from "./tileRequirements";
 import type { RbacCheckStatus } from "../hooks/useRbacCheck";
 
 /*
@@ -82,7 +82,7 @@ export function deriveCardStatus(f: TileStateInput): Record<CardId, CardStatus> 
   };
 }
 
-export function deriveTileFlags(f: TileStateInput): TileFlags {
+export function deriveTileFlags(f: TileStateInput): cardStatusFlags {
   return {
     isAuthed: f.isAuthed,
     isCloneRepo: f.isCloneRepo,
@@ -90,7 +90,7 @@ export function deriveTileFlags(f: TileStateInput): TileFlags {
     azureSignedIn: f.azureSignedIn,
     subscriptionSelected: f.subscriptionSelected,
     hasCompanyInfo: f.hasCompanyInfo,
-    hasAzureClientId: f.hasAzureClientId,
+    azureSetupReady: f.hasAzureClientId && f.rbacStatus === "ready",
     infraDone: f.infraDone,
   };
 }

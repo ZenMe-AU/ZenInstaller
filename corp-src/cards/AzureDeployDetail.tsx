@@ -43,6 +43,7 @@ type Props = ReturnType<typeof useAzureSetup> & {
   selectedEnv: GhEnv | null;
   subscriptionId: string;
   rbacStatus: RbacCheckStatus;
+  rbacMissingRoles: string[];
   planClientIdMismatch: boolean;
   onComplete: (done: boolean) => void;
   githubUrl?: string;
@@ -70,6 +71,7 @@ export default function AzureDeployDetail({
   selectedEnv,
   subscriptionId,
   rbacStatus,
+  rbacMissingRoles,
   planClientIdMismatch,
   onComplete,
   githubUrl,
@@ -198,7 +200,7 @@ export default function AzureDeployDetail({
               <Box sx={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", px: 2, py: 1.25, display: "flex", gap: 1 }}>
                 <WarningAmberIcon sx={{ fontSize: 16, color: "#d97706", flexShrink: 0 }} />
                 <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>
-                  This app registration has no access on the selected subscription — re-run to grant it.
+                  Missing on the selected subscription: <b>{rbacMissingRoles.join(", ") || "access"}</b> — re-run to grant it.
                 </Typography>
               </Box>
             )}

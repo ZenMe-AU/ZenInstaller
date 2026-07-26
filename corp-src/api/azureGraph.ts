@@ -21,7 +21,7 @@ export async function getToken(account: AccountInfo, scopes: string[], overrideT
 
   const isArm = scopes.some((s) => s.includes("management.azure.com"));
   if (isArm && account.tenantId === MSA_TENANT && !overrideTenantId) {
-    // throw new Error("MSA_NEEDS_TENANT");
+    throw new Error("MSA_NEEDS_TENANT");
   }
 
   /*

@@ -11,6 +11,8 @@ import { PIPELINES } from "../logic/pipeline";
 import type {
   Account,
   Branch,
+  CardHook,
+  CardRequirements,
   CardStatus,
   PipelineConfig,
   Repo,
@@ -19,9 +21,16 @@ import type {
 } from "../types";
 import type { PendingRestore } from "./useUrlRestore";
 
+
+  export function getDependencies(): CardRequirements {
+    return ["auth"];
+  }
+
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface UseAccountRepo {
+export interface UseAccountRepo extends CardHook {
+  readonly cardId: "repo";
   // Accounts
   accounts: Account[];
   selectedAccount: Account | null;
@@ -65,6 +74,8 @@ export interface UseAccountRepo {
   onClone: () => Promise<void>;
   onCreateBranch: (targetName: string) => Promise<void>;
   onRefresh: () => void;
+  getDependencies: () => CardRequirements;
+  cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Choose an environment")
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -344,6 +355,8 @@ export function useAccountRepo(opts: {
     }
   }, []);
 
+  const cardDependencyLabel: string = "Choose an environment";
+  
   return {
     accounts, selectedAccount, setSelectedAccount,
     repos, selectedRepo, setSelectedRepo, repoCache,
@@ -354,6 +367,6 @@ export function useAccountRepo(opts: {
     branches, branchesLoading, sourceBranch, setSourceBranch,
     creatingBranch, createBranchError,
     status, repoLoading, repoRefreshFailed,
-    onClone, onCreateBranch, onRefresh,
+    onClone, onCreateBranch, onRefresh, cardDependencyLabel,
   };
 }

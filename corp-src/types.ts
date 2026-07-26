@@ -3,6 +3,18 @@
 export type CardId = "auth" | "azure_login" | "repo" | "subscription" | "company_info" | "azure_setup" | "infra" | "create_domain";
 export type CardStatus = "idle" | "loading" | "complete" | "warning" | "error" | "skipped";
 
+
+export type CardState = {
+  done: boolean;
+}
+export type CardRequirements = CardId[];  //["auth","repo"]
+
+export type CardHook = {
+  readonly cardId: string;
+  cardRequirements?: CardRequirements;
+  cardDependencyLabel?: string;
+};
+
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export type User = { login: string };

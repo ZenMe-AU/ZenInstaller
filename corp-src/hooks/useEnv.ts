@@ -4,6 +4,8 @@ import { AZURE_SECRET_KEYS, AWS_SECRET_KEYS } from "../logic/variables";
 import {
   type Account,
   type Branch,
+  type CardHook,
+  type CardRequirements,
   type CardStatus,
   type GhEnv,
   type PendingRestore,
@@ -15,7 +17,8 @@ import { matchBranch, matchEnv } from "../logic/env";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface UseEnv {
+export interface UseEnv extends CardHook {
+  readonly cardId: "company_info";
   envList: GhEnv[];
   selectedEnv: GhEnv | null;
   setSelectedEnv: (env: GhEnv | null) => void;
@@ -39,6 +42,8 @@ export interface UseEnv {
   onVariableConfirmed: (key: string, value: string) => void;
   onAzureValid: (valid: boolean | null) => void;
   onAwsValid: (valid: boolean | null) => void;
+  cardRequirements: CardRequirements;
+  cardDependencyLabel: string;
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -256,6 +261,9 @@ export function useEnv(opts: {
 
   const envReady = !!selectedEnv && !branchMatchError;
 
+  const cardRequirements: CardRequirements = ["auth", "repo"];
+  const cardDependencyLabel: string = "Set company info";
+
   return {
     envList, selectedEnv, setSelectedEnv, envLoading,
     branchMatchWarning, branchMatchError, envReady, status, onRefresh,
@@ -263,6 +271,6 @@ export function useEnv(opts: {
     presentVariableValues, variablesRechecking,
     envRefreshFailed, recheckFailed, varRecheckFailed,
     onRecheck, onVariableRecheck, onVariableConfirmed,
-    onAzureValid, onAwsValid,
+    onAzureValid, onAwsValid, cardRequirements, cardDependencyLabel,
   };
 }

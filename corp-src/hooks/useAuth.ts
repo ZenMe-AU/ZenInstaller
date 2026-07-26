@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { verifyAuth, switchToDirect, switchToBackend } from "../api";
-import type { CardStatus, User } from "../types";
+import type { CardHook, CardStatus, User } from "../types";
 
 const url = import.meta.env.VITE_API_URL;
 const PAT_SESSION = "pat_token";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface UseAuth {
+export interface UseAuth extends CardHook {
+  readonly cardId: "auth";
   authLoading: boolean;
   user: User | null;
   sessionExpired: boolean;
@@ -17,6 +18,7 @@ export interface UseAuth {
   onLogout: () => void;
   onPatLogin: (token: string) => void; // Direct/PAT mode: token is already stored in api/mode.ts; just re-verify and update state.
   onDirectLogout: () => void; // Direct/PAT mode: clear user state locally without redirecting to backend logout.
+  cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Sign in to GitHub")
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -81,5 +83,7 @@ export function useAuth(): UseAuth {
 
   const status: CardStatus = authLoading ? "loading" : user ? "complete" : "idle";
 
-  return { authLoading, user, sessionExpired, redirecting, status, onLogin, onLogout, onPatLogin, onDirectLogout };
+  const cardDependencyLabel : string = "Sign in to GitHub";
+
+  return { authLoading, user, sessionExpired, redirecting, status, onLogin, onLogout, onPatLogin, onDirectLogout, cardDependencyLabel };
 }

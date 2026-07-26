@@ -2,14 +2,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 
-import { type CardId, type PendingRestore } from "./types";
+import { type CardHook, type CardId, type CardRequirements, type PendingRestore } from "./types";
 import { AZURE_CLIENT_ID } from "./config/azureConfig";
 import { MONO as mono } from "./config/styles";
 import { groupLabelSx, groupSx, TILE_W, EXPANDED_W } from "./config/tileLayout";
-import { tileRequirements } from "./logic/tileRequirements";
+import { tileRequirements, type Requirement } from "./logic/tileRequirements";
 import { deriveCardStatus, deriveTileFlags, deriveTileSummaries, type TileStateInput } from "./logic/tileState";
 import { getRepoUrl, getEnvSettingsUrl } from "./logic/github";
-import { useActiveAuth as useAuth } from "./hooks/useActiveAuth";
+import { useAuth } from "./hooks/useAuth";
 import { useAccountRepo } from "./hooks/useAccountRepo";
 import { useAzureSetup } from "./hooks/useAzureSetup";
 import { useCreateDomainSetup } from "./hooks/useCreateDomainSetup";
@@ -39,9 +39,15 @@ import { reactPlugin } from "./monitor/applicationInsights";
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 function AppDashboard() {
+const allCards: Record<string, CardHook> = {};
+  
+function addCard(newCard: CardHook): CardHook {
+  allCards[newCard.cardId] = newCard;
+  return newCard;
+}
   // ── Hooks ──────────────────────────────────────────────────────────────────
   const restore = useUrlRestore();
-  const auth = useAuth();
+  const auth = addCard(useAuth());
   const isAuthed = auth.status === "complete";
 
   // Stable empty refs — passed to sub-hooks when !isAuthed so restore never fires before login
@@ -54,13 +60,14 @@ function AppDashboard() {
   const addWarningGated = isAuthed ? restore.addRestoreWarning : _noop;
   const checkDoneGated = isAuthed ? restore.checkRestoreDone : _noop;
 
-  const repo = useAccountRepo({
+  const repo = addCard(useAccountRepo({
     user: auth.user,
     pendingRestore: pendingRestoreGated,
     urlAccountApplied: urlAccountAppliedGated,
     addRestoreWarning: addWarningGated,
     checkRestoreDone: checkDoneGated,
-  });
+  }));
+
   const pr = usePR({
     account: repo.selectedAccount,
     repo: repo.selectedRepo,
@@ -69,7 +76,7 @@ function AppDashboard() {
     addRestoreWarning: addWarningGated,
     checkRestoreDone: checkDoneGated,
   });
-  const env = useEnv({
+  const env = addCard(useEnv({
     account: repo.selectedAccount,
     repo: repo.selectedRepo,
     isCloneRepo: repo.isCloneRepo,
@@ -79,7 +86,7 @@ function AppDashboard() {
     pendingRestore: pendingRestoreGated,
     addRestoreWarning: addWarningGated,
     checkRestoreDone: checkDoneGated,
-  });
+  }));
   const azureSetup = useAzureSetup({
     githubAccount: repo.selectedAccount,
     githubRepo: repo.selectedRepo?.name ?? "",
@@ -183,8 +190,8 @@ function AppDashboard() {
   const cardStatus = deriveCardStatus(tileState);
 
   // ── Lock / requirements + face summaries ───────────────────────────────────
-  const flags = deriveTileFlags(tileState);
-  const reqs = (id: CardId) => tileRequirements(id, flags);
+  //const flags = deriveTileFlags(tileState);
+  //const reqs = (id: CardId) => tileRequirements(id, flags);
   const summaries = deriveTileSummaries(tileState);
 
   const githubEnvUrl = repo.repoFullName && env.selectedEnv ? getEnvSettingsUrl(repo.repoFullName, env.selectedEnv.id) : undefined;
@@ -193,13 +200,18 @@ function AppDashboard() {
     setExpandedId(id);
     requestAnimationFrame(() => document.getElementById(`tile-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
   };
-  const tileProps = (id: CardId) => {
-    /*
-     * A misconfigured Azure card isn't "locked" behind other steps — it's broken
-     * regardless of progress, so skip the normal prerequisite list for it.
-     */
-    const misconfigured = !azureConfigured && id === "azure_login";
-    const requirements = misconfigured ? [] : reqs(id);
+  const tileProps = (cardHook: CardHook) => {
+    const id = cardHook.cardId;
+    const misconfigured = !azureConfigured && id === "azure_login";  //  A misconfigured Azure card isn't "locked" behind other steps — it's broken regardless of progress, so skip the normal prerequisite list for it.
+
+
+    const cardRequirements = allCards[id].cardRequirements;
+    const requirementsForTile: Requirement[] = [];
+    for (const reqCardId of cardRequirements ?? []) {
+      requirementsForTile.push({ label: allCards[reqCardId].cardDependencyLabel, target: reqCardId });
+    } 
+    const requirements = misconfigured ? [] : requirementsForTile;
+
     return {
       status: cardStatus[id],
       summary: summaries[id],
@@ -425,7 +437,7 @@ function AppDashboard() {
           <Typography sx={groupLabelSx}>Resources</Typography>
           <Box sx={groupSx}>
             <Box {...itemProps("company_info")}>
-              <CardTile title="Company info" {...tileProps("company_info")}>
+              <CardTile title="Company info" {...tileProps(env)}>
                 {env.selectedEnv && (
                   <EnvVariablesDetail
                     account={repo.selectedAccount}

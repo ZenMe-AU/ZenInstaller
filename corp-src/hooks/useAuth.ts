@@ -69,7 +69,10 @@ export function useAuth(): UseAuth {
   const onPatLogin = useCallback((_token: string) => {
     setAuthLoading(true);
     verifyAuth()
-      .then((data) => { sessionStorage.setItem(PAT_SESSION, _token); setUser({ login: data.login }); })
+      .then((data) => {
+        sessionStorage.setItem(PAT_SESSION, _token);
+        setUser({ login: data.login });
+      })
       .catch(() => setUser(null))
       .finally(() => setAuthLoading(false));
   }, []);
@@ -83,7 +86,19 @@ export function useAuth(): UseAuth {
 
   const status: CardStatus = authLoading ? "loading" : user ? "complete" : "idle";
 
-  const cardDependencyLabel : string = "Sign in to GitHub";
+  const cardDependencyLabel: string = "Sign in to GitHub";
 
-  return { authLoading, user, sessionExpired, redirecting, status, onLogin, onLogout, onPatLogin, onDirectLogout, cardDependencyLabel };
+  return {
+    cardId: "auth" as const,
+    authLoading,
+    user,
+    sessionExpired,
+    redirecting,
+    status,
+    onLogin,
+    onLogout,
+    onPatLogin,
+    onDirectLogout,
+    cardDependencyLabel,
+  };
 }

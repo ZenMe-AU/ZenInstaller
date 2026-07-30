@@ -6,8 +6,8 @@ import { type CardHook, type CardId, type CardRequirements, type PendingRestore 
 import { AZURE_CLIENT_ID } from "./config/azureConfig";
 import { MONO as mono } from "./config/styles";
 import { groupLabelSx, groupSx, TILE_W, EXPANDED_W } from "./config/tileLayout";
-import { tileRequirements, type Requirement } from "./logic/tileRequirements";
-import { deriveCardStatus, deriveTileFlags, deriveTileSummaries, type TileStateInput } from "./logic/tileState";
+import { type Requirement } from "./logic/tileRequirements";
+import { deriveCardStatus, deriveTileSummaries, type TileStateInput } from "./logic/tileState";
 import { getRepoUrl, getEnvSettingsUrl } from "./logic/github";
 import { useAuth } from "./hooks/useAuth";
 import { useAccountRepo } from "./hooks/useAccountRepo";
@@ -99,6 +99,17 @@ function AppDashboard() {
     }),
   );
 
+  const azureLoginCard = addCard({
+    cardId: "azure_login" as const,
+    cardRequirements: [],
+    cardDependencyLabel: "Sign in to Azure",
+  });
+  const subscriptionCard = addCard({
+    cardId: "subscription" as const,
+    cardRequirements: ["azure_login", "repo"],
+    cardDependencyLabel: "Select a subscription",
+  });
+
   /*
    * Shared inputs for the subscription / infrastructure / domain cards, sourced from repo
    * variables (the pipeline's source of truth) with the Azure card's live selection as fallback.
@@ -136,21 +147,25 @@ function AppDashboard() {
     tenantId: corpTenantId,
   });
 
-  const infra = useInfraSetup({
-    azureAccount: azureSetup.azureAccount,
-    subscriptionId,
-    corpName,
-    spClientId: corpSpClientId,
-    tenantId: corpTenantId,
-  });
-  const createDomain = useCreateDomainSetup({
-    azureAccount: azureSetup.azureAccount,
-    subscriptionId,
-    corpName,
-    dnsName,
-    spClientId: corpSpClientId,
-    tenantId: corpTenantId,
-  });
+  const infra = addCard(
+    useInfraSetup({
+      azureAccount: azureSetup.azureAccount,
+      subscriptionId,
+      corpName,
+      spClientId: corpSpClientId,
+      tenantId: corpTenantId,
+    }),
+  );
+  const createDomain = addCard(
+    useCreateDomainSetup({
+      azureAccount: azureSetup.azureAccount,
+      subscriptionId,
+      corpName,
+      dnsName,
+      spClientId: corpSpClientId,
+      tenantId: corpTenantId,
+    }),
+  );
 
   // ── Accordion + completion flags ───────────────────────────────────────────
   const [expandedId, setExpandedId] = useState<CardId | null>(null);
@@ -222,7 +237,6 @@ function AppDashboard() {
       requirementsForTile.push({ label: allCards[reqCardId].cardDependencyLabel, target: reqCardId });
     }
     const requirements = misconfigured ? [] : requirementsForTile;
-
     return {
       status: cardStatus[id],
       summary: summaries[id],
@@ -332,7 +346,7 @@ function AppDashboard() {
               </CardTile>
             </Box>
             <Box {...itemProps("azure_login")}>
-              <CardTile title="Azure login" {...tileProps(azureSetup)}>
+              <CardTile title="Azure login" {...tileProps(azureLoginCard)}>
                 {azureConfigured ? (
                   <AzureLoginDetail
                     azureAccount={azureSetup.azureAccount}
@@ -417,7 +431,7 @@ function AppDashboard() {
               </CardTile>
             </Box>
             <Box {...itemProps("subscription")}>
-              <CardTile title="Azure subscription" {...tileProps("subscription")}>
+              <CardTile title="Azure subscription" {...tileProps(subscriptionCard)}>
                 {azureConfigured ? (
                   <SubscriptionDetail
                     azureAccount={azureSetup.azureAccount}
@@ -466,10 +480,10 @@ function AppDashboard() {
             </Box>
 
             <Box {...itemProps("azure_setup")}>
-              <CardTile title="Azure app registration" {...tileProps("azure_setup")}>
+              <CardTile title="Azure app registration" {...tileProps(azureSetup)}>
                 <AzureDeployDetail
                   {...azureSetup}
-                  disabled={reqs("azure_setup").length > 0}
+                  disabled={tileProps(allCards["azure_setup"]).locked}
                   account={repo.selectedAccount}
                   repoName={repo.selectedRepo?.name ?? ""}
                   selectedEnv={env.selectedEnv}
@@ -485,10 +499,10 @@ function AppDashboard() {
             </Box>
 
             <Box {...itemProps("infra")}>
-              <CardTile title="Core infrastructure" {...tileProps("infra")}>
+              <CardTile title="Core infrastructure" {...tileProps(infra)}>
                 <InfraDetail
                   {...infra}
-                  disabled={reqs("infra").length > 0}
+                  disabled={tileProps(allCards["infra"]).locked}
                   azureAccount={azureSetup.azureAccount}
                   corpName={corpName}
                   subscriptionId={subscriptionId}
@@ -498,10 +512,10 @@ function AppDashboard() {
             </Box>
 
             <Box {...itemProps("create_domain")}>
-              <CardTile title="Corp domain" {...tileProps("create_domain")}>
+              <CardTile title="Corp domain" {...tileProps(createDomain)}>
                 <CreateDomainDetail
                   {...createDomain}
-                  disabled={reqs("create_domain").length > 0}
+                  disabled={tileProps(allCards["create_domain"]).locked}
                   azureAccount={azureSetup.azureAccount}
                   corpName={corpName}
                   dnsName={dnsName}

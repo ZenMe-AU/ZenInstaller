@@ -1,31 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  checkTemplate,
-  createBranch,
-  fetchBranches,
-  fetchOrgList,
-  fetchRepos,
-  generateRepo,
-} from "../api";
+import { checkTemplate, createBranch, fetchBranches, fetchOrgList, fetchRepos, generateRepo } from "../api";
 import { PIPELINES } from "../logic/pipeline";
-import type {
-  Account,
-  Branch,
-  CardHook,
-  CardRequirements,
-  CardStatus,
-  PipelineConfig,
-  Repo,
-  RepoOption,
-  User,
-} from "../types";
+import type { Account, Branch, CardHook, CardStatus, PipelineConfig, Repo, RepoOption, User } from "../types";
 import type { PendingRestore } from "./useUrlRestore";
-
-
-  export function getDependencies(): CardRequirements {
-    return ["auth"];
-  }
-
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -74,7 +51,6 @@ export interface UseAccountRepo extends CardHook {
   onClone: () => Promise<void>;
   onCreateBranch: (targetName: string) => Promise<void>;
   onRefresh: () => void;
-  getDependencies: () => CardRequirements;
   cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Choose an environment")
 }
 
@@ -120,16 +96,16 @@ export function useAccountRepo(opts: {
   // ── Derived ───────────────────────────────────────────────────────────────
   const isCloneRepo = templateStatus === "ready";
   const isNewRepo = selectedRepo?.isNew ?? false;
-  const repoFullName = selectedAccount && selectedRepo && !isNewRepo
-    ? `${selectedAccount.login}/${selectedRepo.name}`
-    : null;
+  const repoFullName = selectedAccount && selectedRepo && !isNewRepo ? `${selectedAccount.login}/${selectedRepo.name}` : null;
   const pipeline = PIPELINES[selectedPipeline];
 
   const pipelineRef = useRef(pipeline);
   pipelineRef.current = pipeline;
 
   // Auto-clear clone error when a different repo is selected
-  useEffect(() => { setCloneError(null); }, [selectedRepo?.id]);
+  useEffect(() => {
+    setCloneError(null);
+  }, [selectedRepo?.id]);
 
   // Re-evaluate template match when user switches pipeline (repo may already be selected)
   const templateNameRef = useRef<string | null>(null);
@@ -186,7 +162,9 @@ export function useAccountRepo(opts: {
     const match = targetLogin ? accounts.find((a) => a.login.toLowerCase() === targetLogin.toLowerCase()) : null;
     if (targetLogin && !match) {
       addRestoreWarning(`Account "${targetLogin}" not found or not accessible`);
-      p.repo = null; p.pr = null; p.env = null;
+      p.repo = null;
+      p.pr = null;
+      p.env = null;
     }
     p.account = null;
     setSelectedAccount(match ?? accounts[0] ?? null);
@@ -211,7 +189,8 @@ export function useAccountRepo(opts: {
           setSelectedRepo({ id: match.id, name: match.name });
         } else {
           addRestoreWarning(`Repository "${targetRepo}" not found`);
-          p.pr = null; p.env = null;
+          p.pr = null;
+          p.env = null;
         }
       }
       checkRestoreDone();
@@ -260,7 +239,8 @@ export function useAccountRepo(opts: {
             .finally(() => setBranchesLoading(false));
         } else {
           const rp = pendingRestore.current;
-          rp.pr = null; rp.env = null;
+          rp.pr = null;
+          rp.env = null;
           checkRestoreDone();
         }
       })
@@ -297,10 +277,11 @@ export function useAccountRepo(opts: {
     setCloneError(null);
     setCloneEnvWarning(null);
     try {
-      const { repo: newRepo, envSuccess, results } = await generateRepo(
-        acc, name, isPrivate, includeAllBranch, createEnvs,
-        pipeline.templateRepo, pipeline.validEnvs,
-      );
+      const {
+        repo: newRepo,
+        envSuccess,
+        results,
+      } = await generateRepo(acc, name, isPrivate, includeAllBranch, createEnvs, pipeline.templateRepo, pipeline.validEnvs);
       const updated = [...reposRef.current, newRepo];
       setRepos(updated);
       setRepoCache((prev) => ({ ...prev, [String(acc.id)]: updated }));
@@ -325,7 +306,11 @@ export function useAccountRepo(opts: {
     const key = String(acc.id);
     setRepoLoading(true);
     setRepoRefreshFailed(false);
-    setRepoCache((prev) => { const next = { ...prev }; delete next[key]; return next; });
+    setRepoCache((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
     Promise.all([fetchOrgList(), fetchRepos(acc)])
       .then(([orgs, list]) => {
         setAccounts(orgs);
@@ -356,25 +341,44 @@ export function useAccountRepo(opts: {
   }, []);
 
   const cardDependencyLabel: string = "Choose an environment";
-  //   const cardDependencyLabel: string = () => {
-  //   const needRepo = isCloneRepo;
-  //   const needEnv = selectenv !== null && !selectenv.isSelected;
-  //   if (needRepo && needEnv) return [{ label: "Select repository and environment", target: "repo" }];
-  //   if (needRepo) return [{ label: "Select the target repository", target: "repo" }];
-  //   if (needEnv) return [{ label: "Choose an environment", target: "repo" }];
-  //   return "";
-  // }
-  
+
   return {
-    accounts, selectedAccount, setSelectedAccount,
-    repos, selectedRepo, setSelectedRepo, repoCache,
-    templateStatus, templateName, isCloneRepo, repoFullName,
-    pipeline, selectedPipeline, setSelectedPipeline,
-    isPrivate, setIsPrivate, includeAllBranch, setIncludeAllBranch,
-    cloning, cloneError, createEnvs, setCreateEnvs, cloneEnvWarning,
-    branches, branchesLoading, sourceBranch, setSourceBranch,
-    creatingBranch, createBranchError,
-    status, repoLoading, repoRefreshFailed,
-    onClone, onCreateBranch, onRefresh, cardDependencyLabel,
+    cardId: "repo" as const,
+    accounts,
+    selectedAccount,
+    setSelectedAccount,
+    repos,
+    selectedRepo,
+    setSelectedRepo,
+    repoCache,
+    templateStatus,
+    templateName,
+    isCloneRepo,
+    repoFullName,
+    pipeline,
+    selectedPipeline,
+    setSelectedPipeline,
+    isPrivate,
+    setIsPrivate,
+    includeAllBranch,
+    setIncludeAllBranch,
+    cloning,
+    cloneError,
+    createEnvs,
+    setCreateEnvs,
+    cloneEnvWarning,
+    branches,
+    branchesLoading,
+    sourceBranch,
+    setSourceBranch,
+    creatingBranch,
+    createBranchError,
+    status,
+    repoLoading,
+    repoRefreshFailed,
+    onClone,
+    onCreateBranch,
+    onRefresh,
+    cardDependencyLabel,
   };
 }

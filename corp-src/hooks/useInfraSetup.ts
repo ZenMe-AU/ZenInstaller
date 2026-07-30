@@ -25,6 +25,7 @@ import {
   DEFAULT_AZURE_LOCATION,
   TFSTATE_CONTAINER,
 } from "../logic/naming";
+import type { CardHook, CardRequirements } from "../types";
 import type { SetupStep } from "./useAzureSetup";
 
 export type InfraSetupResult = {
@@ -33,6 +34,31 @@ export type InfraSetupResult = {
 };
 
 export type InfraRbacStatus = "unknown" | "rg-not-found" | "missing-role" | "ready";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface UseInfraSetup extends CardHook {
+  readonly cardId: "infra";
+  location: string;
+  setLocation: (loc: string) => void;
+  locations: AzureLocation[];
+  locationsLoading: boolean;
+  locationsError: string | null;
+  steps: SetupStep[];
+  running: boolean;
+  done: boolean;
+  infraRbacStatus: InfraRbacStatus;
+  resultMatches: boolean;
+  run: () => Promise<void>;
+  reset: () => void;
+  resourceGroupName: string;
+  lawName: string;
+  storageAccountName: string;
+  appInsightsName: string;
+  containerName: string;
+  cardRequirements: CardRequirements;
+  cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Set up Corp infrastructure")
+}
 
 const RESULT_KEY = "zeninstaller_infra_result";
 
@@ -66,7 +92,7 @@ export function useInfraSetup({
   corpName: string;
   spClientId: string; // Client id of the GitHub Actions app registration (AZURE_CLIENT_ID variable), for the state-container RBAC grant.
   tenantId?: string; // Target AAD tenant — required for MSA (personal) accounts where account.tenantId is the consumer tenant.
-}) {
+}): UseInfraSetup {
   const [location, setLocation] = useState(DEFAULT_AZURE_LOCATION);
   const [locations, setLocations] = useState<AzureLocation[]>([]);
   const [locationsLoading, setLocationsLoading] = useState(false);
@@ -241,6 +267,7 @@ export function useInfraSetup({
     locations,
     locationsLoading,
     locationsError,
+    cardId: "infra" as const,
     steps,
     running,
     done,
@@ -253,5 +280,7 @@ export function useInfraSetup({
     storageAccountName,
     appInsightsName,
     containerName: TFSTATE_CONTAINER,
+    cardRequirements: ["azure_login", "repo", "subscription", "company_info", "azure_setup"],
+    cardDependencyLabel: "Set up Corp infrastructure",
   };
 }

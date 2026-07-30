@@ -14,6 +14,7 @@ import {
   isConsentError,
 } from "../api/azureGraph";
 import { getRootResourceGroupName } from "../logic/naming";
+import type { CardHook, CardRequirements } from "../types";
 import type { SetupStep } from "./useAzureSetup";
 
 export type CreateDomainResult = {
@@ -24,6 +25,27 @@ export type CreateDomainResult = {
   domainVerified: boolean;
   isPrimary: boolean;
 };
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface UseCreateDomainSetup extends CardHook {
+  readonly cardId: "create_domain";
+  checkingStatus: boolean;
+  checkStatusError: string | null;
+  steps: SetupStep[];
+  running: boolean;
+  resourcesDone: boolean;
+  nameServers: string[];
+  domainVerified: boolean;
+  isPrimary: boolean;
+  verifying: boolean;
+  verifyError: string | null;
+  verify: () => Promise<void>;
+  run: () => Promise<void>;
+  reset: () => void;
+  cardRequirements: CardRequirements;
+  cardDependencyLabel: string;
+}
 
 const RESULT_KEY = "zeninstaller_create_domain_result";
 
@@ -59,7 +81,7 @@ export function useCreateDomainSetup({
   dnsName: string;
   spClientId: string; // The pipeline's service principal — granted DomainReadWriteAll once the domain is set up.
   tenantId?: string; // Target AAD tenant — required for MSA (personal) accounts where account.tenantId is the consumer tenant.
-}) {
+}): UseCreateDomainSetup {
   const [steps, setSteps] = useState<SetupStep[]>([]);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<CreateDomainResult | null>(loadResult);
@@ -301,6 +323,7 @@ export function useCreateDomainSetup({
   }, []);
 
   return {
+    cardId: "create_domain" as const,
     checkingStatus,
     checkStatusError,
     steps,
@@ -314,5 +337,7 @@ export function useCreateDomainSetup({
     verify,
     run,
     reset,
+    cardRequirements: ["azure_login", "repo", "subscription", "company_info", "infra"],
+    cardDependencyLabel: "Set up the corp domain",
   };
 }

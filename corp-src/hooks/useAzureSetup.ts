@@ -17,11 +17,46 @@ import {
   type Subscription,
   type AzureTenant,
 } from "../api/azureGraph";
-import type { Account, CardHook } from "../types";
+import type { Account, CardHook, CardRequirements } from "../types";
 
 export type StepStatus = "pending" | "running" | "done" | "skipped" | "error";
 export type SetupStep = { id: string; label: string; status: StepStatus; detail?: string };
 export type AzureSetupResult = { clientId: string; tenantId: string; subscriptionIds: string[] };
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface UseAzureSetup extends CardHook {
+  readonly cardId: "azure_setup";
+  azureAccount: AccountInfo | null;
+  tenants: AzureTenant[];
+  subscriptions: Subscription[];
+  selectedSubscriptionId: string;
+  setSelectedSubscriptionId: (id: string) => void;
+  appName: string;
+  setAppName: (name: string) => void;
+  environments: string[];
+  setEnvironments: (envs: string[]) => void;
+  steps: SetupStep[];
+  result: AzureSetupResult | null;
+  running: boolean;
+  loggingIn: boolean;
+  loginError: string | null;
+  subsError: string | null;
+  availableTenants: string[];
+  manualTenantId: string;
+  setManualTenantId: (id: string) => void;
+  tenantIdError: string | null;
+  confirmTenantId: (tenantIdArg?: string) => Promise<void>;
+  selectTenant: (tenantId: string) => void;
+  login: () => Promise<void>;
+  logout: () => Promise<void>;
+  reset: () => void;
+  run: () => Promise<void>;
+  changeTenant: () => void;
+  prefillAppName: (appId: string) => Promise<void>;
+  cardRequirements: CardRequirements;
+  cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Complete the Azure app registration")
+}
 
 const SESSION_KEY = "zeninstaller_arm_tenant";
 const RESULT_KEY = "zeninstaller_azure_result";
@@ -55,7 +90,7 @@ export function useAzureSetup({
   githubAccount: Account | null;
   githubRepo: string;
   validEnvs: readonly string[];
-}) {
+}): UseAzureSetup {
   const [azureAccount, setAzureAccount] = useState<AccountInfo | null>(null);
   const [tenants, setTenants] = useState<AzureTenant[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
@@ -445,5 +480,7 @@ export function useAzureSetup({
     run,
     changeTenant,
     prefillAppName,
+    cardRequirements: ["auth", "azure_login", "repo", "subscription"],
+    cardDependencyLabel: "Complete the Azure app registration",
   };
 }

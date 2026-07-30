@@ -62,30 +62,30 @@ export function useEnv(opts: {
   const { pendingRestore, addRestoreWarning, checkRestoreDone } = opts;
 
   const accountRef = useRef(opts.account);
-  const repoRef    = useRef(opts.repo);
+  const repoRef = useRef(opts.repo);
   useLayoutEffect(() => {
     accountRef.current = opts.account;
-    repoRef.current    = opts.repo;
+    repoRef.current = opts.repo;
   });
 
   // ── Env state ─────────────────────────────────────────────────────────────
-  const [envList, setEnvList]                   = useState<GhEnv[]>([]);
-  const [selectedEnv, setSelectedEnv]           = useState<GhEnv | null>(null);
-  const [envLoading, setEnvLoading]             = useState(false);
+  const [envList, setEnvList] = useState<GhEnv[]>([]);
+  const [selectedEnv, setSelectedEnv] = useState<GhEnv | null>(null);
+  const [envLoading, setEnvLoading] = useState(false);
   const [branchMatchWarning, setBranchMatchWarning] = useState<string | null>(null);
-  const [branchMatchError, setBranchMatchError]     = useState<string | null>(null);
-  const [status, setStatus]                     = useState<CardStatus>("idle");
+  const [branchMatchError, setBranchMatchError] = useState<string | null>(null);
+  const [status, setStatus] = useState<CardStatus>("idle");
 
   // ── Secrets & variables state ──────────────────────────────────────────────
-  const [presentSecretKeys, setPresentSecretKeys]       = useState<string[]>([]);
-  const [azureSecrets, setAzureSecrets]                 = useState<SecretsStatus>({ configured: null, valid: null });
-  const [awsSecrets, setAwsSecrets]                     = useState<SecretsStatus>({ configured: null, valid: null });
-  const [rechecking, setRechecking]                     = useState(false);
+  const [presentSecretKeys, setPresentSecretKeys] = useState<string[]>([]);
+  const [azureSecrets, setAzureSecrets] = useState<SecretsStatus>({ configured: null, valid: null });
+  const [awsSecrets, setAwsSecrets] = useState<SecretsStatus>({ configured: null, valid: null });
+  const [rechecking, setRechecking] = useState(false);
   const [presentVariableValues, setPresentVariableValues] = useState<Record<string, string>>({});
-  const [variablesRechecking, setVariablesRechecking]   = useState(false);
-  const [envRefreshFailed, setEnvRefreshFailed]         = useState(false);
-  const [recheckFailed, setRecheckFailed]               = useState(false);
-  const [varRecheckFailed, setVarRecheckFailed]         = useState(false);
+  const [variablesRechecking, setVariablesRechecking] = useState(false);
+  const [envRefreshFailed, setEnvRefreshFailed] = useState(false);
+  const [recheckFailed, setRecheckFailed] = useState(false);
+  const [varRecheckFailed, setVarRecheckFailed] = useState(false);
 
   // Clear env + secrets when repo changes
   const prevRepoId = useRef<number | string | null | undefined>(undefined);
@@ -110,36 +110,39 @@ export function useEnv(opts: {
   }, [selectedEnv?.id]);
 
   // ── Loaders ───────────────────────────────────────────────────────────────
-  const loadEnvs = useCallback(async (account: Account, repo: RepoOption) => {
-    setEnvLoading(true);
-    setEnvRefreshFailed(false);
-    try {
-      const list = await fetchEnvs(account, repo.name);
-      setEnvList(list);
-      const targetEnv = pendingRestore.current.env;
-      pendingRestore.current.env = null;
-      if (targetEnv && !pendingRestore.current.pr) {
-        const match = list.find((e) => e.name.toLowerCase() === targetEnv.toLowerCase());
-        if (match) setSelectedEnv(match);
-        else addRestoreWarning(`Environment "${targetEnv}" not found`);
+  const loadEnvs = useCallback(
+    async (account: Account, repo: RepoOption) => {
+      setEnvLoading(true);
+      setEnvRefreshFailed(false);
+      try {
+        const list = await fetchEnvs(account, repo.name);
+        setEnvList(list);
+        const targetEnv = pendingRestore.current.env;
+        pendingRestore.current.env = null;
+        if (targetEnv && !pendingRestore.current.pr) {
+          const match = list.find((e) => e.name.toLowerCase() === targetEnv.toLowerCase());
+          if (match) setSelectedEnv(match);
+          else addRestoreWarning(`Environment "${targetEnv}" not found`);
+        }
+        checkRestoreDone();
+      } catch (e) {
+        console.error(e);
+        setEnvRefreshFailed(true);
+      } finally {
+        setEnvLoading(false);
       }
-      checkRestoreDone();
-    } catch (e) {
-      console.error(e);
-      setEnvRefreshFailed(true);
-    } finally {
-      setEnvLoading(false);
-    }
-  }, [addRestoreWarning, checkRestoreDone, pendingRestore]);
+    },
+    [addRestoreWarning, checkRestoreDone, pendingRestore],
+  );
 
   const loadSecrets = useCallback(async (envName: string): Promise<boolean> => {
-    const acc  = accountRef.current;
+    const acc = accountRef.current;
     const repo = repoRef.current;
     if (!acc || !repo) return false;
     try {
       const keys = await fetchSecrets(acc, repo.name, envName);
       setAzureSecrets((prev) => ({ ...prev, configured: AZURE_SECRET_KEYS.every((k) => keys.includes(k)) }));
-      setAwsSecrets((prev)   => ({ ...prev, configured: AWS_SECRET_KEYS.every((k)   => keys.includes(k)) }));
+      setAwsSecrets((prev) => ({ ...prev, configured: AWS_SECRET_KEYS.every((k) => keys.includes(k)) }));
       setPresentSecretKeys(keys);
       return true;
     } catch (e) {
@@ -149,7 +152,7 @@ export function useEnv(opts: {
   }, []);
 
   const loadVariables = useCallback(async (envName: string): Promise<boolean> => {
-    const acc  = accountRef.current;
+    const acc = accountRef.current;
     const repo = repoRef.current;
     if (!acc || !repo) return false;
     try {
@@ -180,13 +183,18 @@ export function useEnv(opts: {
     if (!opts.selectedPR) return;
     const result = matchEnv(opts.selectedPR.base_branch, envList, opts.validEnvs);
     if (result.status === "exact") {
-      setSelectedEnv(result.env); setBranchMatchWarning(null); setBranchMatchError(null); setStatus("complete");
+      setSelectedEnv(result.env);
+      setBranchMatchWarning(null);
+      setBranchMatchError(null);
+      setStatus("complete");
     } else if (result.status === "case") {
       setSelectedEnv(result.env);
       setBranchMatchWarning(`Base branch "${opts.selectedPR.base_branch}" and environment "${result.env.name}" have mismatched casing.`);
-      setBranchMatchError(null); setStatus("warning");
+      setBranchMatchError(null);
+      setStatus("warning");
     } else {
-      setSelectedEnv(null); setBranchMatchWarning(null);
+      setSelectedEnv(null);
+      setBranchMatchWarning(null);
       setBranchMatchError(`No matching environment found for base branch "${opts.selectedPR.base_branch}".`);
       setStatus("error");
     }
@@ -196,15 +204,20 @@ export function useEnv(opts: {
   useEffect(() => {
     if (opts.selectedPR) return;
     if (!selectedEnv) {
-      setBranchMatchWarning(null); setBranchMatchError(null); setStatus("idle");
+      setBranchMatchWarning(null);
+      setBranchMatchError(null);
+      setStatus("idle");
       return;
     }
     const result = matchBranch(selectedEnv.name, opts.branches);
     if (result.status === "exact") {
-      setBranchMatchWarning(null); setBranchMatchError(null); setStatus("complete");
+      setBranchMatchWarning(null);
+      setBranchMatchError(null);
+      setStatus("complete");
     } else if (result.status === "case") {
       setBranchMatchWarning(`Environment "${selectedEnv.name}" and branch "${result.branch.name}" have mismatched casing.`);
-      setBranchMatchError(null); setStatus("warning");
+      setBranchMatchError(null);
+      setStatus("warning");
     } else if (result.status === "multiple") {
       setBranchMatchWarning(null);
       setBranchMatchError(`Multiple branches match environment "${selectedEnv.name}". Please resolve the conflict.`);
@@ -218,7 +231,7 @@ export function useEnv(opts: {
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const onRefresh = useCallback(() => {
-    const acc  = accountRef.current;
+    const acc = accountRef.current;
     const repo = repoRef.current;
     if (acc && repo) loadEnvs(acc, repo);
   }, [loadEnvs]);
@@ -265,12 +278,31 @@ export function useEnv(opts: {
   const cardDependencyLabel: string = "Set company info";
 
   return {
-    envList, selectedEnv, setSelectedEnv, envLoading,
-    branchMatchWarning, branchMatchError, envReady, status, onRefresh,
-    presentSecretKeys, azureSecrets, awsSecrets, rechecking,
-    presentVariableValues, variablesRechecking,
-    envRefreshFailed, recheckFailed, varRecheckFailed,
-    onRecheck, onVariableRecheck, onVariableConfirmed,
-    onAzureValid, onAwsValid, cardRequirements, cardDependencyLabel,
+    cardId: "company_info" as const,
+    envList,
+    selectedEnv,
+    setSelectedEnv,
+    envLoading,
+    branchMatchWarning,
+    branchMatchError,
+    envReady,
+    status,
+    onRefresh,
+    presentSecretKeys,
+    azureSecrets,
+    awsSecrets,
+    rechecking,
+    presentVariableValues,
+    variablesRechecking,
+    envRefreshFailed,
+    recheckFailed,
+    varRecheckFailed,
+    onRecheck,
+    onVariableRecheck,
+    onVariableConfirmed,
+    onAzureValid,
+    onAwsValid,
+    cardRequirements,
+    cardDependencyLabel,
   };
 }

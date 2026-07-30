@@ -19,6 +19,7 @@ export interface UseAuth extends CardHook {
   onPatLogin: (token: string) => void; // Direct/PAT mode: token is already stored in api/mode.ts; just re-verify and update state.
   onDirectLogout: () => void; // Direct/PAT mode: clear user state locally without redirecting to backend logout.
   cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Sign in to GitHub")
+  done: boolean;
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -100,5 +101,6 @@ export function useAuth(): UseAuth {
     onPatLogin,
     onDirectLogout,
     cardDependencyLabel,
+    done: status === "complete",
   };
 }

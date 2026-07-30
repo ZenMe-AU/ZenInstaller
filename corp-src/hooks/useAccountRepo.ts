@@ -52,6 +52,7 @@ export interface UseAccountRepo extends CardHook {
   onCreateBranch: (targetName: string) => Promise<void>;
   onRefresh: () => void;
   cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Choose an environment")
+  done: boolean;
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -380,5 +381,6 @@ export function useAccountRepo(opts: {
     onCreateBranch,
     onRefresh,
     cardDependencyLabel,
+    done: isCloneRepo,
   };
 }

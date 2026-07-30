@@ -45,6 +45,7 @@ export interface UseCreateDomainSetup extends CardHook {
   reset: () => void;
   cardRequirements: CardRequirements;
   cardDependencyLabel: string;
+  done: boolean;
 }
 
 const RESULT_KEY = "zeninstaller_create_domain_result";
@@ -339,5 +340,6 @@ export function useCreateDomainSetup({
     reset,
     cardRequirements: ["azure_login", "repo", "subscription", "company_info", "infra"],
     cardDependencyLabel: "Set up the corp domain",
+    done: domainVerified && isPrimary,
   };
 }

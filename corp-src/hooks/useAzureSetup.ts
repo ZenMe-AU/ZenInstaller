@@ -56,6 +56,7 @@ export interface UseAzureSetup extends CardHook {
   prefillAppName: (appId: string) => Promise<void>;
   cardRequirements: CardRequirements;
   cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Complete the Azure app registration")
+  done: boolean;
 }
 
 const SESSION_KEY = "zeninstaller_arm_tenant";
@@ -482,5 +483,6 @@ export function useAzureSetup({
     prefillAppName,
     cardRequirements: ["auth", "azure_login", "repo", "subscription"],
     cardDependencyLabel: "Complete the Azure app registration",
+    done: !!result, // Best-effort in isolation — App.tsx refines this with the live RBAC check once available.
   };
 }

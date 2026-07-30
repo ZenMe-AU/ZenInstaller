@@ -99,16 +99,9 @@ function AppDashboard() {
     }),
   );
 
-  const azureLoginCard = addCard({
-    cardId: "azure_login" as const,
-    cardRequirements: [],
-    cardDependencyLabel: "Sign in to Azure",
-  });
-  const subscriptionCard = addCard({
-    cardId: "subscription" as const,
-    cardRequirements: ["azure_login", "repo"],
-    cardDependencyLabel: "Select a subscription",
-  });
+  // "repo" is only truly done once an environment is also chosen — env lives in a separate hook,
+  // so refine the registry entry now that both are available (the `repo` variable itself is untouched).
+  addCard({ ...repo, done: repo.isCloneRepo && env.envReady });
 
   /*
    * Shared inputs for the subscription / infrastructure / domain cards, sourced from repo
@@ -139,6 +132,19 @@ function AppDashboard() {
   const subscriptionDrift = !!pickedSubscriptionId && !subscriptionConfirmed;
   const subscriptionNoAccess = !!pickedTenant && !!azureSetup.subsError && azureSetup.subscriptions.length === 0;
 
+  const azureLoginCard = addCard({
+    cardId: "azure_login" as const,
+    cardRequirements: [],
+    cardDependencyLabel: "Sign in to Azure",
+    done: !!azureSetup.azureAccount,
+  });
+  const subscriptionCard = addCard({
+    cardId: "subscription" as const,
+    cardRequirements: ["azure_login", "repo"],
+    cardDependencyLabel: "Select a subscription",
+    done: subscriptionConfirmed,
+  });
+
   // Live check: does the app reg exist in this tenant, and does its SP hold RBAC on the selected subscription?
   const { status: rbacStatus, missingRoles: rbacMissingRoles } = useRbacCheck({
     azureAccount: azureSetup.azureAccount,
@@ -168,9 +174,20 @@ function AppDashboard() {
   );
 
   // ── Accordion + completion flags ───────────────────────────────────────────
-  const [expandedId, setExpandedId] = useState<CardId | null>(null);
-  const toggle = (id: CardId) => setExpandedId((cur) => (cur === id ? null : id));
+  // A Set, not a single id, so multiple tiles can stay expanded at once.
+  const [expandedIds, setExpandedIds] = useState<Set<CardId>>(new Set());
+  const toggle = (id: CardId) =>
+    setExpandedIds((cur) => {
+      const next = new Set(cur);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   const [azureSetupDone, setAzureSetupDone] = useState(false);
+
+  // "azure_setup" is only truly done once RBAC is actually ready and the connection vars agree —
+  // refine the registry entry now that those live checks are available.
+  addCard({ ...azureSetup, done: azureSetupDone && rbacStatus === "ready" && !planClientIdMismatch });
 
   // ── Derived card statuses ──────────────────────────────────────────────────
   const azureConfigured = !!AZURE_CLIENT_ID;
@@ -211,21 +228,23 @@ function AppDashboard() {
   const cardStatus = deriveCardStatus(tileState);
 
   // ── Lock / requirements + face summaries ───────────────────────────────────
-  //const flags = deriveTileFlags(tileState);
-  //const reqs = (id: CardId) => tileRequirements(id, flags);
   const summaries = deriveTileSummaries(tileState);
 
   const githubEnvUrl = repo.repoFullName && env.selectedEnv ? getEnvSettingsUrl(repo.repoFullName, env.selectedEnv.id) : undefined;
 
+  // Jumping to a prerequisite adds it to the expanded set rather than replacing it, so the tile
+  // you came from stays open too.
   const openTile = (id: CardId) => {
-    setExpandedId(id);
+    setExpandedIds((cur) => new Set(cur).add(id));
     requestAnimationFrame(() => document.getElementById(`tile-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
   };
 
+  // Only surfaces dependencies that are still unmet — a card that reports its own `done` doesn't get
+  // listed (and its own sub-dependencies are assumed satisfied too), so this also stops recursing there.
   function getCardRequirementsRecursive(id: CardId): CardRequirements {
-    const directRequirements = allCards[id].cardRequirements ?? [];
+    const directRequirements = (allCards[id].cardRequirements ?? []).filter((reqId) => !allCards[reqId]?.done);
     const nestedRequirements = directRequirements.flatMap((reqId) => getCardRequirementsRecursive(reqId));
-    return [...directRequirements, ...nestedRequirements];
+    return [...new Set([...directRequirements, ...nestedRequirements])];
   }
 
   const tileProps = (cardHook: CardHook) => {
@@ -243,14 +262,14 @@ function AppDashboard() {
       locked: requirements.length > 0,
       requirements,
       unavailable: misconfigured,
-      expanded: expandedId === id,
+      expanded: expandedIds.has(id),
       onToggle: () => toggle(id),
       onRequirementClick: openTile,
     };
   };
   const itemProps = (id: CardId) => ({
     id: `tile-${id}`,
-    sx: { width: expandedId === id ? EXPANDED_W : TILE_W, maxWidth: "100%" as const, transition: "width 0.25s ease" },
+    sx: { width: expandedIds.has(id) ? EXPANDED_W : TILE_W, maxWidth: "100%" as const, transition: "width 0.25s ease" },
   });
 
   // ── URL sync (persist current state; restore is handled by useUrlRestore) ──

@@ -1,6 +1,6 @@
 import type { AccountInfo } from "@azure/msal-browser";
 import { getMsal } from "./msal";
-import { APP_SCOPES, ARM_SCOPES, DOMAIN_SCOPES, GRANT_CONSENT_SCOPES } from "../config/azureConfig";
+import { APP_SCOPES, LOGIN_SCOPES, ARM_SCOPES, DOMAIN_SCOPES, GRANT_CONSENT_SCOPES } from "../config/azureConfig";
 import { RBAC_ROLE_IDS } from "../config/azureConfig";
 import { deterministicUuid } from "../logic/crypto";
 

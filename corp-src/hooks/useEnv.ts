@@ -44,6 +44,7 @@ export interface UseEnv extends CardHook {
   onAwsValid: (valid: boolean | null) => void;
   cardRequirements: CardRequirements;
   cardDependencyLabel: string;
+  done: boolean;
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -273,6 +274,7 @@ export function useEnv(opts: {
   }, []);
 
   const envReady = !!selectedEnv && !branchMatchError;
+  const hasCompanyInfo = !!presentVariableValues.NAME && !!presentVariableValues.DNS;
 
   const cardRequirements: CardRequirements = ["auth", "repo"];
   const cardDependencyLabel: string = "Set company info";
@@ -304,5 +306,6 @@ export function useEnv(opts: {
     onAwsValid,
     cardRequirements,
     cardDependencyLabel,
+    done: hasCompanyInfo,
   };
 }

@@ -6,10 +6,11 @@ export type CardStatus = "idle" | "loading" | "complete" | "warning" | "error" |
 
 export type CardState = {
   done: boolean;
-}
-export type CardRequirements = CardId[];  //["auth","repo"]
+};
+export type CardRequirements = CardId[]; //["auth","repo"]
 
-export type CardHook = {
+// Every card-backing hook self-reports its own completion via `done`, so other cards can query it.
+export type CardHook = CardState & {
   readonly cardId: string;
   cardRequirements?: CardRequirements;
   cardDependencyLabel?: string;

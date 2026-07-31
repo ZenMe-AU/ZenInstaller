@@ -184,12 +184,12 @@ export function useAzureAccessPass(props: {
     setSteps((prev) => prev.map((s) => (s.id === id ? { ...s, status, detail } : s)));
   }, []);
 
-  const loadSubs = useCallback(async (account: AccountInfo, overrideTenantId?: string) => {
-    const subs = await listSubscriptions(account, overrideTenantId);
-    setSubscriptions(subs);
-    if (subs.length >= 1) setSelectedSubs(subs.map((s) => s.id));
-    if (subs.length === 0) setSubsError("No subscriptions found for this account.");
-  }, []);
+  // const loadSubs = useCallback(async (account: AccountInfo, overrideTenantId?: string) => {
+  //   const subs = await listSubscriptions(account, overrideTenantId);
+  //   setSubscriptions(subs);
+  //   if (subs.length >= 1) setSelectedSubs(subs.map((s) => s.id));
+  //   if (subs.length === 0) setSubsError("No subscriptions found for this account.");
+  // }, []);
 
   // Load Entra users managed by the signed-in user, trying multiple plausible tenant contexts until one succeeds.
   const loadManagerUsers = useCallback(async (account: AccountInfo, tenantCandidates: string[]) => {
@@ -312,21 +312,21 @@ export function useAzureAccessPass(props: {
         const savedTenant = sessionStorage.getItem(SESSION_KEY) || undefined;
         const setupTenant = loadTenantIdFromStorage(AZURE_SETUP_RESULT_KEY);
 
-        const tryLoadSubs = async (account: AccountInfo, tenant: string | undefined) => {
-          try {
-            await loadSubs(account, tenant);
-            if (tenant) sessionStorage.removeItem(SESSION_KEY);
-          } catch (err) {
-            // ARM consent not yet granted — redirect for ARM
-            const msg = err instanceof Error ? err.message : "";
-            if ((msg.includes("AADSTS65001") || msg.includes("interaction_required")) && tenant) {
-              await msal.acquireTokenRedirect({
-                scopes: ARM_SCOPES,
-                authority: `https://login.microsoftonline.com/${tenant}`,
-              });
-            }
-          }
-        };
+        // const tryLoadSubs = async (account: AccountInfo, tenant: string | undefined) => {
+        //   try {
+        //     await loadSubs(account, tenant);
+        //     if (tenant) sessionStorage.removeItem(SESSION_KEY);
+        //   } catch (err) {
+        //     // ARM consent not yet granted — redirect for ARM
+        //     const msg = err instanceof Error ? err.message : "";
+        //     if ((msg.includes("AADSTS65001") || msg.includes("interaction_required")) && tenant) {
+        //       await msal.acquireTokenRedirect({
+        //         scopes: ARM_SCOPES,
+        //         authority: `https://login.microsoftonline.com/${tenant}`,
+        //       });
+        //     }
+        //   }
+        // };
 
         const msaTenant = (acc: AccountInfo) =>
           acc.tenantId === MSA_TENANT ? loadResult()?.tenantId ?? setupTenant ?? undefined : undefined;
@@ -336,7 +336,7 @@ export function useAzureAccessPass(props: {
           setAzureAccount(result.account);
           const tenant = savedTenant ?? msaTenant(result.account);
           if (tenant) setManualTenantId(tenant);
-          await tryLoadSubs(result.account, tenant);
+          // await tryLoadSubs(result.account, tenant);
         } else {
           const accounts = msal.getAllAccounts();
           console.log("MSAL accounts on init:", accounts);
@@ -349,7 +349,7 @@ export function useAzureAccessPass(props: {
             setAzureAccount(account);
             const tenant = savedTenant ?? msaTenant(account) ?? preferredTid;
             if (tenant) setManualTenantId(tenant);
-            await tryLoadSubs(account, tenant);
+            // await tryLoadSubs(account, tenant);
           }
         }
       } catch (err) {
@@ -362,7 +362,8 @@ export function useAzureAccessPass(props: {
     return () => {
       cancelled = true;
     };
-  }, [loadSubs]);
+  // }, [loadSubs]);
+  }, []);
 
   const login = useCallback(async () => {
     setLoginError(null);
@@ -416,7 +417,7 @@ export function useAzureAccessPass(props: {
       const refreshed = msal.getAllAccounts();
       const bestAccount = refreshed.find((a) => a.tenantId === tid) ?? tenantAccount;
       if (bestAccount !== azureAccount) setAzureAccount(bestAccount);
-      await loadSubs(bestAccount, tid);
+      // await loadSubs(bestAccount, tid);
       return;
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
@@ -439,7 +440,7 @@ export function useAzureAccessPass(props: {
       sessionStorage.removeItem(SESSION_KEY);
       setTenantIdError(err instanceof Error ? err.message : "Failed to redirect");
     }
-  }, [azureAccount, manualTenantId, availableTenants, selectedManagerUserId, loadSubs]);
+  }, [azureAccount, manualTenantId, availableTenants, selectedManagerUserId]);
 
   const changeTenant = useCallback(() => {
     setSubscriptions([]);

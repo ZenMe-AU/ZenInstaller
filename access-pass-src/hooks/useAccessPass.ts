@@ -124,6 +124,7 @@ export function useAzureAccessPass(props: {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [subsError, setSubsError] = useState<string | null>(null);
   const [manualTenantId, setManualTenantId] = useState("");
+  const [forceTenantSelection, setForceTenantSelection] = useState(false);
   const [tenantIdError, setTenantIdError] = useState<string | null>(null);
   // Manager-matched Entra users shown in the personal-account fallback flow.
   const [managerUsers, setManagerUsers] = useState<EntraUser[]>([]);
@@ -176,12 +177,12 @@ export function useAzureAccessPass(props: {
     return Array.from(azureAccount.tenantProfiles.keys()).filter((id) => id !== MSA_TENANT);
   }, [azureAccount]);
 
+  const isMsaAccount = azureAccount?.tenantId === MSA_TENANT;
   const normalizedTenantId = manualTenantId.trim();
-  const needsTenantId = (azureAccount?.tenantId === MSA_TENANT || manualTenantId !== "") && subscriptions.length === 0;
+  const needsTenantId = (isMsaAccount || forceTenantSelection) && subscriptions.length === 0;
   // Always carry the resolved tenant for MSA flows; do not tie this to UI gating state.
   const effectiveTenantId =
-    normalizedTenantId ||
-    (azureAccount?.tenantId === MSA_TENANT ? loadResult()?.tenantId ?? loadTenantIdFromStorage(AZURE_SETUP_RESULT_KEY) : undefined);
+    isMsaAccount ? (normalizedTenantId || loadResult()?.tenantId || loadTenantIdFromStorage(AZURE_SETUP_RESULT_KEY)) : undefined;
 
   const updateStep = useCallback((id: string, status: StepStatus, detail?: string) => {
     setSteps((prev) => prev.map((s) => (s.id === id ? { ...s, status, detail } : s)));
@@ -336,7 +337,7 @@ export function useAzureAccessPass(props: {
         };
 
         const msaTenant = (acc: AccountInfo) =>
-          acc.tenantId === MSA_TENANT ? loadResult()?.tenantId ?? setupTenant ?? undefined : undefined;
+          acc.tenantId === MSA_TENANT ? savedTenant ?? loadResult()?.tenantId ?? setupTenant ?? undefined : undefined;
 
         if (result?.account) {
           console.log("MSAL accounts on init:", msal.getAllAccounts());
@@ -348,7 +349,7 @@ export function useAzureAccessPass(props: {
             });
             sessionStorage.removeItem(LOGIN_INTENT_KEY);
           }
-          const tenant = savedTenant ?? msaTenant(result.account);
+          const tenant = msaTenant(result.account);
           if (tenant) setManualTenantId(tenant);
           await tryLoadSubs(result.account, tenant);
         } else {
@@ -368,7 +369,7 @@ export function useAzureAccessPass(props: {
               });
               sessionStorage.removeItem(LOGIN_INTENT_KEY);
             }
-            const tenant = savedTenant ?? msaTenant(account) ?? preferredTid;
+            const tenant = msaTenant(account) ?? (account.tenantId === MSA_TENANT ? preferredTid : undefined);
             if (tenant) setManualTenantId(tenant);
             await tryLoadSubs(account, tenant);
           }
@@ -390,11 +391,11 @@ export function useAzureAccessPass(props: {
     setLoginError(null);
     setSubsError(null);
     setTenantIdError(null);
+    setForceTenantSelection(false);
     try {
       const msal = await getMsal();
       if (!msal) return;
-      const setupTenant = loadTenantIdFromStorage(AZURE_SETUP_RESULT_KEY);
-      const preferredTenant = manualTenantId.trim() || loadResult()?.tenantId || setupTenant;
+      const preferredTenant = manualTenantId.trim();
       sessionStorage.setItem(LOGIN_INTENT_KEY, "1");
       await msal.loginRedirect({
         scopes: GRAPH_SCOPES,
@@ -436,6 +437,7 @@ export function useAzureAccessPass(props: {
       const bestAccount = refreshed.find((a) => a.tenantId === tid) ?? tenantAccount;
       if (bestAccount !== azureAccount) setAzureAccount(bestAccount);
       await loadSubs(bestAccount, tid);
+      setForceTenantSelection(false);
       return;
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
@@ -469,6 +471,7 @@ export function useAzureAccessPass(props: {
     setSelectedManagerUserId("");
     setManagerUsersError(null);
     setManualTenantId("");
+    setForceTenantSelection(true);
   }, []);
 
   const reset = useCallback(() => {
@@ -490,6 +493,7 @@ export function useAzureAccessPass(props: {
     setConsentFailed(false);
     setSubsError(null);
     setManualTenantId("");
+    setForceTenantSelection(false);
     setTenantIdError(null);
     setManagerUsers([]);
     setSelectedManagerUserId("");

@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { useAccountRepo, type UseAccountRepo } from "../hooks/useAccountRepo";
+import { useGithubRepo, type UseGithubRepo } from "../hooks/useGithubRepo";
 import type { Account, PendingRestore } from "../types";
 
 const { mockApi } = vi.hoisted(() => ({
@@ -34,10 +34,10 @@ vi.mock("../api", () => ({
 }));
 
 function HookHarness(props: {
-  opts: Parameters<typeof useAccountRepo>[0];
-  onUpdate: (value: UseAccountRepo) => void;
+  opts: Parameters<typeof useGithubRepo>[0];
+  onUpdate: (value: UseGithubRepo) => void;
 }) {
-  const value = useAccountRepo(props.opts);
+  const value = useGithubRepo(props.opts);
 
   useEffect(() => {
     props.onUpdate(value);
@@ -71,7 +71,7 @@ function makePendingRestore(partial?: Partial<PendingRestore>): React.MutableRef
   };
 }
 
-describe("useAccountRepo", () => {
+describe("useGithubRepo", () => {
   const accountOne: Account = { login: "org-one", type: "Organization", id: 101 };
   const accountTwo: Account = { login: "org-two", type: "Organization", id: 102 };
 
@@ -93,11 +93,11 @@ describe("useAccountRepo", () => {
   });
 
   it("loads accounts and selects the first account by default", async () => {
-    let latest: UseAccountRepo | null = null;
+    let latest: UseGithubRepo | null = null;
     const container = document.createElement("div");
     const root = createRoot(container);
 
-    const opts: Parameters<typeof useAccountRepo>[0] = {
+    const opts: Parameters<typeof useGithubRepo>[0] = {
       user: { login: "jake" },
       pendingRestore: makePendingRestore(),
       urlAccountApplied: { current: false },
@@ -123,7 +123,7 @@ describe("useAccountRepo", () => {
   });
 
   it("restores account and repo from pending URL state", async () => {
-    let latest: UseAccountRepo | null = null;
+    let latest: UseGithubRepo | null = null;
     const container = document.createElement("div");
     const root = createRoot(container);
 
@@ -135,7 +135,7 @@ describe("useAccountRepo", () => {
     });
     const checkRestoreDone = vi.fn();
 
-    const opts: Parameters<typeof useAccountRepo>[0] = {
+    const opts: Parameters<typeof useGithubRepo>[0] = {
       user: { login: "jake" },
       pendingRestore,
       urlAccountApplied: { current: false },
@@ -161,11 +161,11 @@ describe("useAccountRepo", () => {
   });
 
   it("prevents cloning when the target repository already exists", async () => {
-    let latest: UseAccountRepo | null = null;
+    let latest: UseGithubRepo | null = null;
     const container = document.createElement("div");
     const root = createRoot(container);
 
-    const opts: Parameters<typeof useAccountRepo>[0] = {
+    const opts: Parameters<typeof useGithubRepo>[0] = {
       user: { login: "jake" },
       pendingRestore: makePendingRestore(),
       urlAccountApplied: { current: false },

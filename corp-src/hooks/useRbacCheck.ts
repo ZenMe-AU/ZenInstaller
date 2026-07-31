@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import type { AccountInfo } from "@azure/msal-browser";
 import { getExistingSP, hasRbacRole } from "../api/azureGraph";
+import type { AzureSpTarget } from "../types";
 
 export type RbacCheckStatus = "unknown" | "sp-not-found" | "missing-role" | "ready";
 export type RbacCheckResult = { status: RbacCheckStatus; missingRoles: string[] };
@@ -17,17 +17,9 @@ const IDLE: RbacCheckResult = { status: "unknown", missingRoles: [] };
  * `missingRoles` names exactly which role(s) are absent, so "I already granted Contributor"
  * can be diagnosed precisely instead of a generic "no access" verdict.
  */
-export function useRbacCheck({
-  azureAccount,
-  spClientId,
-  subscriptionId,
-  tenantId,
-}: {
-  azureAccount: AccountInfo | null;
-  spClientId: string;
-  subscriptionId: string;
-  tenantId?: string;
-}): RbacCheckResult {
+export type UseRbacCheckParams = AzureSpTarget;
+
+export function useRbacCheck({ azureAccount, spClientId, subscriptionId, tenantId }: UseRbacCheckParams): RbacCheckResult {
   const [result, setResult] = useState<RbacCheckResult>(IDLE);
 
   useEffect(() => {

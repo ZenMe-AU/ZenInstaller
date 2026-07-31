@@ -1,32 +1,26 @@
 import { useEffect, useRef, useState } from "react";
 import { Autocomplete, Box, Button, CircularProgress, MenuItem, Select, TextField, Typography } from "@mui/material";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import type { AccountInfo } from "@azure/msal-browser";
-import type { Account, GhEnv } from "../types";
-import type { AzureTenant, Subscription } from "../api/azureGraph";
+import type { Account, CardChrome, GhEnv } from "../types";
+import type { UseAzureAccount } from "../hooks/useAzureAccount";
+import type { UseAzureSubscription } from "../hooks/useAzureSubscription";
 import { AZURE_TARGET_KEYS } from "../logic/variables";
 import CloudVariableDetail from "./CloudVariableDetail";
+import Card from "../components/Card";
+import ConfigErrorNotice from "../components/ConfigErrorNotice";
 import { MONO as mono, labelSx } from "../config/styles";
 
 type Props = {
-  azureAccount: AccountInfo | null;
-  tenants: AzureTenant[];
-  manualTenantId: string;
-  setManualTenantId: (id: string) => void;
-  selectTenant: (tenantId: string) => void;
-  subscriptions: Subscription[];
-  selectedSubscriptionId: string;
-  setSelectedSubscriptionId: (id: string) => void;
-  subsError: string | null;
-  subscriptionDrift: boolean;
-  subscriptionNoAccess: boolean;
+  card: CardChrome;
+  azure: UseAzureAccount;
+  subscription: UseAzureSubscription;
   // GitHub context — where AZURE_TENANT_ID + AZURE_SUBSCRIPTION_ID are saved.
-  account: Account | null;
+  githubAccount: Account | null;
   repoName: string;
   selectedEnv: GhEnv | null;
   onVariableConfirmed: (key: string, value: string) => void;
   githubUrl?: string;
-  disabled?: boolean;
+  configured: boolean;
 };
 
 /*
@@ -35,32 +29,26 @@ type Props = {
  * Lives in the Target group; the selection is fed to the infra, domain, and
  * app-registration cards.
  */
-export default function SubscriptionDetail({
-  azureAccount,
-  tenants,
-  manualTenantId,
-  setManualTenantId,
-  selectTenant,
-  subscriptions,
-  selectedSubscriptionId,
-  setSelectedSubscriptionId,
-  subsError,
-  subscriptionDrift,
-  subscriptionNoAccess,
-  account,
+export default function AzureSubscriptionCard({
+  card,
+  azure,
+  subscription,
+  githubAccount,
   repoName,
   selectedEnv,
   onVariableConfirmed,
   githubUrl,
-  disabled,
+  configured,
 }: Props) {
+  const { account: azureAccount, tenants, manualTenantId, setManualTenantId, selectTenant } = azure;
+  const { subscriptions, selectedSubscriptionId, setSelectedSubscriptionId, subsError, subscriptionDrift, subscriptionNoAccess } = subscription;
   const [savedVars, setSavedVars] = useState<Record<string, string>>({});
   // Which saved tenant value we've already tried to auto-load, so a fresh save can retrigger it once.
   const appliedSavedTenantRef = useRef<string | null>(null);
 
   /*
    * Pre-fill the tenant from the saved AZURE_TENANT_ID and try loading it — this always wins over
-   * any live guess already in the field (e.g. useAzureSetup's MSA first-tenant auto-select), so a
+   * any live guess already in the field (e.g. useAzureAppRegistration's MSA first-tenant auto-select), so a
    * returning user always sees their saved target, not whatever tenant happened to auto-select first.
    */
   useEffect(() => {
@@ -95,7 +83,16 @@ export default function SubscriptionDetail({
   // beside the "Load subscriptions" button rather than as a separate block.
   const savedTenantPrefillFailed = isSavedTenantCurrent && tenants.length === 0 && !!subsError && subscriptions.length === 0;
 
+  if (!configured) {
+    return (
+      <Card title="Azure subscription" {...card}>
+        <ConfigErrorNotice />
+      </Card>
+    );
+  }
+
   return (
+    <Card title="Azure subscription" {...card}>
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
       <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
         Pick the Azure tenant and subscription to deploy into. This is where the resource group, storage account and DNS zone will be created, and it's
@@ -230,13 +227,12 @@ export default function SubscriptionDetail({
 
           {/* Save AZURE_TENANT_ID + AZURE_SUBSCRIPTION_ID to the env's GitHub variables */}
           <CloudVariableDetail
-            account={account}
+            account={githubAccount}
             repo={repoName}
             envName={selectedEnv?.name ?? null}
             keys={AZURE_TARGET_KEYS}
             populate={populate}
             title="Saved to GitHub"
-            disabled={disabled}
             githubUrl={githubUrl}
             saveHint={
               subscriptionDrift ? (
@@ -258,5 +254,6 @@ export default function SubscriptionDetail({
         </>
       )}
     </Box>
+    </Card>
   );
 }

@@ -1,20 +1,20 @@
 import { useEffect, useState } from "react";
 import { Box, Button, CircularProgress, IconButton, InputAdornment, TextField, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import ClearIcon from "@mui/icons-material/Clear";
-import type { User } from "../types";
 import { switchToDirect, switchToBackend } from "../api";
 import { MONO as monoSx } from "../config/styles";
+import Card from "../components/Card";
+import type { CardChrome } from "../types";
+import type { UseGithubLogin } from "../hooks/useGithubLogin";
 
 type Props = {
-  authLoading: boolean;
-  user: User | null;
-  onLogin: () => void;
-  onLogout: () => void;
-  onPatLogin: (token: string) => void;
-  onDirectLogout: () => void;
+  card: CardChrome;
+  auth: UseGithubLogin;
+  onDirectLogout: () => void; // composed in App: clears the PAT session AND the repo picker's selection.
 };
 
-export default function LoginDetail({ authLoading, user, onLogin, onLogout, onPatLogin, onDirectLogout }: Props) {
+export default function GithubLoginCard({ card, auth, onDirectLogout }: Props) {
+  const { loggingIn: authLoading, account: user, login: onLogin, logout: onLogout, onPatLogin } = auth;
   const [mode, setModeState] = useState<"backend" | "direct">("backend");
   const [pat, setPat] = useState(sessionStorage.getItem("pat_token") ?? "");
   const [patError, setPatError] = useState("");
@@ -42,6 +42,7 @@ export default function LoginDetail({ authLoading, user, onLogin, onLogout, onPa
   };
 
   return (
+    <Card title="GitHub login" {...card}>
     <Box>
       {/* Mode toggle — hidden once logged in */}
       {!user && (
@@ -176,5 +177,6 @@ export default function LoginDetail({ authLoading, user, onLogin, onLogout, onPa
         </Box>
       )}
     </Box>
+    </Card>
   );
 }

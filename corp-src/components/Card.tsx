@@ -7,9 +7,9 @@ import LockIcon from "@mui/icons-material/Lock";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import type { CardStatus, CardId } from "../types";
-import type { Requirement } from "../logic/tileRequirements";
+import type { CardStatus, CardChrome } from "../types";
 import { MONO as mono } from "../config/styles";
+import { CARD_W, EXPANDED_W } from "../config/cardLayout";
 
 const BORDER: Record<CardStatus, string> = {
   idle: "#e2e8f0",
@@ -49,35 +49,32 @@ function StatusIcon({ status, locked, unavailable }: { status: CardStatus; locke
   }
 }
 
-type Props = {
+/*
+ * summary: Result value (when complete) or short prompt (when actionable) shown on the card face.
+ * locked: Prerequisites unmet - the card still expands, but shows the requirements instead of
+ * live content. unavailable: Broken from the start (e.g. missing config), not something to
+ * unlock - same muted chrome as `locked` but with a warning icon, and summary/content stay visible.
+ */
+type Props = CardChrome & {
   title: string;
-  summary?: string; // Result value (when complete) or short prompt (when actionable) shown on the tile face.
-  status: CardStatus;
-  locked?: boolean; // Prerequisites unmet - the tile still expands, but shows the requirements instead of live content.
-  requirements?: Requirement[];
-  /*
-   * Broken from the start (e.g. missing config), not something to unlock. Same muted
-   * chrome as `locked` but with a warning icon, and summary/content stay visible.
-   */
-  unavailable?: boolean;
-  expanded: boolean;
-  onToggle: () => void;
-  onRequirementClick?: (id: CardId) => void;
   action?: React.ReactNode;
   children: React.ReactNode;
 };
 
 /*
  * Collapses to a compact summary, expands (accordion) to the full card. Unlike
- * StepWrapper, a locked tile still expands — it shows what's missing instead of blocking.
+ * StepWrapper, a locked card still expands — it shows what's missing instead of blocking.
+ * Owns its own outer id/width — App just renders <Card {...cardProps(id)} title="…"> directly,
+ * no separate wrapping Box.
  */
-export default function CardTile({
+export default function Card({
+  cardId,
   title,
   summary,
   status,
-  locked = false,
-  requirements = [],
-  unavailable = false,
+  locked,
+  requirements,
+  unavailable,
   expanded,
   onToggle,
   onRequirementClick,
@@ -90,27 +87,31 @@ export default function CardTile({
    */
   const muted = locked || unavailable;
   /*
-   * Unlike locked, an unavailable tile still shows its summary - that IS the
+   * Unlike locked, an unavailable card still shows its summary - that IS the
    * "here's what's wrong" message, not a prerequisite result worth hiding.
    */
   const showSummary = !expanded && !!summary && !locked;
 
   return (
     <Box
+      id={`card-${cardId}`}
       sx={{
+        boxSizing: "border-box", // width below must include the border, or the 3-collapsed = 1-expanded math in cardLayout.ts drifts by the border's 2px.
+        width: expanded ? EXPANDED_W : CARD_W,
+        maxWidth: "100%",
         border: "1px solid",
         borderColor: muted ? "#e2e8f0" : BORDER[status],
         borderRadius: "10px",
         background: muted ? "#f8fafc" : "#ffffff",
         overflow: "hidden",
         boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-        transition: "border-color 0.2s, background 0.2s",
+        transition: "width 0.25s ease, border-color 0.2s, background 0.2s",
         "&:hover": { borderColor: "#93c5fd" },
       }}
     >
       {/*
        * Header (always clickable, even when locked/unavailable) — single flex row so the
-       * icon/button always center; a tile with no summary is simply shorter, not padded.
+       * icon/button always center; a card with no summary is simply shorter, not padded.
        */}
       <Box
         sx={{
@@ -174,7 +175,7 @@ export default function CardTile({
       </Box>
 
       {/*
-       * Content - a locked tile shows ONLY what's missing, not the (unusable)
+       * Content - a locked card shows ONLY what's missing, not the (unusable)
        * real content dimmed underneath it.
        */}
       <Collapse in={expanded}>
@@ -200,7 +201,7 @@ export default function CardTile({
                   key={r.label}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onRequirementClick?.(r.target);
+                    onRequirementClick(r.target);
                   }}
                   sx={{
                     display: "flex",

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import type { AccountInfo } from "@azure/msal-browser";
 import { getMsal } from "../api/msal";
 import { DOMAIN_SCOPES, GRANT_CONSENT_SCOPES, GRAPH_PERMISSIONS } from "../config/azureConfig";
 import { ensureDnsZone, ensureDnsTxtRecord } from "../api/azureArm";
@@ -14,8 +13,9 @@ import {
   isConsentError,
 } from "../api/azureGraph";
 import { getRootResourceGroupName } from "../logic/naming";
-import type { CardHook, CardRequirements } from "../types";
-import type { SetupStep } from "./useAzureSetup";
+import { createResultStorage } from "../logic/resultStorage";
+import { useStepRunner } from "./useStepRunner";
+import type { AzureConfigHook, AzureSpTarget, CardHook, CardRequirements, SetupStep } from "../types";
 
 export type CreateDomainResult = {
   corpName: string;
@@ -28,12 +28,16 @@ export type CreateDomainResult = {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface UseCreateDomainSetup extends CardHook {
+export interface UseCreateDomainParams extends AzureSpTarget {
+  corpName: string;
+  dnsName: string;
+}
+
+// steps / running / run / reset come from AzureConfigHook.
+export interface UseCreateDomain extends CardHook, AzureConfigHook {
   readonly cardId: "create_domain";
   checkingStatus: boolean;
   checkStatusError: string | null;
-  steps: SetupStep[];
-  running: boolean;
   resourcesDone: boolean;
   nameServers: string[];
   domainVerified: boolean;
@@ -41,50 +45,30 @@ export interface UseCreateDomainSetup extends CardHook {
   verifying: boolean;
   verifyError: string | null;
   verify: () => Promise<void>;
-  run: () => Promise<void>;
-  reset: () => void;
+  // Narrowed from CardHook (optional there) — every card provides these.
   cardRequirements: CardRequirements;
   cardDependencyLabel: string;
-  done: boolean;
 }
 
 const RESULT_KEY = "zeninstaller_create_domain_result";
 
-function saveResult(r: CreateDomainResult | null) {
-  if (r) localStorage.setItem(RESULT_KEY, JSON.stringify(r));
-  else localStorage.removeItem(RESULT_KEY);
-}
-function loadResult(): CreateDomainResult | null {
-  try {
-    return JSON.parse(localStorage.getItem(RESULT_KEY) ?? "null");
-  } catch {
-    return null;
-  }
-}
+const { save: saveResult, load: loadResult } = createResultStorage<CreateDomainResult>(RESULT_KEY);
 
 /*
  * The DNS + Entra custom-domain half of corp setup: create the DNS zone, add the domain to
  * Entra, write the verification TXT record, verify, and set it primary. The resource group /
- * storage / observability live in useInfraSetup — this card locks behind it, so the RG the
+ * storage / observability live in useCoreInfra — this card locks behind it, so the RG the
  * DNS zone needs already exists when this runs.
  */
-export function useCreateDomainSetup({
+export function useCreateDomain({
   azureAccount,
   subscriptionId,
   corpName,
   dnsName,
   spClientId,
   tenantId,
-}: {
-  azureAccount: AccountInfo | null;
-  subscriptionId: string;
-  corpName: string;
-  dnsName: string;
-  spClientId: string; // The pipeline's service principal — granted DomainReadWriteAll once the domain is set up.
-  tenantId?: string; // Target AAD tenant — required for MSA (personal) accounts where account.tenantId is the consumer tenant.
-}): UseCreateDomainSetup {
-  const [steps, setSteps] = useState<SetupStep[]>([]);
-  const [running, setRunning] = useState(false);
+}: UseCreateDomainParams): UseCreateDomain {
+  const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
   const [result, setResult] = useState<CreateDomainResult | null>(loadResult);
   const [nameServers, setNameServers] = useState<string[]>(loadResult()?.nameServers ?? []);
   const [domainVerified, setDomainVerified] = useState<boolean>(loadResult()?.domainVerified ?? false);
@@ -102,9 +86,9 @@ export function useCreateDomainSetup({
       setNameServers([]);
       setDomainVerified(false);
       setIsPrimary(false);
-      setSteps([]);
+      resetSteps();
     }
-  }, [result, resultMatches]);
+  }, [result, resultMatches, resetSteps]);
 
   const resourceGroupName = getRootResourceGroupName(corpName);
 
@@ -147,10 +131,6 @@ export function useCreateDomainSetup({
       cancelled = true;
     };
   }, [azureAccount, subscriptionId, corpName, dnsName, tenantId]);
-
-  const updateStep = useCallback((id: string, status: SetupStep["status"], detail?: string) => {
-    setSteps((prev) => prev.map((s) => (s.id === id ? { ...s, status, detail } : s)));
-  }, []);
 
   // Redirects for Domain.ReadWrite.All incremental consent; user re-runs after returning.
   const requestDomainConsent = useCallback(async () => {
@@ -268,7 +248,10 @@ export function useCreateDomainSetup({
     } finally {
       setRunning(false);
     }
-  }, [azureAccount, subscriptionId, corpName, dnsName, spClientId, tenantId, resourceGroupName, updateStep, requestDomainConsent, requestGrantConsent]);
+  }, [
+    azureAccount, subscriptionId, corpName, dnsName, spClientId, tenantId, resourceGroupName,
+    setSteps, setRunning, updateStep, requestDomainConsent, requestGrantConsent,
+  ]);
 
   // Verifies the domain (if needed) and promotes it to primary — one button drives both.
   const verify = useCallback(async () => {
@@ -314,14 +297,14 @@ export function useCreateDomainSetup({
   }, [azureAccount, dnsName, tenantId, domainVerified, result]);
 
   const reset = useCallback(() => {
-    setSteps([]);
+    resetSteps();
     setResult(null);
     saveResult(null);
     setNameServers([]);
     setDomainVerified(false);
     setIsPrimary(false);
     setVerifyError(null);
-  }, []);
+  }, [resetSteps]);
 
   return {
     cardId: "create_domain" as const,
@@ -338,7 +321,7 @@ export function useCreateDomainSetup({
     verify,
     run,
     reset,
-    cardRequirements: ["azure_login", "repo", "subscription", "company_info", "infra"],
+    cardRequirements: ["azure_login", "repo", "azure_subscription", "company_info", "core_infra"],
     cardDependencyLabel: "Set up the corp domain",
     done: domainVerified && isPrimary,
   };

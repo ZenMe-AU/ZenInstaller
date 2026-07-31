@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { checkTemplate, createBranch, fetchBranches, fetchOrgList, fetchRepos, generateRepo } from "../api";
 import { PIPELINES } from "../logic/pipeline";
-import type { Account, Branch, CardHook, CardStatus, PipelineConfig, Repo, RepoOption, User } from "../types";
+import type { Account, Branch, CardStatus, PipelineConfig, Repo, RepoOption, User } from "../types";
 import type { PendingRestore } from "./useUrlRestore";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface UseAccountRepo extends CardHook {
-  readonly cardId: "repo";
+export interface UseGithubRepo {
   // Accounts
   accounts: Account[];
   selectedAccount: Account | null;
@@ -51,19 +50,24 @@ export interface UseAccountRepo extends CardHook {
   onClone: () => Promise<void>;
   onCreateBranch: (targetName: string) => Promise<void>;
   onRefresh: () => void;
-  cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Choose an environment")
-  done: boolean;
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function useAccountRepo(opts: {
+export type UseGithubRepoParams = {
   user: User | null;
   pendingRestore: React.MutableRefObject<PendingRestore>;
   urlAccountApplied: React.MutableRefObject<boolean>;
   addRestoreWarning: (msg: string) => void;
   checkRestoreDone: () => void;
-}): UseAccountRepo {
+};
+
+/*
+ * The GitHub account/repo/clone/branch layer — not a card. Shared by the repo card
+ * (which just needs isCloneRepo) and useGithubEnvironment (which needs the account,
+ * selected repo, and branches to load environments and match a branch).
+ */
+export function useGithubRepo(opts: UseGithubRepoParams): UseGithubRepo {
   const { pendingRestore, urlAccountApplied, addRestoreWarning, checkRestoreDone } = opts;
 
   // ── State ─────────────────────────────────────────────────────────────────
@@ -341,10 +345,7 @@ export function useAccountRepo(opts: {
     }
   }, []);
 
-  const cardDependencyLabel: string = "Choose an environment";
-
   return {
-    cardId: "repo" as const,
     accounts,
     selectedAccount,
     setSelectedAccount,
@@ -380,7 +381,5 @@ export function useAccountRepo(opts: {
     onClone,
     onCreateBranch,
     onRefresh,
-    cardDependencyLabel,
-    done: isCloneRepo,
   };
 }

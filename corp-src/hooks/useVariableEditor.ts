@@ -12,7 +12,7 @@ type Params = {
   keys: readonly string[];
   /*
    * Source of truth for "what's already saved". The caller owns it — a controlled
-   * prop (EnvVariablesDetail) or its own fetched state (CloudVariableDetail).
+   * prop (CompanyInfoDetail) or its own fetched state (CloudVariableDetail).
    */
   savedValues: Record<string, string>;
   account: Account | null;

@@ -1,13 +1,11 @@
-import { Box, Button, CircularProgress, Divider, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import LockIcon from "@mui/icons-material/Lock";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import type { Account, Branch, GhEnv, SecretsStatus } from "../types";
+import type { Branch, GhEnv } from "../types";
 import { isValidEnvName } from "../logic/env";
 import EnvBranchDetail from "./EnvBranchDetail";
-import EnvSecretsDetail from "./EnvSecretsDetail";
-import EnvVariablesDetail from "./EnvVariablesDetail";
 import RefreshButton from "../components/RefreshButton";
 import { useRefreshIndicator } from "../hooks/useRefreshIndicator";
 import { getEnvironmentsUrl, getEnvSettingsUrl } from "../logic/github";
@@ -25,22 +23,7 @@ type Props = {
   loading: boolean;
   refreshFailed?: boolean;
   onRefresh: () => void;
-  // Secrets
-  presentKeys: string[];
-  azureSecretsStatus: SecretsStatus;
-  awsSecretsStatus: SecretsStatus;
   repoFullName: string | null;
-  onRecheck: () => void;
-  rechecking: boolean;
-  recheckFailed?: boolean;
-  account: Account | null;
-  repo: string;
-  // Variables
-  variableValues: Record<string, string>;
-  onVariableRecheck: () => void;
-  variablesRechecking: boolean;
-  varRecheckFailed?: boolean;
-  onVariableConfirmed: (key: string, value: string) => void;
   // Branch creation (shown when no branch matches the selected env)
   branches: Branch[];
   sourceBranch: string;
@@ -48,7 +31,6 @@ type Props = {
   creatingBranch: boolean;
   createBranchError: string | null;
   onCreateBranch: (target: string) => void;
-  showConfig?: boolean; // When false, the variables/secrets sections are hidden — they render as their own tiles.
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -64,38 +46,21 @@ export default function EnvDetail({
   loading,
   refreshFailed,
   onRefresh,
-  presentKeys,
-  azureSecretsStatus,
-  awsSecretsStatus,
   repoFullName,
-  onRecheck,
-  rechecking,
-  recheckFailed,
-  account,
-  repo,
-  variableValues,
-  onVariableRecheck,
-  variablesRechecking,
-  varRecheckFailed,
-  onVariableConfirmed,
   branches,
   sourceBranch,
   onSourceBranchChange,
   creatingBranch,
   createBranchError,
   onCreateBranch,
-  showConfig = true,
 }: Props) {
   const { refreshResult, markClicked } = useRefreshIndicator(loading, refreshFailed);
 
   const filteredEnvs = envList.filter((e) => isValidEnvName(e.name, validEnvs));
-  const secretsReady = !!selectedEnv && !branchMatchError;
   // Show EnvBranchDetail only when the error is "no branch found" (not PR mismatch / multiple)
   const showBranchCreate = !!selectedEnv && !!branchMatchError && branchMatchError.startsWith("No branch found");
-  const githubSecretsUrl = repoFullName && selectedEnv ? getEnvSettingsUrl(repoFullName, selectedEnv.id) : null;
   // Always available once a repo is known — points at the specific env once one's picked, otherwise the environments list (e.g. to add a new one).
   const githubEnvironmentsUrl = repoFullName ? (selectedEnv ? getEnvSettingsUrl(repoFullName, selectedEnv.id) : getEnvironmentsUrl(repoFullName)) : null;
-  const secretsVisible = false;
 
   return (
     <Box>
@@ -222,43 +187,6 @@ export default function EnvDetail({
           </Button>
         )}
       </Box>
-
-      {/* ── Sections — shown once env is selected and valid ── */}
-      {showConfig && secretsReady && (
-        <>
-          <Divider sx={{ mt: 2.5, mb: 2.5, borderColor: "#f1f5f9" }} />
-
-          {/* ── Secrets section (hidden) ── */}
-          {secretsVisible && (
-            <EnvSecretsDetail
-              key={selectedEnv.id}
-              account={account}
-              repo={repo}
-              selectedEnv={selectedEnv}
-              presentKeys={presentKeys}
-              azureSecretsStatus={azureSecretsStatus}
-              awsSecretsStatus={awsSecretsStatus}
-              onRecheck={onRecheck}
-              rechecking={rechecking}
-              recheckFailed={recheckFailed}
-            />
-          )}
-
-          {/* ── Variables section ── */}
-          <EnvVariablesDetail
-            key={selectedEnv.id}
-            account={account}
-            repo={repo}
-            selectedEnv={selectedEnv}
-            variableValues={variableValues}
-            onVariableRecheck={onVariableRecheck}
-            variablesRechecking={variablesRechecking}
-            varRecheckFailed={varRecheckFailed}
-            onVariableConfirmed={onVariableConfirmed}
-            githubUrl={githubSecretsUrl ?? undefined}
-          />
-        </>
-      )}
     </Box>
   );
 }

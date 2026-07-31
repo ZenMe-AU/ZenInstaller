@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import type { AccountInfo } from "@azure/msal-browser";
 import {
   ensureResourceGroup,
   resourceGroupExists,
@@ -25,82 +24,67 @@ import {
   DEFAULT_AZURE_LOCATION,
   TFSTATE_CONTAINER,
 } from "../logic/naming";
-import type { CardHook, CardRequirements } from "../types";
-import type { SetupStep } from "./useAzureSetup";
+import { createResultStorage } from "../logic/resultStorage";
+import { useStepRunner } from "./useStepRunner";
+import type { AzureConfigHook, AzureSpTarget, CardHook, CardRequirements, SetupStep } from "../types";
 
-export type InfraSetupResult = {
+export type CoreInfraResult = {
   corpName: string;
   subscriptionId: string;
 };
 
-export type InfraRbacStatus = "unknown" | "rg-not-found" | "missing-role" | "ready";
+export type CoreInfraRbacStatus = "unknown" | "rg-not-found" | "missing-role" | "ready";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface UseInfraSetup extends CardHook {
-  readonly cardId: "infra";
+export interface UseCoreInfraParams extends AzureSpTarget {
+  corpName: string;
+}
+
+// steps / running / run / reset come from AzureConfigHook.
+export interface UseCoreInfra extends CardHook, AzureConfigHook {
+  readonly cardId: "core_infra";
   location: string;
   setLocation: (loc: string) => void;
   locations: AzureLocation[];
   locationsLoading: boolean;
   locationsError: string | null;
-  steps: SetupStep[];
-  running: boolean;
-  done: boolean;
-  infraRbacStatus: InfraRbacStatus;
+  infraRbacStatus: CoreInfraRbacStatus;
   resultMatches: boolean;
-  run: () => Promise<void>;
-  reset: () => void;
   resourceGroupName: string;
   lawName: string;
   storageAccountName: string;
   appInsightsName: string;
   containerName: string;
+  // Narrowed from CardHook (optional there) — every card provides these.
   cardRequirements: CardRequirements;
   cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Set up Corp infrastructure")
 }
 
 const RESULT_KEY = "zeninstaller_infra_result";
 
-function saveResult(r: InfraSetupResult | null) {
-  if (r) localStorage.setItem(RESULT_KEY, JSON.stringify(r));
-  else localStorage.removeItem(RESULT_KEY);
-}
-function loadResult(): InfraSetupResult | null {
-  try {
-    return JSON.parse(localStorage.getItem(RESULT_KEY) ?? "null");
-  } catch {
-    return null;
-  }
-}
+const { save: saveResult, load: loadResult } = createResultStorage<CoreInfraResult>(RESULT_KEY);
 
 /*
  * The root Azure infrastructure a corp needs before Terraform can run: resource group,
  * observability (Log Analytics, diagnostics, App Insights), the private storage account,
  * and the Terraform state container + its RBAC grant. The DNS/Entra domain is a separate
- * card (useCreateDomainSetup); it locks behind this one because the DNS zone lives in the RG.
+ * card (useCreateDomain); it locks behind this one because the DNS zone lives in the RG.
  */
-export function useInfraSetup({
+export function useCoreInfra({
   azureAccount,
   subscriptionId,
   corpName,
   spClientId,
   tenantId,
-}: {
-  azureAccount: AccountInfo | null;
-  subscriptionId: string;
-  corpName: string;
-  spClientId: string; // Client id of the GitHub Actions app registration (AZURE_CLIENT_ID variable), for the state-container RBAC grant.
-  tenantId?: string; // Target AAD tenant — required for MSA (personal) accounts where account.tenantId is the consumer tenant.
-}): UseInfraSetup {
+}: UseCoreInfraParams): UseCoreInfra {
   const [location, setLocation] = useState(DEFAULT_AZURE_LOCATION);
   const [locations, setLocations] = useState<AzureLocation[]>([]);
   const [locationsLoading, setLocationsLoading] = useState(false);
   const [locationsError, setLocationsError] = useState<string | null>(null);
-  const [steps, setSteps] = useState<SetupStep[]>([]);
-  const [running, setRunning] = useState(false);
-  const [result, setResult] = useState<InfraSetupResult | null>(loadResult);
-  const [infraRbacStatus, setInfraRbacStatus] = useState<InfraRbacStatus>("unknown");
+  const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
+  const [result, setResult] = useState<CoreInfraResult | null>(loadResult);
+  const [infraRbacStatus, setInfraRbacStatus] = useState<CoreInfraRbacStatus>("unknown");
 
   const resultMatches = !!result && result.corpName === corpName && result.subscriptionId === subscriptionId;
   // Live rather than localStorage-trusting: the resource group could've been deleted, or the SP's
@@ -108,8 +92,8 @@ export function useInfraSetup({
   const done = infraRbacStatus === "ready";
 
   useEffect(() => {
-    if (result && !resultMatches) setSteps([]);
-  }, [result, resultMatches]);
+    if (result && !resultMatches) resetSteps();
+  }, [result, resultMatches, resetSteps]);
 
   const resourceGroupName = getRootResourceGroupName(corpName);
   const lawName = getLogAnalyticsWorkspaceName(corpName);
@@ -175,10 +159,6 @@ export function useInfraSetup({
     };
   }, [azureAccount, subscriptionId, tenantId]);
 
-  const updateStep = useCallback((id: string, status: SetupStep["status"], detail?: string) => {
-    setSteps((prev) => prev.map((s) => (s.id === id ? { ...s, status, detail } : s)));
-  }, []);
-
   const run = useCallback(async () => {
     if (!azureAccount || !subscriptionId || !corpName || !spClientId) return;
     setRunning(true);
@@ -242,7 +222,7 @@ export function useInfraSetup({
       const rbac = await ensureRbacRoleAtScope(azureAccount, scope, sp.id, "Storage Blob Data Contributor", tenantId);
       updateStep("rbac", rbac === "exists" ? "skipped" : "done", rbac === "exists" ? "Already assigned" : "Storage Blob Data Contributor");
 
-      const r: InfraSetupResult = { corpName, subscriptionId };
+      const r: CoreInfraResult = { corpName, subscriptionId };
       setResult(r);
       saveResult(r);
     } catch (err) {
@@ -252,14 +232,14 @@ export function useInfraSetup({
     }
   }, [
     azureAccount, subscriptionId, corpName, spClientId, location, tenantId,
-    resourceGroupName, lawName, storageAccountName, appInsightsName, updateStep,
+    resourceGroupName, lawName, storageAccountName, appInsightsName, setSteps, setRunning, updateStep,
   ]);
 
   const reset = useCallback(() => {
-    setSteps([]);
+    resetSteps();
     setResult(null);
     saveResult(null);
-  }, []);
+  }, [resetSteps]);
 
   return {
     location,
@@ -267,7 +247,7 @@ export function useInfraSetup({
     locations,
     locationsLoading,
     locationsError,
-    cardId: "infra" as const,
+    cardId: "core_infra" as const,
     steps,
     running,
     done,
@@ -280,7 +260,7 @@ export function useInfraSetup({
     storageAccountName,
     appInsightsName,
     containerName: TFSTATE_CONTAINER,
-    cardRequirements: ["azure_login", "repo", "subscription", "company_info", "azure_setup"],
+    cardRequirements: ["azure_login", "repo", "azure_subscription", "company_info", "azure_app_registration"],
     cardDependencyLabel: "Set up Corp infrastructure",
   };
 }

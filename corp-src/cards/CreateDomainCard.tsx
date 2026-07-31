@@ -1,74 +1,46 @@
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
-import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
-import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { AccountInfo } from "@azure/msal-browser";
-import type { useCreateDomainSetup } from "../hooks/useCreateDomainSetup";
-import type { SetupStep } from "../hooks/useAzureSetup";
+import type { UseCreateDomain } from "../hooks/useCreateDomain";
+import StepRow from "./StepRow";
+import Card from "../components/Card";
 import { getVariableDisplayName } from "../logic/variables";
 import { MONO as mono, labelSx } from "../config/styles";
+import type { CardChrome } from "../types";
 
-function StepRow({ step }: { step: SetupStep }) {
-  const icon =
-    step.status === "done" ? (
-      <CheckCircleOutlineIcon sx={{ fontSize: 14, color: "#22c55e" }} />
-    ) : step.status === "skipped" ? (
-      <RemoveCircleOutlineIcon sx={{ fontSize: 14, color: "#94a3b8" }} />
-    ) : step.status === "error" ? (
-      <ErrorOutlineIcon sx={{ fontSize: 14, color: "#ef4444" }} />
-    ) : step.status === "running" ? (
-      <CircularProgress size={12} sx={{ color: "#2563eb" }} />
-    ) : (
-      <RadioButtonUncheckedIcon sx={{ fontSize: 14, color: "#cbd5e1" }} />
-    );
-
-  return (
-    <Box sx={{ display: "grid", gridTemplateColumns: "18px 1fr", alignItems: "start", py: 0.5 }}>
-      <Box sx={{ display: "flex", alignItems: "center", height: "1.2em" }}>{icon}</Box>
-      <Box>
-        <Typography sx={{ fontSize: "0.78rem", color: step.status === "error" ? "#ef4444" : "#475569", ...mono }}>{step.label}</Typography>
-        {step.detail && (
-          <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, mt: 0.25, wordBreak: "break-all" }}>{step.detail}</Typography>
-        )}
-      </Box>
-    </Box>
-  );
-}
-
-type Props = ReturnType<typeof useCreateDomainSetup> & {
-  disabled: boolean;
+type Props = {
+  card: CardChrome;
+  createDomain: UseCreateDomain;
   azureAccount: AccountInfo | null;
   corpName: string;
   dnsName: string;
 };
 
-export default function CreateDomainDetail({
-  checkingStatus,
-  checkStatusError,
-  steps,
-  running,
-  resourcesDone,
-  nameServers,
-  domainVerified,
-  isPrimary,
-  verifying,
-  verifyError,
-  verify,
-  run,
-  reset,
-  disabled,
-  azureAccount,
-  corpName,
-  dnsName,
-}: Props) {
+export default function CreateDomainCard({ card, createDomain, azureAccount, corpName, dnsName }: Props) {
+  const {
+    checkingStatus,
+    checkStatusError,
+    steps,
+    running,
+    resourcesDone,
+    nameServers,
+    domainVerified,
+    isPrimary,
+    verifying,
+    verifyError,
+    verify,
+    run,
+    reset,
+  } = createDomain;
+  const disabled = card.locked;
   const missing: string[] = [];
   if (!corpName) missing.push(getVariableDisplayName("NAME"));
   if (!dnsName) missing.push(getVariableDisplayName("DNS"));
   const ready = !!azureAccount && missing.length === 0;
 
   return (
+    <Card title="Corp domain" {...card}>
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
       <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
         Creates the DNS zone for <b>{dnsName || "your domain"}</b>, adds it to Entra ID as a custom domain, then verifies it and sets it as primary.
@@ -241,5 +213,6 @@ export default function CreateDomainDetail({
         </Box>
       )}
     </Box>
+    </Card>
   );
 }

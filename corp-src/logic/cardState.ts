@@ -1,12 +1,11 @@
 import type { CardId, CardStatus } from "../types";
-import type { cardStatusFlags } from "./tileRequirements";
 import type { RbacCheckStatus } from "../hooks/useRbacCheck";
 
 /*
  * Raw hook-state pulled together once in App and fed to every derivation below —
  * cardStatus, lock flags, and summaries share this one input shape.
  */
-export type TileStateInput = {
+export type CardStateInput = {
   isAuthed: boolean;
   userLogin?: string;
 
@@ -41,23 +40,23 @@ export type TileStateInput = {
   domainIsPrimary: boolean;
 };
 
-export function deriveCardStatus(f: TileStateInput): Record<CardId, CardStatus> {
-  // Merged Repository & environment tile: complete only when the repo is cloned AND an env is picked.
+export function deriveCardStatus(f: CardStateInput): Record<CardId, CardStatus> {
+  // Merged Repository & environment card: complete only when the repo is cloned AND an env is picked.
   const repoEnvStatus: CardStatus = !f.isAuthed ? "idle" : f.isCloneRepo && f.envSelected ? "complete" : f.repoStatus === "idle" ? "idle" : "loading";
 
   const targetReady = f.isAuthed && f.isCloneRepo && f.envSelected;
-  // Target-level prereqs shared by the two setup tiles (env + a chosen subscription).
+  // Target-level prereqs shared by the two setup cards (env + a chosen subscription).
   const setupReady = targetReady && f.subscriptionSelected;
   const domainComplete = f.domainVerified && f.domainIsPrimary;
 
   return {
-    auth: f.isAuthed ? "complete" : "loading",
+    github_login: f.isAuthed ? "complete" : "loading",
     /*
      * Azure-dependent cards need VITE_AZURE_CLIENT_ID at build time — when missing, keep
      * them visible with a "contact admin" error instead of hiding them as if unused.
      */
     azure_login: !f.azureConfigured ? "error" : f.azureSignedIn ? "complete" : "idle",
-    subscription: !f.azureConfigured
+    azure_subscription: !f.azureConfigured
       ? "error"
       : f.subscriptionSelected
         ? "complete"
@@ -66,7 +65,7 @@ export function deriveCardStatus(f: TileStateInput): Record<CardId, CardStatus> 
           : "idle",
     repo: repoEnvStatus,
     company_info: !f.envSelected ? "idle" : f.hasCompanyInfo ? "complete" : "warning",
-    azure_setup: !f.azureConfigured
+    azure_app_registration: !f.azureConfigured
       ? "error"
       : !targetReady
         ? "idle"
@@ -77,30 +76,17 @@ export function deriveCardStatus(f: TileStateInput): Record<CardId, CardStatus> 
             : f.azureSecretsValid === false
               ? "error"
               : "complete", // filled in — validated (true) or not yet run (null) both count as complete
-    infra: !f.azureConfigured ? "error" : !setupReady ? "idle" : f.infraDone ? "complete" : "warning",
+    core_infra: !f.azureConfigured ? "error" : !setupReady ? "idle" : f.infraDone ? "complete" : "warning",
     create_domain: !f.azureConfigured ? "error" : !setupReady ? "idle" : domainComplete ? "complete" : "warning",
   };
 }
 
-export function deriveTileFlags(f: TileStateInput): cardStatusFlags {
-  return {
-    isAuthed: f.isAuthed,
-    isCloneRepo: f.isCloneRepo,
-    envSelected: f.envSelected,
-    azureSignedIn: f.azureSignedIn,
-    subscriptionSelected: f.subscriptionSelected,
-    hasCompanyInfo: f.hasCompanyInfo,
-    azureSetupReady: f.hasAzureClientId && f.rbacStatus === "ready",
-    infraDone: f.infraDone,
-  };
-}
-
-export function deriveTileSummaries(f: TileStateInput): Partial<Record<CardId, string>> {
+export function deriveCardSummaries(f: CardStateInput): Partial<Record<CardId, string>> {
   const domainComplete = f.domainVerified && f.domainIsPrimary;
   return {
-    auth: f.isAuthed ? `Signed in as ${f.userLogin ?? ""}` : "Connect your GitHub account",
+    github_login: f.isAuthed ? `Signed in as ${f.userLogin ?? ""}` : "Connect your GitHub account",
     azure_login: !f.azureConfigured ? "Unavailable" : f.azureSignedIn ? (f.azureUsername ?? "Signed in") : "Sign in to Azure",
-    subscription: !f.azureConfigured
+    azure_subscription: !f.azureConfigured
       ? "Unavailable"
       : f.subscriptionSelected
         ? (f.subscriptionLabel ?? "Subscription selected")
@@ -111,7 +97,7 @@ export function deriveTileSummaries(f: TileStateInput): Partial<Record<CardId, s
             : "Select a subscription",
     repo: f.repoFullName && f.envName ? `${f.repoFullName} · ${f.envName}` : f.repoFullName ? f.repoFullName : "Select repository and environment",
     company_info: f.hasCompanyInfo ? `${f.corpName} · ${f.dnsName}` : "Set company info",
-    azure_setup: !f.azureConfigured
+    azure_app_registration: !f.azureConfigured
       ? "Unavailable"
       : f.rbacStatus === "sp-not-found"
         ? "Not found in the selected tenant — recreate it"
@@ -122,7 +108,7 @@ export function deriveTileSummaries(f: TileStateInput): Partial<Record<CardId, s
             : f.appRegResultPresent
               ? "App registration ready"
               : "Create the app registration",
-    infra: !f.azureConfigured ? "Unavailable" : f.infraDone ? "Infrastructure ready" : "Set up corp infrastructure",
+    core_infra: !f.azureConfigured ? "Unavailable" : f.infraDone ? "Infrastructure ready" : "Set up corp infrastructure",
     create_domain: !f.azureConfigured ? "Unavailable" : domainComplete ? "Domain verified and primary" : "Set up the corp domain",
   };
 }

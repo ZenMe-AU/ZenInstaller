@@ -4,8 +4,6 @@ import { AZURE_SECRET_KEYS, AWS_SECRET_KEYS } from "../logic/variables";
 import {
   type Account,
   type Branch,
-  type CardHook,
-  type CardRequirements,
   type CardStatus,
   type GhEnv,
   type PendingRestore,
@@ -17,8 +15,14 @@ import { matchBranch, matchEnv } from "../logic/env";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface UseEnv extends CardHook {
-  readonly cardId: "company_info";
+/*
+ * env selection + variables + secrets are one tier of GitHub operations (repo →
+ * environment → {variables, secrets}) — not a card. env selection renders inside the
+ * repo card; variables back the company_info card; secrets have no UI mounted today
+ * (kept for headroom — azureSecrets.valid still feeds azure_app_registration's status).
+ */
+export interface UseGithubEnvironment {
+  // env selection
   envList: GhEnv[];
   selectedEnv: GhEnv | null;
   setSelectedEnv: (env: GhEnv | null) => void;
@@ -28,28 +32,27 @@ export interface UseEnv extends CardHook {
   envReady: boolean;
   status: CardStatus;
   onRefresh: () => void;
+  envRefreshFailed: boolean;
+  // variables
+  presentVariableValues: Record<string, string>;
+  variablesRechecking: boolean;
+  varRecheckFailed: boolean;
+  onVariableRecheck: () => Promise<void>;
+  onVariableConfirmed: (key: string, value: string) => void;
+  // secrets
   presentSecretKeys: string[];
   azureSecrets: SecretsStatus;
   awsSecrets: SecretsStatus;
   rechecking: boolean;
-  presentVariableValues: Record<string, string>;
-  variablesRechecking: boolean;
-  envRefreshFailed: boolean;
   recheckFailed: boolean;
-  varRecheckFailed: boolean;
   onRecheck: () => Promise<void>;
-  onVariableRecheck: () => Promise<void>;
-  onVariableConfirmed: (key: string, value: string) => void;
   onAzureValid: (valid: boolean | null) => void;
   onAwsValid: (valid: boolean | null) => void;
-  cardRequirements: CardRequirements;
-  cardDependencyLabel: string;
-  done: boolean;
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function useEnv(opts: {
+export type UseGithubEnvironmentParams = {
   account: Account | null;
   repo: RepoOption | null;
   isCloneRepo: boolean;
@@ -59,7 +62,9 @@ export function useEnv(opts: {
   pendingRestore: React.MutableRefObject<PendingRestore>;
   addRestoreWarning: (msg: string) => void;
   checkRestoreDone: () => void;
-}): UseEnv {
+};
+
+export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithubEnvironment {
   const { pendingRestore, addRestoreWarning, checkRestoreDone } = opts;
 
   const accountRef = useRef(opts.account);
@@ -274,13 +279,8 @@ export function useEnv(opts: {
   }, []);
 
   const envReady = !!selectedEnv && !branchMatchError;
-  const hasCompanyInfo = !!presentVariableValues.NAME && !!presentVariableValues.DNS;
-
-  const cardRequirements: CardRequirements = ["auth", "repo"];
-  const cardDependencyLabel: string = "Set company info";
 
   return {
-    cardId: "company_info" as const,
     envList,
     selectedEnv,
     setSelectedEnv,
@@ -304,8 +304,5 @@ export function useEnv(opts: {
     onVariableConfirmed,
     onAzureValid,
     onAwsValid,
-    cardRequirements,
-    cardDependencyLabel,
-    done: hasCompanyInfo,
   };
 }

@@ -1,44 +1,21 @@
 import { useState, useEffect, useRef } from "react";
-import { Box, Button, CircularProgress, Collapse, TextField, Typography } from "@mui/material";
+import { Box, Button, Collapse, TextField, Typography } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
-import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import type { Account, GhEnv } from "../types";
-import type { useAzureSetup } from "../hooks/useAzureSetup";
-import type { SetupStep } from "../hooks/useAzureSetup";
+import type { Account, CardChrome, GhEnv } from "../types";
+import type { UseAzureAppRegistration } from "../hooks/useAzureAppRegistration";
+import StepRow from "./StepRow";
+import Card from "../components/Card";
 import type { RbacCheckStatus } from "../hooks/useRbacCheck";
 import { AZURE_APP_KEYS } from "../logic/variables";
 import CloudVariableDetail from "./CloudVariableDetail";
 import { MONO as mono, labelSx } from "../config/styles";
 
-function StepRow({ step }: { step: SetupStep }) {
-  const icon =
-    step.status === "done" ? (
-      <CheckCircleOutlineIcon sx={{ fontSize: 14, color: "#22c55e" }} />
-    ) : step.status === "error" ? (
-      <ErrorOutlineIcon sx={{ fontSize: 14, color: "#ef4444" }} />
-    ) : step.status === "running" ? (
-      <CircularProgress size={12} sx={{ color: "#2563eb" }} />
-    ) : (
-      <RadioButtonUncheckedIcon sx={{ fontSize: 14, color: "#cbd5e1" }} />
-    );
-
-  return (
-    <Box sx={{ display: "grid", gridTemplateColumns: "18px 1fr", alignItems: "start", py: 0.5 }}>
-      <Box sx={{ display: "flex", alignItems: "center", height: "1.2em" }}>{icon}</Box>
-      <Box>
-        <Typography sx={{ fontSize: "0.78rem", color: step.status === "error" ? "#ef4444" : "#475569", ...mono }}>{step.label}</Typography>
-        {step.detail && <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, mt: 0.25 }}>{step.detail}</Typography>}
-      </Box>
-    </Box>
-  );
-}
-
-type Props = ReturnType<typeof useAzureSetup> & {
-  disabled: boolean;
-  account: Account | null;
+type Props = {
+  card: CardChrome;
+  appReg: UseAzureAppRegistration;
+  githubAccount: Account | null;
   repoName: string;
   selectedEnv: GhEnv | null;
   subscriptionId: string;
@@ -54,19 +31,10 @@ type Props = ReturnType<typeof useAzureSetup> & {
   onAzureValid?: (valid: boolean | null) => void;
 };
 
-export default function AzureDeployDetail({
-  azureAccount,
-  appName,
-  setAppName,
-  setEnvironments,
-  steps,
-  result,
-  running,
-  reset,
-  run,
-  prefillAppName,
-  disabled,
-  account,
+export default function AzureAppRegistrationCard({
+  card,
+  appReg,
+  githubAccount,
   repoName,
   selectedEnv,
   subscriptionId,
@@ -77,6 +45,8 @@ export default function AzureDeployDetail({
   githubUrl,
   onAzureValid,
 }: Props) {
+  const { azureAccount, appName, setAppName, setEnvironments, steps, result, running, reset, run, prefillAppName } = appReg;
+  const disabled = card.locked;
   const [varExpanded, setVarExpanded] = useState(false);
   const [loadedVars, setLoadedVars] = useState<Record<string, string> | null>(null);
   const [autoSaveCounter, setAutoSaveCounter] = useState(0);
@@ -138,6 +108,7 @@ export default function AzureDeployDetail({
     : undefined;
 
   return (
+    <Card title="Azure app registration" {...card}>
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
       {/* ── Result banner (shown after create+auto-save completes) ── */}
       {bannerState !== "none" && (
@@ -306,7 +277,7 @@ export default function AzureDeployDetail({
       {/* ── Variable editor (Collapse keeps it mounted so onLoaded fires) ── */}
       <Collapse in={varExpanded} timeout={300} unmountOnExit={false}>
         <CloudVariableDetail
-          account={account}
+          account={githubAccount}
           repo={repoName}
           envName={selectedEnv?.name ?? null}
           keys={AZURE_APP_KEYS}
@@ -327,5 +298,6 @@ export default function AzureDeployDetail({
         />
       </Collapse>
     </Box>
+    </Card>
   );
 }

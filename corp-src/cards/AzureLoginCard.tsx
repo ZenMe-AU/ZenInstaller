@@ -1,30 +1,42 @@
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import type { AccountInfo } from "@azure/msal-browser";
 import { CLOUD_DOCS } from "../config/docsConfig";
 import { MONO as mono } from "../config/styles";
+import Card from "../components/Card";
+import ConfigErrorNotice from "../components/ConfigErrorNotice";
+import type { CardChrome } from "../types";
+import type { UseAzureLogin } from "../hooks/useAzureLogin";
 
 type Props = {
-  azureAccount: AccountInfo | null;
-  loggingIn: boolean;
-  loginError: string | null;
-  login: () => void;
-  logout: () => void;
+  card: CardChrome;
+  azureLogin: UseAzureLogin;
+  configured: boolean;
 };
 
 /*
  * Azure sign-in on its own — independent of GitHub, not gated by environment.
  * App-registration, domain, and terraform cards all reuse the session it establishes.
  */
-export default function AzureLoginDetail({ azureAccount, loggingIn, loginError, login, logout }: Props) {
-  return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
-        Sign in with Azure so we can create the app registration and cloud resources for you. We never store your Azure credentials — sign-in happens
-        directly with Microsoft, and only a short-lived access token is used.
-      </Typography>
+export default function AzureLoginCard({ card, azureLogin, configured }: Props) {
+  if (!configured) {
+    return (
+      <Card title="Azure login" {...card}>
+        <ConfigErrorNotice />
+      </Card>
+    );
+  }
 
-      {!azureAccount ? (
+  const { account: azureAccount, loggingIn, loginError, login, logout } = azureLogin;
+
+  return (
+    <Card title="Azure login" {...card}>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+          Sign in with Azure so we can create the app registration and cloud resources for you. We never store your Azure credentials — sign-in happens
+          directly with Microsoft, and only a short-lived access token is used.
+        </Typography>
+
+        {!azureAccount ? (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>
           {loggingIn ? (
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -68,23 +80,24 @@ export default function AzureLoginDetail({ azureAccount, loggingIn, loginError, 
           )}
           {loginError && <Typography sx={{ fontSize: "0.72rem", color: "#ef4444" }}>{loginError}</Typography>}
         </Box>
-      ) : (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
-            Signed in as{" "}
-            <Box component="span" data-id="txtAzureUsername" sx={{ fontWeight: 600, ...mono }}>
-              {azureAccount.username}
-            </Box>
-          </Typography>
-          <Button
-            size="small"
-            onClick={logout}
-            sx={{ minWidth: 0, fontSize: "0.68rem", color: "#94a3b8", textTransform: "none", ...mono, py: 0.25, "&:hover": { color: "#ef4444" } }}
-          >
-            Sign out
-          </Button>
-        </Box>
-      )}
-    </Box>
+        ) : (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
+              Signed in as{" "}
+              <Box component="span" data-id="txtAzureUsername" sx={{ fontWeight: 600, ...mono }}>
+                {azureAccount.username}
+              </Box>
+            </Typography>
+            <Button
+              size="small"
+              onClick={logout}
+              sx={{ minWidth: 0, fontSize: "0.68rem", color: "#94a3b8", textTransform: "none", ...mono, py: 0.25, "&:hover": { color: "#ef4444" } }}
+            >
+              Sign out
+            </Button>
+          </Box>
+        )}
+      </Box>
+    </Card>
   );
 }

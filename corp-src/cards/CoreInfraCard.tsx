@@ -1,77 +1,46 @@
 import { useState } from "react";
 import { Box, Button, CircularProgress, IconButton, MenuItem, Select, TextField, Typography } from "@mui/material";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
-import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
-import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
 import EditIcon from "@mui/icons-material/Edit";
 import CheckIcon from "@mui/icons-material/Check";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { AccountInfo } from "@azure/msal-browser";
-import type { useInfraSetup } from "../hooks/useInfraSetup";
-import type { SetupStep } from "../hooks/useAzureSetup";
+import type { UseCoreInfra } from "../hooks/useCoreInfra";
+import StepRow from "./StepRow";
+import Card from "../components/Card";
 import { getVariableDisplayName } from "../logic/variables";
 import { MONO as mono, labelSx } from "../config/styles";
+import type { CardChrome } from "../types";
 
-function StepRow({ step }: { step: SetupStep }) {
-  const icon =
-    step.status === "done" ? (
-      <CheckCircleOutlineIcon sx={{ fontSize: 14, color: "#22c55e" }} />
-    ) : step.status === "skipped" ? (
-      <RemoveCircleOutlineIcon sx={{ fontSize: 14, color: "#94a3b8" }} />
-    ) : step.status === "error" ? (
-      <ErrorOutlineIcon sx={{ fontSize: 14, color: "#ef4444" }} />
-    ) : step.status === "running" ? (
-      <CircularProgress size={12} sx={{ color: "#2563eb" }} />
-    ) : (
-      <RadioButtonUncheckedIcon sx={{ fontSize: 14, color: "#cbd5e1" }} />
-    );
-
-  return (
-    <Box sx={{ display: "grid", gridTemplateColumns: "18px 1fr", alignItems: "start", py: 0.5 }}>
-      <Box sx={{ display: "flex", alignItems: "center", height: "1.2em" }}>{icon}</Box>
-      <Box>
-        <Typography sx={{ fontSize: "0.78rem", color: step.status === "error" ? "#ef4444" : "#475569", ...mono }}>{step.label}</Typography>
-        {step.detail && (
-          <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, mt: 0.25, wordBreak: "break-all" }}>{step.detail}</Typography>
-        )}
-      </Box>
-    </Box>
-  );
-}
-
-type Props = ReturnType<typeof useInfraSetup> & {
-  disabled: boolean;
+type Props = {
+  card: CardChrome;
+  infra: UseCoreInfra;
   azureAccount: AccountInfo | null;
   corpName: string;
   subscriptionId: string;
   spClientId: string;
 };
 
-export default function InfraDetail({
-  location,
-  setLocation,
-  locations,
-  locationsLoading,
-  locationsError,
-  steps,
-  running,
-  done,
-  infraRbacStatus,
-  resultMatches,
-  run,
-  reset,
-  resourceGroupName,
-  lawName,
-  storageAccountName,
-  appInsightsName,
-  containerName,
-  disabled,
-  azureAccount,
-  corpName,
-  subscriptionId,
-  spClientId,
-}: Props) {
+export default function CoreInfraCard({ card, infra, azureAccount, corpName, subscriptionId, spClientId }: Props) {
+  const {
+    location,
+    setLocation,
+    locations,
+    locationsLoading,
+    locationsError,
+    steps,
+    running,
+    done,
+    infraRbacStatus,
+    resultMatches,
+    run,
+    reset,
+    resourceGroupName,
+    lawName,
+    storageAccountName,
+    appInsightsName,
+    containerName,
+  } = infra;
+  const disabled = card.locked;
   const [editingLocation, setEditingLocation] = useState(false);
 
   const missing: string[] = [];
@@ -87,6 +56,7 @@ export default function InfraDetail({
   const locationDisplayName = locations.find((l) => l.name === location)?.displayName ?? location;
 
   return (
+    <Card title="Core infrastructure" {...card}>
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
       <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
         Creates the root Azure resources — resource group, Log Analytics, Application Insights, the private storage account — then the{" "}
@@ -261,5 +231,6 @@ export default function InfraDetail({
         </Box>
       )}
     </Box>
+    </Card>
   );
 }

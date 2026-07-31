@@ -3,7 +3,7 @@ import { exchangePkceCode, fetchGithubUser, switchToDirect, switchToBackend } fr
 import { generateCodeChallenge, generateRandomString } from "../logic/pkce";
 import type { CardStatus, User } from "../types";
 
-// ─── Future replacement for useAuth ───────────────────────────────────────────
+// ─── Future replacement for useGithubLogin ───────────────────────────────────────────
 /*
  * PKCE client-side token flow instead of server-managed sessions. Activated via
  * VITE_AUTH_PKCE=true (useActiveAuth.ts). Requires VITE_GITHUB_CLIENT_ID + VITE_API_URL.

@@ -1,20 +1,72 @@
+import type { AccountInfo } from "@azure/msal-browser";
+
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
-export type CardId = "auth" | "azure_login" | "repo" | "subscription" | "company_info" | "azure_setup" | "infra" | "create_domain";
+export type CardId =
+  | "github_login"
+  | "azure_login"
+  | "repo"
+  | "azure_subscription"
+  | "company_info"
+  | "azure_app_registration"
+  | "core_infra"
+  | "create_domain";
 export type CardStatus = "idle" | "loading" | "complete" | "warning" | "error" | "skipped";
 
+export type CardRequirements = CardId[]; //["github_login","repo"]
 
-export type CardState = {
-  done: boolean;
+// A missing prerequisite, plus the card that resolves it (so it can be clicked to jump there).
+export type Requirement = { label: string; target: CardId };
+
+// Everything App derives for a card's frame — exactly what cardProps() returns and Card renders.
+export type CardChrome = {
+  cardId: CardId;
+  status: CardStatus;
+  summary?: string;
+  locked: boolean;
+  requirements: Requirement[];
+  unavailable: boolean;
+  expanded: boolean;
+  onToggle: () => void;
+  onRequirementClick: (id: CardId) => void;
 };
-export type CardRequirements = CardId[]; //["auth","repo"]
 
 // Every card-backing hook self-reports its own completion via `done`, so other cards can query it.
-export type CardHook = CardState & {
+export interface CardHook {
   readonly cardId: string;
+  done: boolean;
   cardRequirements?: CardRequirements;
   cardDependencyLabel?: string;
-};
+}
+
+// ─── Composable hook shapes ───────────────────────────────────────────────────
+export interface LoginHook<TAccount> {
+  account: TAccount | null;
+  loggingIn: boolean;
+  login: () => void;
+  logout: () => void;
+}
+
+export interface ResettableHook {
+  reset: () => void;
+}
+
+export interface AzureConfigHook extends ResettableHook {
+  steps: SetupStep[];
+  running: boolean;
+  run: () => Promise<void>;
+}
+
+export interface AzureTarget {
+  azureAccount: AccountInfo | null;
+  subscriptionId: string;
+  tenantId?: string; // MSA (personal) accounts sign in via the consumer tenant, so the real AAD tenant is passed explicitly.
+}
+export interface AzureSpTarget extends AzureTarget {
+  spClientId: string; // Client id of the GitHub Actions app registration (AZURE_CLIENT_ID variable).
+}
+
+export type SetupStep = { id: string; label: string; status: "pending" | "running" | "done" | "skipped" | "error"; detail?: string };
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 

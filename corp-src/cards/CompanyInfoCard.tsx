@@ -2,18 +2,20 @@ import { useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import type { Account, GhEnv } from "../types";
+import type { Account, CardChrome, GhEnv } from "../types";
 import { GITHUB_VARIABLE_KEYS } from "../logic/variables";
 import VariablesCard from "../components/VariablesCard";
 import RefreshButton from "../components/RefreshButton";
 import SaveButton from "../components/SaveButton";
+import Card from "../components/Card";
 import { useRefreshIndicator } from "../hooks/useRefreshIndicator";
 import { useVariableEditor } from "../hooks/useVariableEditor";
 import { sectionLabelSx } from "../config/styles";
+import type { UseGithubEnvironment } from "../hooks/useGithubEnvironment";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
-type Props = {
+type DetailProps = {
   account: Account | null;
   repo: string;
   selectedEnv: GhEnv;
@@ -25,13 +27,13 @@ type Props = {
   githubUrl?: string;
 };
 
-// ─── Component ────────────────────────────────────────────────────────────────
 /*
  * Azure/AWS infra variables (AZURE_CLIENT_ID, AWS_ROLE_ARN, …) save from their own
  * setup cards — this section only manages deployment variables (Company & Domain).
+ * Not exported: only rendered by CompanyInfoCard below, once selectedEnv is non-null
+ * (useVariableEditor needs a concrete envName, so it can't run before one is picked).
  */
-
-export default function EnvVariablesDetail({
+function CompanyInfoDetailBody({
   account,
   repo,
   selectedEnv,
@@ -41,7 +43,7 @@ export default function EnvVariablesDetail({
   varRecheckFailed,
   onVariableConfirmed,
   githubUrl,
-}: Props) {
+}: DetailProps) {
   const { refreshResult, markClicked } = useRefreshIndicator(variablesRechecking, varRecheckFailed);
 
   const {
@@ -144,5 +146,35 @@ export default function EnvVariablesDetail({
         )}
       </Box>
     </Box>
+  );
+}
+
+// ─── Card ─────────────────────────────────────────────────────────────────────
+
+type Props = {
+  card: CardChrome;
+  github: UseGithubEnvironment;
+  githubAccount: Account | null;
+  repoName: string;
+  githubUrl?: string;
+};
+
+export default function CompanyInfoCard({ card, github, githubAccount, repoName, githubUrl }: Props) {
+  return (
+    <Card title="Company info" {...card}>
+      {github.selectedEnv && (
+        <CompanyInfoDetailBody
+          account={githubAccount}
+          repo={repoName}
+          selectedEnv={github.selectedEnv}
+          variableValues={github.presentVariableValues}
+          onVariableRecheck={github.onVariableRecheck}
+          variablesRechecking={github.variablesRechecking}
+          varRecheckFailed={github.varRecheckFailed}
+          onVariableConfirmed={github.onVariableConfirmed}
+          githubUrl={githubUrl}
+        />
+      )}
+    </Card>
   );
 }

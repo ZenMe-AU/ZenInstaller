@@ -1,38 +1,37 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Box, Button, Typography } from "@mui/material";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import { Box, Typography } from "@mui/material";
 
-import { type CardHook, type CardId, type CardRequirements, type PendingRestore } from "./types";
+import { type CardChrome, type CardHook, type CardId, type CardRequirements, type PendingRestore, type Requirement } from "./types";
 import { AZURE_CLIENT_ID } from "./config/azureConfig";
-import { MONO as mono } from "./config/styles";
-import { groupLabelSx, groupSx, TILE_W, EXPANDED_W } from "./config/tileLayout";
-import { type Requirement } from "./logic/tileRequirements";
-import { deriveCardStatus, deriveTileSummaries, type TileStateInput } from "./logic/tileState";
-import { getRepoUrl, getEnvSettingsUrl } from "./logic/github";
-import { useAuth } from "./hooks/useAuth";
-import { useAccountRepo } from "./hooks/useAccountRepo";
-import { useAzureSetup } from "./hooks/useAzureSetup";
-import { useCreateDomainSetup } from "./hooks/useCreateDomainSetup";
-import { useInfraSetup } from "./hooks/useInfraSetup";
+import { groupLabelSx, groupSx, EXPANDED_W } from "./config/cardLayout";
+import { deriveCardStatus, deriveCardSummaries, type CardStateInput } from "./logic/cardState";
+import { getEnvSettingsUrl } from "./logic/github";
+import { useGithubLogin } from "./hooks/useGithubLogin";
+import { useGithubRepo } from "./hooks/useGithubRepo";
+import { useGithubEnvironment } from "./hooks/useGithubEnvironment";
+import { useRepo } from "./hooks/useRepo";
+import { useAzureAccount } from "./hooks/useAzureAccount";
+import { useAzureLogin } from "./hooks/useAzureLogin";
+import { useAzureAppRegistration } from "./hooks/useAzureAppRegistration";
+import { useAzureSubscription } from "./hooks/useAzureSubscription";
+import { useCreateDomain } from "./hooks/useCreateDomain";
+import { useCoreInfra } from "./hooks/useCoreInfra";
 import { useRbacCheck } from "./hooks/useRbacCheck";
-import { useEnv } from "./hooks/useEnv";
+import { useCompanyInfo } from "./hooks/useCompanyInfo";
 import { usePR } from "./hooks/usePR";
 import { useUrlRestore } from "./hooks/useUrlRestore";
 
-import CardTile from "./components/CardTile";
-import ConfigErrorNotice from "./components/ConfigErrorNotice";
 import NavBar from "./components/NavBar";
 import RestoreToast from "./components/RestoreToast";
 import SessionOverlay from "./components/SessionOverlay";
-import LoginDetail from "./cards/LoginDetail";
-import RepoDetail from "./cards/RepoDetail";
-import EnvDetail from "./cards/EnvDetail";
-import EnvVariablesDetail from "./cards/EnvVariablesDetail";
-import AzureLoginDetail from "./cards/AzureLoginDetail";
-import AzureDeployDetail from "./cards/AzureDeployDetail";
-import SubscriptionDetail from "./cards/SubscriptionDetail";
-import InfraDetail from "./cards/InfraDetail";
-import CreateDomainDetail from "./cards/CreateDomainDetail";
+import GithubLoginCard from "./cards/GithubLoginCard";
+import RepoCard from "./cards/RepoCard";
+import CompanyInfoCard from "./cards/CompanyInfoCard";
+import AzureLoginCard from "./cards/AzureLoginCard";
+import AzureAppRegistrationCard from "./cards/AzureAppRegistrationCard";
+import AzureSubscriptionCard from "./cards/AzureSubscriptionCard";
+import CoreInfraCard from "./cards/CoreInfraCard";
+import CreateDomainCard from "./cards/CreateDomainCard";
 
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
@@ -47,7 +46,7 @@ function AppDashboard() {
   }
   // ── Hooks ──────────────────────────────────────────────────────────────────
   const restore = useUrlRestore();
-  const auth = addCard(useAuth());
+  const auth = addCard(useGithubLogin());
   const isAuthed = auth.status === "complete";
 
   // Stable empty refs — passed to sub-hooks when !isAuthed so restore never fires before login
@@ -60,121 +59,140 @@ function AppDashboard() {
   const addWarningGated = isAuthed ? restore.addRestoreWarning : _noop;
   const checkDoneGated = isAuthed ? restore.checkRestoreDone : _noop;
 
-  const repo = addCard(
-    useAccountRepo({
-      user: auth.user,
-      pendingRestore: pendingRestoreGated,
-      urlAccountApplied: urlAccountAppliedGated,
-      addRestoreWarning: addWarningGated,
-      checkRestoreDone: checkDoneGated,
-    }),
-  );
+  /*
+   * The GitHub account/repo/clone/branch layer, shared (not a card) — mirrors
+   * useAzureAccount on the Azure side. The repo card below is just a thin
+   * self-reporting projection of it (+ envReady from useGithubEnvironment).
+   */
+  const githubRepo = useGithubRepo({
+    user: auth.account,
+    pendingRestore: pendingRestoreGated,
+    urlAccountApplied: urlAccountAppliedGated,
+    addRestoreWarning: addWarningGated,
+    checkRestoreDone: checkDoneGated,
+  });
 
   const pr = usePR({
-    account: repo.selectedAccount,
-    repo: repo.selectedRepo,
-    isCloneRepo: repo.isCloneRepo,
+    account: githubRepo.selectedAccount,
+    repo: githubRepo.selectedRepo,
+    isCloneRepo: githubRepo.isCloneRepo,
     pendingRestore: pendingRestoreGated,
     addRestoreWarning: addWarningGated,
     checkRestoreDone: checkDoneGated,
   });
-  const env = addCard(
-    useEnv({
-      account: repo.selectedAccount,
-      repo: repo.selectedRepo,
-      isCloneRepo: repo.isCloneRepo,
-      selectedPR: pr.selectedPR,
-      branches: repo.branches,
-      validEnvs: repo.pipeline.validEnvs,
-      pendingRestore: pendingRestoreGated,
-      addRestoreWarning: addWarningGated,
-      checkRestoreDone: checkDoneGated,
-    }),
-  );
-  const azureSetup = addCard(
-    useAzureSetup({
-      githubAccount: repo.selectedAccount,
-      githubRepo: repo.selectedRepo?.name ?? "",
-      validEnvs: repo.pipeline.validEnvs,
-    }),
-  );
-
-  // "repo" is only truly done once an environment is also chosen — env lives in a separate hook,
-  // so refine the registry entry now that both are available (the `repo` variable itself is untouched).
-  addCard({ ...repo, done: repo.isCloneRepo && env.envReady });
 
   /*
-   * Shared inputs for the subscription / infrastructure / domain cards, sourced from repo
-   * variables (the pipeline's source of truth) with the Azure card's live selection as fallback.
+   * env selection + variables + secrets, shared (not a card) — one tier of GitHub
+   * operations. env selection renders inside the repo card; variables back the
+   * company_info card; secrets have no UI mounted today (see RepoDetail's neighbor).
    */
-  const corpName = env.presentVariableValues.NAME ?? "";
-  const dnsName = env.presentVariableValues.DNS ?? "";
-  const corpSpClientId = env.presentVariableValues.AZURE_CLIENT_ID || azureSetup.result?.clientId || "";
-  // The app's own save flow always writes AZURE_PLAN_CLIENT_ID equal to AZURE_CLIENT_ID — a saved
-  // mismatch means something else touched it (stale value, manual edit), so treat it as drift too.
-  const corpPlanClientId = env.presentVariableValues.AZURE_PLAN_CLIENT_ID || azureSetup.result?.clientId || "";
-  const planClientIdMismatch = !!corpSpClientId && !!corpPlanClientId && corpSpClientId !== corpPlanClientId;
-  // MSA (personal) accounts sign in via the consumer tenant, so ARM/Graph calls need the real AAD tenant passed explicitly.
-  const corpTenantId = env.presentVariableValues.AZURE_TENANT_ID || azureSetup.result?.tenantId || azureSetup.manualTenantId.trim() || undefined;
+  const github = useGithubEnvironment({
+    account: githubRepo.selectedAccount,
+    repo: githubRepo.selectedRepo,
+    isCloneRepo: githubRepo.isCloneRepo,
+    selectedPR: pr.selectedPR,
+    branches: githubRepo.branches,
+    validEnvs: githubRepo.pipeline.validEnvs,
+    pendingRestore: pendingRestoreGated,
+    addRestoreWarning: addWarningGated,
+    checkRestoreDone: checkDoneGated,
+  });
+
+  // Self-reports done = isCloneRepo && envReady, now that both live upstream of it. Nothing
+  // else reads this card's own return — every field a card needs comes from githubRepo/github.
+  addCard(useRepo({ githubRepo, envReady: github.envReady }));
+  const companyInfo = addCard(useCompanyInfo({ variableValues: github.presentVariableValues }));
 
   /*
-   * The corp resource-target subscription. The saved GitHub vars are authoritative (they're what
-   * the pipeline uses); the Azure subscription card's live pick is only "confirmed" once it matches
-   * them. Downstream (infra/domain/app-reg) uses the saved value and stays locked until confirmed.
+   * The corp resource target. The saved GitHub vars are authoritative — they're what the
+   * pipeline uses — so downstream cards read them, and the subscription card's live pick is
+   * only "confirmed" (and that card only `done`) once it matches.
    */
-  const savedTenant = env.presentVariableValues.AZURE_TENANT_ID ?? "";
-  const savedSubscriptionId = env.presentVariableValues.AZURE_SUBSCRIPTION_ID ?? "";
-  const pickedTenant = azureSetup.manualTenantId.trim();
-  const pickedSubscriptionId = azureSetup.selectedSubscriptionId;
+  const savedTenantId = github.presentVariableValues.AZURE_TENANT_ID ?? "";
+  const savedSubscriptionId = github.presentVariableValues.AZURE_SUBSCRIPTION_ID ?? "";
   const subscriptionId = savedSubscriptionId;
 
-  const subscriptionConfirmed = !!savedSubscriptionId && savedSubscriptionId === pickedSubscriptionId && savedTenant === pickedTenant;
-  const subscriptionDrift = !!pickedSubscriptionId && !subscriptionConfirmed;
-  const subscriptionNoAccess = !!pickedTenant && !!azureSetup.subsError && azureSetup.subscriptions.length === 0;
+  // The Azure sign-in session, shared by the login / subscription / app-registration cards.
+  const azure = useAzureAccount();
+  const subscription = addCard(
+    useAzureSubscription({
+      azureAccount: azure.account,
+      confirmedTenantId: azure.confirmedTenantId,
+      manualTenantId: azure.manualTenantId,
+      savedTenantId,
+      savedSubscriptionId,
+    }),
+  );
+  const subscriptionLabel = subscription.subscriptions.find((s) => s.id === subscriptionId)?.displayName ?? (subscriptionId || undefined);
 
-  const azureLoginCard = addCard({
-    cardId: "azure_login" as const,
-    cardRequirements: [],
-    cardDependencyLabel: "Sign in to Azure",
-    done: !!azureSetup.azureAccount,
-  });
-  const subscriptionCard = addCard({
-    cardId: "subscription" as const,
-    cardRequirements: ["azure_login", "repo"],
-    cardDependencyLabel: "Select a subscription",
-    done: subscriptionConfirmed,
-  });
+  const azureSetup = addCard(
+    useAzureAppRegistration({
+      azureAccount: azure.account,
+      githubAccount: githubRepo.selectedAccount,
+      githubRepo: githubRepo.selectedRepo?.name ?? "",
+      validEnvs: githubRepo.pipeline.validEnvs,
+      subscriptionId,
+      subscriptionLabel,
+      tenantId: savedTenantId || undefined,
+    }),
+  );
+
+  // Signing out of Azure also drops the cached app-registration result, which belonged to that account.
+  const handleAzureLogout = async () => {
+    await azure.logout();
+    azureSetup.reset();
+  };
+
+  const azureLogin = addCard(
+    useAzureLogin({
+      account: azure.account,
+      login: azure.login,
+      logout: handleAzureLogout,
+      loggingIn: azure.loggingIn,
+      loginError: azure.loginError,
+    }),
+  );
+
+  // Shared inputs for the infrastructure / domain cards, sourced from repo variables (the
+  // pipeline's source of truth) with the app-registration card's own result as fallback.
+  const corpSpClientId = github.presentVariableValues.AZURE_CLIENT_ID || azureSetup.result?.clientId || "";
+  // The app's own save flow always writes AZURE_PLAN_CLIENT_ID equal to AZURE_CLIENT_ID — a saved
+  // mismatch means something else touched it (stale value, manual edit), so treat it as drift too.
+  const corpPlanClientId = github.presentVariableValues.AZURE_PLAN_CLIENT_ID || azureSetup.result?.clientId || "";
+  const planClientIdMismatch = !!corpSpClientId && !!corpPlanClientId && corpSpClientId !== corpPlanClientId;
+  // MSA (personal) accounts sign in via the consumer tenant, so ARM/Graph calls need the real AAD tenant passed explicitly.
+  const corpTenantId = savedTenantId || azureSetup.result?.tenantId || azure.manualTenantId.trim() || undefined;
 
   // Live check: does the app reg exist in this tenant, and does its SP hold RBAC on the selected subscription?
   const { status: rbacStatus, missingRoles: rbacMissingRoles } = useRbacCheck({
-    azureAccount: azureSetup.azureAccount,
+    azureAccount: azure.account,
     spClientId: corpSpClientId,
     subscriptionId,
     tenantId: corpTenantId,
   });
 
   const infra = addCard(
-    useInfraSetup({
-      azureAccount: azureSetup.azureAccount,
+    useCoreInfra({
+      azureAccount: azure.account,
       subscriptionId,
-      corpName,
+      corpName: companyInfo.corpName,
       spClientId: corpSpClientId,
       tenantId: corpTenantId,
     }),
   );
   const createDomain = addCard(
-    useCreateDomainSetup({
-      azureAccount: azureSetup.azureAccount,
+    useCreateDomain({
+      azureAccount: azure.account,
       subscriptionId,
-      corpName,
-      dnsName,
+      corpName: companyInfo.corpName,
+      dnsName: companyInfo.dnsName,
       spClientId: corpSpClientId,
       tenantId: corpTenantId,
     }),
   );
 
   // ── Accordion + completion flags ───────────────────────────────────────────
-  // A Set, not a single id, so multiple tiles can stay expanded at once.
+  // A Set, not a single id, so multiple cards can stay expanded at once.
   const [expandedIds, setExpandedIds] = useState<Set<CardId>>(new Set());
   const toggle = (id: CardId) =>
     setExpandedIds((cur) => {
@@ -185,58 +203,55 @@ function AppDashboard() {
     });
   const [azureSetupDone, setAzureSetupDone] = useState(false);
 
-  // "azure_setup" is only truly done once RBAC is actually ready and the connection vars agree —
+  // "azure_app_registration" is only truly done once RBAC is actually ready and the connection vars agree —
   // refine the registry entry now that those live checks are available.
   addCard({ ...azureSetup, done: azureSetupDone && rbacStatus === "ready" && !planClientIdMismatch });
 
   // ── Derived card statuses ──────────────────────────────────────────────────
   const azureConfigured = !!AZURE_CLIENT_ID;
-  const azureSignedIn = !!azureSetup.azureAccount;
-  const hasCompanyInfo = !!corpName && !!dnsName;
-  const subscriptionSelected = subscriptionConfirmed;
-  const subscriptionLabel = azureSetup.subscriptions.find((s) => s.id === subscriptionId)?.displayName ?? (subscriptionId || undefined);
+  const azureSignedIn = !!azure.account;
 
-  const tileState: TileStateInput = {
+  const cardState: CardStateInput = {
     isAuthed,
-    userLogin: auth.user?.login,
+    userLogin: auth.account?.login,
     azureConfigured,
     azureSignedIn,
-    azureUsername: azureSetup.azureAccount?.username,
+    azureUsername: azure.account?.username,
     azureSetupDone,
-    azureSecretsValid: env.azureSecrets.valid,
+    azureSecretsValid: github.azureSecrets.valid,
     appRegResultPresent: !!azureSetup.result,
     hasAzureClientId: !!corpSpClientId,
     rbacStatus,
     planClientIdMismatch,
-    isCloneRepo: repo.isCloneRepo,
-    repoStatus: repo.status,
-    repoFullName: repo.repoFullName,
-    envSelected: !!env.selectedEnv,
-    envName: env.selectedEnv?.name,
-    subscriptionSelected,
+    isCloneRepo: githubRepo.isCloneRepo,
+    repoStatus: githubRepo.status,
+    repoFullName: githubRepo.repoFullName,
+    envSelected: !!github.selectedEnv,
+    envName: github.selectedEnv?.name,
+    subscriptionSelected: subscription.done,
     subscriptionLabel,
-    subscriptionDrift,
-    subscriptionNoAccess,
-    hasCompanyInfo,
-    corpName,
-    dnsName,
+    subscriptionDrift: subscription.subscriptionDrift,
+    subscriptionNoAccess: subscription.subscriptionNoAccess,
+    hasCompanyInfo: companyInfo.done,
+    corpName: companyInfo.corpName,
+    dnsName: companyInfo.dnsName,
     infraDone: infra.done,
     domainVerified: createDomain.domainVerified,
     domainIsPrimary: createDomain.isPrimary,
   };
 
-  const cardStatus = deriveCardStatus(tileState);
+  const cardStatus = deriveCardStatus(cardState);
 
   // ── Lock / requirements + face summaries ───────────────────────────────────
-  const summaries = deriveTileSummaries(tileState);
+  const summaries = deriveCardSummaries(cardState);
 
-  const githubEnvUrl = repo.repoFullName && env.selectedEnv ? getEnvSettingsUrl(repo.repoFullName, env.selectedEnv.id) : undefined;
+  const githubEnvUrl = githubRepo.repoFullName && github.selectedEnv ? getEnvSettingsUrl(githubRepo.repoFullName, github.selectedEnv.id) : undefined;
 
-  // Jumping to a prerequisite adds it to the expanded set rather than replacing it, so the tile
+  // Jumping to a prerequisite adds it to the expanded set rather than replacing it, so the card
   // you came from stays open too.
-  const openTile = (id: CardId) => {
+  const openCard = (id: CardId) => {
     setExpandedIds((cur) => new Set(cur).add(id));
-    requestAnimationFrame(() => document.getElementById(`tile-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
+    requestAnimationFrame(() => document.getElementById(`card-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
   };
 
   // Only surfaces dependencies that are still unmet — a card that reports its own `done` doesn't get
@@ -247,16 +262,16 @@ function AppDashboard() {
     return [...new Set([...directRequirements, ...nestedRequirements])];
   }
 
-  const tileProps = (cardHook: CardHook) => {
-    const id = cardHook.cardId as CardId;
+  const cardProps = (id: CardId): CardChrome => {
     const misconfigured = !azureConfigured && id === "azure_login"; //  A misconfigured Azure card isn't "locked" behind other steps — it's broken regardless of progress, so skip the normal prerequisite list for it.
     const cardRequirementRecursive = getCardRequirementsRecursive(id);
-    const requirementsForTile: Requirement[] = [];
+    const requirementsForCard: Requirement[] = [];
     for (const reqCardId of cardRequirementRecursive ?? []) {
-      requirementsForTile.push({ label: allCards[reqCardId].cardDependencyLabel, target: reqCardId });
+      requirementsForCard.push({ label: allCards[reqCardId].cardDependencyLabel, target: reqCardId });
     }
-    const requirements = misconfigured ? [] : requirementsForTile;
+    const requirements = misconfigured ? [] : requirementsForCard;
     return {
+      cardId: id,
       status: cardStatus[id],
       summary: summaries[id],
       locked: requirements.length > 0,
@@ -264,13 +279,9 @@ function AppDashboard() {
       unavailable: misconfigured,
       expanded: expandedIds.has(id),
       onToggle: () => toggle(id),
-      onRequirementClick: openTile,
+      onRequirementClick: openCard,
     };
   };
-  const itemProps = (id: CardId) => ({
-    id: `tile-${id}`,
-    sx: { width: expandedIds.has(id) ? EXPANDED_W : TILE_W, maxWidth: "100%" as const, transition: "width 0.25s ease" },
-  });
 
   // ── URL sync (persist current state; restore is handled by useUrlRestore) ──
   useEffect(() => {
@@ -278,46 +289,24 @@ function AppDashboard() {
     const p = restore.pendingRestore.current;
     if (p.account !== null || p.repo !== null || p.pr !== null || p.env !== null) return;
     const params = new URLSearchParams();
-    if (repo.selectedAccount) params.set("account", repo.selectedAccount.login);
-    if (repo.selectedRepo && !repo.selectedRepo.isNew) params.set("repo", repo.selectedRepo.name);
+    if (githubRepo.selectedAccount) params.set("account", githubRepo.selectedAccount.login);
+    if (githubRepo.selectedRepo && !githubRepo.selectedRepo.isNew) params.set("repo", githubRepo.selectedRepo.name);
     if (pr.selectedPR) params.set("pr", String(pr.selectedPR.number));
-    else if (env.selectedEnv) params.set("env", env.selectedEnv.name);
+    else if (github.selectedEnv) params.set("env", github.selectedEnv.name);
     const search = params.toString();
     window.history.replaceState(null, "", search ? `?${search}` : window.location.pathname);
-  }, [isAuthed, repo.selectedAccount, repo.selectedRepo, pr.selectedPR, env.selectedEnv, restore.pendingRestore]);
-
-  const viewRepoAction = repo.repoFullName ? (
-    <Button
-      size="small"
-      variant="outlined"
-      aria-label="View on GitHub"
-      endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />}
-      onClick={() => window.open(getRepoUrl(repo.repoFullName!), "_blank")}
-      sx={{
-        borderColor: "#e2e8f0",
-        color: "#475569",
-        fontSize: "0.72rem",
-        textTransform: "none",
-        ...mono,
-        "&:hover": { borderColor: "#cbd5e1", color: "#0f172a", background: "#f8fafc" },
-      }}
-    >
-      <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
-        View on GitHub
-      </Box>
-    </Button>
-  ) : undefined;
+  }, [isAuthed, githubRepo.selectedAccount, githubRepo.selectedRepo, pr.selectedPR, github.selectedEnv, restore.pendingRestore]);
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
-      <SessionOverlay sessionExpired={auth.sessionExpired} redirecting={auth.redirecting} onLogin={auth.onLogin} />
+      <SessionOverlay sessionExpired={auth.sessionExpired} redirecting={auth.redirecting} onLogin={auth.login} />
 
       <Box sx={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a", fontFamily: "'IBM Plex Sans', sans-serif" }}>
         <NavBar
-          authLoading={auth.authLoading}
-          user={auth.user}
-          selectedRepo={repo.selectedRepo}
+          authLoading={auth.loggingIn}
+          user={auth.account}
+          selectedRepo={githubRepo.selectedRepo}
           siblingPages={[
             { label: "Access Pass", href: "/accessPass.html" },
             { label: "Private Account", href: "/privAccount.html" },
@@ -341,206 +330,84 @@ function AppDashboard() {
           >
             <Typography sx={{ fontSize: "0.85rem", color: "#475569", lineHeight: 1.7 }}>
               The ZenInstaller is used to deploy Zenblox to your environment. It requires a Github repository in your own account, an Azure, and AWS
-              subscription in your name. Complete the tiles below in any order — each shows what it needs before it can run.
+              subscription in your name. Complete the cards below in any order — each shows what it needs before it can run.
             </Typography>
           </Box>
 
           {/* ── Sign in ── */}
           <Typography sx={groupLabelSx}>Sign in</Typography>
           <Box sx={groupSx}>
-            <Box {...itemProps("auth")}>
-              <CardTile title="GitHub login" {...tileProps(auth)}>
-                <LoginDetail
-                  authLoading={auth.authLoading}
-                  user={auth.user}
-                  onLogin={auth.onLogin}
-                  onLogout={auth.onLogout}
-                  onPatLogin={auth.onPatLogin}
-                  onDirectLogout={() => {
-                    auth.onDirectLogout();
-                    repo.setSelectedAccount(null);
-                    repo.setSelectedRepo(null);
-                  }}
-                />
-              </CardTile>
-            </Box>
-            <Box {...itemProps("azure_login")}>
-              <CardTile title="Azure login" {...tileProps(azureLoginCard)}>
-                {azureConfigured ? (
-                  <AzureLoginDetail
-                    azureAccount={azureSetup.azureAccount}
-                    loggingIn={azureSetup.loggingIn}
-                    loginError={azureSetup.loginError}
-                    login={azureSetup.login}
-                    logout={azureSetup.logout}
-                  />
-                ) : (
-                  <ConfigErrorNotice />
-                )}
-              </CardTile>
-            </Box>
+            <GithubLoginCard
+              card={cardProps("github_login")}
+              auth={auth}
+              onDirectLogout={() => {
+                auth.onDirectLogout();
+                githubRepo.setSelectedAccount(null);
+                githubRepo.setSelectedRepo(null);
+              }}
+            />
+            <AzureLoginCard card={cardProps("azure_login")} azureLogin={azureLogin} configured={azureConfigured} />
           </Box>
 
           {/* ── Target ── */}
           <Typography sx={groupLabelSx}>Target</Typography>
           <Box sx={groupSx}>
-            <Box {...itemProps("repo")}>
-              <CardTile title="Repository & environment" action={viewRepoAction} {...tileProps(repo)}>
-                <RepoDetail
-                  accounts={repo.accounts}
-                  selectedAccount={repo.selectedAccount}
-                  onAccountChange={repo.setSelectedAccount}
-                  repos={repo.repos}
-                  selectedRepo={repo.selectedRepo}
-                  onRepoChange={repo.setSelectedRepo}
-                  templateStatus={repo.templateStatus}
-                  templateName={repo.templateName}
-                  defaultTemplateRepo="ZenMe-AU/ZBCorpArchitecture"
-                  isPrivate={repo.isPrivate}
-                  onIsPrivateChange={repo.setIsPrivate}
-                  includeAllBranch={repo.includeAllBranch}
-                  onIncludeAllBranchChange={repo.setIncludeAllBranch}
-                  cloning={repo.cloning}
-                  cloneError={repo.cloneError}
-                  onClone={repo.onClone}
-                  createEnvs={repo.createEnvs}
-                  onCreateEnvsChange={repo.setCreateEnvs}
-                  cloneEnvWarning={repo.cloneEnvWarning}
-                  repoLoading={repo.repoLoading}
-                  repoRefreshFailed={repo.repoRefreshFailed}
-                  onRefresh={repo.onRefresh}
-                />
-                {!repo.selectedRepo?.isNew && (
-                  <Box sx={{ mt: 2.5, pt: 2.5, borderTop: "1px solid #f1f5f9" }}>
-                    <EnvDetail
-                      showConfig={false}
-                      envList={env.envList}
-                      validEnvs={repo.pipeline.validEnvs}
-                      selectedEnv={env.selectedEnv}
-                      onEnvChange={env.setSelectedEnv}
-                      lockedByPR={!!pr.selectedPR}
-                      branchMatchWarning={env.branchMatchWarning}
-                      branchMatchError={env.branchMatchError}
-                      loading={env.envLoading}
-                      refreshFailed={env.envRefreshFailed}
-                      onRefresh={env.onRefresh}
-                      presentKeys={env.presentSecretKeys}
-                      azureSecretsStatus={env.azureSecrets}
-                      awsSecretsStatus={env.awsSecrets}
-                      repoFullName={repo.repoFullName}
-                      onRecheck={env.onRecheck}
-                      rechecking={env.rechecking}
-                      recheckFailed={env.recheckFailed}
-                      account={repo.selectedAccount}
-                      repo={repo.selectedRepo?.name ?? ""}
-                      variableValues={env.presentVariableValues}
-                      onVariableRecheck={env.onVariableRecheck}
-                      variablesRechecking={env.variablesRechecking}
-                      varRecheckFailed={env.varRecheckFailed}
-                      onVariableConfirmed={env.onVariableConfirmed}
-                      branches={repo.branches}
-                      sourceBranch={repo.sourceBranch}
-                      onSourceBranchChange={repo.setSourceBranch}
-                      creatingBranch={repo.creatingBranch}
-                      createBranchError={repo.createBranchError}
-                      onCreateBranch={repo.onCreateBranch}
-                    />
-                  </Box>
-                )}
-              </CardTile>
-            </Box>
-            <Box {...itemProps("subscription")}>
-              <CardTile title="Azure subscription" {...tileProps(subscriptionCard)}>
-                {azureConfigured ? (
-                  <SubscriptionDetail
-                    azureAccount={azureSetup.azureAccount}
-                    tenants={azureSetup.tenants}
-                    manualTenantId={azureSetup.manualTenantId}
-                    setManualTenantId={azureSetup.setManualTenantId}
-                    selectTenant={azureSetup.selectTenant}
-                    subscriptions={azureSetup.subscriptions}
-                    selectedSubscriptionId={azureSetup.selectedSubscriptionId}
-                    setSelectedSubscriptionId={azureSetup.setSelectedSubscriptionId}
-                    subsError={azureSetup.subsError}
-                    subscriptionDrift={subscriptionDrift}
-                    subscriptionNoAccess={subscriptionNoAccess}
-                    account={repo.selectedAccount}
-                    repoName={repo.selectedRepo?.name ?? ""}
-                    selectedEnv={env.selectedEnv}
-                    onVariableConfirmed={env.onVariableConfirmed}
-                    githubUrl={githubEnvUrl}
-                  />
-                ) : (
-                  <ConfigErrorNotice />
-                )}
-              </CardTile>
-            </Box>
+            <RepoCard card={cardProps("repo")} githubRepo={githubRepo} github={github} lockedByPR={!!pr.selectedPR} />
+            <AzureSubscriptionCard
+              card={cardProps("azure_subscription")}
+              azure={azure}
+              subscription={subscription}
+              githubAccount={githubRepo.selectedAccount}
+              repoName={githubRepo.selectedRepo?.name ?? ""}
+              selectedEnv={github.selectedEnv}
+              onVariableConfirmed={github.onVariableConfirmed}
+              githubUrl={githubEnvUrl}
+              configured={azureConfigured}
+            />
           </Box>
 
           {/* ── Resources ── */}
           <Typography sx={groupLabelSx}>Resources</Typography>
           <Box sx={groupSx}>
-            <Box {...itemProps("company_info")}>
-              <CardTile title="Company info" {...tileProps(env)}>
-                {env.selectedEnv && (
-                  <EnvVariablesDetail
-                    account={repo.selectedAccount}
-                    repo={repo.selectedRepo?.name ?? ""}
-                    selectedEnv={env.selectedEnv}
-                    variableValues={env.presentVariableValues}
-                    onVariableRecheck={env.onVariableRecheck}
-                    variablesRechecking={env.variablesRechecking}
-                    varRecheckFailed={env.varRecheckFailed}
-                    onVariableConfirmed={env.onVariableConfirmed}
-                    githubUrl={githubEnvUrl}
-                  />
-                )}
-              </CardTile>
-            </Box>
+            <CompanyInfoCard
+              card={cardProps("company_info")}
+              github={github}
+              githubAccount={githubRepo.selectedAccount}
+              repoName={githubRepo.selectedRepo?.name ?? ""}
+              githubUrl={githubEnvUrl}
+            />
 
-            <Box {...itemProps("azure_setup")}>
-              <CardTile title="Azure app registration" {...tileProps(azureSetup)}>
-                <AzureDeployDetail
-                  {...azureSetup}
-                  disabled={tileProps(allCards["azure_setup"]).locked}
-                  account={repo.selectedAccount}
-                  repoName={repo.selectedRepo?.name ?? ""}
-                  selectedEnv={env.selectedEnv}
-                  subscriptionId={subscriptionId}
-                  rbacStatus={rbacStatus}
-                  rbacMissingRoles={rbacMissingRoles}
-                  planClientIdMismatch={planClientIdMismatch}
-                  onComplete={setAzureSetupDone}
-                  githubUrl={githubEnvUrl}
-                  onAzureValid={env.onAzureValid}
-                />
-              </CardTile>
-            </Box>
+            <AzureAppRegistrationCard
+              card={cardProps("azure_app_registration")}
+              appReg={azureSetup}
+              githubAccount={githubRepo.selectedAccount}
+              repoName={githubRepo.selectedRepo?.name ?? ""}
+              selectedEnv={github.selectedEnv}
+              subscriptionId={subscriptionId}
+              rbacStatus={rbacStatus}
+              rbacMissingRoles={rbacMissingRoles}
+              planClientIdMismatch={planClientIdMismatch}
+              onComplete={setAzureSetupDone}
+              githubUrl={githubEnvUrl}
+              onAzureValid={github.onAzureValid}
+            />
 
-            <Box {...itemProps("infra")}>
-              <CardTile title="Core infrastructure" {...tileProps(infra)}>
-                <InfraDetail
-                  {...infra}
-                  disabled={tileProps(allCards["infra"]).locked}
-                  azureAccount={azureSetup.azureAccount}
-                  corpName={corpName}
-                  subscriptionId={subscriptionId}
-                  spClientId={corpSpClientId}
-                />
-              </CardTile>
-            </Box>
+            <CoreInfraCard
+              card={cardProps("core_infra")}
+              infra={infra}
+              azureAccount={azure.account}
+              corpName={companyInfo.corpName}
+              subscriptionId={subscriptionId}
+              spClientId={corpSpClientId}
+            />
 
-            <Box {...itemProps("create_domain")}>
-              <CardTile title="Corp domain" {...tileProps(createDomain)}>
-                <CreateDomainDetail
-                  {...createDomain}
-                  disabled={tileProps(allCards["create_domain"]).locked}
-                  azureAccount={azureSetup.azureAccount}
-                  corpName={corpName}
-                  dnsName={dnsName}
-                />
-              </CardTile>
-            </Box>
+            <CreateDomainCard
+              card={cardProps("create_domain")}
+              createDomain={createDomain}
+              azureAccount={azure.account}
+              corpName={companyInfo.corpName}
+              dnsName={companyInfo.dnsName}
+            />
           </Box>
         </Box>
       </Box>

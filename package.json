@@ -1,0 +1,28 @@
+{
+  "name": "zeninstaller-monorepo",
+  "version": "1.0.0",
+  "description": "Zen Installer - Monorepo for web and backend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "dev:all": "pnpm -r dev",
+    "build": "pnpm --filter web build",
+    "build:all": "pnpm -r build",
+    "lint": "pnpm --filter web lint",
+    "lint:all": "pnpm -r lint",
+    "test": "pnpm --filter web test",
+    "test:all": "pnpm -r test",
+    "test:watch": "pnpm --filter web test:watch",
+    "backend:start": "pnpm --filter backend start",
+    "backend:deploy": "pnpm --filter backend deploy",
+    "web:preview": "pnpm --filter web preview",
+    "docs:dev": "pnpm --filter web docs:dev",
+    "docs:build": "pnpm --filter web docs:build",
+    "docs:preview": "pnpm --filter web docs:preview",
+    "install-all": "pnpm install -r"
+  },
+  "engines": {
+    "pnpm": ">=8.0.0"
+  }
+}

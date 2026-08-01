@@ -1,0 +1,7 @@
+packages:
+  - "web"
+  - "backend"
+
+onlyBuiltDependencies:
+  - esbuild
+  - azure-functions-core-tools

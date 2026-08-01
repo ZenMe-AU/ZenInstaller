@@ -77,6 +77,12 @@ export async function listSubscriptions(account: AccountInfo, overrideTenantId?:
 
 export type AzureTenant = { tenantId: string; displayName: string; defaultDomain?: string };
 
+// Looks up a tenant's display name in a fetched list, falling back to the raw id when unknown.
+export function tenantDisplayName(tenants: AzureTenant[], tenantId: string | null | undefined): string | undefined {
+  if (!tenantId) return undefined;
+  return tenants.find((t) => t.tenantId === tenantId)?.displayName ?? tenantId;
+}
+
 /*
  * Lists tenants the signed-in identity can access. Needs an ARM token, so it throws
  * MSA_NEEDS_TENANT for personal accounts before a tenant is chosen — callers fall back to

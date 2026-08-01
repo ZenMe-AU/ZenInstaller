@@ -4,6 +4,7 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { Account, CardChrome, GhEnv } from "../types";
 import type { UseAzureAccount } from "../hooks/useAzureAccount";
 import type { UseAzureSubscription } from "../hooks/useAzureSubscription";
+import { tenantDisplayName } from "../api/azureGraph";
 import { AZURE_TARGET_KEYS } from "../logic/variables";
 import CloudVariableDetail from "./CloudVariableDetail";
 import Card from "../components/Card";
@@ -60,7 +61,7 @@ export default function AzureSubscriptionCard({
   }, [subscriptions, selectedSubscriptionId, setSelectedSubscriptionId]);
 
   const populate = { AZURE_TENANT_ID: manualTenantId, AZURE_SUBSCRIPTION_ID: selectedSubscriptionId };
-  const tenantLabel = tenants.find((t) => t.tenantId === manualTenantId)?.displayName ?? manualTenantId;
+  const tenantLabel = tenantDisplayName(tenants, manualTenantId);
 
   if (!configured) {
     return (

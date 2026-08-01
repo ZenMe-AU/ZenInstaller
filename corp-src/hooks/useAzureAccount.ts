@@ -13,7 +13,6 @@ export interface UseAzureAccount extends LoginHook<AccountInfo> {
   logout: () => Promise<void>;
   loginError: string | null;
   tenants: AzureTenant[];
-  availableTenants: string[];
   manualTenantId: string;
   setManualTenantId: (id: string) => void;
   /*
@@ -24,9 +23,7 @@ export interface UseAzureAccount extends LoginHook<AccountInfo> {
    */
   confirmedTenantId: string | null;
   tenantIdError: string | null;
-  confirmTenantId: (tenantIdArg?: string) => Promise<void>;
   selectTenant: (tenantId: string) => void;
-  changeTenant: () => void;
 }
 
 const SESSION_KEY = "zeninstaller_arm_tenant";
@@ -240,10 +237,6 @@ export function useAzureAccount(): UseAzureAccount {
     [confirmTenantId],
   );
 
-  const changeTenant = useCallback(() => {
-    setTenantIdError(null);
-  }, []);
-
   const clearSession = useCallback(async () => {
     const msal = await getMsal();
     if (msal) await msal.clearCache().catch(() => {});
@@ -263,14 +256,11 @@ export function useAzureAccount(): UseAzureAccount {
     loggingIn,
     loginError,
     tenants,
-    availableTenants,
     manualTenantId,
     setManualTenantId,
     confirmedTenantId,
     tenantIdError,
-    confirmTenantId,
     selectTenant,
-    changeTenant,
     login,
     logout,
   };

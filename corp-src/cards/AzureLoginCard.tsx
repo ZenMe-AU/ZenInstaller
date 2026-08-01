@@ -6,6 +6,7 @@ import Card from "../components/Card";
 import ConfigErrorNotice from "../components/ConfigErrorNotice";
 import type { CardChrome } from "../types";
 import type { UseAzureLogin } from "../hooks/useAzureLogin";
+import { tenantDisplayName } from "../api/azureGraph";
 
 type Props = {
   card: CardChrome;
@@ -125,8 +126,7 @@ export default function AzureLoginCard({ card, azureLogin, configured }: Props) 
                   displayEmpty
                   renderValue={(v) => {
                     if (!v) return <Typography sx={{ fontSize: "0.8rem", color: "#94a3b8", ...mono }}>Select a tenant</Typography>;
-                    const t = tenants.find((x) => x.tenantId === v);
-                    return <Typography sx={{ fontSize: "0.8rem", ...mono }}>{t?.displayName ?? v}</Typography>;
+                    return <Typography sx={{ fontSize: "0.8rem", ...mono }}>{tenantDisplayName(tenants, v)}</Typography>;
                   }}
                   sx={{ minWidth: { xs: 0, sm: 380 }, width: "100%", fontSize: "0.8rem", ...mono }}
                 >

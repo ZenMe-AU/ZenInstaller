@@ -3,6 +3,7 @@ import { Box, Typography } from "@mui/material";
 
 import { type CardChrome, type CardHook, type CardId, type CardRequirements, type PendingRestore, type Requirement } from "./types";
 import { AZURE_CLIENT_ID } from "./config/azureConfig";
+import { tenantDisplayName } from "./api/azureGraph";
 import { groupLabelSx, groupSx, EXPANDED_W } from "./config/cardLayout";
 import { deriveCardStatus, deriveCardSummaries, type CardStateInput } from "./logic/cardState";
 import { getEnvSettingsUrl } from "./logic/github";
@@ -145,17 +146,7 @@ function AppDashboard() {
 
   const azureLogin = addCard(
     useAzureLogin({
-      account: azure.account,
-      login: azure.login,
-      logout: handleAzureLogout,
-      loggingIn: azure.loggingIn,
-      loginError: azure.loginError,
-      tenants: azure.tenants,
-      manualTenantId: azure.manualTenantId,
-      setManualTenantId: azure.setManualTenantId,
-      confirmedTenantId: azure.confirmedTenantId,
-      selectTenant: azure.selectTenant,
-      tenantIdError: azure.tenantIdError,
+      azure: { ...azure, logout: handleAzureLogout },
       savedTenantId,
     }),
   );
@@ -217,7 +208,7 @@ function AppDashboard() {
   // ── Derived card statuses ──────────────────────────────────────────────────
   const azureConfigured = !!AZURE_CLIENT_ID;
   const azureSignedIn = !!azure.account;
-  const azureTenantLabel = azure.tenants.find((t) => t.tenantId === azure.confirmedTenantId)?.displayName ?? azure.confirmedTenantId ?? undefined;
+  const azureTenantLabel = tenantDisplayName(azure.tenants, azure.confirmedTenantId);
 
   const cardState: CardStateInput = {
     isAuthed,

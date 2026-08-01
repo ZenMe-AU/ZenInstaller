@@ -12,6 +12,8 @@ export type CardStateInput = {
   azureConfigured: boolean;
   azureSignedIn: boolean;
   azureUsername?: string;
+  azureTenantConfirmed: boolean;
+  azureTenantLabel?: string;
   azureSetupDone: boolean;
   azureSecretsValid: boolean | null;
   appRegResultPresent: boolean;
@@ -55,7 +57,13 @@ export function deriveCardStatus(f: CardStateInput): Record<CardId, CardStatus> 
      * Azure-dependent cards need VITE_AZURE_CLIENT_ID at build time — when missing, keep
      * them visible with a "contact admin" error instead of hiding them as if unused.
      */
-    azure_login: !f.azureConfigured ? "error" : f.azureSignedIn ? "complete" : "idle",
+    azure_login: !f.azureConfigured
+      ? "error"
+      : f.azureSignedIn && f.azureTenantConfirmed
+        ? "complete"
+        : f.azureSignedIn
+          ? "warning"
+          : "idle",
     azure_subscription: !f.azureConfigured
       ? "error"
       : f.subscriptionSelected
@@ -85,7 +93,13 @@ export function deriveCardSummaries(f: CardStateInput): Partial<Record<CardId, s
   const domainComplete = f.domainVerified && f.domainIsPrimary;
   return {
     github_login: f.isAuthed ? `Signed in as ${f.userLogin ?? ""}` : "Connect your GitHub account",
-    azure_login: !f.azureConfigured ? "Unavailable" : f.azureSignedIn ? (f.azureUsername ?? "Signed in") : "Sign in to Azure",
+    azure_login: !f.azureConfigured
+      ? "Unavailable"
+      : !f.azureSignedIn
+        ? "Sign in to Azure"
+        : f.azureTenantConfirmed
+          ? [f.azureUsername, f.azureTenantLabel].filter(Boolean).join(" · ") || "Signed in"
+          : "Select a tenant",
     azure_subscription: !f.azureConfigured
       ? "Unavailable"
       : f.subscriptionSelected

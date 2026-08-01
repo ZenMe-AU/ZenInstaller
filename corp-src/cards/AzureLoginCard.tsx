@@ -1,7 +1,7 @@
-import { Box, Button, CircularProgress, Typography } from "@mui/material";
+import { Autocomplete, Box, Button, CircularProgress, MenuItem, Select, TextField, Typography } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { CLOUD_DOCS } from "../config/docsConfig";
-import { MONO as mono } from "../config/styles";
+import { MONO as mono, labelSx } from "../config/styles";
 import Card from "../components/Card";
 import ConfigErrorNotice from "../components/ConfigErrorNotice";
 import type { CardChrome } from "../types";
@@ -26,7 +26,22 @@ export default function AzureLoginCard({ card, azureLogin, configured }: Props) 
     );
   }
 
-  const { account: azureAccount, loggingIn, loginError, login, logout } = azureLogin;
+  const {
+    account: azureAccount,
+    loggingIn,
+    loginError,
+    login,
+    logout,
+    tenants,
+    manualTenantId,
+    setManualTenantId,
+    selectTenant,
+    tenantIdError,
+    savedTenantId,
+  } = azureLogin;
+
+  // A tenant list was fetched, but the saved tenant doesn't appear in it — an error, not just a warning.
+  const savedTenantNotInList = !!savedTenantId && manualTenantId === savedTenantId && tenants.length > 0 && !tenants.some((t) => t.tenantId === savedTenantId);
 
   return (
     <Card title="Azure login" {...card}>
@@ -81,20 +96,85 @@ export default function AzureLoginCard({ card, azureLogin, configured }: Props) 
           {loginError && <Typography sx={{ fontSize: "0.72rem", color: "#ef4444" }}>{loginError}</Typography>}
         </Box>
         ) : (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
-              Signed in as{" "}
-              <Box component="span" data-id="txtAzureUsername" sx={{ fontWeight: 600, ...mono }}>
-                {azureAccount.username}
-              </Box>
-            </Typography>
-            <Button
-              size="small"
-              onClick={logout}
-              sx={{ minWidth: 0, fontSize: "0.68rem", color: "#94a3b8", textTransform: "none", ...mono, py: 0.25, "&:hover": { color: "#ef4444" } }}
-            >
-              Sign out
-            </Button>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
+                Signed in as{" "}
+                <Box component="span" data-id="txtAzureUsername" sx={{ fontWeight: 600, ...mono }}>
+                  {azureAccount.username}
+                </Box>
+              </Typography>
+              <Button
+                size="small"
+                onClick={logout}
+                sx={{ minWidth: 0, fontSize: "0.68rem", color: "#94a3b8", textTransform: "none", ...mono, py: 0.25, "&:hover": { color: "#ef4444" } }}
+              >
+                Sign out
+              </Button>
+            </Box>
+
+            {/* Tenant */}
+            <Box>
+              <Typography sx={{ ...labelSx, mb: 0.75 }}>Tenant</Typography>
+              {tenants.length > 0 ? (
+                // Fetched (or MSA-fallback) list available — plain dropdown, picking loads that tenant immediately.
+                <Select
+                  size="small"
+                  value={manualTenantId || ""}
+                  onChange={(e) => selectTenant(e.target.value)}
+                  displayEmpty
+                  renderValue={(v) => {
+                    if (!v) return <Typography sx={{ fontSize: "0.8rem", color: "#94a3b8", ...mono }}>Select a tenant</Typography>;
+                    const t = tenants.find((x) => x.tenantId === v);
+                    return <Typography sx={{ fontSize: "0.8rem", ...mono }}>{t?.displayName ?? v}</Typography>;
+                  }}
+                  sx={{ minWidth: { xs: 0, sm: 380 }, width: "100%", fontSize: "0.8rem", ...mono }}
+                >
+                  {tenants.map((t) => (
+                    <MenuItem key={t.tenantId} value={t.tenantId} sx={{ py: 0.75 }}>
+                      <Box>
+                        <Typography sx={{ fontSize: "0.8rem", ...mono }}>{t.displayName}</Typography>
+                        <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono }}>{t.tenantId}</Typography>
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              ) : (
+                // Nothing fetched yet (e.g. personal account with no cached tenant) — type one in directly.
+                <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
+                  <Autocomplete
+                    freeSolo
+                    options={[]}
+                    inputValue={manualTenantId}
+                    onInputChange={(_, v) => setManualTenantId(v)}
+                    sx={{ minWidth: { xs: 0, sm: 320 }, width: "100%" }}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        size="small"
+                        placeholder="Tenant name or ID"
+                        onKeyDown={(e) => e.key === "Enter" && selectTenant(manualTenantId)}
+                        inputProps={{ ...params.inputProps, style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" } }}
+                      />
+                    )}
+                  />
+                  <Button
+                    variant="contained"
+                    size="small"
+                    onClick={() => selectTenant(manualTenantId)}
+                    disabled={!manualTenantId.trim()}
+                    sx={{ background: "#2563eb", textTransform: "none", ...mono, fontSize: "0.78rem", "&:hover": { background: "#1d4ed8" } }}
+                  >
+                    Confirm tenant
+                  </Button>
+                </Box>
+              )}
+              {savedTenantNotInList ? (
+                <Typography sx={{ fontSize: "0.72rem", color: "#ef4444", mt: 0.75 }}>Saved tenant not found — please pick another.</Typography>
+              ) : (
+                tenantIdError && <Typography sx={{ fontSize: "0.72rem", color: "#ef4444", mt: 0.75 }}>{tenantIdError}</Typography>
+              )}
+            </Box>
           </Box>
         )}
       </Box>

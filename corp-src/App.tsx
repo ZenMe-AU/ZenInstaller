@@ -150,6 +150,13 @@ function AppDashboard() {
       logout: handleAzureLogout,
       loggingIn: azure.loggingIn,
       loginError: azure.loginError,
+      tenants: azure.tenants,
+      manualTenantId: azure.manualTenantId,
+      setManualTenantId: azure.setManualTenantId,
+      confirmedTenantId: azure.confirmedTenantId,
+      selectTenant: azure.selectTenant,
+      tenantIdError: azure.tenantIdError,
+      savedTenantId,
     }),
   );
 
@@ -210,6 +217,7 @@ function AppDashboard() {
   // ── Derived card statuses ──────────────────────────────────────────────────
   const azureConfigured = !!AZURE_CLIENT_ID;
   const azureSignedIn = !!azure.account;
+  const azureTenantLabel = azure.tenants.find((t) => t.tenantId === azure.confirmedTenantId)?.displayName ?? azure.confirmedTenantId ?? undefined;
 
   const cardState: CardStateInput = {
     isAuthed,
@@ -217,6 +225,8 @@ function AppDashboard() {
     azureConfigured,
     azureSignedIn,
     azureUsername: azure.account?.username,
+    azureTenantConfirmed: azureLogin.done,
+    azureTenantLabel,
     azureSetupDone,
     azureSecretsValid: github.azureSecrets.valid,
     appRegResultPresent: !!azureSetup.result,

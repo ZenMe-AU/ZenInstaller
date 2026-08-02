@@ -24,8 +24,6 @@ export const ACCESS_PASS_SCOPES = [
   "https://graph.microsoft.com/User.ReadWrite.All",
   "https://graph.microsoft.com/UserAuthenticationMethod.ReadWrite.All",
   "https://graph.microsoft.com/Policy.ReadWrite.AuthenticationMethod",
-  "https://graph.microsoft.com/Policy.ReadWrite.ApplicationConfiguration",
-  "https://graph.microsoft.com/PrivilegedAccess.ReadWrite.AzureADGroup",
 ];
 
 // ── Individual Graph application permissions ───────────────────────────────────

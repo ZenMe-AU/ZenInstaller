@@ -48,7 +48,7 @@ export function useAzureLoginCard({ azure, savedTenantId }: UseAzureLoginCardPar
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedTenantId, azure.selectTenant]);
 
-  const done = !!azure.account && azure.confirmedTenantId !== null;
+  const done = !!azure.account && azure.confirmedTenantId !== null && !!azure.manualTenantId;
   const azureConfigured = !!AZURE_CLIENT_ID;
   const status: CardStatus = !azureConfigured
     ? "error"

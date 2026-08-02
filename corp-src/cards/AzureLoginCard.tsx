@@ -6,7 +6,7 @@ import Card from "../components/Card";
 import ConfigErrorNotice from "../components/ConfigErrorNotice";
 import type { CardChrome } from "../types";
 import type { UseAzureLoginCard } from "../hooks/useAzureLoginCard";
-import { tenantDisplayName } from "../api/azureGraph";
+import { tenantDisplayName } from "../logic/tenant";
 
 type Props = {
   card: CardChrome;

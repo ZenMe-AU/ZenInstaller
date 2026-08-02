@@ -4,7 +4,7 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { Account, CardChrome, GhEnv } from "../types";
 import type { UseAzureAccount } from "../hooks/useAzureAccount";
 import type { UseAzureSubscriptionCard } from "../hooks/useAzureSubscriptionCard";
-import { tenantDisplayName } from "../api/azureGraph";
+import { tenantDisplayName } from "../logic/tenant";
 import { AZURE_TARGET_KEYS } from "../logic/variables";
 import CloudVariableDetail from "./CloudVariableDetail";
 import Card from "../components/Card";

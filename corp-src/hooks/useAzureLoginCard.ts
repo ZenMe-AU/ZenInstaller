@@ -2,7 +2,8 @@ import { useEffect, useRef } from "react";
 import type { AccountInfo } from "@azure/msal-browser";
 import type { CardHook, CardRequirements, CardStatus, LoginHook } from "../types";
 import { AZURE_CLIENT_ID } from "../config/azureConfig";
-import { tenantDisplayName, type AzureTenant } from "../api/azureGraph";
+import type { AzureTenant } from "../api/azureGraph";
+import { tenantDisplayName } from "../logic/tenant";
 import type { UseAzureAccount } from "./useAzureAccount";
 
 // ─── Types ────────────────────────────────────────────────────────────────────

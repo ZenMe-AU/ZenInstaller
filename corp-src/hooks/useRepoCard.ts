@@ -45,6 +45,7 @@ export function useRepoCard({ githubRepo, envReady, isAuthed, envName }: UseRepo
     cardId: "repo" as const,
     status,
     summary,
+    cardRequirements: ["github_login"],
     cardDependencyLabel: "Choose an environment",
     done: githubRepo.isCloneRepo && envReady,
   };

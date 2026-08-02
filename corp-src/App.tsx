@@ -16,6 +16,7 @@ import { useAzureSubscriptionCard } from "./hooks/useAzureSubscriptionCard";
 import { useCreateDomainCard } from "./hooks/useCreateDomainCard";
 import { useCoreInfraCard } from "./hooks/useCoreInfraCard";
 import { useCompanyInfoCard } from "./hooks/useCompanyInfoCard";
+import { useAccessPassCard } from "./hooks/useAccessPassCard";
 import { usePR } from "./hooks/usePR";
 import { useUrlRestore } from "./hooks/useUrlRestore";
 
@@ -30,6 +31,7 @@ import AzureAppRegistrationCard from "./cards/AzureAppRegistrationCard";
 import AzureSubscriptionCard from "./cards/AzureSubscriptionCard";
 import CoreInfraCard from "./cards/CoreInfraCard";
 import CreateDomainCard from "./cards/CreateDomainCard";
+import AccessPassCard from "./cards/AccessPassCard";
 
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
@@ -110,8 +112,11 @@ function AppDashboard() {
   const savedSubscriptionId = github.presentVariableValues.AZURE_SUBSCRIPTION_ID ?? "";
   const subscriptionId = savedSubscriptionId;
 
-  // The Azure sign-in session, shared by the login / subscription / app-registration cards.
+  // The Azure sign-in session, shared by the login / subscription / app-registration / access-pass cards.
   const azure = useAzureAccount();
+  const accessPass = addCard(
+    useAccessPassCard({ azureAccount: azure.account, confirmedTenantId: azure.confirmedTenantId }),
+  );
   const subscription = addCard(
     useAzureSubscriptionCard({
       azureAccount: azure.account,
@@ -315,6 +320,8 @@ function AppDashboard() {
           {/* ── Resources ── */}
           <Typography sx={groupLabelSx}>Resources</Typography>
           <Box sx={groupSx}>
+            <AccessPassCard card={cardProps("access_pass")} accessPass={accessPass} />
+
             <CompanyInfoCard
               card={cardProps("company_info")}
               github={github}

@@ -1,8 +1,9 @@
 import type { AccountInfo } from "@azure/msal-browser";
 import { getMsal } from "./msal";
-import { APP_SCOPES, LOGIN_SCOPES, ARM_SCOPES, DOMAIN_SCOPES, GRANT_CONSENT_SCOPES } from "../config/azureConfig";
+import { APP_SCOPES, LOGIN_SCOPES, ARM_SCOPES, DOMAIN_SCOPES, GRANT_CONSENT_SCOPES, ACCESS_PASS_SCOPES } from "../config/azureConfig";
 import { RBAC_ROLE_IDS } from "../config/azureConfig";
 import { deterministicUuid } from "../logic/crypto";
+import { getFederatedCredentialName } from "../logic/naming";
 
 const GRAPH = "https://graph.microsoft.com/v1.0";
 const ARM = "https://management.azure.com";
@@ -10,11 +11,6 @@ const ARM = "https://management.azure.com";
 // ── Token helpers ──────────────────────────────────────────────────────────────
 
 export const MSA_TENANT = "9188040d-6c67-4c5b-b112-36a304b66dad"; // Microsoft consumer tenant (MSA accounts)
-
-// Whether an error message indicates missing/incremental consent (as opposed to a real failure).
-export function isConsentError(msg: string): boolean {
-  return msg.includes("interaction_required") || msg.includes("consent_required") || msg.includes("AADSTS65001") || msg.includes("MSA_NEEDS_TENANT");
-}
 
 /*
  * overrideTenantId is used for MSA accounts to target a specific AAD tenant
@@ -87,12 +83,6 @@ export async function listSubscriptions(account: AccountInfo, overrideTenantId?:
 // ── Tenants ──────────────────────────────────────────────────────────────────────
 
 export type AzureTenant = { tenantId: string; displayName: string; defaultDomain?: string };
-
-// Looks up a tenant's display name in a fetched list, falling back to the raw id when unknown.
-export function tenantDisplayName(tenants: AzureTenant[], tenantId: string | null | undefined): string | undefined {
-  if (!tenantId) return undefined;
-  return tenants.find((t) => t.tenantId === tenantId)?.displayName ?? tenantId;
-}
 
 /*
  * Lists tenants the signed-in identity can access. Needs an ARM token, so it throws
@@ -190,9 +180,7 @@ export async function ensureFederatedCredential(
   overrideTenantId?: string,
 ): Promise<void> {
   const subject = `repo:${org}/${repo}:environment:${environment}`;
-  const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "-");
-  const base = `${slug(org)}-${slug(repo)}-${slug(environment)}`;
-  const credName = base.length <= 113 ? `github-${base}` : base.slice(0, 120);
+  const credName = getFederatedCredentialName(org, repo, environment);
   const token = await getToken(account, APP_SCOPES, overrideTenantId);
   const existing = await gFetch(token, GRAPH, `/applications/${appObjectId}/federatedIdentityCredentials`);
   if (existing?.value?.some((c: { subject: string }) => c.subject === subject)) return;
@@ -334,4 +322,164 @@ export async function verifyEntraDomain(account: AccountInfo, domainName: string
 export async function setPrimaryEntraDomain(account: AccountInfo, domainName: string, overrideTenantId?: string): Promise<void> {
   const token = await getToken(account, DOMAIN_SCOPES, overrideTenantId);
   await gFetch(token, GRAPH, `/domains/${domainName}`, { method: "PATCH", body: JSON.stringify({ isDefault: true }) });
+}
+
+// ── Access Pass ─────────────────────────────────────────────────────────────────
+
+export type EntraUser = { id: string; displayName: string; userPrincipalName: string };
+
+export type TemporaryAccessPass = {
+  id: string;
+  temporaryAccessPass: string;
+  startDateTime?: string;
+  lifetimeInMinutes?: number;
+  isUsableOnce?: boolean;
+};
+
+export type GraphAuthMethod = {
+  id: string;
+  "@odata.type"?: string;
+};
+
+// List Entra users managed by the signed-in user (direct reports) — populates the Access Pass user picker.
+export async function listUsersManagedBySignedInUser(account: AccountInfo, overrideTenantId?: string): Promise<EntraUser[]> {
+  const token = await getToken(account, ACCESS_PASS_SCOPES, overrideTenantId);
+  const users = await gFetch(token, GRAPH, "/me/directReports/microsoft.graph.user?$select=id,displayName,userPrincipalName");
+
+  return (users.value ?? [])
+    .map((u: { id: string; displayName?: string; userPrincipalName?: string; mail?: string }) => ({
+      id: u.id,
+      displayName: u.displayName ?? u.userPrincipalName ?? u.mail ?? u.id,
+      userPrincipalName: u.userPrincipalName ?? u.mail ?? "",
+    }))
+    .sort((a: EntraUser, b: EntraUser) => a.displayName.localeCompare(b.displayName));
+}
+
+const TAP_POLICY_PATH = "/policies/authenticationMethodsPolicy/authenticationMethodConfigurations/TemporaryAccessPass";
+
+// Ensures the tenant's authentication methods policy allows Temporary Access Pass, enabling
+// it (without touching includeTargets/excludeTargets/lifetime settings) if currently
+// disabled. Returns true if it needed to be enabled, false if it already was.
+export async function ensureTemporaryAccessPassEnabled(account: AccountInfo, overrideTenantId?: string): Promise<boolean> {
+  const token = await getToken(account, ACCESS_PASS_SCOPES, overrideTenantId);
+  const data = await gFetch(token, GRAPH, TAP_POLICY_PATH);
+  if (data.state === "enabled") return false;
+  await gFetch(token, GRAPH, TAP_POLICY_PATH, {
+    method: "PATCH",
+    body: JSON.stringify({ "@odata.type": "#microsoft.graph.temporaryAccessPassAuthenticationMethodConfiguration", state: "enabled" }),
+  });
+  return true;
+}
+
+export async function listUserAuthenticationMethods(account: AccountInfo, userId: string, overrideTenantId?: string): Promise<GraphAuthMethod[]> {
+  const token = await getToken(account, ACCESS_PASS_SCOPES, overrideTenantId);
+  // Do not use @odata.type in $select; Graph rejects it in select/expand expressions.
+  const data = await gFetch(token, GRAPH, `/users/${userId}/authentication/methods`);
+  return (data?.value ?? []) as GraphAuthMethod[];
+}
+
+export async function deleteUserAuthenticationMethod(account: AccountInfo, deletePath: string, overrideTenantId?: string): Promise<void> {
+  const token = await getToken(account, ACCESS_PASS_SCOPES, overrideTenantId);
+  await gFetch(token, GRAPH, deletePath, { method: "DELETE" });
+}
+
+export async function resetUserPassword(account: AccountInfo, userId: string, newPassword: string, overrideTenantId?: string): Promise<void> {
+  const token = await getToken(account, ACCESS_PASS_SCOPES, overrideTenantId);
+  const maxAttempts = 4;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      await gFetch(token, GRAPH, `/users/${userId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          passwordProfile: {
+            password: newPassword,
+            forceChangePasswordNextSignIn: false,
+            forceChangePasswordNextSignInWithMfa: false,
+          },
+        }),
+      });
+      return;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      const retryable = msg.includes("409") && (msg.includes("Directory_ConcurrencyViolation") || msg.includes("concurrent requests"));
+
+      if (!retryable || attempt === maxAttempts) {
+        throw err;
+      }
+
+      const delayMs = 400 * attempt;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+}
+
+// Creates a Temporary Access Pass for a user (requires delegated UserAuthenticationMethod.ReadWrite.All).
+export async function createTemporaryAccessPassForUser(
+  account: AccountInfo,
+  userId: string,
+  overrideTenantId?: string,
+): Promise<TemporaryAccessPass> {
+  const token = await getToken(account, ACCESS_PASS_SCOPES, overrideTenantId);
+  const maxAttempts = 4;
+  let data: {
+    id: string;
+    temporaryAccessPass: string;
+    startDateTime?: string;
+    lifetimeInMinutes?: number;
+    isUsableOnce?: boolean;
+  } | null = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      data = await gFetch(token, GRAPH, `/users/${userId}/authentication/temporaryAccessPassMethods`, {
+        method: "POST",
+        body: JSON.stringify({
+          isUsableOnce: true,
+          lifetimeInMinutes: 60,
+        }),
+      });
+      break;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      const retryable = msg.includes("409") && (msg.toLowerCase().includes("conflict") || msg.includes("concurrent requests"));
+
+      if (!retryable || attempt === maxAttempts) {
+        throw err;
+      }
+
+      const delayMs = 400 * attempt;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  if (!data) {
+    throw new Error("Failed to create Temporary Access Pass");
+  }
+
+  return {
+    id: data.id,
+    temporaryAccessPass: data.temporaryAccessPass,
+    startDateTime: data.startDateTime,
+    lifetimeInMinutes: data.lifetimeInMinutes,
+    isUsableOnce: data.isUsableOnce,
+  };
+}
+
+// Checks whether a previously-created Temporary Access Pass method still exists for a user.
+export async function temporaryAccessPassMethodExists(
+  account: AccountInfo,
+  userId: string,
+  methodId: string,
+  overrideTenantId?: string,
+): Promise<boolean> {
+  try {
+    const token = await getToken(account, ACCESS_PASS_SCOPES, overrideTenantId);
+    await gFetch(token, GRAPH, `/users/${userId}/authentication/temporaryAccessPassMethods/${methodId}?$select=id`);
+    return true;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "";
+    if (msg.includes("404")) return false;
+    throw err;
+  }
 }

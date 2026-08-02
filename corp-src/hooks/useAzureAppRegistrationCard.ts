@@ -10,8 +10,8 @@ import {
   createServicePrincipal,
   ensureFederatedCredential,
   ensureRbacRole,
-  isConsentError,
 } from "../api/azureGraph";
+import { isConsentError } from "../logic/consent";
 import { createResultStorage } from "../logic/resultStorage";
 import { useStepRunner } from "./util/useStepRunner";
 import { useRbacCheck, type RbacCheckStatus } from "./util/useRbacCheck";

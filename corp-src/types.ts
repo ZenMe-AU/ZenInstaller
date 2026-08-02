@@ -10,7 +10,8 @@ export type CardId =
   | "company_info"
   | "azure_app_registration"
   | "core_infra"
-  | "create_domain";
+  | "create_domain"
+  | "access_pass";
 export type CardStatus = "idle" | "loading" | "complete" | "warning" | "error" | "skipped";
 
 export type CardRequirements = CardId[]; //["github_login","repo"]

@@ -15,7 +15,18 @@ export const ARM_SCOPES = ["https://management.azure.com/user_impersonation"];
 export const DOMAIN_SCOPES = ["https://graph.microsoft.com/Domain.ReadWrite.All"];
 
 // Domain card: granting DomainReadWriteAll to the pipeline's service principal.
-export const GRANT_CONSENT_SCOPES = ["https://graph.microsoft.com/AppRoleAssignment.ReadWrite.All", "https://graph.microsoft.com/Application.Read.All"];
+export const GRANT_CONSENT_SCOPES = [
+  "https://graph.microsoft.com/AppRoleAssignment.ReadWrite.All",
+  "https://graph.microsoft.com/Application.Read.All",
+];
+
+export const ACCESS_PASS_SCOPES = [
+  "https://graph.microsoft.com/User.ReadWrite.All",
+  "https://graph.microsoft.com/UserAuthenticationMethod.ReadWrite.All",
+  "https://graph.microsoft.com/Policy.ReadWrite.AuthenticationMethod",
+  "https://graph.microsoft.com/Policy.ReadWrite.ApplicationConfiguration",
+  "https://graph.microsoft.com/PrivilegedAccess.ReadWrite.AzureADGroup",
+];
 
 // ── Individual Graph application permissions ───────────────────────────────────
 

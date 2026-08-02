@@ -10,8 +10,8 @@ import {
   setPrimaryEntraDomain,
   getExistingSP,
   grantAdminConsent,
-  isConsentError,
 } from "../api/azureGraph";
+import { isConsentError } from "../logic/consent";
 import { getRootResourceGroupName } from "../logic/naming";
 import { createResultStorage } from "../logic/resultStorage";
 import { useStepRunner } from "./util/useStepRunner";

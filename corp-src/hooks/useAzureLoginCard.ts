@@ -1,17 +1,18 @@
 import { useEffect, useRef } from "react";
 import type { AccountInfo } from "@azure/msal-browser";
-import type { CardHook, CardRequirements, LoginHook } from "../types";
-import type { AzureTenant } from "../api/azureGraph";
+import type { CardHook, CardRequirements, CardStatus, LoginHook } from "../types";
+import { AZURE_CLIENT_ID } from "../config/azureConfig";
+import { tenantDisplayName, type AzureTenant } from "../api/azureGraph";
 import type { UseAzureAccount } from "./useAzureAccount";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type UseAzureLoginParams = {
+export type UseAzureLoginCardParams = {
   azure: UseAzureAccount;
   savedTenantId: string; // AZURE_TENANT_ID as saved on the GitHub environment — auto-applied once known.
 };
 
-export interface UseAzureLogin extends CardHook, LoginHook<AccountInfo> {
+export interface UseAzureLoginCard extends CardHook, LoginHook<AccountInfo> {
   readonly cardId: "azure_login";
   login: () => Promise<void>;
   logout: () => Promise<void>;
@@ -35,7 +36,7 @@ export interface UseAzureLogin extends CardHook, LoginHook<AccountInfo> {
  * projects it onto a card entry, gating everything else behind "signed in + tenant
  * confirmed", and owns the saved-tenant auto-prefill.
  */
-export function useAzureLogin({ azure, savedTenantId }: UseAzureLoginParams): UseAzureLogin {
+export function useAzureLoginCard({ azure, savedTenantId }: UseAzureLoginCardParams): UseAzureLoginCard {
   // Which saved tenant value we've already tried to auto-apply, so a fresh save can retrigger it once.
   const appliedSavedTenantRef = useRef<string | null>(null);
   useEffect(() => {
@@ -46,12 +47,31 @@ export function useAzureLogin({ azure, savedTenantId }: UseAzureLoginParams): Us
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedTenantId, azure.selectTenant]);
 
+  const done = !!azure.account && azure.confirmedTenantId !== null;
+  const azureConfigured = !!AZURE_CLIENT_ID;
+  const status: CardStatus = !azureConfigured
+    ? "error"
+    : azure.account && done
+      ? "complete"
+      : azure.account
+        ? "warning"
+        : "idle";
+  const summary = !azureConfigured
+    ? "Unavailable"
+    : !azure.account
+      ? "Sign in to Azure"
+      : done
+        ? [azure.account.username, tenantDisplayName(azure.tenants, azure.confirmedTenantId)].filter(Boolean).join(" · ") || "Signed in"
+        : "Select a tenant";
+
   return {
     ...azure,
     cardId: "azure_login" as const,
     savedTenantId,
+    status,
+    summary,
     cardRequirements: [],
     cardDependencyLabel: "Sign in to Azure",
-    done: !!azure.account && azure.confirmedTenantId !== null,
+    done,
   };
 }

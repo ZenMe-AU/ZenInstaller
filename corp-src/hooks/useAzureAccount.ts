@@ -27,7 +27,7 @@ export interface UseAzureAccount extends LoginHook<AccountInfo> {
 }
 
 const SESSION_KEY = "zeninstaller_arm_tenant";
-// Must stay in sync with useAzureAppRegistration's RESULT_KEY — read here only to recover an MSA
+// Must stay in sync with useAzureAppRegistrationCard's RESULT_KEY — read here only to recover an MSA
 // account's real AAD tenant on mount, which the app-registration card recorded last run.
 const azureResult = createResultStorage<{ tenantId: string }>("zeninstaller_azure_result");
 
@@ -43,7 +43,7 @@ function friendlyTenantError(err: unknown): string {
 /*
  * The Azure sign-in session itself: which MSAL account is active, which tenant it's scoped
  * to, and the ARM consent dance needed before anything can be read from that tenant. Not a
- * card — useAzureLogin, useAzureSubscription and the app-registration card all read from it.
+ * card — useAzureLoginCard, useAzureSubscriptionCard and useAzureAppRegistrationCard all read from it.
  */
 export function useAzureAccount(): UseAzureAccount {
   const [account, setAccount] = useState<AccountInfo | null>(null);
@@ -227,7 +227,7 @@ export function useAzureAccount(): UseAzureAccount {
   );
 
   // Pick a tenant from the dropdown → point at it and confirm ARM access.
-  // useAzureSubscription watches manualTenantId and reloads its own list.
+  // useAzureSubscriptionCard watches manualTenantId and reloads its own list.
   const selectTenant = useCallback(
     (tid: string) => {
       setManualTenantId(tid);

@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import type { AccountInfo } from "@azure/msal-browser";
 import { listSubscriptions, type Subscription } from "../api/azureGraph";
-import type { CardHook, CardRequirements } from "../types";
+import { AZURE_CLIENT_ID } from "../config/azureConfig";
+import type { CardHook, CardRequirements, CardStatus } from "../types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-export type UseAzureSubscriptionParams = {
+export type UseAzureSubscriptionCardParams = {
   azureAccount: AccountInfo | null;
   confirmedTenantId: string | null;
   manualTenantId: string;
@@ -12,7 +13,7 @@ export type UseAzureSubscriptionParams = {
   savedSubscriptionId: string; // AZURE_SUBSCRIPTION_ID as saved on the GitHub environment.
 };
 
-export interface UseAzureSubscription extends CardHook {
+export interface UseAzureSubscriptionCard extends CardHook {
   readonly cardId: "azure_subscription";
   subscriptions: Subscription[];
   selectedSubscriptionId: string;
@@ -20,6 +21,7 @@ export interface UseAzureSubscription extends CardHook {
   subsError: string | null;
   subscriptionDrift: boolean;
   subscriptionNoAccess: boolean;
+  subscriptionLabel?: string; // Display name of the saved (persisted) subscription — also fed to useAzureAppRegistrationCard.
   // Narrowed from CardHook (optional there) — every card provides these.
   cardRequirements: CardRequirements;
   cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Select a subscription")
@@ -34,13 +36,13 @@ function friendlySubsError(err: unknown): string {
   return "Couldn't load subscriptions for this tenant — check the tenant ID or your access, then try again.";
 }
 
-export function useAzureSubscription({
+export function useAzureSubscriptionCard({
   azureAccount,
   confirmedTenantId,
   manualTenantId,
   savedTenantId,
   savedSubscriptionId,
-}: UseAzureSubscriptionParams): UseAzureSubscription {
+}: UseAzureSubscriptionCardParams): UseAzureSubscriptionCard {
   const pickedTenant = manualTenantId.trim();
 
   const [loaded, setLoaded] = useState<{ tenant: string; subs: Subscription[]; error: string | null } | null>(null);
@@ -73,6 +75,29 @@ export function useAzureSubscription({
   }, [azureAccount, confirmedTenantId]);
 
   const subscriptionConfirmed = !!savedSubscriptionId && savedSubscriptionId === selectedSubscriptionId && savedTenantId === pickedTenant;
+  const subscriptionDrift = !!selectedSubscriptionId && !subscriptionConfirmed;
+  const subscriptionNoAccess = !!pickedTenant && !!subsError && subscriptions.length === 0;
+  const subscriptionLabel = subscriptions.find((s) => s.id === savedSubscriptionId)?.displayName ?? (savedSubscriptionId || undefined);
+
+  const azureConfigured = !!AZURE_CLIENT_ID;
+  // Assumes prerequisites are met — App locks this card (via cardRequirements) whenever they're not,
+  // which overrides this status to "idle" regardless of what's computed here.
+  const status: CardStatus = !azureConfigured
+    ? "error"
+    : subscriptionConfirmed
+      ? "complete"
+      : subscriptionDrift || subscriptionNoAccess
+        ? "warning"
+        : "idle";
+  const summary = !azureConfigured
+    ? "Unavailable"
+    : subscriptionConfirmed
+      ? (subscriptionLabel ?? "Subscription selected")
+      : subscriptionDrift
+        ? "Unsaved change — save to apply"
+        : subscriptionNoAccess
+          ? "No subscriptions in this tenant"
+          : "Select a subscription";
 
   return {
     cardId: "azure_subscription" as const,
@@ -80,8 +105,11 @@ export function useAzureSubscription({
     selectedSubscriptionId,
     setSelectedSubscriptionId,
     subsError,
-    subscriptionDrift: !!selectedSubscriptionId && !subscriptionConfirmed,
-    subscriptionNoAccess: !!pickedTenant && !!subsError && subscriptions.length === 0,
+    subscriptionDrift,
+    subscriptionNoAccess,
+    subscriptionLabel,
+    status,
+    summary,
     cardRequirements: ["azure_login", "repo"],
     cardDependencyLabel: "Select a subscription",
     done: subscriptionConfirmed,

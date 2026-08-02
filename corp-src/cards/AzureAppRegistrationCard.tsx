@@ -4,25 +4,20 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { Account, CardChrome, GhEnv } from "../types";
-import type { UseAzureAppRegistration } from "../hooks/useAzureAppRegistration";
+import type { UseAzureAppRegistrationCard } from "../hooks/useAzureAppRegistrationCard";
 import StepRow from "./StepRow";
 import Card from "../components/Card";
-import type { RbacCheckStatus } from "../hooks/useRbacCheck";
 import { AZURE_APP_KEYS } from "../logic/variables";
 import CloudVariableDetail from "./CloudVariableDetail";
 import { MONO as mono, labelSx } from "../config/styles";
 
 type Props = {
   card: CardChrome;
-  appReg: UseAzureAppRegistration;
+  appReg: UseAzureAppRegistrationCard;
   githubAccount: Account | null;
   repoName: string;
   selectedEnv: GhEnv | null;
   subscriptionId: string;
-  rbacStatus: RbacCheckStatus;
-  rbacMissingRoles: string[];
-  planClientIdMismatch: boolean;
-  onComplete: (done: boolean) => void;
   githubUrl?: string;
   /*
    * Invalidates the last pipeline run's Azure-connectivity result — call when a
@@ -38,14 +33,25 @@ export default function AzureAppRegistrationCard({
   repoName,
   selectedEnv,
   subscriptionId,
-  rbacStatus,
-  rbacMissingRoles,
-  planClientIdMismatch,
-  onComplete,
   githubUrl,
   onAzureValid,
 }: Props) {
-  const { azureAccount, appName, setAppName, setEnvironments, steps, result, running, reset, run, prefillAppName } = appReg;
+  const {
+    azureAccount,
+    appName,
+    setAppName,
+    setEnvironments,
+    steps,
+    result,
+    running,
+    reset,
+    run,
+    prefillAppName,
+    rbacStatus,
+    rbacMissingRoles,
+    planClientIdMismatch,
+    onVariablesComplete,
+  } = appReg;
   const disabled = card.locked;
   const [varExpanded, setVarExpanded] = useState(false);
   const [loadedVars, setLoadedVars] = useState<Record<string, string> | null>(null);
@@ -285,7 +291,7 @@ export default function AzureAppRegistrationCard({
           title="Connection details"
           disabled={disabled}
           keyErrors={keyErrors}
-          onComplete={onComplete}
+          onComplete={onVariablesComplete}
           onAutoSaveResult={(result) => setBannerState(result)}
           onSaved={() => onAzureValid?.(null)}
           githubUrl={githubUrl}

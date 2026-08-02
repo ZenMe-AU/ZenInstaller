@@ -8,7 +8,7 @@ import { encryptSecret } from "../logic/crypto";
 import SecretsCard from "../components/SecretsCard";
 import RefreshButton from "../components/RefreshButton";
 import SaveButton from "../components/SaveButton";
-import { useRefreshIndicator } from "../hooks/useRefreshIndicator";
+import { useRefreshIndicator } from "../hooks/util/useRefreshIndicator";
 import { sectionLabelSx as sectionLabelBase } from "../config/styles";
 
 // Muted variant of the shared section label (whose default is the darker #0f172a).

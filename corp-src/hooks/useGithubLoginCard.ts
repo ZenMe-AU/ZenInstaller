@@ -7,7 +7,7 @@ const PAT_SESSION = "pat_token";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface UseGithubLogin extends CardHook, LoginHook<User> {
+export interface UseGithubLoginCard extends CardHook, LoginHook<User> {
   readonly cardId: "github_login";
   sessionExpired: boolean;
   redirecting: "login" | "logout" | null;
@@ -21,7 +21,7 @@ export interface UseGithubLogin extends CardHook, LoginHook<User> {
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function useGithubLogin(): UseGithubLogin {
+export function useGithubLoginCard(): UseGithubLoginCard {
   const [loggingIn, setLoggingIn] = useState(true);
   const [account, setAccount] = useState<User | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
@@ -83,6 +83,7 @@ export function useGithubLogin(): UseGithubLogin {
   }, []);
 
   const status: CardStatus = loggingIn ? "loading" : account ? "complete" : "idle";
+  const summary = account ? `Signed in as ${account.login}` : "Connect your GitHub account";
 
   const cardDependencyLabel: string = "Sign in to GitHub";
 
@@ -93,6 +94,7 @@ export function useGithubLogin(): UseGithubLogin {
     sessionExpired,
     redirecting,
     status,
+    summary,
     login,
     logout,
     onPatLogin,

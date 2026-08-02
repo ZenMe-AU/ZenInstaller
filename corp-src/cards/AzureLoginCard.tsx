@@ -5,12 +5,12 @@ import { MONO as mono, labelSx } from "../config/styles";
 import Card from "../components/Card";
 import ConfigErrorNotice from "../components/ConfigErrorNotice";
 import type { CardChrome } from "../types";
-import type { UseAzureLogin } from "../hooks/useAzureLogin";
+import type { UseAzureLoginCard } from "../hooks/useAzureLoginCard";
 import { tenantDisplayName } from "../api/azureGraph";
 
 type Props = {
   card: CardChrome;
-  azureLogin: UseAzureLogin;
+  azureLogin: UseAzureLoginCard;
   configured: boolean;
 };
 

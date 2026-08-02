@@ -8,8 +8,8 @@ import VariablesCard from "../components/VariablesCard";
 import RefreshButton from "../components/RefreshButton";
 import SaveButton from "../components/SaveButton";
 import Card from "../components/Card";
-import { useRefreshIndicator } from "../hooks/useRefreshIndicator";
-import { useVariableEditor } from "../hooks/useVariableEditor";
+import { useRefreshIndicator } from "../hooks/util/useRefreshIndicator";
+import { useVariableEditor } from "../hooks/util/useVariableEditor";
 import { sectionLabelSx } from "../config/styles";
 import type { UseGithubEnvironment } from "../hooks/useGithubEnvironment";
 

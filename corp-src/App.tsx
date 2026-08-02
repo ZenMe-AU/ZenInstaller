@@ -3,22 +3,19 @@ import { Box, Typography } from "@mui/material";
 
 import { type CardChrome, type CardHook, type CardId, type CardRequirements, type PendingRestore, type Requirement } from "./types";
 import { AZURE_CLIENT_ID } from "./config/azureConfig";
-import { tenantDisplayName } from "./api/azureGraph";
 import { groupLabelSx, groupSx, EXPANDED_W } from "./config/cardLayout";
-import { deriveCardStatus, deriveCardSummaries, type CardStateInput } from "./logic/cardState";
 import { getEnvSettingsUrl } from "./logic/github";
-import { useGithubLogin } from "./hooks/useGithubLogin";
+import { useGithubLoginCard } from "./hooks/useGithubLoginCard";
 import { useGithubRepo } from "./hooks/useGithubRepo";
 import { useGithubEnvironment } from "./hooks/useGithubEnvironment";
-import { useRepo } from "./hooks/useRepo";
+import { useRepoCard } from "./hooks/useRepoCard";
 import { useAzureAccount } from "./hooks/useAzureAccount";
-import { useAzureLogin } from "./hooks/useAzureLogin";
-import { useAzureAppRegistration } from "./hooks/useAzureAppRegistration";
-import { useAzureSubscription } from "./hooks/useAzureSubscription";
-import { useCreateDomain } from "./hooks/useCreateDomain";
-import { useCoreInfra } from "./hooks/useCoreInfra";
-import { useRbacCheck } from "./hooks/useRbacCheck";
-import { useCompanyInfo } from "./hooks/useCompanyInfo";
+import { useAzureLoginCard } from "./hooks/useAzureLoginCard";
+import { useAzureAppRegistrationCard } from "./hooks/useAzureAppRegistrationCard";
+import { useAzureSubscriptionCard } from "./hooks/useAzureSubscriptionCard";
+import { useCreateDomainCard } from "./hooks/useCreateDomainCard";
+import { useCoreInfraCard } from "./hooks/useCoreInfraCard";
+import { useCompanyInfoCard } from "./hooks/useCompanyInfoCard";
 import { usePR } from "./hooks/usePR";
 import { useUrlRestore } from "./hooks/useUrlRestore";
 
@@ -47,7 +44,7 @@ function AppDashboard() {
   }
   // ── Hooks ──────────────────────────────────────────────────────────────────
   const restore = useUrlRestore();
-  const auth = addCard(useGithubLogin());
+  const auth = addCard(useGithubLoginCard());
   const isAuthed = auth.status === "complete";
 
   // Stable empty refs — passed to sub-hooks when !isAuthed so restore never fires before login
@@ -101,8 +98,8 @@ function AppDashboard() {
 
   // Self-reports done = isCloneRepo && envReady, now that both live upstream of it. Nothing
   // else reads this card's own return — every field a card needs comes from githubRepo/github.
-  addCard(useRepo({ githubRepo, envReady: github.envReady }));
-  const companyInfo = addCard(useCompanyInfo({ variableValues: github.presentVariableValues }));
+  addCard(useRepoCard({ githubRepo, envReady: github.envReady, isAuthed, envName: github.selectedEnv?.name }));
+  const companyInfo = addCard(useCompanyInfoCard({ variableValues: github.presentVariableValues, envSelected: !!github.selectedEnv }));
 
   /*
    * The corp resource target. The saved GitHub vars are authoritative — they're what the
@@ -116,7 +113,7 @@ function AppDashboard() {
   // The Azure sign-in session, shared by the login / subscription / app-registration cards.
   const azure = useAzureAccount();
   const subscription = addCard(
-    useAzureSubscription({
+    useAzureSubscriptionCard({
       azureAccount: azure.account,
       confirmedTenantId: azure.confirmedTenantId,
       manualTenantId: azure.manualTenantId,
@@ -124,17 +121,19 @@ function AppDashboard() {
       savedSubscriptionId,
     }),
   );
-  const subscriptionLabel = subscription.subscriptions.find((s) => s.id === subscriptionId)?.displayName ?? (subscriptionId || undefined);
 
   const azureSetup = addCard(
-    useAzureAppRegistration({
+    useAzureAppRegistrationCard({
       azureAccount: azure.account,
       githubAccount: githubRepo.selectedAccount,
       githubRepo: githubRepo.selectedRepo?.name ?? "",
       validEnvs: githubRepo.pipeline.validEnvs,
       subscriptionId,
-      subscriptionLabel,
+      subscriptionLabel: subscription.subscriptionLabel,
       tenantId: savedTenantId || undefined,
+      variableValues: github.presentVariableValues,
+      manualTenantId: azure.manualTenantId,
+      azureSecretsValid: github.azureSecrets.valid,
     }),
   );
 
@@ -145,47 +144,31 @@ function AppDashboard() {
   };
 
   const azureLogin = addCard(
-    useAzureLogin({
+    useAzureLoginCard({
       azure: { ...azure, logout: handleAzureLogout },
       savedTenantId,
     }),
   );
 
-  // Shared inputs for the infrastructure / domain cards, sourced from repo variables (the
-  // pipeline's source of truth) with the app-registration card's own result as fallback.
-  const corpSpClientId = github.presentVariableValues.AZURE_CLIENT_ID || azureSetup.result?.clientId || "";
-  // The app's own save flow always writes AZURE_PLAN_CLIENT_ID equal to AZURE_CLIENT_ID — a saved
-  // mismatch means something else touched it (stale value, manual edit), so treat it as drift too.
-  const corpPlanClientId = github.presentVariableValues.AZURE_PLAN_CLIENT_ID || azureSetup.result?.clientId || "";
-  const planClientIdMismatch = !!corpSpClientId && !!corpPlanClientId && corpSpClientId !== corpPlanClientId;
-  // MSA (personal) accounts sign in via the consumer tenant, so ARM/Graph calls need the real AAD tenant passed explicitly.
-  const corpTenantId = savedTenantId || azureSetup.result?.tenantId || azure.manualTenantId.trim() || undefined;
-
-  // Live check: does the app reg exist in this tenant, and does its SP hold RBAC on the selected subscription?
-  const { status: rbacStatus, missingRoles: rbacMissingRoles } = useRbacCheck({
-    azureAccount: azure.account,
-    spClientId: corpSpClientId,
-    subscriptionId,
-    tenantId: corpTenantId,
-  });
-
+  // spClientId / tenantId come off the app-registration card — it's the one hook that already
+  // resolves both (saved var, or its own result, or — for tenantId — the manually picked one).
   const infra = addCard(
-    useCoreInfra({
+    useCoreInfraCard({
       azureAccount: azure.account,
       subscriptionId,
       corpName: companyInfo.corpName,
-      spClientId: corpSpClientId,
-      tenantId: corpTenantId,
+      spClientId: azureSetup.spClientId,
+      tenantId: azureSetup.tenantId,
     }),
   );
   const createDomain = addCard(
-    useCreateDomain({
+    useCreateDomainCard({
       azureAccount: azure.account,
       subscriptionId,
       corpName: companyInfo.corpName,
       dnsName: companyInfo.dnsName,
-      spClientId: corpSpClientId,
-      tenantId: corpTenantId,
+      spClientId: azureSetup.spClientId,
+      tenantId: azureSetup.tenantId,
     }),
   );
 
@@ -199,52 +182,10 @@ function AppDashboard() {
       else next.add(id);
       return next;
     });
-  const [azureSetupDone, setAzureSetupDone] = useState(false);
-
-  // "azure_app_registration" is only truly done once RBAC is actually ready and the connection vars agree —
-  // refine the registry entry now that those live checks are available.
-  addCard({ ...azureSetup, done: azureSetupDone && rbacStatus === "ready" && !planClientIdMismatch });
-
   // ── Derived card statuses ──────────────────────────────────────────────────
+  // Still needed here (not just inside useAzureLoginCard) for cardProps' own "unconfigured →
+  // skip the requirements list" special case below.
   const azureConfigured = !!AZURE_CLIENT_ID;
-  const azureSignedIn = !!azure.account;
-  const azureTenantLabel = tenantDisplayName(azure.tenants, azure.confirmedTenantId);
-
-  const cardState: CardStateInput = {
-    isAuthed,
-    userLogin: auth.account?.login,
-    azureConfigured,
-    azureSignedIn,
-    azureUsername: azure.account?.username,
-    azureTenantConfirmed: azureLogin.done,
-    azureTenantLabel,
-    azureSetupDone,
-    azureSecretsValid: github.azureSecrets.valid,
-    appRegResultPresent: !!azureSetup.result,
-    hasAzureClientId: !!corpSpClientId,
-    rbacStatus,
-    planClientIdMismatch,
-    isCloneRepo: githubRepo.isCloneRepo,
-    repoStatus: githubRepo.status,
-    repoFullName: githubRepo.repoFullName,
-    envSelected: !!github.selectedEnv,
-    envName: github.selectedEnv?.name,
-    subscriptionSelected: subscription.done,
-    subscriptionLabel,
-    subscriptionDrift: subscription.subscriptionDrift,
-    subscriptionNoAccess: subscription.subscriptionNoAccess,
-    hasCompanyInfo: companyInfo.done,
-    corpName: companyInfo.corpName,
-    dnsName: companyInfo.dnsName,
-    infraDone: infra.done,
-    domainVerified: createDomain.domainVerified,
-    domainIsPrimary: createDomain.isPrimary,
-  };
-
-  const cardStatus = deriveCardStatus(cardState);
-
-  // ── Lock / requirements + face summaries ───────────────────────────────────
-  const summaries = deriveCardSummaries(cardState);
 
   const githubEnvUrl = githubRepo.repoFullName && github.selectedEnv ? getEnvSettingsUrl(githubRepo.repoFullName, github.selectedEnv.id) : undefined;
 
@@ -271,11 +212,14 @@ function AppDashboard() {
       requirementsForCard.push({ label: allCards[reqCardId].cardDependencyLabel, target: reqCardId });
     }
     const requirements = misconfigured ? [] : requirementsForCard;
+    const locked = requirements.length > 0;
     return {
       cardId: id,
-      status: cardStatus[id],
-      summary: summaries[id],
-      locked: requirements.length > 0,
+      // A locked card's hook computed its status assuming prerequisites were already met —
+      // override to "idle" so it doesn't show e.g. a stale "warning" for work it can't do yet.
+      status: locked ? "idle" : allCards[id].status,
+      summary: allCards[id].summary,
+      locked,
       requirements,
       unavailable: misconfigured,
       expanded: expandedIds.has(id),
@@ -364,6 +308,7 @@ function AppDashboard() {
               onVariableConfirmed={github.onVariableConfirmed}
               githubUrl={githubEnvUrl}
               configured={azureConfigured}
+              onOpenAzureLogin={() => openCard("azure_login")}
             />
           </Box>
 
@@ -385,10 +330,6 @@ function AppDashboard() {
               repoName={githubRepo.selectedRepo?.name ?? ""}
               selectedEnv={github.selectedEnv}
               subscriptionId={subscriptionId}
-              rbacStatus={rbacStatus}
-              rbacMissingRoles={rbacMissingRoles}
-              planClientIdMismatch={planClientIdMismatch}
-              onComplete={setAzureSetupDone}
               githubUrl={githubEnvUrl}
               onAzureValid={github.onAzureValid}
             />
@@ -399,7 +340,7 @@ function AppDashboard() {
               azureAccount={azure.account}
               corpName={companyInfo.corpName}
               subscriptionId={subscriptionId}
-              spClientId={corpSpClientId}
+              spClientId={azureSetup.spClientId}
             />
 
             <CreateDomainCard

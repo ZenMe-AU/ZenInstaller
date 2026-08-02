@@ -5,11 +5,11 @@ import { switchToDirect, switchToBackend } from "../api";
 import { MONO as monoSx } from "../config/styles";
 import Card from "../components/Card";
 import type { CardChrome } from "../types";
-import type { UseGithubLogin } from "../hooks/useGithubLogin";
+import type { UseGithubLoginCard } from "../hooks/useGithubLoginCard";
 
 type Props = {
   card: CardChrome;
-  auth: UseGithubLogin;
+  auth: UseGithubLoginCard;
   onDirectLogout: () => void; // composed in App: clears the PAT session AND the repo picker's selection.
 };
 

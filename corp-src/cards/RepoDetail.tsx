@@ -9,7 +9,7 @@ import PersonIcon from "@mui/icons-material/Person";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { Account, Repo, RepoOption } from "../types";
 import RefreshButton from "../components/RefreshButton";
-import { useRefreshIndicator } from "../hooks/useRefreshIndicator";
+import { useRefreshIndicator } from "../hooks/util/useRefreshIndicator";
 
 // ─── Template status badge ────────────────────────────────────────────────────
 

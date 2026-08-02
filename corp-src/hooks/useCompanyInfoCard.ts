@@ -1,12 +1,13 @@
-import type { CardHook, CardRequirements } from "../types";
+import type { CardHook, CardRequirements, CardStatus } from "../types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type UseCompanyInfoParams = {
+export type UseCompanyInfoCardParams = {
   variableValues: Record<string, string>; // github.presentVariableValues — NAME + DNS are this card's own keys.
+  envSelected: boolean; // !!github.selectedEnv — this card has no cardRequirements gating it, so it reads this directly.
 };
 
-export interface UseCompanyInfo extends CardHook {
+export interface UseCompanyInfoCard extends CardHook {
   readonly cardId: "company_info";
   corpName: string;
   dnsName: string;
@@ -17,18 +18,23 @@ export interface UseCompanyInfo extends CardHook {
 
 /*
  * The company-info card: a thin projection of useGithubEnvironment's shared variable
- * store onto the two keys (NAME, DNS) this card owns — mirrors useAzureLogin/
- * useAzureSubscription's relationship to useAzureAccount.
+ * store onto the two keys (NAME, DNS) this card owns — mirrors useAzureLoginCard/
+ * useAzureSubscriptionCard's relationship to useAzureAccount.
  */
-export function useCompanyInfo({ variableValues }: UseCompanyInfoParams): UseCompanyInfo {
+export function useCompanyInfoCard({ variableValues, envSelected }: UseCompanyInfoCardParams): UseCompanyInfoCard {
   const corpName = variableValues.NAME ?? "";
   const dnsName = variableValues.DNS ?? "";
+  const done = !!corpName && !!dnsName;
+  const status: CardStatus = !envSelected ? "idle" : done ? "complete" : "warning";
+  const summary = done ? `${corpName} · ${dnsName}` : "Set company info";
   return {
     cardId: "company_info" as const,
     corpName,
     dnsName,
+    status,
+    summary,
     cardRequirements: ["github_login", "repo"],
     cardDependencyLabel: "Set company info",
-    done: !!corpName && !!dnsName,
+    done,
   };
 }

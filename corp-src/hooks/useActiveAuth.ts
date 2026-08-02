@@ -1,4 +1,4 @@
-import { useGithubLogin } from "./useGithubLogin";
+import { useGithubLoginCard } from "./useGithubLoginCard";
 import { usePkceAuth } from "./usePkceAuth";
 
 // ─── Auth toggle ──────────────────────────────────────────────────────────────
@@ -8,4 +8,4 @@ import { usePkceAuth } from "./usePkceAuth";
  */
 
 export const useActiveAuth =
-  import.meta.env.VITE_AUTH_PKCE === "true" ? usePkceAuth : useGithubLogin;
+  import.meta.env.VITE_AUTH_PKCE === "true" ? usePkceAuth : useGithubLoginCard;

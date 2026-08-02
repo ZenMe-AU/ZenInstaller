@@ -4,7 +4,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import CheckIcon from "@mui/icons-material/Check";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { AccountInfo } from "@azure/msal-browser";
-import type { UseCoreInfra } from "../hooks/useCoreInfra";
+import type { UseCoreInfraCard } from "../hooks/useCoreInfraCard";
 import StepRow from "./StepRow";
 import Card from "../components/Card";
 import { getVariableDisplayName } from "../logic/variables";
@@ -13,7 +13,7 @@ import type { CardChrome } from "../types";
 
 type Props = {
   card: CardChrome;
-  infra: UseCoreInfra;
+  infra: UseCoreInfraCard;
   azureAccount: AccountInfo | null;
   corpName: string;
   subscriptionId: string;

@@ -14,8 +14,9 @@ import {
 } from "../api/azureGraph";
 import { getRootResourceGroupName } from "../logic/naming";
 import { createResultStorage } from "../logic/resultStorage";
-import { useStepRunner } from "./useStepRunner";
-import type { AzureConfigHook, AzureSpTarget, CardHook, CardRequirements, SetupStep } from "../types";
+import { useStepRunner } from "./util/useStepRunner";
+import { AZURE_CLIENT_ID } from "../config/azureConfig";
+import type { AzureConfigHook, AzureSpTarget, CardHook, CardRequirements, CardStatus, SetupStep } from "../types";
 
 export type CreateDomainResult = {
   corpName: string;
@@ -28,13 +29,13 @@ export type CreateDomainResult = {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface UseCreateDomainParams extends AzureSpTarget {
+export interface UseCreateDomainCardParams extends AzureSpTarget {
   corpName: string;
   dnsName: string;
 }
 
 // steps / running / run / reset come from AzureConfigHook.
-export interface UseCreateDomain extends CardHook, AzureConfigHook {
+export interface UseCreateDomainCard extends CardHook, AzureConfigHook {
   readonly cardId: "create_domain";
   checkingStatus: boolean;
   checkStatusError: string | null;
@@ -57,17 +58,17 @@ const { save: saveResult, load: loadResult } = createResultStorage<CreateDomainR
 /*
  * The DNS + Entra custom-domain half of corp setup: create the DNS zone, add the domain to
  * Entra, write the verification TXT record, verify, and set it primary. The resource group /
- * storage / observability live in useCoreInfra — this card locks behind it, so the RG the
+ * storage / observability live in useCoreInfraCard — this card locks behind it, so the RG the
  * DNS zone needs already exists when this runs.
  */
-export function useCreateDomain({
+export function useCreateDomainCard({
   azureAccount,
   subscriptionId,
   corpName,
   dnsName,
   spClientId,
   tenantId,
-}: UseCreateDomainParams): UseCreateDomain {
+}: UseCreateDomainCardParams): UseCreateDomainCard {
   const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
   const [result, setResult] = useState<CreateDomainResult | null>(loadResult);
   const [nameServers, setNameServers] = useState<string[]>(loadResult()?.nameServers ?? []);
@@ -306,6 +307,13 @@ export function useCreateDomain({
     setVerifyError(null);
   }, [resetSteps]);
 
+  const done = domainVerified && isPrimary;
+  const azureConfigured = !!AZURE_CLIENT_ID;
+  // Assumes prerequisites are met — App locks this card (via cardRequirements) whenever they're not,
+  // which overrides this status to "idle" regardless of what's computed here.
+  const status: CardStatus = !azureConfigured ? "error" : done ? "complete" : "warning";
+  const summary = !azureConfigured ? "Unavailable" : done ? "Domain verified and primary" : "Set up the corp domain";
+
   return {
     cardId: "create_domain" as const,
     checkingStatus,
@@ -321,8 +329,10 @@ export function useCreateDomain({
     verify,
     run,
     reset,
+    status,
+    summary,
     cardRequirements: ["azure_login", "repo", "azure_subscription", "company_info", "core_infra"],
     cardDependencyLabel: "Set up the corp domain",
-    done: domainVerified && isPrimary,
+    done,
   };
 }

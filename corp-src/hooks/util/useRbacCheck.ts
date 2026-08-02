@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { getExistingSP, hasRbacRole } from "../api/azureGraph";
-import type { AzureSpTarget } from "../types";
+import { getExistingSP, hasRbacRole } from "../../api/azureGraph";
+import type { AzureSpTarget } from "../../types";
 
 export type RbacCheckStatus = "unknown" | "sp-not-found" | "missing-role" | "ready";
 export type RbacCheckResult = { status: RbacCheckStatus; missingRoles: string[] };

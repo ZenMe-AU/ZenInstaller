@@ -7,7 +7,7 @@ import { fetchVariables } from "../api";
 import VariablesCard from "../components/VariablesCard";
 import RefreshButton from "../components/RefreshButton";
 import SaveButton from "../components/SaveButton";
-import { useVariableEditor } from "../hooks/useVariableEditor";
+import { useVariableEditor } from "../hooks/util/useVariableEditor";
 import { MONO as mono, sectionLabelSx } from "../config/styles";
 
 type Props = {

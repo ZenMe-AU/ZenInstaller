@@ -7,7 +7,7 @@ import type { Branch, GhEnv } from "../types";
 import { isValidEnvName } from "../logic/env";
 import EnvBranchDetail from "./EnvBranchDetail";
 import RefreshButton from "../components/RefreshButton";
-import { useRefreshIndicator } from "../hooks/useRefreshIndicator";
+import { useRefreshIndicator } from "../hooks/util/useRefreshIndicator";
 import { getEnvironmentsUrl, getEnvSettingsUrl } from "../logic/github";
 
 // ─── Props ────────────────────────────────────────────────────────────────────

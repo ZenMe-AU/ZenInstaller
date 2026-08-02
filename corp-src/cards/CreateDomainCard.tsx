@@ -2,7 +2,7 @@ import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { AccountInfo } from "@azure/msal-browser";
-import type { UseCreateDomain } from "../hooks/useCreateDomain";
+import type { UseCreateDomainCard } from "../hooks/useCreateDomainCard";
 import StepRow from "./StepRow";
 import Card from "../components/Card";
 import { getVariableDisplayName } from "../logic/variables";
@@ -11,7 +11,7 @@ import type { CardChrome } from "../types";
 
 type Props = {
   card: CardChrome;
-  createDomain: UseCreateDomain;
+  createDomain: UseCreateDomainCard;
   azureAccount: AccountInfo | null;
   corpName: string;
   dnsName: string;

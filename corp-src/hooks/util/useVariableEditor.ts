@@ -1,6 +1,6 @@
 import { useState } from "react";
-import type { Account, UpsertStatus } from "../types";
-import { createVariable, updateVariable } from "../api";
+import type { Account, UpsertStatus } from "../../types";
+import { createVariable, updateVariable } from "../../api";
 
 export type SaveResult = {
   result: "saved" | "no-changes" | "error";

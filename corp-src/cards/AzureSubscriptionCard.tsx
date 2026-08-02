@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { Box, CircularProgress, MenuItem, Select, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, MenuItem, Select, Typography } from "@mui/material";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { Account, CardChrome, GhEnv } from "../types";
 import type { UseAzureAccount } from "../hooks/useAzureAccount";
-import type { UseAzureSubscription } from "../hooks/useAzureSubscription";
+import type { UseAzureSubscriptionCard } from "../hooks/useAzureSubscriptionCard";
 import { tenantDisplayName } from "../api/azureGraph";
 import { AZURE_TARGET_KEYS } from "../logic/variables";
 import CloudVariableDetail from "./CloudVariableDetail";
@@ -14,7 +14,7 @@ import { MONO as mono, labelSx } from "../config/styles";
 type Props = {
   card: CardChrome;
   azure: UseAzureAccount;
-  subscription: UseAzureSubscription;
+  subscription: UseAzureSubscriptionCard;
   // GitHub context — where AZURE_TENANT_ID + AZURE_SUBSCRIPTION_ID are saved.
   githubAccount: Account | null;
   repoName: string;
@@ -22,6 +22,8 @@ type Props = {
   onVariableConfirmed: (key: string, value: string) => void;
   githubUrl?: string;
   configured: boolean;
+  // Expands the Azure login card and scrolls to it — that's where the tenant itself is picked.
+  onOpenAzureLogin: () => void;
 };
 
 /*
@@ -41,6 +43,7 @@ export default function AzureSubscriptionCard({
   onVariableConfirmed,
   githubUrl,
   configured,
+  onOpenAzureLogin,
 }: Props) {
   const { tenants, manualTenantId } = azure;
   const { subscriptions, selectedSubscriptionId, setSelectedSubscriptionId, subsError, subscriptionDrift, subscriptionNoAccess } = subscription;
@@ -79,9 +82,18 @@ export default function AzureSubscriptionCard({
         the pipeline uses the same target.
       </Typography>
 
-      <Typography sx={{ ...labelSx, "& span": { color: "#0f172a", textTransform: "none" } }}>
-        Tenant: <span>{tenantLabel}</span>
-      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}>
+        <Typography sx={{ ...labelSx, "& span": { color: "#0f172a", textTransform: "none" } }}>
+          Tenant: <span>{tenantLabel}</span>
+        </Typography>
+        <Button
+          size="small"
+          onClick={onOpenAzureLogin}
+          sx={{ minWidth: 0, fontSize: "0.68rem", color: "#2563eb", textTransform: "none", ...mono, py: 0, px: 0.5, "&:hover": { textDecoration: "underline" } }}
+        >
+          Change on Azure login →
+        </Button>
+      </Box>
 
       {subsError && !subscriptionNoAccess && <Typography sx={{ fontSize: "0.72rem", color: "#ef4444" }}>{subsError}</Typography>}
 

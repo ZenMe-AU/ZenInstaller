@@ -1,5 +1,5 @@
 import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
-import type { SetupStep } from "../types";
+import type { SetupStep } from "../../types";
 
 /*
  * The progress-checklist state every AzureConfigHook card needs: the step list, the

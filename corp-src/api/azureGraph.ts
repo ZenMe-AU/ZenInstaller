@@ -62,15 +62,26 @@ export async function gFetch(token: string, base: string, path: string, options?
 
 // ── Subscriptions ──────────────────────────────────────────────────────────────
 
-export type Subscription = { id: string; displayName: string };
+export type Subscription = { id: string; displayName: string; tenantId: string };
 
+/*
+ * ARM's /subscriptions returns every subscription the signed-in identity can access —
+ * including ones in OTHER tenants (via guest access or Lighthouse cross-tenant delegation)
+ * — regardless of which tenant's authority the token was acquired against. Filter to the
+ * tenant actually being targeted, so e.g. a guest account doesn't see subscriptions from
+ * a different tenant mixed into this one's picker.
+ */
 export async function listSubscriptions(account: AccountInfo, overrideTenantId?: string): Promise<Subscription[]> {
   const token = await getToken(account, ARM_SCOPES, overrideTenantId);
   const data = await gFetch(token, ARM, "/subscriptions?api-version=2020-01-01");
-  return (data.value ?? []).map((s: { subscriptionId: string; displayName: string }) => ({
-    id: s.subscriptionId,
-    displayName: s.displayName,
-  }));
+  const targetTenantId = overrideTenantId || account.tenantId;
+  return (data.value ?? [])
+    .map((s: { subscriptionId: string; displayName: string; tenantId: string }) => ({
+      id: s.subscriptionId,
+      displayName: s.displayName,
+      tenantId: s.tenantId,
+    }))
+    .filter((s: Subscription) => s.tenantId === targetTenantId);
 }
 
 // ── Tenants ──────────────────────────────────────────────────────────────────────

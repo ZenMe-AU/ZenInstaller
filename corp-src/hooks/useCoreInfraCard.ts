@@ -25,8 +25,9 @@ import {
   TFSTATE_CONTAINER,
 } from "../logic/naming";
 import { createResultStorage } from "../logic/resultStorage";
-import { useStepRunner } from "./useStepRunner";
-import type { AzureConfigHook, AzureSpTarget, CardHook, CardRequirements, SetupStep } from "../types";
+import { useStepRunner } from "./util/useStepRunner";
+import { AZURE_CLIENT_ID } from "../config/azureConfig";
+import type { AzureConfigHook, AzureSpTarget, CardHook, CardRequirements, CardStatus, SetupStep } from "../types";
 
 export type CoreInfraResult = {
   corpName: string;
@@ -37,12 +38,12 @@ export type CoreInfraRbacStatus = "unknown" | "rg-not-found" | "missing-role" | 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface UseCoreInfraParams extends AzureSpTarget {
+export interface UseCoreInfraCardParams extends AzureSpTarget {
   corpName: string;
 }
 
 // steps / running / run / reset come from AzureConfigHook.
-export interface UseCoreInfra extends CardHook, AzureConfigHook {
+export interface UseCoreInfraCard extends CardHook, AzureConfigHook {
   readonly cardId: "core_infra";
   location: string;
   setLocation: (loc: string) => void;
@@ -69,15 +70,15 @@ const { save: saveResult, load: loadResult } = createResultStorage<CoreInfraResu
  * The root Azure infrastructure a corp needs before Terraform can run: resource group,
  * observability (Log Analytics, diagnostics, App Insights), the private storage account,
  * and the Terraform state container + its RBAC grant. The DNS/Entra domain is a separate
- * card (useCreateDomain); it locks behind this one because the DNS zone lives in the RG.
+ * card (useCreateDomainCard); it locks behind this one because the DNS zone lives in the RG.
  */
-export function useCoreInfra({
+export function useCoreInfraCard({
   azureAccount,
   subscriptionId,
   corpName,
   spClientId,
   tenantId,
-}: UseCoreInfraParams): UseCoreInfra {
+}: UseCoreInfraCardParams): UseCoreInfraCard {
   const [location, setLocation] = useState(DEFAULT_AZURE_LOCATION);
   const [locations, setLocations] = useState<AzureLocation[]>([]);
   const [locationsLoading, setLocationsLoading] = useState(false);
@@ -241,6 +242,12 @@ export function useCoreInfra({
     saveResult(null);
   }, [resetSteps]);
 
+  const azureConfigured = !!AZURE_CLIENT_ID;
+  // Assumes prerequisites are met — App locks this card (via cardRequirements) whenever they're not,
+  // which overrides this status to "idle" regardless of what's computed here.
+  const status: CardStatus = !azureConfigured ? "error" : done ? "complete" : "warning";
+  const summary = !azureConfigured ? "Unavailable" : done ? "Infrastructure ready" : "Set up corp infrastructure";
+
   return {
     location,
     setLocation,
@@ -251,6 +258,8 @@ export function useCoreInfra({
     steps,
     running,
     done,
+    status,
+    summary,
     infraRbacStatus,
     resultMatches,
     run,

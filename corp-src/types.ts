@@ -31,10 +31,14 @@ export type CardChrome = {
   onRequirementClick: (id: CardId) => void;
 };
 
-// Every card-backing hook self-reports its own completion via `done`, so other cards can query it.
+// Every card-backing hook self-reports its own completion via `done`, plus the face
+// App renders for it (status icon + collapsed summary), so other cards can query it and
+// App never has to re-derive per-card state itself.
 export interface CardHook {
-  readonly cardId: string;
+  readonly cardId: CardId;
   done: boolean;
+  status: CardStatus;
+  summary?: string;
   cardRequirements?: CardRequirements;
   cardDependencyLabel?: string;
 }

@@ -4,7 +4,7 @@ import CheckIcon from "@mui/icons-material/Check";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { refreshBtnSx } from "../config/styles";
-import type { RefreshResult } from "../hooks/useRefreshIndicator";
+import type { RefreshResult } from "../hooks/util/useRefreshIndicator";
 
 type Props = {
   busy: boolean;

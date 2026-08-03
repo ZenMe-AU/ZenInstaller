@@ -16,14 +16,16 @@ export interface UsePR {
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function usePR(opts: {
+export type UsePRParams = {
   account: Account | null;
   repo: RepoOption | null;
   isCloneRepo: boolean;
   pendingRestore: React.MutableRefObject<PendingRestore>;
   addRestoreWarning: (msg: string) => void;
   checkRestoreDone: () => void;
-}): UsePR {
+};
+
+export function usePR(opts: UsePRParams): UsePR {
   const { pendingRestore, addRestoreWarning, checkRestoreDone } = opts;
 
   // ── Latest-value refs ──────────────────────────────────────────────────────

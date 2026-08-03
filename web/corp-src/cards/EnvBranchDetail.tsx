@@ -17,8 +17,7 @@ const selectSx = {
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 type Props = {
-  /** The branch name to create — derived from the selected environment name. */
-  targetBranch: string;
+  targetBranch: string; // The branch name to create — derived from the selected environment name.
   branches: Branch[];
   sourceBranch: string;
   onSourceBranchChange: (v: string) => void;

@@ -1,32 +1,14 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
-import CheckIcon from "@mui/icons-material/Check";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import RefreshIcon from "@mui/icons-material/Refresh";
-import type { Account, UpsertStatus } from "../types";
-import { fetchVariables, createVariable, updateVariable } from "../api";
+import type { Account } from "../types";
+import { fetchVariables } from "../api";
 import VariablesCard from "../components/VariablesCard";
-
-const sectionLabelSx = {
-  fontSize: "0.7rem",
-  fontWeight: 700,
-  color: "#0f172a",
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.1em",
-  fontFamily: "'IBM Plex Mono', monospace",
-};
-
-const refreshBtnSx = {
-  flexShrink: 0,
-  color: "#94a3b8",
-  fontSize: "0.72rem",
-  textTransform: "none" as const,
-  fontFamily: "'IBM Plex Mono', monospace",
-  "&:hover": { color: "#475569" },
-};
-
-const mono = { fontFamily: "'IBM Plex Mono', monospace" };
+import RefreshButton from "../components/RefreshButton";
+import SaveButton from "../components/SaveButton";
+import { useVariableEditor } from "../hooks/util/useVariableEditor";
+import { MONO as mono, sectionLabelSx } from "../config/styles";
 
 type Props = {
   account: Account | null;
@@ -39,15 +21,15 @@ type Props = {
   disabled?: boolean;
   onComplete?: (done: boolean) => void;
   githubUrl?: string;
-  /** Called after each initial load with the currently-saved values (scoped to `keys`). */
-  onLoaded?: (saved: Record<string, string>) => void;
-  /** Increment to auto-apply populate values and immediately save them to GitHub. */
-  autoSaveCounter?: number;
-  /** Called when auto-save (triggered by autoSaveCounter) completes. */
-  onAutoSaveResult?: (result: "saved" | "no-changes" | "error") => void;
-  /** Called with the keys that were actually written to GitHub, from either the
-   *  manual "Save" button or an auto-save. Lets callers invalidate anything that
-   *  was validated against the old values (e.g. a prior pipeline run's result). */
+  saveHint?: ReactNode; // Rendered next to the Save button (e.g. an "unsaved change" warning).
+  keyErrors?: Partial<Record<string, string>>; // Per-key external validation error, shown as a row-level error icon.
+  onLoaded?: (saved: Record<string, string>) => void; // Called after each initial load with the currently-saved values (scoped to `keys`).
+  autoSaveCounter?: number; // Increment to auto-apply populate values and immediately save them to GitHub.
+  onAutoSaveResult?: (result: "saved" | "no-changes" | "error") => void; // Called when auto-save (triggered by autoSaveCounter) completes.
+  /*
+   * Called with the keys actually written to GitHub (manual save or auto-save) so
+   * callers can invalidate anything validated against the old values.
+   */
   onSaved?: (keys: string[]) => void;
 };
 
@@ -62,18 +44,19 @@ export default function CloudVariableDetail({
   disabled,
   onComplete,
   githubUrl,
+  saveHint,
+  keyErrors,
   onLoaded,
   autoSaveCounter,
   onAutoSaveResult,
   onSaved,
 }: Props) {
   const [savedValues, setSavedValues] = useState<Record<string, string>>({});
-  const [localValues, setLocalValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [rechecking, setRechecking] = useState(false);
   const [refreshResult, setRefreshResult] = useState<"done" | "failed" | null>(null);
-  const [upsertStatuses, setUpsertStatuses] = useState<UpsertStatus[]>([]);
-  const [updating, setUpdating] = useState(false);
+  const { localValues, setLocalValues, upsertStatuses, setUpsertStatuses, updating, dirtyKeys, onChange: handleChange, onRevert: handleRevert, save: editorSave } =
+    useVariableEditor({ keys, savedValues, account, repo, envName });
   const prevPopulateRef = useRef<Record<string, string> | undefined>(undefined);
   const prevFillKeyRef = useRef<number | undefined>(undefined);
   const prevAutoSaveCounterRef = useRef(autoSaveCounter);
@@ -166,18 +149,7 @@ export default function CloudVariableDetail({
     }
   }, [rechecking]);
 
-  const dirtyKeys = keys.filter((k) => (localValues[k] ?? "") !== (savedValues[k] ?? ""));
   const notConfigured = keys.filter((k) => !savedValues[k]).length;
-
-  const handleChange = (key: string, value: string) => {
-    setLocalValues((prev) => ({ ...prev, [key]: value }));
-    setUpsertStatuses((prev) => prev.filter((s) => s.key !== key));
-  };
-
-  const handleRevert = (key: string) => {
-    setLocalValues((prev) => ({ ...prev, [key]: savedValues[key] ?? "" }));
-    setUpsertStatuses((prev) => prev.filter((s) => s.key !== key));
-  };
 
   const handleRefresh = async () => {
     clickedRef.current = true;
@@ -185,37 +157,18 @@ export default function CloudVariableDetail({
     setRefreshResult(ok ? "done" : "failed");
   };
 
-  const handleSave = useCallback(async (overrideValues?: Record<string, string>): Promise<"saved" | "no-changes" | "error"> => {
-    if (!account || !repo || !envName) return "error";
-    const vals = overrideValues ?? localValues;
-    const curr = savedValues;
-    const dirty = keys.filter((k) => (vals[k] ?? "") !== (curr[k] ?? ""));
-    if (dirty.length === 0) return "no-changes";
-    setUpdating(true);
-    const statuses: UpsertStatus[] = [];
-    const newlySaved = { ...curr };
-    let hasError = false;
-    for (const key of dirty) {
-      const value = vals[key] ?? "";
-      const isNew = !curr[key];
-      try {
-        await (isNew ? createVariable : updateVariable)(account, repo, key, value, envName);
-        statuses.push({ key, status: "success" });
-        setSavedValues((prev) => ({ ...prev, [key]: value }));
-        newlySaved[key] = value;
-      } catch (e) {
-        console.error(`Failed to ${isNew ? "create" : "update"} variable "${key}":`, e);
-        statuses.push({ key, status: "error", error: "Save failed" });
-        hasError = true;
+  const handleSave = useCallback(
+    async (overrideValues?: Record<string, string>): Promise<"saved" | "no-changes" | "error"> => {
+      const { result, savedKeys, newlySaved } = await editorSave(overrideValues);
+      if (result !== "no-changes") {
+        setSavedValues(newlySaved);
+        checkComplete(newlySaved);
       }
-    }
-    setUpsertStatuses(statuses);
-    setUpdating(false);
-    checkComplete(newlySaved);
-    const savedKeys = statuses.filter((s) => s.status === "success").map((s) => s.key);
-    if (savedKeys.length > 0) onSavedRef.current?.(savedKeys);
-    return hasError ? "error" : "saved";
-  }, [account, repo, envName, savedValues, localValues, keys]); // eslint-disable-line react-hooks/exhaustive-deps
+      if (savedKeys.length > 0) onSavedRef.current?.(savedKeys);
+      return result;
+    },
+    [editorSave], // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   // Always-current ref so auto-save effect gets the latest closure.
   const handleSaveRef = useRef(handleSave);
@@ -246,32 +199,7 @@ export default function CloudVariableDetail({
           )}
         </Box>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-          <Button
-            size="small"
-            onClick={handleRefresh}
-            disabled={!account || !repo || !envName || rechecking}
-            startIcon={
-              rechecking ? (
-                <CircularProgress size={12} sx={{ color: "#94a3b8" }} />
-              ) : refreshResult === "done" ? (
-                <CheckIcon sx={{ fontSize: 14 }} />
-              ) : refreshResult === "failed" ? (
-                <ErrorOutlineIcon sx={{ fontSize: 14 }} />
-              ) : (
-                <RefreshIcon sx={{ fontSize: 14 }} />
-              )
-            }
-            sx={{
-              ...refreshBtnSx,
-              ...(refreshResult && {
-                color: refreshResult === "done" ? "#22c55e" : "#ef4444",
-                "&:hover": { color: refreshResult === "done" ? "#16a34a" : "#b91c1c" },
-                transition: "color 0.15s",
-              }),
-            }}
-          >
-            {refreshResult === "done" ? "Done" : refreshResult === "failed" ? "Failed" : "Refresh"}
-          </Button>
+          <RefreshButton busy={rechecking} result={refreshResult} disabled={!account || !repo || !envName || rechecking} onClick={handleRefresh} />
         </Box>
       </Box>
 
@@ -281,39 +209,27 @@ export default function CloudVariableDetail({
         localValues={localValues}
         upsertStatuses={upsertStatuses}
         overwriteWarning
+        keyErrors={keyErrors}
         onChange={handleChange}
         onRevert={handleRevert}
       />
 
-      <Box sx={{ mt: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
-        <Button
-          onClick={() => void handleSave()}
-          disabled={!!disabled || !account || !repo || !envName || updating || dirtyKeys.length === 0}
-          variant="contained"
-          size="small"
-          sx={{
-            background: "#2563eb",
-            ...mono,
-            fontSize: "0.75rem",
-            textTransform: "none",
-            py: 0.75,
-            px: 2,
-            "&:hover": { background: "#1d4ed8" },
-            "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
-          }}
-        >
-          {updating ? (
-            <>
-              <CircularProgress size={12} sx={{ mr: 1, color: "#93c5fd" }} />
-              Updating...
-            </>
-          ) : (
-            `Save ${dirtyKeys.length > 0 ? dirtyKeys.length : ""} variable${dirtyKeys.length !== 1 ? "s" : ""}`.trim()
-          )}
-        </Button>
+      <Box sx={{ mt: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, flexWrap: "wrap" }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <SaveButton
+            verb="Save"
+            noun="variable"
+            count={dirtyKeys.length}
+            loading={updating}
+            disabled={!!disabled || !account || !repo || !envName || updating || dirtyKeys.length === 0}
+            onClick={() => void handleSave()}
+          />
+          {saveHint}
+        </Box>
         {githubUrl && (
           <Button
             size="small"
+            aria-label="Manage on GitHub"
             endIcon={<OpenInNewIcon sx={{ fontSize: 12 }} />}
             onClick={() => window.open(githubUrl, "_blank")}
             sx={{
@@ -325,7 +241,9 @@ export default function CloudVariableDetail({
               "&:hover": { color: "#0f172a" },
             }}
           >
-            Manage on GitHub
+            <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+              Manage on GitHub
+            </Box>
           </Button>
         )}
       </Box>

@@ -3,8 +3,10 @@ import { createGithubApi } from "./github";
 import type { ApiProvider } from "./github";
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
-// Swap at runtime — token is injected into the github provider at switch time,
-// not passed on every call.
+/*
+ * Swap at runtime — token is injected into the github provider at switch time,
+ * not passed on every call.
+ */
 
 let _provider: ApiProvider = B;
 

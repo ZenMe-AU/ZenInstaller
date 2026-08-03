@@ -16,7 +16,7 @@ type ArmResource = {
   };
 };
 
-/** GET that treats 404 as null instead of throwing. */
+// GET that treats 404 as null instead of throwing.
 async function armGet(token: string, path: string): Promise<ArmResource | null> {
   try {
     return await gFetch(token, ARM, path);
@@ -26,7 +26,7 @@ async function armGet(token: string, path: string): Promise<ArmResource | null> 
   }
 }
 
-/** Polls fetchState until it returns "Succeeded". Throws on "Failed"/"Canceled" or timeout. */
+// Polls fetchState until it returns "Succeeded". Throws on "Failed"/"Canceled" or timeout.
 async function pollProvisioning(fetchState: () => Promise<string | undefined>, resourceLabel: string, timeoutMs = 120_000): Promise<void> {
   const start = Date.now();
   for (;;) {
@@ -44,7 +44,7 @@ export type EnsureResult = "created" | "exists";
 
 export type AzureLocation = { name: string; displayName: string };
 
-/** Lists physical Azure regions available to the subscription (excludes logical/paired regions). */
+// Lists physical Azure regions available to the subscription (excludes logical/paired regions).
 export async function listLocations(account: AccountInfo, subscriptionId: string, overrideTenantId?: string): Promise<AzureLocation[]> {
   const token = await getToken(account, ARM_SCOPES, overrideTenantId);
   const data = await gFetch(token, ARM, `/subscriptions/${subscriptionId}/locations?api-version=2022-12-01`);
@@ -57,6 +57,10 @@ export async function listLocations(account: AccountInfo, subscriptionId: string
 
 // ── Resource group ─────────────────────────────────────────────────────────────
 
+function resourceGroupPath(subscriptionId: string, name: string): string {
+  return `/subscriptions/${subscriptionId}/resourcegroups/${name}?api-version=2021-04-01`;
+}
+
 export async function ensureResourceGroup(
   account: AccountInfo,
   subscriptionId: string,
@@ -65,10 +69,16 @@ export async function ensureResourceGroup(
   overrideTenantId?: string,
 ): Promise<EnsureResult> {
   const token = await getToken(account, ARM_SCOPES, overrideTenantId);
-  const path = `/subscriptions/${subscriptionId}/resourcegroups/${name}?api-version=2021-04-01`;
+  const path = resourceGroupPath(subscriptionId, name);
   if (await armGet(token, path)) return "exists";
   await gFetch(token, ARM, path, { method: "PUT", body: JSON.stringify({ location }) });
   return "created";
+}
+
+// Read-only existence check — used by live "is infra still operable" checks (no create-on-miss).
+export async function resourceGroupExists(account: AccountInfo, subscriptionId: string, name: string, overrideTenantId?: string): Promise<boolean> {
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+  return !!(await armGet(token, resourceGroupPath(subscriptionId, name)));
 }
 
 // ── Log Analytics workspace ────────────────────────────────────────────────────
@@ -161,7 +171,7 @@ export async function ensureDnsZone(
   return { nameServers: created?.properties?.nameServers ?? [], result: "created" };
 }
 
-/** Ensures the apex TXT record contains `value`. Merges with existing TXT values rather than overwriting. */
+// Ensures the apex TXT record contains `value`. Merges with existing TXT values rather than overwriting.
 export async function ensureDnsTxtRecord(
   account: AccountInfo,
   subscriptionId: string,
@@ -233,6 +243,27 @@ export async function ensureStorageContainer(
 // ── Scoped RBAC role assignment ────────────────────────────────────────────────
 // Same as azureGraph's ensureRbacRole but at an arbitrary scope (e.g. a storage account).
 
+// Read-only check — includes assignments inherited from an ancestor scope (e.g. subscription-level
+// Contributor satisfies a resource-group-scoped check too), since assignedTo() reports effective access.
+export async function hasRbacRoleAtScope(
+  account: AccountInfo,
+  scope: string,
+  principalId: string,
+  roleName: string,
+  overrideTenantId?: string,
+): Promise<boolean> {
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+  const roleId = RBAC_ROLE_IDS[roleName];
+  const existing = await gFetch(
+    token,
+    ARM,
+    `${scope}/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01&$filter=assignedTo('${principalId}')`,
+  );
+  return !!existing?.value?.some((a: { properties: { roleDefinitionId: string } }) =>
+    a.properties.roleDefinitionId.toLowerCase().endsWith(roleId.toLowerCase()),
+  );
+}
+
 export async function ensureRbacRoleAtScope(
   account: AccountInfo,
   scope: string,
@@ -240,19 +271,10 @@ export async function ensureRbacRoleAtScope(
   roleName: string,
   overrideTenantId?: string,
 ): Promise<EnsureResult> {
+  if (await hasRbacRoleAtScope(account, scope, principalId, roleName, overrideTenantId)) return "exists";
+
   const token = await getToken(account, ARM_SCOPES, overrideTenantId);
   const roleId = RBAC_ROLE_IDS[roleName];
-
-  const existing = await gFetch(
-    token,
-    ARM,
-    `${scope}/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01&$filter=assignedTo('${principalId}')`,
-  );
-  const alreadyAssigned = existing?.value?.some((a: { properties: { roleDefinitionId: string } }) =>
-    a.properties.roleDefinitionId.toLowerCase().endsWith(roleId.toLowerCase()),
-  );
-  if (alreadyAssigned) return "exists";
-
   const assignmentName = await deterministicUuid(scope, roleId, principalId);
   await gFetch(token, ARM, `${scope}/providers/Microsoft.Authorization/roleAssignments/${assignmentName}?api-version=2022-04-01`, {
     method: "PUT",
@@ -269,4 +291,8 @@ export async function ensureRbacRoleAtScope(
 
 export function storageAccountScope(subscriptionId: string, resourceGroup: string, storageAccountName: string): string {
   return `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Storage/storageAccounts/${storageAccountName}`;
+}
+
+export function resourceGroupScope(subscriptionId: string, resourceGroup: string): string {
+  return `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}`;
 }

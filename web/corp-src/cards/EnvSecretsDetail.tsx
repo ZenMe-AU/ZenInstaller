@@ -1,22 +1,18 @@
-import { useState, useEffect, useRef } from "react";
-import { Box, Button, CircularProgress, Typography } from "@mui/material";
-import CheckIcon from "@mui/icons-material/Check";
+import { useState } from "react";
+import { Box, Typography } from "@mui/material";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
-import RefreshIcon from "@mui/icons-material/Refresh";
 import type { Account, GhEnv, PendingSecret, SecretsStatus, UpsertStatus } from "../types";
 import { AZURE_SECRET_KEYS, AWS_SECRET_KEYS } from "../logic/variables";
 import { fetchPublicKey, upsertSecret } from "../api";
 import { encryptSecret } from "../logic/crypto";
 import SecretsCard from "../components/SecretsCard";
+import RefreshButton from "../components/RefreshButton";
+import SaveButton from "../components/SaveButton";
+import { useRefreshIndicator } from "../hooks/util/useRefreshIndicator";
+import { sectionLabelSx as sectionLabelBase } from "../config/styles";
 
-const sectionLabelSx = {
-  fontSize: "0.7rem",
-  fontWeight: 700,
-  color: "#94a3b8",
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.1em",
-  fontFamily: "'IBM Plex Mono', monospace",
-};
+// Muted variant of the shared section label (whose default is the darker #0f172a).
+const sectionLabelSx = { ...sectionLabelBase, color: "#94a3b8" };
 
 const subLabelSx = {
   fontSize: "0.67rem",
@@ -25,15 +21,6 @@ const subLabelSx = {
   textTransform: "uppercase" as const,
   letterSpacing: "0.08em",
   fontFamily: "'IBM Plex Mono', monospace",
-};
-
-const refreshBtnSx = {
-  flexShrink: 0,
-  color: "#94a3b8",
-  fontSize: "0.72rem",
-  textTransform: "none" as const,
-  fontFamily: "'IBM Plex Mono', monospace",
-  "&:hover": { color: "#475569" },
 };
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -63,19 +50,7 @@ export default function EnvSecretsDetail({
   rechecking,
   recheckFailed,
 }: Props) {
-  const prevRecheckingRef = useRef(false);
-  const clickedRef = useRef(false);
-  const [refreshResult, setRefreshResult] = useState<"done" | "failed" | null>(null);
-  useEffect(() => {
-    const was = prevRecheckingRef.current;
-    prevRecheckingRef.current = rechecking;
-    if (was && !rechecking && clickedRef.current) {
-      clickedRef.current = false;
-      setRefreshResult(recheckFailed ? "failed" : "done");
-      const t = setTimeout(() => setRefreshResult(null), 1500);
-      return () => clearTimeout(t);
-    }
-  }, [rechecking, recheckFailed]);
+  const { refreshResult, markClicked } = useRefreshIndicator(rechecking, recheckFailed);
 
   const [pendingSecrets, setPendingSecrets] = useState<PendingSecret[]>([]);
   const [upsertStatuses, setUpsertStatuses] = useState<UpsertStatus[]>([]);
@@ -144,23 +119,15 @@ export default function EnvSecretsDetail({
           <Typography sx={{ ...sectionLabelSx, mb: 0.75 }}>Secrets</Typography>
           <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>The following GitHub Actions secrets must be configured.</Typography>
         </Box>
-        <Button
-          size="small"
-          onClick={() => { clickedRef.current = true; onRecheck(); }}
-          disabled={rechecking}
-          startIcon={
-            rechecking
-              ? <CircularProgress size={12} sx={{ color: "#94a3b8" }} />
-              : refreshResult === "done"
-                ? <CheckIcon sx={{ fontSize: 14 }} />
-                : refreshResult === "failed"
-                  ? <ErrorOutlineIcon sx={{ fontSize: 14 }} />
-                  : <RefreshIcon sx={{ fontSize: 14 }} />
-          }
-          sx={{ ml: 2, mt: 0.25, ...refreshBtnSx, ...(refreshResult && { color: refreshResult === "done" ? "#22c55e" : "#ef4444", "&:hover": { color: refreshResult === "done" ? "#16a34a" : "#b91c1c" }, transition: "color 0.15s" }) }}
-        >
-          {refreshResult === "done" ? "Done" : refreshResult === "failed" ? "Failed" : "Refresh"}
-        </Button>
+        <RefreshButton
+          busy={rechecking}
+          result={refreshResult}
+          sx={{ ml: 2, mt: 0.25 }}
+          onClick={() => {
+            markClicked();
+            onRecheck();
+          }}
+        />
       </Box>
 
       {/* Azure sub-section */}
@@ -215,31 +182,7 @@ export default function EnvSecretsDetail({
 
       {/* Update button */}
       <Box sx={{ mt: 2 }}>
-        <Button
-          onClick={handleUpsertSecrets}
-          disabled={upserting || totalPending === 0}
-          variant="contained"
-          size="small"
-          sx={{
-            background: "#2563eb",
-            fontFamily: "'IBM Plex Mono', monospace",
-            fontSize: "0.75rem",
-            textTransform: "none",
-            py: 0.75,
-            px: 2,
-            "&:hover": { background: "#1d4ed8" },
-            "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
-          }}
-        >
-          {upserting ? (
-            <>
-              <CircularProgress size={12} sx={{ mr: 1, color: "#93c5fd" }} />
-              Updating...
-            </>
-          ) : (
-            `Update ${totalPending > 0 ? totalPending : ""} secret${totalPending !== 1 ? "s" : ""}`.trim()
-          )}
-        </Button>
+        <SaveButton verb="Update" noun="secret" count={totalPending} loading={upserting} onClick={handleUpsertSecrets} />
       </Box>
     </Box>
   );

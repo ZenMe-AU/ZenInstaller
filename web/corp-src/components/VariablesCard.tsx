@@ -43,6 +43,7 @@ function VariableRow({
   description,
   deployedValues,
   overwriteWarning,
+  error,
   onChange,
   onRevert,
 }: {
@@ -55,11 +56,12 @@ function VariableRow({
   description?: string;
   deployedValues?: Record<string, string>;
   overwriteWarning?: boolean;
+  error?: string; // External validation error (e.g. app reg not found in tenant) — independent of upsert/save status.
   onChange: (key: string, value: string) => void;
   onRevert: (key: string) => void;
 }) {
   const isSuccess = upsertStatus?.status === "success";
-  const isError = upsertStatus?.status === "error";
+  const isError = upsertStatus?.status === "error" || !!error;
   // Value differs from what was last planned (corp.env snapshot)
   const isDeployedDiff = deployedValues !== undefined && (savedValue ?? "") !== (deployedValues[varKey] ?? "");
   // A pending edit will replace a non-empty value already saved on GitHub
@@ -153,7 +155,7 @@ function VariableRow({
       )}
 
       {isError && (
-        <Tooltip title={upsertStatus!.error ?? "Update failed"}>
+        <Tooltip title={error ?? upsertStatus?.error ?? "Update failed"}>
           <ErrorOutlineIcon sx={{ fontSize: 14, color: "#ef4444", flexShrink: 0 }} />
         </Tooltip>
       )}
@@ -189,12 +191,10 @@ type Props = {
   localValues: Record<string, string>;
   upsertStatuses: UpsertStatus[];
   validStatus?: boolean | null;
-  /** Optional per-key hint shown as a tooltip on the ⓘ icon */
-  descriptions?: Partial<Record<string, string>>;
-  /** Values from the last deployed corp.env snapshot — used to highlight changed rows */
-  deployedValues?: Record<string, string>;
-  /** When true, dirty rows that replace a non-empty saved value show an "overwrites" warning */
-  overwriteWarning?: boolean;
+  descriptions?: Partial<Record<string, string>>; // Optional per-key hint shown as a tooltip on the ⓘ icon
+  deployedValues?: Record<string, string>; // Values from the last deployed corp.env snapshot — used to highlight changed rows
+  overwriteWarning?: boolean; // When true, dirty rows that replace a non-empty saved value show an "overwrites" warning
+  keyErrors?: Partial<Record<string, string>>; // Per-key external validation error (e.g. app reg not found in tenant)
   onChange: (key: string, value: string) => void;
   onRevert: (key: string) => void;
 };
@@ -210,6 +210,7 @@ export default function VariablesCard({
   descriptions,
   deployedValues,
   overwriteWarning,
+  keyErrors,
   onChange,
   onRevert,
 }: Props) {
@@ -227,6 +228,7 @@ export default function VariablesCard({
           description={descriptions?.[key]}
           deployedValues={deployedValues}
           overwriteWarning={overwriteWarning}
+          error={keyErrors?.[key]}
           onChange={onChange}
           onRevert={onRevert}
         />

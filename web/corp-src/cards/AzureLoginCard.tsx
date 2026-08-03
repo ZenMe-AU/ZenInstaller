@@ -1,0 +1,183 @@
+import { Autocomplete, Box, Button, CircularProgress, MenuItem, Select, TextField, Typography } from "@mui/material";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import { CLOUD_DOCS } from "../config/docsConfig";
+import { MONO as mono, labelSx } from "../config/styles";
+import Card from "../components/Card";
+import ConfigErrorNotice from "../components/ConfigErrorNotice";
+import type { CardChrome } from "../types";
+import type { UseAzureLoginCard } from "../hooks/useAzureLoginCard";
+import { tenantDisplayName } from "../logic/tenant";
+
+type Props = {
+  card: CardChrome;
+  azureLogin: UseAzureLoginCard;
+  configured: boolean;
+};
+
+/*
+ * Azure sign-in on its own — independent of GitHub, not gated by environment.
+ * App-registration, domain, and terraform cards all reuse the session it establishes.
+ */
+export default function AzureLoginCard({ card, azureLogin, configured }: Props) {
+  if (!configured) {
+    return (
+      <Card title="Azure login" {...card}>
+        <ConfigErrorNotice />
+      </Card>
+    );
+  }
+
+  const {
+    account: azureAccount,
+    loggingIn,
+    loginError,
+    login,
+    logout,
+    tenants,
+    manualTenantId,
+    setManualTenantId,
+    selectTenant,
+    tenantIdError,
+    savedTenantId,
+  } = azureLogin;
+
+  // A tenant list was fetched, but the saved tenant doesn't appear in it — an error, not just a warning.
+  const savedTenantNotInList = !!savedTenantId && manualTenantId === savedTenantId && tenants.length > 0 && !tenants.some((t) => t.tenantId === savedTenantId);
+
+  return (
+    <Card title="Azure login" {...card}>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+          Sign in with Azure so we can create the app registration and cloud resources for you. We never store your Azure credentials — sign-in happens
+          directly with Microsoft, and only a short-lived access token is used.
+        </Typography>
+
+        {!azureAccount ? (
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>
+          {loggingIn ? (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <CircularProgress size={14} sx={{ color: "#2563eb" }} />
+              <Typography sx={{ fontSize: "0.72rem", color: "#64748b" }}>Checking session...</Typography>
+            </Box>
+          ) : (
+            <>
+              <Button
+                variant="contained"
+                onClick={login}
+                sx={{
+                  alignSelf: "flex-start",
+                  background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+                  textTransform: "none",
+                  ...mono,
+                  fontSize: "0.85rem",
+                  py: 1,
+                  px: 2.5,
+                  borderRadius: "8px",
+                  boxShadow: "0 2px 8px #2563eb33",
+                  "&:hover": { background: "linear-gradient(135deg, #1d4ed8, #1e40af)", boxShadow: "0 4px 12px #2563eb44" },
+                }}
+              >
+                Sign in with Azure
+              </Button>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <Typography sx={{ fontSize: "0.7rem", color: "#94a3b8" }}>No Azure account?</Typography>
+                <Box
+                  component="a"
+                  href={CLOUD_DOCS.azure.createAccount}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{ display: "flex", alignItems: "center", gap: 0.25, color: "#64748b", textDecoration: "none", "&:hover": { color: "#2563eb" } }}
+                >
+                  <Typography sx={{ fontSize: "0.7rem" }}>Create a free one</Typography>
+                  <OpenInNewIcon sx={{ fontSize: 11 }} />
+                </Box>
+              </Box>
+            </>
+          )}
+          {loginError && <Typography sx={{ fontSize: "0.72rem", color: "#ef4444" }}>{loginError}</Typography>}
+        </Box>
+        ) : (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
+                Signed in as{" "}
+                <Box component="span" data-id="txtAzureUsername" sx={{ fontWeight: 600, ...mono }}>
+                  {azureAccount.username}
+                </Box>
+              </Typography>
+              <Button
+                size="small"
+                onClick={logout}
+                sx={{ minWidth: 0, fontSize: "0.68rem", color: "#94a3b8", textTransform: "none", ...mono, py: 0.25, "&:hover": { color: "#ef4444" } }}
+              >
+                Sign out
+              </Button>
+            </Box>
+
+            {/* Tenant */}
+            <Box>
+              <Typography sx={{ ...labelSx, mb: 0.75 }}>Tenant</Typography>
+              {tenants.length > 0 ? (
+                // Fetched (or MSA-fallback) list available — plain dropdown, picking loads that tenant immediately.
+                <Select
+                  size="small"
+                  value={manualTenantId || ""}
+                  onChange={(e) => selectTenant(e.target.value)}
+                  displayEmpty
+                  renderValue={(v) => {
+                    if (!v) return <Typography sx={{ fontSize: "0.8rem", color: "#94a3b8", ...mono }}>Select a tenant</Typography>;
+                    return <Typography sx={{ fontSize: "0.8rem", ...mono }}>{tenantDisplayName(tenants, v)}</Typography>;
+                  }}
+                  sx={{ minWidth: { xs: 0, sm: 380 }, width: "100%", fontSize: "0.8rem", ...mono }}
+                >
+                  {tenants.map((t) => (
+                    <MenuItem key={t.tenantId} value={t.tenantId} sx={{ py: 0.75 }}>
+                      <Box>
+                        <Typography sx={{ fontSize: "0.8rem", ...mono }}>{t.displayName}</Typography>
+                        <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono }}>{t.tenantId}</Typography>
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              ) : (
+                // Nothing fetched yet (e.g. personal account with no cached tenant) — type one in directly.
+                <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
+                  <Autocomplete
+                    freeSolo
+                    options={[]}
+                    inputValue={manualTenantId}
+                    onInputChange={(_, v) => setManualTenantId(v)}
+                    sx={{ minWidth: { xs: 0, sm: 320 }, width: "100%" }}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        size="small"
+                        placeholder="Tenant name or ID"
+                        onKeyDown={(e) => e.key === "Enter" && selectTenant(manualTenantId)}
+                        inputProps={{ ...params.inputProps, style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" } }}
+                      />
+                    )}
+                  />
+                  <Button
+                    variant="contained"
+                    size="small"
+                    onClick={() => selectTenant(manualTenantId)}
+                    disabled={!manualTenantId.trim()}
+                    sx={{ background: "#2563eb", textTransform: "none", ...mono, fontSize: "0.78rem", "&:hover": { background: "#1d4ed8" } }}
+                  >
+                    Confirm tenant
+                  </Button>
+                </Box>
+              )}
+              {savedTenantNotInList ? (
+                <Typography sx={{ fontSize: "0.72rem", color: "#ef4444", mt: 0.75 }}>Saved tenant not found — please pick another.</Typography>
+              ) : (
+                tenantIdError && <Typography sx={{ fontSize: "0.72rem", color: "#ef4444", mt: 0.75 }}>{tenantIdError}</Typography>
+              )}
+            </Box>
+          </Box>
+        )}
+      </Box>
+    </Card>
+  );
+}

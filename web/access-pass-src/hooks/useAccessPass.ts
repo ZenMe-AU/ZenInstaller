@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AccountInfo } from "@azure/msal-browser";
 import { getMsal } from "../../access-pass-src/api/accessPassMsal";
-import { GRAPH_SCOPES, ARM_SCOPES } from "../config/accessPassConfig";
+import { GRAPH_SCOPES } from "../config/accessPassConfig";
 import {
-  listSubscriptions,
   listUsersManagedBySignedInUser,
   createTemporaryAccessPassForUser,
   generateRandomPassword,
@@ -12,7 +11,6 @@ import {
   temporaryAccessPassMethodExists,
   MSA_TENANT,
   type EntraUser,
-  type Subscription,
 } from "../../access-pass-src/api/accessPassGraph";
 import type { Account, StageDefinition } from "../types";
 import { logEvent } from "../monitor/telemetry";
@@ -22,7 +20,6 @@ export type SetupStep = { id: string; label: string; status: StepStatus; detail?
 export type AzureSetupResult = {
   accessPassValue: string;
   tenantId: string;
-  subscriptionIds: string[];
   targetUserId?: string;
   tapMethodId?: string;
 };
@@ -111,8 +108,6 @@ export function useAzureAccessPass(props: {
 }) {
   const { validEnvs } = props;
   const [azureAccount, setAzureAccount] = useState<AccountInfo | null>(null);
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-  const [selectedSubs, setSelectedSubs] = useState<string[]>([]);
   const [appName, setAppName] = useState("zeninstaller-github");
   const defaultSelected = ["PROD", "TEST"].filter((e) => validEnvs.includes(e));
   const [environments, setEnvironments] = useState<string[]>(defaultSelected.length > 0 ? defaultSelected : ["PROD", "TEST"]);
@@ -179,20 +174,13 @@ export function useAzureAccessPass(props: {
 
   const isMsaAccount = azureAccount?.tenantId === MSA_TENANT;
   const normalizedTenantId = manualTenantId.trim();
-  const needsTenantId = (isMsaAccount || forceTenantSelection) && subscriptions.length === 0;
   // Always carry the resolved tenant for MSA flows; do not tie this to UI gating state.
   const effectiveTenantId =
     isMsaAccount ? (normalizedTenantId || loadResult()?.tenantId || loadTenantIdFromStorage(AZURE_SETUP_RESULT_KEY)) : undefined;
+  const needsTenantId = (isMsaAccount && !effectiveTenantId) || forceTenantSelection;
 
   const updateStep = useCallback((id: string, status: StepStatus, detail?: string) => {
     setSteps((prev) => prev.map((s) => (s.id === id ? { ...s, status, detail } : s)));
-  }, []);
-
-  const loadSubs = useCallback(async (account: AccountInfo, overrideTenantId?: string) => {
-    const subs = await listSubscriptions(account, overrideTenantId);
-    setSubscriptions(subs);
-    if (subs.length >= 1) setSelectedSubs(subs.map((s) => s.id));
-    if (subs.length === 0) setSubsError("No subscriptions found for this account.");
   }, []);
 
   // Load Entra users managed by the signed-in user, trying multiple plausible tenant contexts until one succeeds.
@@ -292,7 +280,7 @@ export function useAzureAccessPass(props: {
 
   useEffect(() => {
     if (!azureAccount) return;
-    if (azureAccount.tenantId === MSA_TENANT && needsTenantId) {
+    if (needsTenantId) {
       setManagerUsers([]);
       setSelectedManagerUserId("");
       return;
@@ -320,22 +308,6 @@ export function useAzureAccessPass(props: {
         const savedTenant = sessionStorage.getItem(SESSION_KEY) || undefined;
         const setupTenant = loadTenantIdFromStorage(AZURE_SETUP_RESULT_KEY);
 
-        const tryLoadSubs = async (account: AccountInfo, tenant: string | undefined) => {
-          try {
-            await loadSubs(account, tenant);
-            if (tenant) sessionStorage.removeItem(SESSION_KEY);
-          } catch (err) {
-            // ARM consent not yet granted — redirect for ARM
-            const msg = err instanceof Error ? err.message : "";
-            if ((msg.includes("AADSTS65001") || msg.includes("interaction_required")) && tenant) {
-              await msal.acquireTokenRedirect({
-                scopes: ARM_SCOPES,
-                authority: `https://login.microsoftonline.com/${tenant}`,
-              });
-            }
-          }
-        };
-
         const msaTenant = (acc: AccountInfo) =>
           acc.tenantId === MSA_TENANT ? savedTenant ?? loadResult()?.tenantId ?? setupTenant ?? undefined : undefined;
 
@@ -351,7 +323,7 @@ export function useAzureAccessPass(props: {
           }
           const tenant = msaTenant(result.account);
           if (tenant) setManualTenantId(tenant);
-          await tryLoadSubs(result.account, tenant);
+          if (tenant) sessionStorage.removeItem(SESSION_KEY);
         } else {
           const accounts = msal.getAllAccounts();
           console.log("MSAL accounts on init:", accounts);
@@ -371,7 +343,7 @@ export function useAzureAccessPass(props: {
             }
             const tenant = msaTenant(account) ?? (account.tenantId === MSA_TENANT ? preferredTid : undefined);
             if (tenant) setManualTenantId(tenant);
-            await tryLoadSubs(account, tenant);
+            if (tenant) sessionStorage.removeItem(SESSION_KEY);
           }
         }
       } catch (err) {
@@ -384,7 +356,7 @@ export function useAzureAccessPass(props: {
     return () => {
       cancelled = true;
     };
-  }, [loadSubs]);
+  }, []);
 
   const login = useCallback(async function btnLoginClicked() {
     logEvent("btnLoginClicked", {parentId: "XXXXXXX"});
@@ -436,14 +408,15 @@ export function useAzureAccessPass(props: {
       const refreshed = msal.getAllAccounts();
       const bestAccount = refreshed.find((a) => a.tenantId === tid) ?? tenantAccount;
       if (bestAccount !== azureAccount) setAzureAccount(bestAccount);
-      await loadSubs(bestAccount, tid);
+      await loadManagerUsers(bestAccount, [tid]);
       setForceTenantSelection(false);
+      sessionStorage.removeItem(SESSION_KEY);
       return;
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
       const needsConsent = msg.includes("AADSTS65001") || msg.includes("interaction_required") || msg.includes("MSA_NEEDS_TENANT");
       if (!needsConsent) {
-        setSubsError(msg);
+        setSubsError(msg || "Failed to validate tenant");
         return;
       }
     }
@@ -460,11 +433,9 @@ export function useAzureAccessPass(props: {
       sessionStorage.removeItem(SESSION_KEY);
       setTenantIdError(err instanceof Error ? err.message : "Failed to redirect");
     }
-  }, [azureAccount, manualTenantId, loadSubs]);
+  }, [azureAccount, manualTenantId, loadManagerUsers]);
 
   const changeTenant = useCallback(() => {
-    setSubscriptions([]);
-    setSelectedSubs([]);
     setSubsError(null);
     setTenantIdError(null);
     setManagerUsers([]);
@@ -485,8 +456,6 @@ export function useAzureAccessPass(props: {
     const msal = await getMsal();
     if (msal) await msal.clearCache().catch(() => {});
     setAzureAccount(null);
-    setSubscriptions([]);
-    setSelectedSubs([]);
     setResult(null);
     saveResult(null);
     setSteps([]);
@@ -558,7 +527,6 @@ export function useAzureAccessPass(props: {
       const r = {
         accessPassValue: tap.temporaryAccessPass,
         tenantId: resolvedTenantId,
-        subscriptionIds: [],
         targetUserId,
         tapMethodId: tap.id,
       };
@@ -585,9 +553,6 @@ export function useAzureAccessPass(props: {
 
   return {
     azureAccount,
-    subscriptions,
-    selectedSubs,
-    setSelectedSubs,
     appName,
     setAppName,
     environments,

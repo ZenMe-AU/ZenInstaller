@@ -1,11 +1,10 @@
 import { act, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { useAzureAccessPass } from "../hooks/useAzureAccessPass";
+import { useAzureAccessPass } from "../hooks/useAccessPass";
 import type { AccountInfo } from "@azure/msal-browser";
 
 const getMsalMock = vi.fn();
-const listSubscriptionsMock = vi.fn();
 const listUsersManagedBySignedInUserMock = vi.fn();
 const createTemporaryAccessPassForUserMock = vi.fn();
 const removeNonPasswordAuthenticationMethodsMock = vi.fn();
@@ -17,7 +16,6 @@ vi.mock("../../access-pass-src/api/accessPassMsal", () => ({
 }));
 
 vi.mock("../../access-pass-src/api/accessPassGraph", () => ({
-  listSubscriptions: (...args: unknown[]) => listSubscriptionsMock(...args),
   listUsersManagedBySignedInUser: (...args: unknown[]) => listUsersManagedBySignedInUserMock(...args),
   createTemporaryAccessPassForUser: (...args: unknown[]) => createTemporaryAccessPassForUserMock(...args),
   generateRandomPassword: () => "RANDOM_PASSWORD_123",
@@ -114,7 +112,6 @@ describe("useAzureAccessPass", () => {
     localStorage.clear();
     sessionStorage.clear();
 
-    listSubscriptionsMock.mockResolvedValue([]);
     listUsersManagedBySignedInUserMock.mockResolvedValue([{ id: "user-1", displayName: "Managed User" }]);
     createTemporaryAccessPassForUserMock.mockResolvedValue({ id: "tap-1", temporaryAccessPass: "TAP-123456" });
     removeNonPasswordAuthenticationMethodsMock.mockResolvedValue(2);
@@ -122,14 +119,8 @@ describe("useAzureAccessPass", () => {
     temporaryAccessPassMethodExistsMock.mockResolvedValue(true);
   });
 
-  it("Ryan", async () => {
-    const account = null;
-    const msal = createMsalMock([account], account);
-
-    listSubscriptionsMock.mockResolvedValue([
-      { id: "sub-1", name: "Primary" },
-      { id: "sub-2", name: "Secondary" },
-    ]);
+  it("stays signed out when no Azure account is present", async () => {
+    const msal = createMsalMock([]);
 
     getMsalMock.mockResolvedValue(msal);
 
@@ -139,22 +130,15 @@ describe("useAzureAccessPass", () => {
     await waitFor(() => harness.result.managerUsersLoading === false);
 
     expect(harness.result.azureAccount).toBeNull();
-    expect(harness.result.subscriptions).toHaveLength(0);
-    expect(harness.result.selectedSubs).toHaveLength(0);
     expect(harness.result.managerUsers).toHaveLength(0);
     expect(harness.result.selectedManagerUserId).toBe("");
 
     harness.unmount();
   });
 
-  it("loads account, subscriptions, and manager users on init", async () => {
+  it("loads account and manager users on init", async () => {
     const account = createMockAccount("tenant-1", new Map([["tenant-1", {}]]));
     const msal = createMsalMock([account], account);
-
-    listSubscriptionsMock.mockResolvedValue([
-      { id: "sub-1", name: "Primary" },
-      { id: "sub-2", name: "Secondary" },
-    ]);
 
     getMsalMock.mockResolvedValue(msal);
 
@@ -164,8 +148,6 @@ describe("useAzureAccessPass", () => {
     await waitFor(() => harness.result.managerUsersLoading === false);
 
     expect(harness.result.azureAccount?.tenantId).toBe("tenant-1");
-    expect(harness.result.subscriptions).toHaveLength(2);
-    expect(harness.result.selectedSubs).toEqual(["sub-1", "sub-2"]);
     expect(harness.result.managerUsers).toHaveLength(1);
     expect(harness.result.selectedManagerUserId).toBe("user-1");
 
@@ -177,7 +159,6 @@ describe("useAzureAccessPass", () => {
     const msal = createMsalMock([account], account);
     const redirectError = new Error("Failed to redirect for Graph consent");
 
-    listSubscriptionsMock.mockResolvedValue([{ id: "sub-1", name: "Primary" }]);
     listUsersManagedBySignedInUserMock.mockRejectedValue(new Error("interaction_required"));
     msal.loginRedirect.mockRejectedValueOnce(redirectError);
     getMsalMock.mockResolvedValue(msal);
@@ -205,7 +186,6 @@ describe("useAzureAccessPass", () => {
     const account = createMockAccount("tenant-1", new Map([["tenant-1", {}]]));
     const msal = createMsalMock([account], account);
 
-    listSubscriptionsMock.mockResolvedValue([{ id: "sub-1", name: "Primary" }]);
     getMsalMock.mockResolvedValue(msal);
 
     const harness = renderUseAccessPassHook();
@@ -219,9 +199,9 @@ describe("useAzureAccessPass", () => {
 
     await waitFor(() => harness.result.running === false);
 
-    expect(removeNonPasswordAuthenticationMethodsMock).toHaveBeenCalledWith(account, "user-1", "tenant-1");
-    expect(resetUserPasswordMock).toHaveBeenCalledWith(account, "user-1", "RANDOM_PASSWORD_123", "tenant-1");
-    expect(createTemporaryAccessPassForUserMock).toHaveBeenCalledWith(account, "user-1", "tenant-1");
+    expect(removeNonPasswordAuthenticationMethodsMock).toHaveBeenCalledWith(account, "user-1", undefined);
+    expect(resetUserPasswordMock).toHaveBeenCalledWith(account, "user-1", "RANDOM_PASSWORD_123", undefined);
+    expect(createTemporaryAccessPassForUserMock).toHaveBeenCalledWith(account, "user-1", undefined);
 
     expect(harness.result.steps.map((s) => s.status)).toEqual(["done", "done", "done"]);
     expect(harness.result.result).toMatchObject({
@@ -237,12 +217,11 @@ describe("useAzureAccessPass", () => {
     harness.unmount();
   });
 
-  it("sets tenant error when confirmTenantId is called without selecting a user", async () => {
+  it("sets tenant error when confirmTenantId is called without a tenant ID", async () => {
     const tenantProfiles = new Map([["tenant-1", {}], ["tenant-2", {}]]);
     const account = createMockAccount("tenant-1", tenantProfiles);
     const msal = createMsalMock([account], account);
 
-    listSubscriptionsMock.mockResolvedValue([]);
     listUsersManagedBySignedInUserMock.mockResolvedValue([]);
     getMsalMock.mockResolvedValue(msal);
 
@@ -255,9 +234,7 @@ describe("useAzureAccessPass", () => {
       await harness.result.confirmTenantId();
     });
 
-    expect(harness.result.tenantIdError).toBe("Please select a user from the Entra list.");
-    expect(harness.result.subsError).toBe("No subscriptions found for this account.");
-
+    expect(harness.result.tenantIdError).toBe("Please enter your Tenant ID");
     harness.unmount();
   });
 
@@ -265,7 +242,6 @@ describe("useAzureAccessPass", () => {
     const account = createMockAccount("tenant-1", new Map([["tenant-1", {}]]));
     const msal = createMsalMock([account], account);
 
-    listSubscriptionsMock.mockResolvedValue([{ id: "sub-1", name: "Primary" }]);
     createTemporaryAccessPassForUserMock.mockRejectedValue(new Error("403 temporaryAccessPassMethods AccessDenied"));
     getMsalMock.mockResolvedValue(msal);
 
@@ -283,6 +259,106 @@ describe("useAzureAccessPass", () => {
     const tapStep = harness.result.steps.find((s) => s.id === "tap");
     expect(tapStep?.status).toBe("error");
     expect(tapStep?.detail).toContain("Not authorized to create Temporary Access Pass");
+
+    harness.unmount();
+  });
+
+  it("surfaces a consent-required message when TAP creation needs admin consent", async () => {
+    const account = createMockAccount("tenant-1", new Map([["tenant-1", {}]]));
+    const msal = createMsalMock([account], account);
+
+    createTemporaryAccessPassForUserMock.mockRejectedValue(new Error("AADSTS65001 consent_required"));
+    getMsalMock.mockResolvedValue(msal);
+
+    const harness = renderUseAccessPassHook();
+
+    await waitFor(() => harness.result.loggingIn === false);
+    await waitFor(() => harness.result.managerUsersLoading === false);
+
+    await act(async () => {
+      await harness.result.run();
+    });
+
+    await waitFor(() => harness.result.running === false);
+
+    const tapStep = harness.result.steps.find((s) => s.id === "tap");
+    expect(tapStep?.status).toBe("error");
+    expect(tapStep?.detail).toBe("Graph admin consent is required for this tenant. Reconnect Azure and grant consent, then try again.");
+
+    harness.unmount();
+  });
+
+  it("surfaces a user-not-found message when TAP endpoint returns 404", async () => {
+    const account = createMockAccount("tenant-1", new Map([["tenant-1", {}]]));
+    const msal = createMsalMock([account], account);
+
+    createTemporaryAccessPassForUserMock.mockRejectedValue(new Error("404 /users/user-1/authentication/temporaryAccessPassMethods"));
+    getMsalMock.mockResolvedValue(msal);
+
+    const harness = renderUseAccessPassHook();
+
+    await waitFor(() => harness.result.loggingIn === false);
+    await waitFor(() => harness.result.managerUsersLoading === false);
+
+    await act(async () => {
+      await harness.result.run();
+    });
+
+    await waitFor(() => harness.result.running === false);
+
+    const tapStep = harness.result.steps.find((s) => s.id === "tap");
+    expect(tapStep?.status).toBe("error");
+    expect(tapStep?.detail).toBe("Selected user was not found in the current tenant context. Re-select the user and try again.");
+
+    harness.unmount();
+  });
+
+  it("surfaces an auth-methods authorization message when delete methods is forbidden", async () => {
+    const account = createMockAccount("tenant-1", new Map([["tenant-1", {}]]));
+    const msal = createMsalMock([account], account);
+
+    removeNonPasswordAuthenticationMethodsMock.mockRejectedValue(new Error("403 /users/user-1/authentication/methods Forbidden"));
+    getMsalMock.mockResolvedValue(msal);
+
+    const harness = renderUseAccessPassHook();
+
+    await waitFor(() => harness.result.loggingIn === false);
+    await waitFor(() => harness.result.managerUsersLoading === false);
+
+    await act(async () => {
+      await harness.result.run();
+    });
+
+    await waitFor(() => harness.result.running === false);
+
+    const removeMethodsStep = harness.result.steps.find((s) => s.id === "removeMethods");
+    expect(removeMethodsStep?.status).toBe("error");
+    expect(removeMethodsStep?.detail).toContain("Not authorized to remove existing sign-in methods");
+
+    harness.unmount();
+  });
+
+  it("surfaces a password reset authorization message when passwordProfile update is forbidden", async () => {
+    const account = createMockAccount("tenant-1", new Map([["tenant-1", {}]]));
+    const msal = createMsalMock([account], account);
+
+    resetUserPasswordMock.mockRejectedValue(new Error("403 passwordProfile update denied"));
+    getMsalMock.mockResolvedValue(msal);
+
+    const harness = renderUseAccessPassHook();
+
+    await waitFor(() => harness.result.loggingIn === false);
+    await waitFor(() => harness.result.managerUsersLoading === false);
+
+    await act(async () => {
+      await harness.result.run();
+    });
+
+    await waitFor(() => harness.result.running === false);
+
+    const rotatePasswordStep = harness.result.steps.find((s) => s.id === "rotatePassword");
+    expect(rotatePasswordStep?.status).toBe("error");
+    expect(rotatePasswordStep?.detail).toContain("Not authorized to reset the user password");
 
     harness.unmount();
   });

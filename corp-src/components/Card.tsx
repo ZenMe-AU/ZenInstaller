@@ -12,7 +12,7 @@ import { MONO as mono } from "../config/styles";
 import { CARD_W, EXPANDED_W } from "../config/cardLayout";
 
 const BORDER: Record<CardStatus, string> = {
-  idle: "#e2e8f0",
+  idle: "#fed7aa",
   loading: "#e2e8f0",
   complete: "#bbf7d0",
   warning: "#fed7aa",
@@ -21,7 +21,7 @@ const BORDER: Record<CardStatus, string> = {
 };
 
 const ICON_COLOR: Record<CardStatus, string> = {
-  idle: "#cbd5e1",
+  idle: "#f97316",
   loading: "#60a5fa",
   complete: "#22c55e",
   warning: "#f97316",
@@ -119,7 +119,7 @@ export default function Card({
           alignItems: "center",
           gap: 1.25,
           px: 2,
-          py: 1.5,
+          py: muted ? 2 : 1.5,
           cursor: "pointer",
           "&:hover": { background: muted ? "#f1f5f9" : "#fafafa" },
         }}
@@ -149,7 +149,7 @@ export default function Card({
                   ? "#64748b"
                   : status === "complete"
                     ? "#16a34a"
-                    : status === "warning"
+                    : status === "warning" || status === "idle"
                       ? "#ea580c"
                       : status === "error"
                         ? "#dc2626"

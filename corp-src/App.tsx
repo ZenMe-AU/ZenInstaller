@@ -5,6 +5,7 @@ import { type CardChrome, type CardHook, type CardId, type CardRequirements, typ
 import { AZURE_CLIENT_ID } from "./config/azureConfig";
 import { groupLabelSx, groupSx, EXPANDED_W } from "./config/cardLayout";
 import { getEnvSettingsUrl } from "./logic/github";
+import { createResultStorage } from "./logic/resultStorage";
 import { useGithubLoginCard } from "./hooks/useGithubLoginCard";
 import { useGithubRepo } from "./hooks/useGithubRepo";
 import { useGithubEnvironment } from "./hooks/useGithubEnvironment";
@@ -37,6 +38,10 @@ import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
 
 // ─── App ──────────────────────────────────────────────────────────────────────
+
+const EXPANDED_CARDS_KEY = "zeninstaller_corp_expanded_cards";
+const { save: saveExpandedCards, load: loadExpandedCards } = createResultStorage<CardId[]>(EXPANDED_CARDS_KEY);
+
 function AppDashboard() {
   const allCards: Record<string, CardHook> = {};
 
@@ -114,9 +119,7 @@ function AppDashboard() {
 
   // The Azure sign-in session, shared by the login / subscription / app-registration / access-pass cards.
   const azure = useAzureAccount();
-  const accessPass = addCard(
-    useAccessPassCard({ azureAccount: azure.account, confirmedTenantId: azure.confirmedTenantId }),
-  );
+  const accessPass = addCard(useAccessPassCard({ azureAccount: azure.account, confirmedTenantId: azure.confirmedTenantId }));
   const subscription = addCard(
     useAzureSubscriptionCard({
       azureAccount: azure.account,
@@ -178,8 +181,12 @@ function AppDashboard() {
   );
 
   // ── Accordion + completion flags ───────────────────────────────────────────
-  // A Set, not a single id, so multiple cards can stay expanded at once.
-  const [expandedIds, setExpandedIds] = useState<Set<CardId>>(new Set());
+  // A Set, not a single id, so multiple cards can stay expanded at once. Persisted so
+  // reloading or navigating back restores what was open.
+  const [expandedIds, setExpandedIds] = useState<Set<CardId>>(() => new Set(loadExpandedCards() ?? []));
+  useEffect(() => {
+    saveExpandedCards(Array.from(expandedIds));
+  }, [expandedIds]);
   const toggle = (id: CardId) =>
     setExpandedIds((cur) => {
       const next = new Set(cur);
@@ -201,21 +208,14 @@ function AppDashboard() {
     requestAnimationFrame(() => document.getElementById(`card-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
   };
 
-  // Only surfaces dependencies that are still unmet — a card that reports its own `done` doesn't get
-  // listed (and its own sub-dependencies are assumed satisfied too), so this also stops recursing there.
-  function getCardRequirementsRecursive(id: CardId): CardRequirements {
-    const directRequirements = (allCards[id].cardRequirements ?? []).filter((reqId) => !allCards[reqId]?.done);
-    const nestedRequirements = directRequirements.flatMap((reqId) => getCardRequirementsRecursive(reqId));
-    return [...new Set([...directRequirements, ...nestedRequirements])];
-  }
-
   const cardProps = (id: CardId): CardChrome => {
     const misconfigured = !azureConfigured && id === "azure_login"; //  A misconfigured Azure card isn't "locked" behind other steps — it's broken regardless of progress, so skip the normal prerequisite list for it.
-    const cardRequirementRecursive = getCardRequirementsRecursive(id);
-    const requirementsForCard: Requirement[] = [];
-    for (const reqCardId of cardRequirementRecursive ?? []) {
-      requirementsForCard.push({ label: allCards[reqCardId].cardDependencyLabel, target: reqCardId });
-    }
+    const requirementsForCard = (allCards[id].cardRequirements ?? [])
+      .filter((reqCardId) => !allCards[reqCardId]?.done)
+      .map((reqCardId) => ({
+        label: allCards[reqCardId].cardDependencyLabel,
+        target: reqCardId,
+      }));
     const requirements = misconfigured ? [] : requirementsForCard;
     const locked = requirements.length > 0;
     return {
@@ -284,8 +284,6 @@ function AppDashboard() {
             </Typography>
           </Box>
 
-          {/* ── Sign in ── */}
-          <Typography sx={groupLabelSx}>Sign in</Typography>
           <Box sx={groupSx}>
             <GithubLoginCard
               card={cardProps("github_login")}
@@ -297,12 +295,9 @@ function AppDashboard() {
               }}
             />
             <AzureLoginCard card={cardProps("azure_login")} azureLogin={azureLogin} configured={azureConfigured} />
-          </Box>
 
-          {/* ── Target ── */}
-          <Typography sx={groupLabelSx}>Target</Typography>
-          <Box sx={groupSx}>
             <RepoCard card={cardProps("repo")} githubRepo={githubRepo} github={github} lockedByPR={!!pr.selectedPR} />
+
             <AzureSubscriptionCard
               card={cardProps("azure_subscription")}
               azure={azure}
@@ -315,11 +310,7 @@ function AppDashboard() {
               configured={azureConfigured}
               onOpenAzureLogin={() => openCard("azure_login")}
             />
-          </Box>
 
-          {/* ── Resources ── */}
-          <Typography sx={groupLabelSx}>Resources</Typography>
-          <Box sx={groupSx}>
             <AccessPassCard card={cardProps("access_pass")} accessPass={accessPass} />
 
             <CompanyInfoCard

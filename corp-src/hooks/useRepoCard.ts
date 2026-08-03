@@ -27,13 +27,7 @@ export interface UseRepoCard extends CardHook {
 export function useRepoCard({ githubRepo, envReady, isAuthed, envName }: UseRepoCardParams): UseRepoCard {
   const envSelected = !!envName;
   // Merged Repository & environment card: complete only when the repo is cloned AND an env is picked.
-  const status: CardStatus = !isAuthed
-    ? "idle"
-    : githubRepo.isCloneRepo && envSelected
-      ? "complete"
-      : githubRepo.status === "idle"
-        ? "idle"
-        : "loading";
+  const status: CardStatus = !isAuthed ? "idle" : githubRepo.isCloneRepo && envSelected ? "complete" : "idle";
   const summary =
     githubRepo.repoFullName && envName
       ? `${githubRepo.repoFullName} · ${envName}`

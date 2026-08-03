@@ -44,9 +44,23 @@ export default function GithubLoginCard({ card, auth, onDirectLogout }: Props) {
   return (
     <Card title="GitHub login" {...card}>
     <Box>
+      <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7, mb: 2 }}>
+        Connect your GitHub account so ZenInstaller can create the repository, environment, and secrets needed to deploy Zenblox.
+      </Typography>
+
       {/* Mode toggle — hidden once logged in */}
       {!user && (
         <Box sx={{ mb: 2 }}>
+          <Typography sx={{ fontSize: "0.72rem", color: "#64748b", mb: 1 }}>
+            <Box component="span" sx={{ ...monoSx, fontWeight: 600 }}>
+              Backend
+            </Box>{" "}
+            signs you in through GitHub's OAuth flow and keeps your access token on the server.{" "}
+            <Box component="span" sx={{ ...monoSx, fontWeight: 600 }}>
+              Direct (PAT)
+            </Box>{" "}
+            skips the backend entirely — paste your own Personal Access Token and the browser talks to GitHub directly.
+          </Typography>
           <ToggleButtonGroup
             value={mode}
             exclusive

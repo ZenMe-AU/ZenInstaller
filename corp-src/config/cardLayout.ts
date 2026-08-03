@@ -39,6 +39,7 @@ export const groupLabelSx = {
 export const groupSx = {
   display: "flex",
   flexWrap: "wrap",
+  mt: 3.5,
   gap: 1.5,
   alignItems: "flex-start",
   justifyContent: "center",

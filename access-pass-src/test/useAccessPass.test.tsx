@@ -262,4 +262,104 @@ describe("useAzureAccessPass", () => {
 
     harness.unmount();
   });
+
+  it("surfaces a consent-required message when TAP creation needs admin consent", async () => {
+    const account = createMockAccount("tenant-1", new Map([["tenant-1", {}]]));
+    const msal = createMsalMock([account], account);
+
+    createTemporaryAccessPassForUserMock.mockRejectedValue(new Error("AADSTS65001 consent_required"));
+    getMsalMock.mockResolvedValue(msal);
+
+    const harness = renderUseAccessPassHook();
+
+    await waitFor(() => harness.result.loggingIn === false);
+    await waitFor(() => harness.result.managerUsersLoading === false);
+
+    await act(async () => {
+      await harness.result.run();
+    });
+
+    await waitFor(() => harness.result.running === false);
+
+    const tapStep = harness.result.steps.find((s) => s.id === "tap");
+    expect(tapStep?.status).toBe("error");
+    expect(tapStep?.detail).toBe("Graph admin consent is required for this tenant. Reconnect Azure and grant consent, then try again.");
+
+    harness.unmount();
+  });
+
+  it("surfaces a user-not-found message when TAP endpoint returns 404", async () => {
+    const account = createMockAccount("tenant-1", new Map([["tenant-1", {}]]));
+    const msal = createMsalMock([account], account);
+
+    createTemporaryAccessPassForUserMock.mockRejectedValue(new Error("404 /users/user-1/authentication/temporaryAccessPassMethods"));
+    getMsalMock.mockResolvedValue(msal);
+
+    const harness = renderUseAccessPassHook();
+
+    await waitFor(() => harness.result.loggingIn === false);
+    await waitFor(() => harness.result.managerUsersLoading === false);
+
+    await act(async () => {
+      await harness.result.run();
+    });
+
+    await waitFor(() => harness.result.running === false);
+
+    const tapStep = harness.result.steps.find((s) => s.id === "tap");
+    expect(tapStep?.status).toBe("error");
+    expect(tapStep?.detail).toBe("Selected user was not found in the current tenant context. Re-select the user and try again.");
+
+    harness.unmount();
+  });
+
+  it("surfaces an auth-methods authorization message when delete methods is forbidden", async () => {
+    const account = createMockAccount("tenant-1", new Map([["tenant-1", {}]]));
+    const msal = createMsalMock([account], account);
+
+    removeNonPasswordAuthenticationMethodsMock.mockRejectedValue(new Error("403 /users/user-1/authentication/methods Forbidden"));
+    getMsalMock.mockResolvedValue(msal);
+
+    const harness = renderUseAccessPassHook();
+
+    await waitFor(() => harness.result.loggingIn === false);
+    await waitFor(() => harness.result.managerUsersLoading === false);
+
+    await act(async () => {
+      await harness.result.run();
+    });
+
+    await waitFor(() => harness.result.running === false);
+
+    const removeMethodsStep = harness.result.steps.find((s) => s.id === "removeMethods");
+    expect(removeMethodsStep?.status).toBe("error");
+    expect(removeMethodsStep?.detail).toContain("Not authorized to remove existing sign-in methods");
+
+    harness.unmount();
+  });
+
+  it("surfaces a password reset authorization message when passwordProfile update is forbidden", async () => {
+    const account = createMockAccount("tenant-1", new Map([["tenant-1", {}]]));
+    const msal = createMsalMock([account], account);
+
+    resetUserPasswordMock.mockRejectedValue(new Error("403 passwordProfile update denied"));
+    getMsalMock.mockResolvedValue(msal);
+
+    const harness = renderUseAccessPassHook();
+
+    await waitFor(() => harness.result.loggingIn === false);
+    await waitFor(() => harness.result.managerUsersLoading === false);
+
+    await act(async () => {
+      await harness.result.run();
+    });
+
+    await waitFor(() => harness.result.running === false);
+
+    const rotatePasswordStep = harness.result.steps.find((s) => s.id === "rotatePassword");
+    expect(rotatePasswordStep?.status).toBe("error");
+    expect(rotatePasswordStep?.detail).toContain("Not authorized to reset the user password");
+
+    harness.unmount();
+  });
 });

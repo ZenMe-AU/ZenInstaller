@@ -11,13 +11,9 @@ import {
 } from "./types";
 import { AZURE_CLIENT_ID } from "./config/azureConfig";
 import { groupLabelSx, groupSx, EXPANDED_W } from "./config/cardLayout";
-import { getEnvSettingsUrl } from "./logic/github";
 import { createResultStorage } from "./logic/resultStorage";
 import { useGithubLoginCard } from "./hooks/useGithubLoginCard";
-import { useGithubRepo } from "./hooks/useGithubRepo";
-import { useGithubEnvironment } from "./hooks/useGithubEnvironment";
 import { useRepoCard } from "./hooks/useRepoCard";
-import { useAzureAccount } from "./hooks/useAzureAccount";
 import { useAzureLoginCard } from "./hooks/useAzureLoginCard";
 import { useAzureAppRegistrationCard } from "./hooks/useAzureAppRegistrationCard";
 import { useAzureSubscriptionCard } from "./hooks/useAzureSubscriptionCard";
@@ -25,7 +21,6 @@ import { useCreateDomainCard } from "./hooks/useCreateDomainCard";
 import { useCoreInfraCard } from "./hooks/useCoreInfraCard";
 import { useCompanyInfoCard } from "./hooks/useCompanyInfoCard";
 import { useAccessPassCard } from "./hooks/useAccessPassCard";
-import { usePR } from "./hooks/usePR";
 import { useUrlRestore } from "./hooks/useUrlRestore";
 
 import NavBar from "./components/NavBar";
@@ -58,8 +53,8 @@ function AppDashboard() {
   }
   // ── Hooks ──────────────────────────────────────────────────────────────────
   const restore = useUrlRestore();
-  const auth = addCard(useGithubLoginCard());
-  const isAuthed = auth.status === "complete";
+  const githubLogin = addCard(useGithubLoginCard());
+  const isAuthed = githubLogin.status === "complete";
 
   // Stable empty refs — passed to sub-hooks when !isAuthed so restore never fires before login
   const _emptyRestore = useRef<PendingRestore>({ account: null, repo: null, pr: null, env: null });
@@ -71,63 +66,28 @@ function AppDashboard() {
   const addWarningGated = isAuthed ? restore.addRestoreWarning : _noop;
   const checkDoneGated = isAuthed ? restore.checkRestoreDone : _noop;
 
-  /*
-   * The GitHub account/repo/clone/branch layer, shared (not a card) — mirrors
-   * useAzureAccount on the Azure side. The repo card below is just a thin
-   * self-reporting projection of it (+ envReady from useGithubEnvironment).
-   */
-  const githubRepo = useGithubRepo({
-    user: auth.account,
-    pendingRestore: pendingRestoreGated,
-    urlAccountApplied: urlAccountAppliedGated,
-    addRestoreWarning: addWarningGated,
-    checkRestoreDone: checkDoneGated,
-  });
-
-  const pr = usePR({
-    account: githubRepo.selectedAccount,
-    repo: githubRepo.selectedRepo,
-    isCloneRepo: githubRepo.isCloneRepo,
-    pendingRestore: pendingRestoreGated,
-    addRestoreWarning: addWarningGated,
-    checkRestoreDone: checkDoneGated,
-  });
-
-  /*
-   * env selection + variables + secrets, shared (not a card) — one tier of GitHub
-   * operations. env selection renders inside the repo card; variables back the
-   * company_info card; secrets have no UI mounted today (see RepoDetail's neighbor).
-   */
-  const github = useGithubEnvironment({
-    account: githubRepo.selectedAccount,
-    repo: githubRepo.selectedRepo,
-    isCloneRepo: githubRepo.isCloneRepo,
-    selectedPR: pr.selectedPR,
-    branches: githubRepo.branches,
-    validEnvs: githubRepo.pipeline.validEnvs,
-    pendingRestore: pendingRestoreGated,
-    addRestoreWarning: addWarningGated,
-    checkRestoreDone: checkDoneGated,
-  });
-
-  // Self-reports done = isCloneRepo && envReady, now that both live upstream of it. Nothing
-  // else reads this card's own return — every field a card needs comes from githubRepo/github.
-  addCard(useRepoCard({ githubRepo, envReady: github.envReady, isAuthed, envName: github.selectedEnv?.name }));
-  const companyInfo = addCard(
-    useCompanyInfoCard({ variableValues: github.presentVariableValues, envSelected: !!github.selectedEnv }),
+  const githubRepoEnv = addCard(
+    useRepoCard({
+      user: githubLogin.account,
+      pendingRestoreGated,
+      urlAccountAppliedGated,
+      addWarningGated,
+      checkDoneGated,
+    }),
   );
+  const githubVariableValues = githubRepoEnv.presentVariableValues ?? {};
 
-  /*
-   * The corp resource target. The saved GitHub vars are authoritative — they're what the
-   * pipeline uses — so downstream cards read them, and the subscription card's live pick is
-   * only "confirmed" (and that card only `done`) once it matches.
-   */
-  const savedSubscriptionId = github.presentVariableValues.AZURE_SUBSCRIPTION_ID ?? "";
+  const companyInfo = addCard(
+    useCompanyInfoCard({
+      variableValues: githubVariableValues,
+      envSelected: !!githubRepoEnv.selectedEnv,
+    }),
+  );
 
   // The Azure sign-in session, shared by the login / subscription / app-registration / access-pass cards.
   const azureLogin = addCard(
     useAzureLoginCard({
-      savedTenantId: github.presentVariableValues.AZURE_TENANT_ID ?? "",
+      savedTenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
     }),
   );
 
@@ -143,31 +103,29 @@ function AppDashboard() {
       azureAccount: azureLogin.account,
       confirmedTenantId: azureLogin.confirmedTenantId,
       manualTenantId: azureLogin.manualTenantId,
-      savedSubscriptionId,
+      savedSubscriptionId: githubVariableValues.AZURE_SUBSCRIPTION_ID ?? "",
     }),
   );
 
   const azureAppSetup = addCard(
     useAzureAppRegistrationCard({
       azureAccount: azureLogin.account,
-      githubAccount: githubRepo.selectedAccount,
-      githubRepo: githubRepo.selectedRepo?.name ?? "",
-      validEnvs: githubRepo.pipeline.validEnvs,
-      subscriptionId: savedSubscriptionId,
+      githubAccount: githubRepoEnv.selectedAccount,
+      githubRepo: githubRepoEnv.selectedRepo?.name ?? "",
+      validEnvs: githubRepoEnv.pipeline.validEnvs,
+      subscriptionId: azureSubscription.selectedSubscriptionId,
       subscriptionLabel: azureSubscription.subscriptionLabel,
       tenantId: azureLogin.confirmedTenantId || undefined,
-      variableValues: github.presentVariableValues,
+      variableValues: githubVariableValues,
       manualTenantId: azureLogin.manualTenantId,
-      azureSecretsValid: github.azureSecrets.valid,
+      azureSecretsValid: githubRepoEnv.azureSecrets.valid,
     }),
   );
 
-  // spClientId / tenantId come off the app-registration card — it's the one hook that already
-  // resolves both (saved var, or its own result, or — for tenantId — the manually picked one).
   const infra = addCard(
     useCoreInfraCard({
       azureAccount: azureLogin.account,
-      subscriptionId: savedSubscriptionId,
+      subscriptionId: azureSubscription.selectedSubscriptionId,
       corpName: companyInfo.corpName,
       spClientId: azureAppSetup.spClientId,
       tenantId: azureAppSetup.tenantId,
@@ -176,7 +134,7 @@ function AppDashboard() {
   const createDomain = addCard(
     useCreateDomainCard({
       azureAccount: azureLogin.account,
-      subscriptionId: savedSubscriptionId,
+      subscriptionId: azureSubscription.selectedSubscriptionId,
       corpName: companyInfo.corpName,
       dnsName: companyInfo.dnsName,
       spClientId: azureAppSetup.spClientId,
@@ -202,11 +160,6 @@ function AppDashboard() {
   // Still needed here (not just inside useAzureLoginCard) for cardProps' own "unconfigured →
   // skip the requirements list" special case below.
   const azureConfigured = !!AZURE_CLIENT_ID;
-
-  const githubEnvUrl =
-    githubRepo.repoFullName && github.selectedEnv
-      ? getEnvSettingsUrl(githubRepo.repoFullName, github.selectedEnv.id)
-      : undefined;
 
   // Jumping to a prerequisite adds it to the expanded set rather than replacing it, so the card
   // you came from stays open too.
@@ -248,33 +201,36 @@ function AppDashboard() {
     const p = restore.pendingRestore.current;
     if (p.account !== null || p.repo !== null || p.pr !== null || p.env !== null) return;
     const params = new URLSearchParams();
-    if (githubRepo.selectedAccount) params.set("account", githubRepo.selectedAccount.login);
-    if (githubRepo.selectedRepo && !githubRepo.selectedRepo.isNew) params.set("repo", githubRepo.selectedRepo.name);
-    if (pr.selectedPR) params.set("pr", String(pr.selectedPR.number));
-    else if (github.selectedEnv) params.set("env", github.selectedEnv.name);
+    if (githubRepoEnv.selectedAccount) params.set("account", githubRepoEnv.selectedAccount.login);
+    if (githubRepoEnv.selectedRepo && !githubRepoEnv.selectedRepo.isNew)
+      params.set("repo", githubRepoEnv.selectedRepo.name);
+    else if (githubRepoEnv.selectedEnv) params.set("env", githubRepoEnv.selectedEnv.name);
     const search = params.toString();
     window.history.replaceState(null, "", search ? `?${search}` : window.location.pathname);
   }, [
     isAuthed,
-    githubRepo.selectedAccount,
-    githubRepo.selectedRepo,
-    pr.selectedPR,
-    github.selectedEnv,
+    githubRepoEnv.selectedAccount,
+    githubRepoEnv.selectedRepo,
+    githubRepoEnv.selectedEnv,
     restore.pendingRestore,
   ]);
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
-      <SessionOverlay sessionExpired={auth.sessionExpired} redirecting={auth.redirecting} onLogin={auth.login} />
+      <SessionOverlay
+        sessionExpired={githubLogin.sessionExpired}
+        redirecting={githubLogin.redirecting}
+        onLogin={githubLogin.login}
+      />
 
       <Box
         sx={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a", fontFamily: "'IBM Plex Sans', sans-serif" }}
       >
         <NavBar
-          authLoading={auth.loggingIn}
-          user={auth.account}
-          selectedRepo={githubRepo.selectedRepo}
+          authLoading={githubLogin.loggingIn}
+          user={githubLogin.account}
+          selectedRepo={githubRepoEnv.selectedRepo}
           siblingPages={[
             { label: "Access Pass", href: "/accessPass.html" },
             { label: "Private Account", href: "/privAccount.html" },
@@ -306,26 +262,26 @@ function AppDashboard() {
           <Box sx={groupSx}>
             <GithubLoginCard
               card={cardProps("github_login")}
-              auth={auth}
+              auth={githubLogin}
               onDirectLogout={() => {
-                auth.onDirectLogout();
-                githubRepo.setSelectedAccount(null);
-                githubRepo.setSelectedRepo(null);
+                githubLogin.onDirectLogout();
+                githubRepoEnv.setSelectedAccount(null);
+                githubRepoEnv.setSelectedRepo(null);
               }}
             />
             <AzureLoginCard card={cardProps("azure_login")} azureLogin={azureLogin} configured={azureConfigured} />
 
-            <RepoCard card={cardProps("repo")} githubRepo={githubRepo} github={github} lockedByPR={!!pr.selectedPR} />
+            <RepoCard card={cardProps("repo")} githubRepo={githubRepoEnv} github={githubRepoEnv} lockedByPR={false} />
 
             <AzureSubscriptionCard
               card={cardProps("azure_subscription")}
               azure={azureLogin}
               subscription={azureSubscription}
-              githubAccount={githubRepo.selectedAccount}
-              repoName={githubRepo.selectedRepo?.name ?? ""}
-              selectedEnv={github.selectedEnv}
-              onVariableConfirmed={github.onVariableConfirmed}
-              githubUrl={githubEnvUrl}
+              githubAccount={githubRepoEnv.selectedAccount}
+              repoName={githubRepoEnv.selectedRepo?.name ?? ""}
+              selectedEnv={githubRepoEnv.selectedEnv}
+              onVariableConfirmed={githubRepoEnv.onVariableConfirmed}
+              githubUrl={githubRepoEnv.githubEnvUrl}
               configured={azureConfigured}
               onOpenAzureLogin={() => openCard("azure_login")}
             />
@@ -334,21 +290,21 @@ function AppDashboard() {
 
             <CompanyInfoCard
               card={cardProps("company_info")}
-              github={github}
-              githubAccount={githubRepo.selectedAccount}
-              repoName={githubRepo.selectedRepo?.name ?? ""}
-              githubUrl={githubEnvUrl}
+              github={githubRepoEnv}
+              githubAccount={githubRepoEnv.selectedAccount}
+              repoName={githubRepoEnv.selectedRepo?.name ?? ""}
+              githubUrl={githubRepoEnv.githubEnvUrl}
             />
 
             <AzureAppRegistrationCard
               card={cardProps("azure_app_registration")}
               appReg={azureAppSetup}
-              githubAccount={githubRepo.selectedAccount}
-              repoName={githubRepo.selectedRepo?.name ?? ""}
-              selectedEnv={github.selectedEnv}
-              subscriptionId={savedSubscriptionId}
-              githubUrl={githubEnvUrl}
-              onAzureValid={github.onAzureValid}
+              githubAccount={githubRepoEnv.selectedAccount}
+              repoName={githubRepoEnv.selectedRepo?.name ?? ""}
+              selectedEnv={githubRepoEnv.selectedEnv}
+              subscriptionId={azureSubscription.selectedSubscriptionId}
+              githubUrl={githubRepoEnv.githubEnvUrl}
+              onAzureValid={githubRepoEnv.onAzureValid}
             />
 
             <CoreInfraCard
@@ -356,7 +312,7 @@ function AppDashboard() {
               infra={infra}
               azureAccount={azureLogin.account}
               corpName={companyInfo.corpName}
-              subscriptionId={savedSubscriptionId}
+              subscriptionId={azureSubscription.selectedSubscriptionId}
               spClientId={azureAppSetup.spClientId}
             />
 

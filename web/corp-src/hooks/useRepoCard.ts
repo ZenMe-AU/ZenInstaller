@@ -1,33 +1,59 @@
-import type { CardHook, CardStatus } from "../types";
-import type { UseGithubRepo } from "./useGithubRepo";
+import type { CardHook, CardStatus, PendingRestore, User } from "../types";
+import { useGithubRepo, type UseGithubRepo } from "./useGithubRepo";
+import { useGithubEnvironment, type UseGithubEnvironment } from "./useGithubEnvironment";
+import { getEnvSettingsUrl } from "../logic/github";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type UseRepoCardParams = {
-  githubRepo: UseGithubRepo;
-  envReady: boolean; // from useGithubEnvironment — the repo card is only done once an env is also chosen.
-  isAuthed: boolean; // github_login's own done — this card has no cardRequirements, so it reads this directly.
-  envName?: string; // github.selectedEnv?.name
+  user: User | null;
+  pendingRestoreGated: React.MutableRefObject<PendingRestore>;
+  urlAccountAppliedGated: React.MutableRefObject<boolean>;
+  addWarningGated: (msg: string) => void;
+  checkDoneGated: () => void;
 };
 
-// No own fields — this card has nothing to render beyond its CardHook chrome.
-// No cardRequirements — the repo card is never locked behind GitHub sign-in today
-// (a pre-existing gap, left as-is; see corp-src/App.tsx's card composition comment).
-export interface UseRepoCard extends CardHook {
+export interface UseRepoCard extends CardHook, UseGithubRepo, UseGithubEnvironment {
   readonly cardId: "repo";
   cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Choose an environment")
+  githubEnvUrl: string | undefined;
 }
 
-/*
- * The repo card: self-reports `done` from useGithubRepo + useGithubEnvironment, which
- * both live upstream of it (App calls useGithubRepo, then useGithubEnvironment, then
- * this). Everything the card actually renders — accounts, repos, branches, the env
- * picker — comes straight from those two shared hooks, not from here.
- */
-export function useRepoCard({ githubRepo, envReady, isAuthed, envName }: UseRepoCardParams): UseRepoCard {
+export function useRepoCard({
+  user,
+  // for restore purposes TODO: need to refactor this to be more generic and not tied to restore
+  pendingRestoreGated,
+  urlAccountAppliedGated,
+  addWarningGated,
+  checkDoneGated,
+}: UseRepoCardParams): UseRepoCard {
+  const githubRepo = useGithubRepo({
+    user: user,
+    pendingRestore: pendingRestoreGated,
+    urlAccountApplied: urlAccountAppliedGated,
+    addRestoreWarning: addWarningGated,
+    checkRestoreDone: checkDoneGated,
+  });
+
+  const env = useGithubEnvironment({
+    account: githubRepo.selectedAccount,
+    repo: githubRepo.selectedRepo,
+    isCloneRepo: githubRepo.isCloneRepo,
+    selectedPR: undefined,
+    branches: githubRepo.branches,
+    validEnvs: githubRepo.pipeline.validEnvs,
+    pendingRestore: pendingRestoreGated,
+    addRestoreWarning: addWarningGated,
+    checkRestoreDone: checkDoneGated,
+  });
+
+  const isCloneRepo = githubRepo.isCloneRepo;
+  const envReady = env.envReady;
+  const envName = env.selectedEnv?.name;
+
   const envSelected = !!envName;
   // Merged Repository & environment card: complete only when the repo is cloned AND an env is picked.
-  const status: CardStatus = !isAuthed ? "idle" : githubRepo.isCloneRepo && envSelected ? "complete" : "idle";
+  const status: CardStatus = !user ? "idle" : isCloneRepo && envSelected ? "complete" : "idle";
   const summary =
     githubRepo.repoFullName && envName
       ? `${githubRepo.repoFullName} · ${envName}`
@@ -35,16 +61,25 @@ export function useRepoCard({ githubRepo, envReady, isAuthed, envName }: UseRepo
         ? githubRepo.repoFullName
         : "Select repository and environment";
 
+  const githubEnvUrl =
+    githubRepo.repoFullName && env.selectedEnv
+      ? getEnvSettingsUrl(githubRepo.repoFullName, env.selectedEnv.id)
+      : undefined;
+
   return {
+    ...githubRepo,
+    ...env,
+    githubEnvUrl,
+    // cardHook
     cardId: "repo" as const,
     status,
     summary,
     cardRequirements: ["github_login"],
-    cardDependencyLabel: githubRepo.isCloneRepo
+    cardDependencyLabel: isCloneRepo
       ? envReady
         ? null
         : "Choose an environment"
       : "Select a repository & environment",
-    done: githubRepo.isCloneRepo && envReady,
+    done: isCloneRepo && envReady,
   };
 }

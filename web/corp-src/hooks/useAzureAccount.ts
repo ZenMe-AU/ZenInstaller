@@ -232,10 +232,7 @@ export function useAzureAccount(): UseAzureAccount {
   // useAzureSubscriptionCard watches manualTenantId and reloads its own list.
   const selectTenant = useCallback(
     (tid: string) => {
-      console.log("👀account", account);
       if (!account?.tenantProfiles?.has(tid)) {
-        console.log("👀not in profiles");
-
         (async () => {
           const msal = await getMsal();
           if (!msal) return;

@@ -43,6 +43,7 @@ export function useAzureLoginCard({ savedTenantId }: UseAzureLoginCardParams): U
   const appliedSavedTenantRef = useRef<string | null>(null);
   useEffect(() => {
     if (!savedTenantId || appliedSavedTenantRef.current === savedTenantId) return;
+    if (!azure.account || !azure.account.tenantProfiles?.has(savedTenantId)) return; // Can't apply a tenant without an account.
     appliedSavedTenantRef.current = savedTenantId;
     azure.selectTenant(savedTenantId);
     // azure itself is a fresh object every render — only its (useCallback-memoized) selectTenant matters here.
@@ -75,7 +76,7 @@ export function useAzureLoginCard({ savedTenantId }: UseAzureLoginCardParams): U
     status,
     summary,
     cardRequirements: [],
-    cardDependencyLabel: "Sign in to Azure",
+    cardDependencyLabel: azure.account ? "Select a tenant" : "Sign in to Azure",
     done,
 
     savedTenantId,

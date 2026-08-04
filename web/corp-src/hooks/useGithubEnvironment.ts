@@ -195,7 +195,9 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
       setStatus("complete");
     } else if (result.status === "case") {
       setSelectedEnv(result.env);
-      setBranchMatchWarning(`Base branch "${opts.selectedPR.base_branch}" and environment "${result.env.name}" have mismatched casing.`);
+      setBranchMatchWarning(
+        `Base branch "${opts.selectedPR.base_branch}" and environment "${result.env.name}" have mismatched casing.`,
+      );
       setBranchMatchError(null);
       setStatus("warning");
     } else {
@@ -221,7 +223,9 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
       setBranchMatchError(null);
       setStatus("complete");
     } else if (result.status === "case") {
-      setBranchMatchWarning(`Environment "${selectedEnv.name}" and branch "${result.branch.name}" have mismatched casing.`);
+      setBranchMatchWarning(
+        `Environment "${selectedEnv.name}" and branch "${result.branch.name}" have mismatched casing.`,
+      );
       setBranchMatchError(null);
       setStatus("warning");
     } else if (result.status === "multiple") {

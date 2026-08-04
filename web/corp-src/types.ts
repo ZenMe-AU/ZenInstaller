@@ -42,6 +42,7 @@ export interface CardHook {
   summary?: string;
   cardRequirements?: CardRequirements;
   cardDependencyLabel?: string;
+  stage?: string;
 }
 
 // ─── Composable hook shapes ───────────────────────────────────────────────────
@@ -50,6 +51,7 @@ export interface LoginHook<TAccount> {
   loggingIn: boolean;
   login: () => void;
   logout: () => void;
+  refresh: () => void;
 }
 
 export interface ResettableHook {
@@ -71,7 +73,12 @@ export interface AzureSpTarget extends AzureTarget {
   spClientId: string; // Client id of the GitHub Actions app registration (AZURE_CLIENT_ID variable).
 }
 
-export type SetupStep = { id: string; label: string; status: "pending" | "running" | "done" | "skipped" | "error"; detail?: string };
+export type SetupStep = {
+  id: string;
+  label: string;
+  status: "pending" | "running" | "done" | "skipped" | "error";
+  detail?: string;
+};
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 

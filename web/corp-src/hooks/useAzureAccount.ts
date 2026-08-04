@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { AccountInfo } from "@azure/msal-browser";
+import { InteractionRequiredAuthError, type AccountInfo } from "@azure/msal-browser";
 import { getMsal } from "../api/msal";
 import { LOGIN_SCOPES, ARM_SCOPES } from "../config/azureConfig";
 import { getToken, listTenants, MSA_TENANT, type AzureTenant } from "../api/azureGraph";
@@ -121,7 +121,8 @@ export function useAzureAccount(): UseAzureAccount {
           }
         };
 
-        const msaTenant = (acc: AccountInfo) => (acc.tenantId === MSA_TENANT ? (azureResult.load()?.tenantId ?? undefined) : undefined);
+        const msaTenant = (acc: AccountInfo) =>
+          acc.tenantId === MSA_TENANT ? (azureResult.load()?.tenantId ?? undefined) : undefined;
 
         if (result?.account) {
           setAccount(result.account);
@@ -203,7 +204,8 @@ export function useAzureAccount(): UseAzureAccount {
         return;
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
-        const needsConsent = msg.includes("AADSTS65001") || msg.includes("interaction_required") || msg.includes("MSA_NEEDS_TENANT");
+        const needsConsent =
+          msg.includes("AADSTS65001") || msg.includes("interaction_required") || msg.includes("MSA_NEEDS_TENANT");
         if (!needsConsent) {
           setTenantIdError(friendlyTenantError(err));
           return;
@@ -230,6 +232,20 @@ export function useAzureAccount(): UseAzureAccount {
   // useAzureSubscriptionCard watches manualTenantId and reloads its own list.
   const selectTenant = useCallback(
     (tid: string) => {
+      console.log("👀account", account);
+      if (!account?.tenantProfiles?.has(tid)) {
+        console.log("👀not in profiles");
+
+        (async () => {
+          const msal = await getMsal();
+          if (!msal) return;
+          await msal.acquireTokenRedirect({
+            account: account,
+            scopes: ARM_SCOPES,
+            authority: `https://login.microsoftonline.com/${tid}`,
+          });
+        })();
+      }
       setManualTenantId(tid);
       setTenantIdError(null);
       void confirmTenantId(tid);
@@ -263,5 +279,6 @@ export function useAzureAccount(): UseAzureAccount {
     selectTenant,
     login,
     logout,
+    refresh: () => {},
   };
 }

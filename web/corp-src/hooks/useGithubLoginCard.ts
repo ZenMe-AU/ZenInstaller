@@ -88,18 +88,22 @@ export function useGithubLoginCard(): UseGithubLoginCard {
   const cardDependencyLabel: string = "Sign in to GitHub";
 
   return {
+    // cardHook
     cardId: "github_login" as const,
-    account,
-    loggingIn,
-    sessionExpired,
-    redirecting,
     status,
     summary,
-    login,
-    logout,
-    onPatLogin,
-    onDirectLogout,
     cardDependencyLabel,
     done: status === "complete",
+    // loginHook
+    account,
+    loggingIn,
+    login,
+    logout,
+    refresh: () => {},
+    // extra
+    sessionExpired,
+    redirecting,
+    onPatLogin,
+    onDirectLogout,
   };
 }

@@ -15,6 +15,10 @@ export type UseAzureLoginCardParams = {
 
 export interface UseAzureLoginCard extends CardHook, LoginHook<AccountInfo> {
   readonly cardId: "azure_login";
+  cardRequirements: CardRequirements;
+  cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Sign in to Azure")
+  summary: string;
+
   login: () => Promise<void>;
   logout: () => Promise<void>;
   loginError: string | null;
@@ -25,9 +29,6 @@ export interface UseAzureLoginCard extends CardHook, LoginHook<AccountInfo> {
   selectTenant: (tenantId: string) => void;
   tenantIdError: string | null;
   savedTenantId: string;
-  // Narrowed from CardHook (optional there) — every card provides these.
-  cardRequirements: CardRequirements;
-  cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Sign in to Azure")
 }
 
 /*
@@ -62,7 +63,9 @@ export function useAzureLoginCard({ azure, savedTenantId }: UseAzureLoginCardPar
     : !azure.account
       ? "Sign in to Azure"
       : done
-        ? [azure.account.username, tenantDisplayName(azure.tenants, azure.confirmedTenantId)].filter(Boolean).join(" · ") || "Signed in"
+        ? [azure.account.username, tenantDisplayName(azure.tenants, azure.confirmedTenantId)]
+            .filter(Boolean)
+            .join(" · ") || "Signed in"
         : "Select a tenant";
 
   return {

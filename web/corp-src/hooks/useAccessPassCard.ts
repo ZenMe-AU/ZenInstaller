@@ -27,12 +27,16 @@ function getAuthMethodDeletePath(userId: string, method: GraphAuthMethod): strin
 
   if (methodType?.includes("passwordauthenticationmethod")) return null;
 
-  if (methodType?.includes("emailauthenticationmethod")) return `/users/${userId}/authentication/emailMethods/${method.id}`;
-  if (methodType?.includes("phoneauthenticationmethod")) return `/users/${userId}/authentication/phoneMethods/${method.id}`;
+  if (methodType?.includes("emailauthenticationmethod"))
+    return `/users/${userId}/authentication/emailMethods/${method.id}`;
+  if (methodType?.includes("phoneauthenticationmethod"))
+    return `/users/${userId}/authentication/phoneMethods/${method.id}`;
   if (methodType?.includes("microsoftauthenticatorauthenticationmethod"))
     return `/users/${userId}/authentication/microsoftAuthenticatorMethods/${method.id}`;
-  if (methodType?.includes("fido2authenticationmethod")) return `/users/${userId}/authentication/fido2Methods/${method.id}`;
-  if (methodType?.includes("softwareoathauthenticationmethod")) return `/users/${userId}/authentication/softwareOathMethods/${method.id}`;
+  if (methodType?.includes("fido2authenticationmethod"))
+    return `/users/${userId}/authentication/fido2Methods/${method.id}`;
+  if (methodType?.includes("softwareoathauthenticationmethod"))
+    return `/users/${userId}/authentication/softwareOathMethods/${method.id}`;
   if (methodType?.includes("windowshelloforbusinessauthenticationmethod"))
     return `/users/${userId}/authentication/windowsHelloForBusinessMethods/${method.id}`;
   if (methodType?.includes("temporaryaccesspassauthenticationmethod"))
@@ -169,10 +173,13 @@ export function useAccessPassCard({ azureAccount, confirmedTenantId }: UseAccess
         if (cancelled) return;
         setManagerUsers([]);
         setSelectedManagerUserId("");
-        const msg = err instanceof Error ? err.message : "No Entra users found that are managed by your signed-in account.";
+        const msg =
+          err instanceof Error ? err.message : "No Entra users found that are managed by your signed-in account.";
         if (isConsentError(msg)) {
           setConsentRequired(true);
-          setManagerUsersError('Additional Microsoft Graph consent is required for this tenant. Click "Grant consent" below.');
+          setManagerUsersError(
+            'Additional Microsoft Graph consent is required for this tenant. Click "Grant consent" below.',
+          );
         } else {
           setManagerUsersError(msg);
         }
@@ -228,19 +235,27 @@ export function useAccessPassCard({ azureAccount, confirmedTenantId }: UseAccess
       try {
         updateStep("policy", "running");
         const justEnabled = await ensureTemporaryAccessPassEnabled(azureAccount, tenantId);
-        updateStep("policy", justEnabled ? "done" : "skipped", justEnabled ? "Enabled Temporary Access Pass for this tenant" : "Already enabled");
+        updateStep(
+          "policy",
+          justEnabled ? "done" : "skipped",
+          justEnabled ? "Enabled Temporary Access Pass for this tenant" : "Already enabled",
+        );
 
         currentStepId = "removeMethods";
         updateStep("removeMethods", "running");
         const methods = await listUserAuthenticationMethods(azureAccount, targetUserId, tenantId);
-        const deletePaths = methods.map((m) => getAuthMethodDeletePath(targetUserId, m)).filter((p): p is string => !!p);
+        const deletePaths = methods
+          .map((m) => getAuthMethodDeletePath(targetUserId, m))
+          .filter((p): p is string => !!p);
         for (const path of deletePaths) {
           await deleteUserAuthenticationMethod(azureAccount, path, tenantId);
         }
         updateStep(
           "removeMethods",
           "done",
-          deletePaths.length > 0 ? `Removed ${deletePaths.length} existing method${deletePaths.length === 1 ? "" : "s"}` : "No removable methods found",
+          deletePaths.length > 0
+            ? `Removed ${deletePaths.length} existing method${deletePaths.length === 1 ? "" : "s"}`
+            : "No removable methods found",
         );
 
         currentStepId = "rotatePassword";
@@ -267,7 +282,11 @@ export function useAccessPassCard({ azureAccount, confirmedTenantId }: UseAccess
         const msg = err instanceof Error ? err.message : "Failed";
         if (isConsentError(msg)) {
           setConsentRequired(true);
-          updateStep(currentStepId, "error", 'Additional consent required — click "Grant consent" below, then try again.');
+          updateStep(
+            currentStepId,
+            "error",
+            'Additional consent required — click "Grant consent" below, then try again.',
+          );
         } else {
           updateStep(currentStepId, "error", toTapErrorMessage(err));
         }
@@ -286,8 +305,14 @@ export function useAccessPassCard({ azureAccount, confirmedTenantId }: UseAccess
   }, [resetSteps]);
 
   // Assumes prerequisites are met — App locks this card (via cardRequirements) whenever they're not.
-  const status: CardStatus = managerUsersError ? "warning" : result ? "complete" : "idle";
-  const summary = result ? "Access pass created" : managerUsersLoading ? "Loading users..." : "Select a user and create an access pass";
+  const status: CardStatus = managerUsersError || managerUsers.length === 0 ? "warning" : result ? "complete" : "idle";
+  const summary = result
+    ? "Access pass created"
+    : managerUsersLoading
+      ? "Loading users..."
+      : managerUsers.length > 0
+        ? "Select a user and create an access pass"
+        : "No users available";
 
   return {
     cardId: "access_pass" as const,

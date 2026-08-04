@@ -4,16 +4,15 @@ import type { CardHook, CardRequirements, CardStatus, LoginHook } from "../types
 import { AZURE_CLIENT_ID } from "../config/azureConfig";
 import type { AzureTenant } from "../api/azureGraph";
 import { tenantDisplayName } from "../logic/tenant";
-import type { UseAzureAccount } from "./useAzureAccount";
+import { useAzureAccount, type UseAzureAccount } from "./useAzureAccount";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type UseAzureLoginCardParams = {
-  azure: UseAzureAccount;
   savedTenantId: string; // AZURE_TENANT_ID as saved on the GitHub environment — auto-applied once known.
 };
 
-export interface UseAzureLoginCard extends CardHook, LoginHook<AccountInfo> {
+export interface UseAzureLoginCard extends UseAzureAccount, CardHook, LoginHook<AccountInfo> {
   readonly cardId: "azure_login";
   cardRequirements: CardRequirements;
   cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Sign in to Azure")
@@ -38,7 +37,8 @@ export interface UseAzureLoginCard extends CardHook, LoginHook<AccountInfo> {
  * projects it onto a card entry, gating everything else behind "signed in + tenant
  * confirmed", and owns the saved-tenant auto-prefill.
  */
-export function useAzureLoginCard({ azure, savedTenantId }: UseAzureLoginCardParams): UseAzureLoginCard {
+export function useAzureLoginCard({ savedTenantId }: UseAzureLoginCardParams): UseAzureLoginCard {
+  const azure = useAzureAccount();
   // Which saved tenant value we've already tried to auto-apply, so a fresh save can retrigger it once.
   const appliedSavedTenantRef = useRef<string | null>(null);
   useEffect(() => {
@@ -70,12 +70,14 @@ export function useAzureLoginCard({ azure, savedTenantId }: UseAzureLoginCardPar
 
   return {
     ...azure,
+    // cardHook
     cardId: "azure_login" as const,
-    savedTenantId,
     status,
     summary,
     cardRequirements: [],
     cardDependencyLabel: "Sign in to Azure",
     done,
+
+    savedTenantId,
   };
 }

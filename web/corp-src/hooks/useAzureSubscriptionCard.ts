@@ -9,7 +9,6 @@ export type UseAzureSubscriptionCardParams = {
   azureAccount: AccountInfo | null;
   confirmedTenantId: string | null;
   manualTenantId: string;
-  savedTenantId: string; // AZURE_TENANT_ID as saved on the GitHub environment.
   savedSubscriptionId: string; // AZURE_SUBSCRIPTION_ID as saved on the GitHub environment.
 };
 
@@ -40,7 +39,6 @@ export function useAzureSubscriptionCard({
   azureAccount,
   confirmedTenantId,
   manualTenantId,
-  savedTenantId,
   savedSubscriptionId,
 }: UseAzureSubscriptionCardParams): UseAzureSubscriptionCard {
   const pickedTenant = manualTenantId.trim();
@@ -74,10 +72,12 @@ export function useAzureSubscriptionCard({
     };
   }, [azureAccount, confirmedTenantId]);
 
-  const subscriptionConfirmed = !!savedSubscriptionId && savedSubscriptionId === selectedSubscriptionId && savedTenantId === pickedTenant;
+  const subscriptionConfirmed =
+    !!savedSubscriptionId && savedSubscriptionId === selectedSubscriptionId && confirmedTenantId === pickedTenant;
   const subscriptionDrift = !!selectedSubscriptionId && !subscriptionConfirmed;
   const subscriptionNoAccess = !!pickedTenant && !!subsError && subscriptions.length === 0;
-  const subscriptionLabel = subscriptions.find((s) => s.id === savedSubscriptionId)?.displayName ?? (savedSubscriptionId || undefined);
+  const subscriptionLabel =
+    subscriptions.find((s) => s.id === savedSubscriptionId)?.displayName ?? (savedSubscriptionId || undefined);
 
   const azureConfigured = !!AZURE_CLIENT_ID;
   // Assumes prerequisites are met — App locks this card (via cardRequirements) whenever they're not,

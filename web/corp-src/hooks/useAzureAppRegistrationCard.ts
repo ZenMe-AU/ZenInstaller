@@ -15,7 +15,15 @@ import { isConsentError } from "../logic/consent";
 import { createResultStorage } from "../logic/resultStorage";
 import { useStepRunner } from "./util/useStepRunner";
 import { useRbacCheck, type RbacCheckStatus } from "./util/useRbacCheck";
-import type { Account, AzureConfigHook, AzureTarget, CardHook, CardRequirements, CardStatus, SetupStep } from "../types";
+import type {
+  Account,
+  AzureConfigHook,
+  AzureTarget,
+  CardHook,
+  CardRequirements,
+  CardStatus,
+  SetupStep,
+} from "../types";
 
 export type AzureAppRegistrationResult = { clientId: string; tenantId: string; subscriptionIds: string[] };
 
@@ -81,7 +89,9 @@ export function useAzureAppRegistrationCard({
 }: UseAzureAppRegistrationCardParams): UseAzureAppRegistrationCard {
   const [appName, setAppName] = useState("zeninstaller-github");
   const defaultSelected = ["PROD", "TEST"].filter((e) => validEnvs.includes(e));
-  const [environments, setEnvironments] = useState<string[]>(defaultSelected.length > 0 ? defaultSelected : ["PROD", "TEST"]);
+  const [environments, setEnvironments] = useState<string[]>(
+    defaultSelected.length > 0 ? defaultSelected : ["PROD", "TEST"],
+  );
   const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
   const [result, setResult] = useState<AzureAppRegistrationResult | null>(loadResult);
   const [variablesComplete, setVariablesComplete] = useState(false);
@@ -213,8 +223,18 @@ export function useAzureAppRegistrationCard({
       setRunning(false);
     }
   }, [
-    azureAccount, subscriptionId, subscriptionLabel, effectiveTenantId, githubAccount, githubRepo,
-    appName, environments, setSteps, setRunning, updateStep, requestAppConsent,
+    azureAccount,
+    subscriptionId,
+    subscriptionLabel,
+    effectiveTenantId,
+    githubAccount,
+    githubRepo,
+    appName,
+    environments,
+    setSteps,
+    setRunning,
+    updateStep,
+    requestAppConsent,
   ]);
 
   const done = variablesComplete && rbacStatus === "ready" && !planClientIdMismatch;

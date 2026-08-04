@@ -268,8 +268,13 @@ export function useAzureAccount(): UseAzureAccount {
   }, [clearSession]);
 
   return {
+    // loginHook
     account,
+    login,
+    logout,
+    refresh: () => {},
     loggingIn,
+
     loginError,
     tenants,
     manualTenantId,
@@ -277,8 +282,5 @@ export function useAzureAccount(): UseAzureAccount {
     confirmedTenantId,
     tenantIdError,
     selectTenant,
-    login,
-    logout,
-    refresh: () => {},
   };
 }

@@ -6,7 +6,6 @@ import {
   type Branch,
   type CardStatus,
   type GhEnv,
-  type PendingRestore,
   type PullRequest,
   type RepoOption,
   type SecretsStatus,
@@ -14,13 +13,6 @@ import {
 import { matchBranch, matchEnv } from "../logic/env";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-/*
- * env selection + variables + secrets are one tier of GitHub operations (repo →
- * environment → {variables, secrets}) — not a card. env selection renders inside the
- * repo card; variables back the company_info card; secrets have no UI mounted today
- * (kept for headroom — azureSecrets.valid still feeds azure_app_registration's status).
- */
 export interface UseGithubEnvironment {
   // env selection
   envList: GhEnv[];
@@ -48,6 +40,9 @@ export interface UseGithubEnvironment {
   onRecheck: () => Promise<void>;
   onAzureValid: (valid: boolean | null) => void;
   onAwsValid: (valid: boolean | null) => void;
+  restore: {
+    env: (value: string) => Promise<void>;
+  };
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -59,14 +54,9 @@ export type UseGithubEnvironmentParams = {
   selectedPR: PullRequest | null;
   branches: Branch[];
   validEnvs: readonly string[];
-  pendingRestore: React.MutableRefObject<PendingRestore>;
-  addRestoreWarning: (msg: string) => void;
-  checkRestoreDone: () => void;
 };
 
 export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithubEnvironment {
-  const { pendingRestore, addRestoreWarning, checkRestoreDone } = opts;
-
   const accountRef = useRef(opts.account);
   const repoRef = useRef(opts.repo);
   useLayoutEffect(() => {
@@ -116,30 +106,19 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
   }, [selectedEnv?.id]);
 
   // ── Loaders ───────────────────────────────────────────────────────────────
-  const loadEnvs = useCallback(
-    async (account: Account, repo: RepoOption) => {
-      setEnvLoading(true);
-      setEnvRefreshFailed(false);
-      try {
-        const list = await fetchEnvs(account, repo.name);
-        setEnvList(list);
-        const targetEnv = pendingRestore.current.env;
-        pendingRestore.current.env = null;
-        if (targetEnv && !pendingRestore.current.pr) {
-          const match = list.find((e) => e.name.toLowerCase() === targetEnv.toLowerCase());
-          if (match) setSelectedEnv(match);
-          else addRestoreWarning(`Environment "${targetEnv}" not found`);
-        }
-        checkRestoreDone();
-      } catch (e) {
-        console.error(e);
-        setEnvRefreshFailed(true);
-      } finally {
-        setEnvLoading(false);
-      }
-    },
-    [addRestoreWarning, checkRestoreDone, pendingRestore],
-  );
+  const loadEnvs = useCallback(async (account: Account, repo: RepoOption) => {
+    setEnvLoading(true);
+    setEnvRefreshFailed(false);
+    try {
+      const list = await fetchEnvs(account, repo.name);
+      setEnvList(list);
+    } catch (e) {
+      console.error(e);
+      setEnvRefreshFailed(true);
+    } finally {
+      setEnvLoading(false);
+    }
+  }, []);
 
   const loadSecrets = useCallback(async (envName: string): Promise<boolean> => {
     const acc = accountRef.current;
@@ -283,6 +262,16 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
   }, []);
 
   const envReady = !!selectedEnv && !branchMatchError;
+  const restoreEnv = useCallback(
+    async (value: string) => {
+      const match = envList.find((e) => e.name.toLowerCase() === value.toLowerCase());
+      if (!match) {
+        throw new Error(`Environment "${value}" not found`);
+      }
+      setSelectedEnv(match);
+    },
+    [envList],
+  );
 
   return {
     envList,
@@ -308,5 +297,8 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
     onVariableConfirmed,
     onAzureValid,
     onAwsValid,
+    restore: {
+      env: restoreEnv,
+    },
   };
 }

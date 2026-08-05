@@ -21,7 +21,6 @@ import { useCreateDomainCard } from "./hooks/useCreateDomainCard";
 import { useCoreInfraCard } from "./hooks/useCoreInfraCard";
 import { useCompanyInfoCard } from "./hooks/useCompanyInfoCard";
 import { useAccessPassCard } from "./hooks/useAccessPassCard";
-import { useUrlRestore } from "./hooks/useUrlRestore";
 
 import NavBar from "./components/NavBar";
 import RestoreToast from "./components/RestoreToast";
@@ -52,27 +51,11 @@ function AppDashboard() {
     return newCard;
   }
   // ── Hooks ──────────────────────────────────────────────────────────────────
-  const restore = useUrlRestore();
   const githubLogin = addCard(useGithubLoginCard());
-  const isAuthed = githubLogin.status === "complete";
-
-  // Stable empty refs — passed to sub-hooks when !isAuthed so restore never fires before login
-  const _emptyRestore = useRef<PendingRestore>({ account: null, repo: null, pr: null, env: null });
-  const _emptyApplied = useRef(false);
-  const _noop = useCallback(() => {}, []);
-
-  const pendingRestoreGated = isAuthed ? restore.pendingRestore : _emptyRestore;
-  const urlAccountAppliedGated = isAuthed ? restore.urlAccountApplied : _emptyApplied;
-  const addWarningGated = isAuthed ? restore.addRestoreWarning : _noop;
-  const checkDoneGated = isAuthed ? restore.checkRestoreDone : _noop;
 
   const githubRepoEnv = addCard(
     useRepoCard({
       user: githubLogin.account,
-      pendingRestoreGated,
-      urlAccountAppliedGated,
-      addWarningGated,
-      checkDoneGated,
     }),
   );
   const githubVariableValues = githubRepoEnv.presentVariableValues ?? {};
@@ -194,27 +177,6 @@ function AppDashboard() {
       onRequirementClick: openCard,
     };
   };
-
-  // ── URL sync (persist current state; restore is handled by useUrlRestore) ──
-  useEffect(() => {
-    if (!isAuthed) return;
-    const p = restore.pendingRestore.current;
-    if (p.account !== null || p.repo !== null || p.pr !== null || p.env !== null) return;
-    const params = new URLSearchParams();
-    if (githubRepoEnv.selectedAccount) params.set("account", githubRepoEnv.selectedAccount.login);
-    if (githubRepoEnv.selectedRepo && !githubRepoEnv.selectedRepo.isNew)
-      params.set("repo", githubRepoEnv.selectedRepo.name);
-    else if (githubRepoEnv.selectedEnv) params.set("env", githubRepoEnv.selectedEnv.name);
-    const search = params.toString();
-    window.history.replaceState(null, "", search ? `?${search}` : window.location.pathname);
-  }, [
-    isAuthed,
-    githubRepoEnv.selectedAccount,
-    githubRepoEnv.selectedRepo,
-    githubRepoEnv.selectedEnv,
-    restore.pendingRestore,
-  ]);
-
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
@@ -327,11 +289,11 @@ function AppDashboard() {
         </Box>
       </Box>
 
-      <RestoreToast
+      {/* <RestoreToast
         loading={isAuthed && restore.urlRestoreMsg.loading}
         warnings={isAuthed ? restore.urlRestoreMsg.warnings : []}
         onDismiss={() => restore.setUrlRestoreMsg((p) => ({ ...p, warnings: [] }))}
-      />
+      /> */}
     </>
   );
 }

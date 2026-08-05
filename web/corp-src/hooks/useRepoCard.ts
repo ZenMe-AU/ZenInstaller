@@ -7,32 +7,22 @@ import { getEnvSettingsUrl } from "../logic/github";
 
 export type UseRepoCardParams = {
   user: User | null;
-  pendingRestoreGated: React.MutableRefObject<PendingRestore>;
-  urlAccountAppliedGated: React.MutableRefObject<boolean>;
-  addWarningGated: (msg: string) => void;
-  checkDoneGated: () => void;
 };
 
-export interface UseRepoCard extends CardHook, UseGithubRepo, UseGithubEnvironment {
+export interface UseRepoCard extends CardHook, Omit<UseGithubRepo, "restore">, Omit<UseGithubEnvironment, "restore"> {
   readonly cardId: "repo";
   cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Choose an environment")
   githubEnvUrl: string | undefined;
+  restore: {
+    account?: (value: string) => Promise<void>;
+    repo?: (value: string) => Promise<void>;
+    env?: (value: string) => Promise<void>;
+  };
 }
 
-export function useRepoCard({
-  user,
-  // for restore purposes TODO: need to refactor this to be more generic and not tied to restore
-  pendingRestoreGated,
-  urlAccountAppliedGated,
-  addWarningGated,
-  checkDoneGated,
-}: UseRepoCardParams): UseRepoCard {
+export function useRepoCard({ user }: UseRepoCardParams): UseRepoCard {
   const githubRepo = useGithubRepo({
     user: user,
-    pendingRestore: pendingRestoreGated,
-    urlAccountApplied: urlAccountAppliedGated,
-    addRestoreWarning: addWarningGated,
-    checkRestoreDone: checkDoneGated,
   });
 
   const env = useGithubEnvironment({
@@ -42,9 +32,6 @@ export function useRepoCard({
     selectedPR: undefined,
     branches: githubRepo.branches,
     validEnvs: githubRepo.pipeline.validEnvs,
-    pendingRestore: pendingRestoreGated,
-    addRestoreWarning: addWarningGated,
-    checkRestoreDone: checkDoneGated,
   });
 
   const isCloneRepo = githubRepo.isCloneRepo;
@@ -96,5 +83,10 @@ export function useRepoCard({
         : "Choose an environment"
       : "Select a repository & environment",
     done: isCloneRepo && envReady,
+    restore: {
+      account: githubRepo.restore.account,
+      repo: githubRepo.restore.repo,
+      env: env.restore.env,
+    },
   };
 }

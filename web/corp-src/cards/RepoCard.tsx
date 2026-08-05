@@ -3,22 +3,14 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import Card from "../components/Card";
 import RepoDetail from "./RepoDetail";
 import EnvDetail from "./EnvDetail";
-import EnvSecretsDetail from "./EnvSecretsDetail";
 import { getRepoUrl } from "../logic/github";
 import { MONO as mono } from "../config/styles";
 import type { CardChrome } from "../types";
-import type { UseGithubRepo } from "../hooks/useGithubRepo";
-import type { UseGithubEnvironment } from "../hooks/useGithubEnvironment";
-
-// The secrets section has no design yet, so it's kept wired up but unmounted — flip this
-// once there's somewhere for it to go. The fields (presentSecretKeys, azureSecrets, ...)
-// keep flowing through useGithubEnvironment either way.
-const SECRETS_VISIBLE = false;
+import type { UseRepoCard } from "../hooks/useRepoCard";
 
 type Props = {
   card: CardChrome;
-  githubRepo: UseGithubRepo;
-  github: UseGithubEnvironment;
+  githubRepo: UseRepoCard;
   lockedByPR: boolean;
 };
 
@@ -26,7 +18,7 @@ type Props = {
  * The repo card actually spans two concerns — which repo, and which environment in
  * it — so unlike the other cards its content is two Detail components, not one.
  */
-export default function RepoCard({ card, githubRepo, github, lockedByPR }: Props) {
+export default function RepoCard({ card, githubRepo, lockedByPR }: Props) {
   const viewRepoAction = githubRepo.repoFullName ? (
     <Button
       size="small"
@@ -78,16 +70,16 @@ export default function RepoCard({ card, githubRepo, github, lockedByPR }: Props
       {!githubRepo.selectedRepo?.isNew && (
         <Box sx={{ mt: 2.5, pt: 2.5, borderTop: "1px solid #f1f5f9" }}>
           <EnvDetail
-            envList={github.envList}
+            envList={githubRepo.envList}
             validEnvs={githubRepo.pipeline.validEnvs}
-            selectedEnv={github.selectedEnv}
-            onEnvChange={github.setSelectedEnv}
+            selectedEnv={githubRepo.selectedEnv}
+            onEnvChange={githubRepo.setSelectedEnv}
             lockedByPR={lockedByPR}
-            branchMatchWarning={github.branchMatchWarning}
-            branchMatchError={github.branchMatchError}
-            loading={github.envLoading}
-            refreshFailed={github.envRefreshFailed}
-            onRefresh={github.onRefresh}
+            branchMatchWarning={githubRepo.branchMatchWarning}
+            branchMatchError={githubRepo.branchMatchError}
+            loading={githubRepo.envLoading}
+            refreshFailed={githubRepo.envRefreshFailed}
+            onRefresh={githubRepo.onRefresh}
             repoFullName={githubRepo.repoFullName}
             branches={githubRepo.branches}
             sourceBranch={githubRepo.sourceBranch}
@@ -96,20 +88,6 @@ export default function RepoCard({ card, githubRepo, github, lockedByPR }: Props
             createBranchError={githubRepo.createBranchError}
             onCreateBranch={githubRepo.onCreateBranch}
           />
-          {SECRETS_VISIBLE && github.selectedEnv && !github.branchMatchError && (
-            <EnvSecretsDetail
-              key={github.selectedEnv.id}
-              account={githubRepo.selectedAccount}
-              repo={githubRepo.selectedRepo?.name ?? ""}
-              selectedEnv={github.selectedEnv}
-              presentKeys={github.presentSecretKeys}
-              azureSecretsStatus={github.azureSecrets}
-              awsSecretsStatus={github.awsSecrets}
-              onRecheck={github.onRecheck}
-              rechecking={github.rechecking}
-              recheckFailed={github.recheckFailed}
-            />
-          )}
         </Box>
       )}
     </Card>

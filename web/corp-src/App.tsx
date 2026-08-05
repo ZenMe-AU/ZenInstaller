@@ -233,7 +233,7 @@ function AppDashboard() {
             />
             <AzureLoginCard card={cardProps("azure_login")} azureLogin={azureLogin} configured={azureConfigured} />
 
-            <RepoCard card={cardProps("repo")} githubRepo={githubRepoEnv} github={githubRepoEnv} lockedByPR={false} />
+            <RepoCard card={cardProps("repo")} githubRepo={githubRepoEnv} lockedByPR={false} />
 
             <AzureSubscriptionCard
               card={cardProps("azure_subscription")}

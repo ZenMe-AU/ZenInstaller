@@ -58,12 +58,12 @@ function AppDashboard() {
       user: githubLogin.account,
     }),
   );
-  const githubVariableValues = githubRepoEnv.presentVariableValues ?? {};
+  const githubVariableValues = githubRepoEnv.env.presentVariableValues ?? {};
 
   const companyInfo = addCard(
     useCompanyInfoCard({
       variableValues: githubVariableValues,
-      envSelected: !!githubRepoEnv.selectedEnv,
+      envSelected: !!githubRepoEnv.env.selectedEnv,
     }),
   );
 
@@ -93,8 +93,8 @@ function AppDashboard() {
   const azureAppSetup = addCard(
     useAzureAppRegistrationCard({
       azureAccount: azureLogin.account,
-      githubAccount: githubRepoEnv.selectedAccount,
-      githubRepo: githubRepoEnv.selectedRepo?.name ?? "",
+      githubAccount: githubRepoEnv.repo.selectedAccount,
+      githubRepo: githubRepoEnv.repo.selectedRepo?.name ?? "",
       subscriptionId: azureSubscription.selectedSubscriptionId,
       subscriptionLabel: azureSubscription.subscriptionLabel,
       tenantId: azureLogin.confirmedTenantId || undefined,
@@ -190,7 +190,7 @@ function AppDashboard() {
         <NavBar
           authLoading={githubLogin.loggingIn}
           user={githubLogin.account}
-          selectedRepo={githubRepoEnv.selectedRepo}
+          selectedRepo={githubRepoEnv.repo.selectedRepo}
           siblingPages={[
             { label: "Access Pass", href: "/accessPass.html" },
             { label: "Private Account", href: "/privAccount.html" },
@@ -225,8 +225,8 @@ function AppDashboard() {
               auth={githubLogin}
               onDirectLogout={() => {
                 githubLogin.onDirectLogout();
-                githubRepoEnv.setSelectedAccount(null);
-                githubRepoEnv.setSelectedRepo(null);
+                githubRepoEnv.repo.setSelectedAccount(null);
+                githubRepoEnv.repo.setSelectedRepo(null);
               }}
             />
             <AzureLoginCard card={cardProps("azure_login")} azureLogin={azureLogin} configured={azureConfigured} />
@@ -237,10 +237,10 @@ function AppDashboard() {
               card={cardProps("azure_subscription")}
               azure={azureLogin}
               subscription={azureSubscription}
-              githubAccount={githubRepoEnv.selectedAccount}
-              repoName={githubRepoEnv.selectedRepo?.name ?? ""}
-              selectedEnv={githubRepoEnv.selectedEnv}
-              onVariableConfirmed={githubRepoEnv.onVariableConfirmed}
+              githubAccount={githubRepoEnv.repo.selectedAccount}
+              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+              selectedEnv={githubRepoEnv.env.selectedEnv}
+              onVariableConfirmed={githubRepoEnv.env.onVariableConfirmed}
               githubUrl={githubRepoEnv.githubEnvUrl}
               configured={azureConfigured}
               onOpenAzureLogin={() => openCard("azure_login")}
@@ -251,17 +251,17 @@ function AppDashboard() {
             <CompanyInfoCard
               card={cardProps("company_info")}
               github={githubRepoEnv}
-              githubAccount={githubRepoEnv.selectedAccount}
-              repoName={githubRepoEnv.selectedRepo?.name ?? ""}
+              githubAccount={githubRepoEnv.repo.selectedAccount}
+              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
               githubUrl={githubRepoEnv.githubEnvUrl}
             />
 
             <AzureAppRegistrationCard
               card={cardProps("azure_app_registration")}
               appReg={azureAppSetup}
-              githubAccount={githubRepoEnv.selectedAccount}
-              repoName={githubRepoEnv.selectedRepo?.name ?? ""}
-              selectedEnv={githubRepoEnv.selectedEnv}
+              githubAccount={githubRepoEnv.repo.selectedAccount}
+              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+              selectedEnv={githubRepoEnv.env.selectedEnv}
               subscriptionId={azureSubscription.selectedSubscriptionId}
               githubUrl={githubRepoEnv.githubEnvUrl}
             />

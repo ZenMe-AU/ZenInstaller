@@ -166,18 +166,19 @@ type Props = {
 };
 
 export default function CompanyInfoCard({ card, github, githubAccount, repoName, githubUrl }: Props) {
+  const { env } = github;
   return (
     <Card title="Company info" {...card}>
-      {github.selectedEnv && (
+      {env.selectedEnv && (
         <CompanyInfoDetailBody
           account={githubAccount}
           repo={repoName}
-          selectedEnv={github.selectedEnv}
-          variableValues={github.presentVariableValues}
-          onVariableRecheck={github.onVariableRecheck}
-          variablesRechecking={github.variablesRechecking}
-          varRecheckFailed={github.varRecheckFailed}
-          onVariableConfirmed={github.onVariableConfirmed}
+          selectedEnv={env.selectedEnv}
+          variableValues={env.presentVariableValues}
+          onVariableRecheck={env.onVariableRecheck}
+          variablesRechecking={env.variablesRechecking}
+          varRecheckFailed={env.varRecheckFailed}
+          onVariableConfirmed={env.onVariableConfirmed}
           githubUrl={githubUrl}
         />
       )}

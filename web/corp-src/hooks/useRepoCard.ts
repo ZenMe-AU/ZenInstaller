@@ -9,15 +9,12 @@ export type UseRepoCardParams = {
   user: User | null;
 };
 
-export interface UseRepoCard extends CardHook, Omit<UseGithubRepo, "restore">, Omit<UseGithubEnvironment, "restore"> {
+export interface UseRepoCard extends CardHook {
   readonly cardId: "repo";
   cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Choose an environment")
   githubEnvUrl: string | undefined;
-  restore: {
-    account?: (value: string) => Promise<void>;
-    repo?: (value: string) => Promise<void>;
-    env?: (value: string) => Promise<void>;
-  };
+  repo: UseGithubRepo;
+  env: UseGithubEnvironment;
 }
 
 export function useRepoCard({ user }: UseRepoCardParams): UseRepoCard {
@@ -68,8 +65,8 @@ export function useRepoCard({ user }: UseRepoCardParams): UseRepoCard {
       : undefined;
 
   return {
-    ...githubRepo,
-    ...env,
+    repo: githubRepo,
+    env,
     githubEnvUrl,
     // cardHook
     cardId: "repo" as const,
@@ -82,10 +79,5 @@ export function useRepoCard({ user }: UseRepoCardParams): UseRepoCard {
         : "Choose an environment"
       : "Select a repository & environment",
     done: isCloneRepo && envReady,
-    restore: {
-      account: githubRepo.restore.account,
-      repo: githubRepo.restore.repo,
-      env: env.restore.env,
-    },
   };
 }

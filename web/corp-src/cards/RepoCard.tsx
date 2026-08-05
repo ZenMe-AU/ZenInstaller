@@ -20,13 +20,14 @@ type Props = {
  * it — so unlike the other cards its content is two Detail components, not one.
  */
 export default function RepoCard({ card, githubRepo, lockedByPR }: Props) {
-  const viewRepoAction = githubRepo.repoFullName ? (
+  const { repo, env } = githubRepo;
+  const viewRepoAction = repo.repoFullName ? (
     <Button
       size="small"
       variant="outlined"
       aria-label="View on GitHub"
       endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />}
-      onClick={() => window.open(getRepoUrl(githubRepo.repoFullName!), "_blank")}
+      onClick={() => window.open(getRepoUrl(repo.repoFullName!), "_blank")}
       sx={{
         borderColor: "#e2e8f0",
         color: "#475569",
@@ -45,49 +46,49 @@ export default function RepoCard({ card, githubRepo, lockedByPR }: Props) {
   return (
     <Card title="Repository & environment" action={viewRepoAction} {...card}>
       <RepoDetail
-        accounts={githubRepo.accounts}
-        selectedAccount={githubRepo.selectedAccount}
-        onAccountChange={githubRepo.setSelectedAccount}
-        repos={githubRepo.repos}
-        selectedRepo={githubRepo.selectedRepo}
-        onRepoChange={githubRepo.setSelectedRepo}
-        templateStatus={githubRepo.templateStatus}
-        templateName={githubRepo.templateName}
+        accounts={repo.accounts}
+        selectedAccount={repo.selectedAccount}
+        onAccountChange={repo.setSelectedAccount}
+        repos={repo.repos}
+        selectedRepo={repo.selectedRepo}
+        onRepoChange={repo.setSelectedRepo}
+        templateStatus={repo.templateStatus}
+        templateName={repo.templateName}
         defaultTemplateRepo={PIPELINE.templateRepo}
-        isPrivate={githubRepo.isPrivate}
-        onIsPrivateChange={githubRepo.setIsPrivate}
-        includeAllBranch={githubRepo.includeAllBranch}
-        onIncludeAllBranchChange={githubRepo.setIncludeAllBranch}
-        cloning={githubRepo.cloning}
-        cloneError={githubRepo.cloneError}
-        onClone={githubRepo.onClone}
-        createEnvs={githubRepo.createEnvs}
-        onCreateEnvsChange={githubRepo.setCreateEnvs}
-        cloneEnvWarning={githubRepo.cloneEnvWarning}
-        repoLoading={githubRepo.repoLoading}
-        repoRefreshFailed={githubRepo.repoRefreshFailed}
-        onRefresh={githubRepo.onRefresh}
+        isPrivate={repo.isPrivate}
+        onIsPrivateChange={repo.setIsPrivate}
+        includeAllBranch={repo.includeAllBranch}
+        onIncludeAllBranchChange={repo.setIncludeAllBranch}
+        cloning={repo.cloning}
+        cloneError={repo.cloneError}
+        onClone={repo.onClone}
+        createEnvs={repo.createEnvs}
+        onCreateEnvsChange={repo.setCreateEnvs}
+        cloneEnvWarning={repo.cloneEnvWarning}
+        repoLoading={repo.repoLoading}
+        repoRefreshFailed={repo.repoRefreshFailed}
+        onRefresh={repo.onRefresh}
       />
-      {!githubRepo.selectedRepo?.isNew && (
+      {!repo.selectedRepo?.isNew && (
         <Box sx={{ mt: 2.5, pt: 2.5, borderTop: "1px solid #f1f5f9" }}>
           <EnvDetail
-            envList={githubRepo.envList}
+            envList={env.envList}
             validEnvs={PIPELINE.validEnvs}
-            selectedEnv={githubRepo.selectedEnv}
-            onEnvChange={githubRepo.setSelectedEnv}
+            selectedEnv={env.selectedEnv}
+            onEnvChange={env.setSelectedEnv}
             lockedByPR={lockedByPR}
-            branchMatchWarning={githubRepo.branchMatchWarning}
-            branchMatchError={githubRepo.branchMatchError}
-            loading={githubRepo.envLoading}
-            refreshFailed={githubRepo.envRefreshFailed}
-            onRefresh={githubRepo.onRefresh}
-            repoFullName={githubRepo.repoFullName}
-            branches={githubRepo.branches}
-            sourceBranch={githubRepo.sourceBranch}
-            onSourceBranchChange={githubRepo.setSourceBranch}
-            creatingBranch={githubRepo.creatingBranch}
-            createBranchError={githubRepo.createBranchError}
-            onCreateBranch={githubRepo.onCreateBranch}
+            branchMatchWarning={env.branchMatchWarning}
+            branchMatchError={env.branchMatchError}
+            loading={env.envLoading}
+            refreshFailed={env.envRefreshFailed}
+            onRefresh={env.onRefresh}
+            repoFullName={repo.repoFullName}
+            branches={repo.branches}
+            sourceBranch={repo.sourceBranch}
+            onSourceBranchChange={repo.setSourceBranch}
+            creatingBranch={repo.creatingBranch}
+            createBranchError={repo.createBranchError}
+            onCreateBranch={repo.onCreateBranch}
           />
         </Box>
       )}

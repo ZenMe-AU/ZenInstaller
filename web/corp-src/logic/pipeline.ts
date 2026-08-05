@@ -99,6 +99,9 @@ export const PIPELINES: Record<string, PipelineConfig> = {
   // Add future pipelines here — no other files need to change
 };
 
+// The only pipeline in use — cards import this directly instead of it being threaded through hooks.
+export const PIPELINE = PIPELINES.corpSetup;
+
 export function matchPipelineByTemplate(templateName: string): string | null {
   const entry = Object.entries(PIPELINES).find(([, cfg]) => cfg.templateRepo === templateName);
   return entry ? entry[0] : null;

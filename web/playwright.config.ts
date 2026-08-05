@@ -17,7 +17,8 @@ const authenticatedTests = [
 ];
 
 export default defineConfig({
-  testDir: "./playwright-tests",
+  testDir: "./pwtests",
+  updateSnapshots: process.env.CI ? "none" : "missing",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -41,6 +42,7 @@ export default defineConfig({
     baseURL: "http://localhost:5173",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
+    testIdAttribute:"test-id",
   },
 
   projects: [

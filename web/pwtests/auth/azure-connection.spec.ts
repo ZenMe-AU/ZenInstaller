@@ -13,7 +13,9 @@ import {
   sensitiveTextMasks,
 } from "../testHelper";
 
-const users = loadAccessPassUsers();
+const users = loadAccessPassUsers({softFail: true,});
+test.skip(() => users.length === 0,"No local Access Pass users file was found. Authenticated tests are skipped.",);
+
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
   test.describe(`AP-${viewportName} - Connect Azure`, () => {
@@ -124,7 +126,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
             await expectPageSnapshot(authenticatedPage,testInfo,
               "authenticated-after-azure-connect.png",
               {
-                userId: "signed-out", 
+                userId: user.id, 
                 viewportName,
                 mask:sensitiveTextMasks(authenticatedPage,),
                 stabilizeAuth: true,

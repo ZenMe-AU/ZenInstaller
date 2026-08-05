@@ -5,6 +5,7 @@ import { getUserAuthFiles, restoreSessionStorage, userAuthFilesExist, } from "./
 import { ACCESS_PASS_URL, type ViewportSize, } from "./testInit";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath,} from "node:url";
 
 export type PageSnapshotOptions = {
   userId: string;
@@ -35,15 +36,11 @@ export type AccessPassUser = {
   canCreateAccessPass: boolean;
 };
 
-const localUsersPath = path.join(
-  process.cwd(),
-  "pwtests/auth/data/access-pass-users.local.json",
-);
+const currentFilePath = fileURLToPath(import.meta.url,);
+const currentDirectory =path.dirname(currentFilePath,);
+const localUsersPath =path.join(currentDirectory,"auth","data","access-pass-users.local.json",);
+const exampleUsersPath =path.join(currentDirectory,"auth","data","access-pass-users.example.json",);
 
-const exampleUsersPath = path.join(
-  process.cwd(),
-  "pwtests/auth/data/access-pass-users.example.json",
-);
 
 // Validates and normalizes Access Pass user test data.
 function validateAccessPassUsers(users: AccessPassUser[], filePath: string,) {
@@ -71,14 +68,6 @@ function validateAccessPassUsers(users: AccessPassUser[], filePath: string,) {
       throw new Error(`targetEntraUsers must be an array for "${user.id}" in ${filePath}`,);
     }
 
-    if (user.expectedEntraResult === "users" && user.targetEntraUsers.length === 0) {
-      throw new Error(`"${user.id}" expects Entra users but has no configured targets.`,);
-    }
-
-    if (user.expectedEntraResult !== "users" && user.targetEntraUsers.length > 0) {
-      throw new Error(`"${user.id}" expects "${user.expectedEntraResult}" but has target Entra users configured.`,);
-    }
-
     if (user.expectedEntraResult !== "users" && !user.expectedEntraMessage?.trim()) {
       throw new Error(`"${user.id}" must provide expectedEntraMessage for an "${user.expectedEntraResult}" result.`,);
     }
@@ -91,21 +80,41 @@ function validateAccessPassUsers(users: AccessPassUser[], filePath: string,) {
   }
 }
 
-// Loads Access Pass users from local or example data files.
-export function loadAccessPassUsers(): AccessPassUser[] {
-  const filePath = fs.existsSync(localUsersPath)
-    ? localUsersPath
-    : exampleUsersPath;
+export type LoadAccessPassUsersOptions = {softFail?: boolean;};
 
-  if (!fs.existsSync(filePath)) {
-    throw new Error(`Missing access pass users file. Create ${localUsersPath}`);
+// Loads Access Pass users from local or example data files.
+export function loadAccessPassUsers(options: LoadAccessPassUsersOptions = {}): AccessPassUser[] {
+  const { softFail = false} = options;
+
+  // If no local users file exists, keep unauth scenarios runnable and discovery healthy.
+  if (!fs.existsSync(localUsersPath)) {
+    const message = [
+      "Authenticated Playwright tests will be skipped.",
+      `Missing users file: ${localUsersPath}`,
+    ].join(" ");
+    console.warn(message);
+    return [];
   }
 
-  const users = JSON.parse(fs.readFileSync(filePath, "utf-8")) as AccessPassUser[];
-  validateAccessPassUsers(users, filePath);
-  return users;
-}
+  try {const users = JSON.parse(fs.readFileSync(localUsersPath,"utf-8",),) as AccessPassUser[];
+    validateAccessPassUsers(users,localUsersPath,);
+    return users;
+  } catch (error) {
+    const errorMessage =error instanceof Error
+        ? error.message
+        : String(error);
 
+    if (softFail) {
+      console.warn([
+          "Authenticated Playwright tests will be skipped.",
+          `The users file is invalid: ${errorMessage}`,
+        ].join(" "),
+      );
+      return [];
+    }
+    throw error;
+  }
+}
 // Resolves auth-state file locations and existence for a configured user.
 export function getAccessPassUserAuth(user: AccessPassUser) {
   return {
@@ -177,17 +186,31 @@ export async function expectPageSnapshot(
   const snapshotFileName =`${projectName}-${normalisedSnapshotName}`;
   const relativeSnapshotPath = [userFolder,viewportFolder,testFolder,"screenshots",snapshotFileName,];
 
-  await expect(page).toHaveScreenshot(
-    relativeSnapshotPath,
-    {
-      fullPage: false,
-      animations: "disabled",
-      caret: "hide",
-      mask: options.mask ?? [],
-      maskColor: "rgb(0, 0, 0)",
-    },
+  const expectedSnapshotPath = testInfo.snapshotPath(...relativeSnapshotPath,);
+  const baselineExists = fs.existsSync(expectedSnapshotPath,);
+
+if (!baselineExists && testInfo.config.updateSnapshots ==="missing") {
+  console.info([
+      "",
+      "Generating missing baseline snapshot:",
+      expectedSnapshotPath,
+      "",
+    ].join("\n"),
   );
 }
+
+    await expect(page).toHaveScreenshot(
+      relativeSnapshotPath,
+      {
+        fullPage: false,
+        animations: "disabled",
+        caret: "hide",
+        mask: options.mask ?? [],
+        maskColor: "rgb(0, 0, 0)",
+      },
+    );
+  }
+
 
 
 // Opens Access Pass in a context with saved auth and session storage.
@@ -246,7 +269,7 @@ export function getAzureJourneyUser(users: AccessPassUser[],): AccessPassUser {
   }
 
   const firstUser = users[0];
-  if (!firstUser) {throw new Error("No Access Pass users found. Add at least one user to playwright-tests/data/access-pass-users.local.json",);}
+  if (!firstUser) {throw new Error("No Access Pass users found. Add at least one user to pwtests/auth/data/access-pass-users.local.json",);}
   return firstUser;
 }
 

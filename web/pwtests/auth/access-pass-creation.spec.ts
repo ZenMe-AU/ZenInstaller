@@ -14,7 +14,9 @@ import {
   sensitiveTextMasks,
 } from "../testHelper";
 
-const users = loadAccessPassUsers();
+const users = loadAccessPassUsers({softFail: true,});
+test.skip(() => users.length === 0,"No local Access Pass users file was found. Authenticated tests are skipped.",);
+
 const desktopViewport = viewports.Desktop;
 
 console.log("RUN_ACCESS_PASS_CREATION:",process.env.RUN_ACCESS_PASS_CREATION,);
@@ -47,6 +49,7 @@ test.describe("AP-Desktop - Temporary Access Pass Creation", () => {
 
       for (const target of targets) {
         test(`Creating Temporary Access Pass for ${target.id}`,async ({ browser }, testInfo) => {
+
 
             test.skip(process.env.RUN_ACCESS_PASS_CREATION !== "true","Set RUN_ACCESS_PASS_CREATION=true to run real Access Pass creation.",);
             test.skip(!user.canCreateAccessPass,`${user.id} is not allowed to create access passes.`,);

@@ -14,8 +14,8 @@ pnpm i
 pnpm exec playwright install
 ```
 
-3. Create your local `playwright-tests/data/access-pass-users.local.json`  file.
- - Use the `playwright-tests/data/access-pass-users.example.json` example template for reference.
+3. Create your local `pwtests/auth/data/access-pass-users.local.json` file.
+ - Use the `pwtests/auth/data/access-pass-users.example.json` example template for reference.
  - Update `access-pass-users.local.json` with the users and tenant data that match your environment. The tests read this file at startup and will fail if it is missing.
 
 
@@ -53,7 +53,7 @@ pnpm exec playwright test azure-passkey.setup.ts --project=chromium --headed --w
 ```
 
 - If you only want to prepare one configured user, set `ACCESS_PASS_AUTH_USER` to that user id before running the setup command.
-- This step creates the `.auth` files under `playwright-tests/.auth/`.
+- This step creates the `.auth` files under `pwtests/auth/.auth/`.
 
 ### 2. Run the tests
 
@@ -82,7 +82,7 @@ pnpm exec playwright test --update-snapshots
 
 ### Common failures
 
-- Missing `playwright-tests/data/access-pass-users.local.json`: create it from the example file.
+- Missing `pwtests/auth/data/access-pass-users.local.json`: create it from the example file.
 - Missing auth files: rerun the `azure-passkey.setup.ts` command.
 - Unexplainable failed tests: regenerate .auth files.
 - App not reachable: confirm `pnpm run dev` is running on `http://localhost:5173` and backend is running.

@@ -53,13 +53,28 @@ export function useRepoCard({
 
   const envSelected = !!envName;
   // Merged Repository & environment card: complete only when the repo is cloned AND an env is picked.
-  const status: CardStatus = !user ? "idle" : isCloneRepo && envSelected ? "complete" : "idle";
-  const summary =
-    githubRepo.repoFullName && envName
-      ? `${githubRepo.repoFullName} · ${envName}`
-      : githubRepo.repoFullName
-        ? githubRepo.repoFullName
-        : "Select repository and environment";
+  const status: CardStatus = !user
+    ? "idle"
+    : !isCloneRepo
+      ? "error"
+      : envSelected
+        ? env.branchMatchError
+          ? "error"
+          : "complete"
+        : "idle";
+  const summary = !isCloneRepo
+    ? "Not a clone repository"
+    : env.branchMatchError
+      ? `${env.branchMatchError}`
+      : env.branchMatchWarning
+        ? `${env.branchMatchWarning}`
+        : githubRepo.repoFullName && envName
+          ? `${githubRepo.repoFullName} · ${envName}`
+          : !envName
+            ? "Select an environment"
+            : githubRepo.repoFullName
+              ? githubRepo.repoFullName
+              : "Select repository and environment";
 
   const githubEnvUrl =
     githubRepo.repoFullName && env.selectedEnv

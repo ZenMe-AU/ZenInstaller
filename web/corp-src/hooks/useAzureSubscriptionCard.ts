@@ -111,7 +111,7 @@ export function useAzureSubscriptionCard({
     status,
     summary,
     cardRequirements: ["azure_login", "repo"],
-    cardDependencyLabel: subscriptionDrift ? "Unsaved Subscription change" : "Subscription selected",
+    cardDependencyLabel: subscriptionDrift ? "Unsaved Subscription change" : "Select a subscription",
     done: subscriptionConfirmed,
   };
 }

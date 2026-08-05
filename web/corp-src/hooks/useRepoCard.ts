@@ -19,16 +19,16 @@ export interface UseRepoCard extends CardHook {
 
 export function useRepoCard({ user }: UseRepoCardParams): UseRepoCard {
   const githubRepo = useGithubRepo(user);
+  const isRepoReady = githubRepo.status === "complete";
 
   const env = useGithubEnvironment({
     account: githubRepo.selectedAccount,
     repo: githubRepo.selectedRepo,
-    isCloneRepo: githubRepo.status === "complete",
-    selectedPR: undefined,
     branches: githubRepo.branchList,
+    isRepoReady: isRepoReady,
   });
 
-  const envReady = env.envReady;
+  const isEnvReady = env.status === "complete" || env.status === "warning";
   const envName = env.selectedEnv?.name;
 
   const envSelected = !!envName;
@@ -70,12 +70,11 @@ export function useRepoCard({ user }: UseRepoCardParams): UseRepoCard {
     status,
     summary,
     cardRequirements: ["github_login"],
-    cardDependencyLabel:
-      githubRepo.status === "complete"
-        ? envReady
-          ? null
-          : "Choose an environment"
-        : "Select a repository & environment",
-    done: githubRepo.status === "complete" && envReady,
+    cardDependencyLabel: isRepoReady
+      ? isEnvReady
+        ? null
+        : "Choose an environment"
+      : "Select a repository & environment",
+    done: isRepoReady && isEnvReady,
   };
 }

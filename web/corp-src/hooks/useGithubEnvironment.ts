@@ -1,28 +1,29 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchEnvs, /* fetchSecrets, */ fetchVariables } from "../api";
-import { type Account, type Branch, type CardStatus, type GhEnv, type PullRequest, type RepoOption } from "../types";
-import { matchBranch, matchEnv } from "../logic/env";
-import { PIPELINE } from "../logic/pipeline";
+import { type Account, type Branch, type CardStatus, type GhEnv, type RepoOption } from "../types";
+import { matchBranch } from "../logic/env";
 import { findIgnoreCase } from "../logic/search";
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface UseGithubEnvironment {
-  // env selection
+  // Env
   envList: GhEnv[];
   selectedEnv: GhEnv | null;
   setSelectedEnv: (env: GhEnv | null) => void;
-  envLoading: boolean;
   branchMatchWarning: string | null;
   branchMatchError: string | null;
-  envReady: boolean;
+  // Status
+  envLoading: boolean;
   status: CardStatus;
-  onRefresh: () => void;
   envRefreshFailed: boolean;
-  // variables
+  // Variables
   presentVariableValues: Record<string, string>;
   variablesRechecking: boolean;
   varRecheckFailed: boolean;
+  // Actions
+  onRefresh: () => void;
   onVariableRecheck: () => Promise<void>;
   onVariableConfirmed: (key: string, value: string) => void;
+  // Restore
   restore: {
     env: (value: string) => Promise<void>;
   };
@@ -33,16 +34,14 @@ export interface UseGithubEnvironment {
 export type UseGithubEnvironmentParams = {
   account: Account | null;
   repo: RepoOption | null;
-  isCloneRepo: boolean;
-  selectedPR: PullRequest | null;
+  isRepoReady: boolean;
   branches: Branch[];
 };
 
 export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithubEnvironment {
-  const { validEnvs } = PIPELINE;
   const accountRef = useRef(opts.account);
   const repoRef = useRef(opts.repo);
-  useLayoutEffect(() => {
+  useEffect(() => {
     accountRef.current = opts.account;
     repoRef.current = opts.repo;
   });
@@ -55,7 +54,7 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
   const [branchMatchError, setBranchMatchError] = useState<string | null>(null);
   const [status, setStatus] = useState<CardStatus>("idle");
 
-  // ── variables state ──────────────────────────────────────────────
+  // ── Variables state ──────────────────────────────────────────────
   const [presentVariableValues, setPresentVariableValues] = useState<Record<string, string>>({});
   const [variablesRechecking, setVariablesRechecking] = useState(false);
   const [envRefreshFailed, setEnvRefreshFailed] = useState(false);
@@ -108,12 +107,12 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
     }
   }, []);
 
-  // Load envs when repo becomes a clone
+  // Load envs when repo is ready
   useEffect(() => {
-    if (!opts.account || !opts.repo || !opts.isCloneRepo) return;
+    if (!opts.account || !opts.repo || !opts.isRepoReady) return;
     loadEnvs(opts.account, opts.repo);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opts.account?.id, opts.repo?.id, opts.isCloneRepo, loadEnvs]);
+  }, [opts.account?.id, opts.repo?.id, opts.isRepoReady, loadEnvs]);
 
   // Auto-load secrets + variables when env is confirmed (selected + no branch error)
   useEffect(() => {
@@ -121,33 +120,8 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
     loadVariables(selectedEnv.name);
   }, [selectedEnv, branchMatchError, loadVariables]);
 
-  // When PR selected: auto-match env from PR's base branch
+  // When env selected: match against branch list
   useEffect(() => {
-    if (!opts.selectedPR) return;
-    const result = matchEnv(opts.selectedPR.base_branch, envList, validEnvs);
-    if (result.status === "exact") {
-      setSelectedEnv(result.env);
-      setBranchMatchWarning(null);
-      setBranchMatchError(null);
-      setStatus("complete");
-    } else if (result.status === "case") {
-      setSelectedEnv(result.env);
-      setBranchMatchWarning(
-        `Base branch "${opts.selectedPR.base_branch}" and environment "${result.env.name}" have mismatched casing.`,
-      );
-      setBranchMatchError(null);
-      setStatus("warning");
-    } else {
-      setSelectedEnv(null);
-      setBranchMatchWarning(null);
-      setBranchMatchError(`No matching environment found for base branch "${opts.selectedPR.base_branch}".`);
-      setStatus("error");
-    }
-  }, [opts.selectedPR, envList]);
-
-  // When env manually selected (no active PR): match against branch list
-  useEffect(() => {
-    if (opts.selectedPR) return;
     if (!selectedEnv) {
       setBranchMatchWarning(null);
       setBranchMatchError(null);
@@ -174,7 +148,7 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
       setBranchMatchError(`No branch found matching environment "${selectedEnv.name}".`);
       setStatus("error");
     }
-  }, [selectedEnv, opts.branches, opts.selectedPR]);
+  }, [selectedEnv, opts.branches]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const onRefresh = useCallback(() => {
@@ -199,7 +173,6 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
     setPresentVariableValues((prev) => ({ ...prev, [key]: value }));
   }, []);
 
-  const envReady = !!selectedEnv && !branchMatchError;
   const restoreEnv = useCallback(
     async (value: string) => {
       const match = findIgnoreCase(envList, (e) => e.name, value);
@@ -212,21 +185,25 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
   );
 
   return {
+    // Env
     envList,
     selectedEnv,
     setSelectedEnv,
-    envLoading,
     branchMatchWarning,
     branchMatchError,
-    envReady,
+    // Status
+    envLoading,
     status,
-    onRefresh,
+    envRefreshFailed,
+    // Variables
     presentVariableValues,
     variablesRechecking,
-    envRefreshFailed,
     varRecheckFailed,
+    // Actions
+    onRefresh,
     onVariableRecheck,
     onVariableConfirmed,
+    // Restore
     restore: {
       env: restoreEnv,
     },

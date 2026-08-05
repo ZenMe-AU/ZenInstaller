@@ -95,13 +95,11 @@ function AppDashboard() {
       azureAccount: azureLogin.account,
       githubAccount: githubRepoEnv.selectedAccount,
       githubRepo: githubRepoEnv.selectedRepo?.name ?? "",
-      validEnvs: githubRepoEnv.pipeline.validEnvs,
       subscriptionId: azureSubscription.selectedSubscriptionId,
       subscriptionLabel: azureSubscription.subscriptionLabel,
       tenantId: azureLogin.confirmedTenantId || undefined,
       variableValues: githubVariableValues,
       manualTenantId: azureLogin.manualTenantId,
-      azureSecretsValid: githubRepoEnv.azureSecrets.valid,
     }),
   );
 
@@ -266,7 +264,6 @@ function AppDashboard() {
               selectedEnv={githubRepoEnv.selectedEnv}
               subscriptionId={azureSubscription.selectedSubscriptionId}
               githubUrl={githubRepoEnv.githubEnvUrl}
-              onAzureValid={githubRepoEnv.onAzureValid}
             />
 
             <CoreInfraCard

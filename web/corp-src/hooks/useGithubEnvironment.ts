@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { fetchEnvs, /* fetchSecrets, */ fetchVariables } from "../api";
 import { type Account, type Branch, type CardStatus, type GhEnv, type PullRequest, type RepoOption } from "../types";
 import { matchBranch, matchEnv } from "../logic/env";
-
+import { PIPELINE } from "../logic/pipeline";
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface UseGithubEnvironment {
   // env selection
@@ -35,10 +35,10 @@ export type UseGithubEnvironmentParams = {
   isCloneRepo: boolean;
   selectedPR: PullRequest | null;
   branches: Branch[];
-  validEnvs: readonly string[];
 };
 
 export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithubEnvironment {
+  const { validEnvs } = PIPELINE;
   const accountRef = useRef(opts.account);
   const repoRef = useRef(opts.repo);
   useLayoutEffect(() => {
@@ -123,7 +123,7 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
   // When PR selected: auto-match env from PR's base branch
   useEffect(() => {
     if (!opts.selectedPR) return;
-    const result = matchEnv(opts.selectedPR.base_branch, envList, opts.validEnvs);
+    const result = matchEnv(opts.selectedPR.base_branch, envList, validEnvs);
     if (result.status === "exact") {
       setSelectedEnv(result.env);
       setBranchMatchWarning(null);

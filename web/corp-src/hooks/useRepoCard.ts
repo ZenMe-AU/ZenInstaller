@@ -31,7 +31,6 @@ export function useRepoCard({ user }: UseRepoCardParams): UseRepoCard {
     isCloneRepo: githubRepo.isCloneRepo,
     selectedPR: undefined,
     branches: githubRepo.branches,
-    validEnvs: githubRepo.pipeline.validEnvs,
   });
 
   const isCloneRepo = githubRepo.isCloneRepo;

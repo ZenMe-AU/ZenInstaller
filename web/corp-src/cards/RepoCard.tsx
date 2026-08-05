@@ -4,6 +4,7 @@ import Card from "../components/Card";
 import RepoDetail from "./RepoDetail";
 import EnvDetail from "./EnvDetail";
 import { getRepoUrl } from "../logic/github";
+import { PIPELINE } from "../logic/pipeline";
 import { MONO as mono } from "../config/styles";
 import type { CardChrome } from "../types";
 import type { UseRepoCard } from "../hooks/useRepoCard";
@@ -52,7 +53,7 @@ export default function RepoCard({ card, githubRepo, lockedByPR }: Props) {
         onRepoChange={githubRepo.setSelectedRepo}
         templateStatus={githubRepo.templateStatus}
         templateName={githubRepo.templateName}
-        defaultTemplateRepo={githubRepo.pipeline.templateRepo}
+        defaultTemplateRepo={PIPELINE.templateRepo}
         isPrivate={githubRepo.isPrivate}
         onIsPrivateChange={githubRepo.setIsPrivate}
         includeAllBranch={githubRepo.includeAllBranch}
@@ -71,7 +72,7 @@ export default function RepoCard({ card, githubRepo, lockedByPR }: Props) {
         <Box sx={{ mt: 2.5, pt: 2.5, borderTop: "1px solid #f1f5f9" }}>
           <EnvDetail
             envList={githubRepo.envList}
-            validEnvs={githubRepo.pipeline.validEnvs}
+            validEnvs={PIPELINE.validEnvs}
             selectedEnv={githubRepo.selectedEnv}
             onEnvChange={githubRepo.setSelectedEnv}
             lockedByPR={lockedByPR}

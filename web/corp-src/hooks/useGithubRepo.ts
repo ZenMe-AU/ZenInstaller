@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { checkTemplate, createBranch, fetchBranches, fetchOrgList, fetchRepos, generateRepo } from "../api";
-import { PIPELINES } from "../logic/pipeline";
-import type { Account, Branch, CardStatus, PipelineConfig, Repo, RepoOption, User } from "../types";
+import { PIPELINE } from "../logic/pipeline";
+import type { Account, Branch, CardStatus, Repo, RepoOption, User } from "../types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -14,16 +14,11 @@ export interface UseGithubRepo {
   repos: Repo[];
   selectedRepo: RepoOption | null;
   setSelectedRepo: (r: RepoOption | null) => void;
-  repoCache: Record<string, Repo[]>;
   // Template
   templateStatus: "checking" | "ready" | "not_clone";
   templateName: string | null;
   isCloneRepo: boolean;
   repoFullName: string | null;
-  // Pipeline
-  pipeline: PipelineConfig;
-  selectedPipeline: string;
-  setSelectedPipeline: (key: string) => void;
   // Clone
   isPrivate: boolean;
   setIsPrivate: (v: boolean) => void;
@@ -36,7 +31,6 @@ export interface UseGithubRepo {
   cloneEnvWarning: string | null;
   // Branches
   branches: Branch[];
-  branchesLoading: boolean;
   sourceBranch: string;
   setSourceBranch: (v: string) => void;
   creatingBranch: boolean;
@@ -68,7 +62,7 @@ export type UseGithubRepoParams = {
  */
 export function useGithubRepo(opts: UseGithubRepoParams): UseGithubRepo {
   // const { pendingRestore, urlAccountApplied, addRestoreWarning, checkRestoreDone } = opts;
-
+  const { validEnvs, templateRepo } = PIPELINE;
   // ── State ─────────────────────────────────────────────────────────────────
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
@@ -78,7 +72,6 @@ export function useGithubRepo(opts: UseGithubRepoParams): UseGithubRepo {
 
   const [templateStatus, setTemplateStatus] = useState<"checking" | "ready" | "not_clone">("not_clone");
   const [templateName, setTemplateName] = useState<string | null>(null);
-  const [selectedPipeline, setSelectedPipeline] = useState<string>("corpSetup");
 
   const [isPrivate, setIsPrivate] = useState(true);
   const [includeAllBranch, setIncludeAllBranch] = useState(false);
@@ -88,7 +81,6 @@ export function useGithubRepo(opts: UseGithubRepoParams): UseGithubRepo {
   const [cloneEnvWarning, setCloneEnvWarning] = useState<string | null>(null);
 
   const [branches, setBranches] = useState<Branch[]>([]);
-  const [branchesLoading, setBranchesLoading] = useState(false);
   const [sourceBranch, setSourceBranch] = useState<string>("main");
   const [creatingBranch, setCreatingBranch] = useState(false);
   const [createBranchError, setCreateBranchError] = useState<string | null>(null);
@@ -102,44 +94,11 @@ export function useGithubRepo(opts: UseGithubRepoParams): UseGithubRepo {
   const isNewRepo = selectedRepo?.isNew ?? false;
   const repoFullName =
     selectedAccount && selectedRepo && !isNewRepo ? `${selectedAccount.login}/${selectedRepo.name}` : null;
-  const pipeline = PIPELINES[selectedPipeline];
-
-  const pipelineRef = useRef(pipeline);
-  pipelineRef.current = pipeline;
 
   // Auto-clear clone error when a different repo is selected
   useEffect(() => {
     setCloneError(null);
   }, [selectedRepo?.id]);
-
-  // Re-evaluate template match when user switches pipeline (repo may already be selected)
-  const templateNameRef = useRef<string | null>(null);
-  templateNameRef.current = templateName;
-  useEffect(() => {
-    const tName = templateNameRef.current;
-    if (!tName) return;
-    const isMatch = tName === pipeline.templateRepo;
-    setTemplateStatus(isMatch ? "ready" : "not_clone");
-    setStatus(isMatch ? "complete" : "warning");
-    if (isMatch) {
-      const acc = selectedAccountRef.current;
-      const repo = selectedRepoRef.current;
-      if (acc && repo && !repo.isNew) {
-        setBranchesLoading(true);
-        fetchBranches(acc, repo.name)
-          .then((list) => {
-            setBranches(list);
-            const main = list.find((b) => b.name === "main");
-            setSourceBranch(main ? "main" : (list[0]?.name ?? "main"));
-          })
-          .catch((e) => console.error("Failed to fetch branches:", e))
-          .finally(() => setBranchesLoading(false));
-      }
-    } else {
-      setBranches([]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedPipeline]);
 
   // ── Effects ───────────────────────────────────────────────────────────────
 
@@ -181,27 +140,24 @@ export function useGithubRepo(opts: UseGithubRepoParams): UseGithubRepo {
     setTemplateStatus("checking");
     setTemplateName(null);
     setBranches([]);
-    setBranchesLoading(false);
     setStatus("loading");
     if (!selectedAccount || !selectedRepo || selectedRepo.isNew) return;
     checkTemplate(selectedAccount, selectedRepo.name)
       .then((data) => {
         const tName = data.templateName || null;
         setTemplateName(tName);
-        const isTemplate = tName !== null && tName === pipelineRef.current.templateRepo;
+        const isTemplate = tName !== null && tName === templateRepo;
         setTemplateStatus(isTemplate ? "ready" : "not_clone");
         setStatus(isTemplate ? "complete" : "warning");
 
         if (isTemplate) {
-          setBranchesLoading(true);
           fetchBranches(selectedAccount, selectedRepo.name)
             .then((list) => {
               setBranches(list);
               const main = list.find((b) => b.name === "main");
               setSourceBranch(main ? "main" : (list[0]?.name ?? "main"));
             })
-            .catch((e) => console.error("Failed to fetch branches:", e))
-            .finally(() => setBranchesLoading(false));
+            .catch((e) => console.error("Failed to fetch branches:", e));
         }
       })
       .catch((e) => {
@@ -237,15 +193,7 @@ export function useGithubRepo(opts: UseGithubRepoParams): UseGithubRepo {
         repo: newRepo,
         envSuccess,
         results,
-      } = await generateRepo(
-        acc,
-        name,
-        isPrivate,
-        includeAllBranch,
-        createEnvs,
-        pipeline.templateRepo,
-        pipeline.validEnvs,
-      );
+      } = await generateRepo(acc, name, isPrivate, includeAllBranch, createEnvs, templateRepo, validEnvs);
       const updated = [...reposRef.current, newRepo];
       setRepos(updated);
       setRepoCache((prev) => ({ ...prev, [String(acc.id)]: updated }));
@@ -330,14 +278,10 @@ export function useGithubRepo(opts: UseGithubRepoParams): UseGithubRepo {
     repos,
     selectedRepo,
     setSelectedRepo,
-    repoCache,
     templateStatus,
     templateName,
     isCloneRepo,
     repoFullName,
-    pipeline,
-    selectedPipeline,
-    setSelectedPipeline,
     isPrivate,
     setIsPrivate,
     includeAllBranch,
@@ -348,7 +292,6 @@ export function useGithubRepo(opts: UseGithubRepoParams): UseGithubRepo {
     setCreateEnvs,
     cloneEnvWarning,
     branches,
-    branchesLoading,
     sourceBranch,
     setSourceBranch,
     creatingBranch,

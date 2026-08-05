@@ -46,10 +46,10 @@ export default function RepoCard({ card, githubRepo, lockedByPR }: Props) {
   return (
     <Card title="Repository & environment" action={viewRepoAction} {...card}>
       <RepoDetail
-        accounts={repo.accounts}
+        accounts={repo.accountList}
         selectedAccount={repo.selectedAccount}
         onAccountChange={repo.setSelectedAccount}
-        repos={repo.repos}
+        repos={repo.repoList}
         selectedRepo={repo.selectedRepo}
         onRepoChange={repo.setSelectedRepo}
         templateStatus={repo.templateStatus}
@@ -83,7 +83,7 @@ export default function RepoCard({ card, githubRepo, lockedByPR }: Props) {
             refreshFailed={env.envRefreshFailed}
             onRefresh={env.onRefresh}
             repoFullName={repo.repoFullName}
-            branches={repo.branches}
+            branches={repo.branchList}
             sourceBranch={repo.sourceBranch}
             onSourceBranchChange={repo.setSourceBranch}
             creatingBranch={repo.creatingBranch}

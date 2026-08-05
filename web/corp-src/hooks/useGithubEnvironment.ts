@@ -3,6 +3,7 @@ import { fetchEnvs, /* fetchSecrets, */ fetchVariables } from "../api";
 import { type Account, type Branch, type CardStatus, type GhEnv, type PullRequest, type RepoOption } from "../types";
 import { matchBranch, matchEnv } from "../logic/env";
 import { PIPELINE } from "../logic/pipeline";
+import { findIgnoreCase } from "../logic/search";
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface UseGithubEnvironment {
   // env selection
@@ -201,7 +202,7 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
   const envReady = !!selectedEnv && !branchMatchError;
   const restoreEnv = useCallback(
     async (value: string) => {
-      const match = envList.find((e) => e.name.toLowerCase() === value.toLowerCase());
+      const match = findIgnoreCase(envList, (e) => e.name, value);
       if (!match) {
         throw new Error(`Environment "${value}" not found`);
       }

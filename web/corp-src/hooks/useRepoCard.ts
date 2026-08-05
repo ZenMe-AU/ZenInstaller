@@ -18,46 +18,43 @@ export interface UseRepoCard extends CardHook {
 }
 
 export function useRepoCard({ user }: UseRepoCardParams): UseRepoCard {
-  const githubRepo = useGithubRepo({
-    user: user,
-  });
+  const githubRepo = useGithubRepo(user);
 
   const env = useGithubEnvironment({
     account: githubRepo.selectedAccount,
     repo: githubRepo.selectedRepo,
-    isCloneRepo: githubRepo.isCloneRepo,
+    isCloneRepo: githubRepo.status === "complete",
     selectedPR: undefined,
-    branches: githubRepo.branches,
+    branches: githubRepo.branchList,
   });
 
-  const isCloneRepo = githubRepo.isCloneRepo;
   const envReady = env.envReady;
   const envName = env.selectedEnv?.name;
 
   const envSelected = !!envName;
   // Merged Repository & environment card: complete only when the repo is cloned AND an env is picked.
-  const status: CardStatus = !user
-    ? "idle"
-    : !isCloneRepo
-      ? "error"
-      : envSelected
-        ? env.branchMatchError
-          ? "error"
-          : "complete"
-        : "idle";
-  const summary = !isCloneRepo
-    ? "Not a clone repository"
-    : env.branchMatchError
-      ? `${env.branchMatchError}`
-      : env.branchMatchWarning
-        ? `${env.branchMatchWarning}`
-        : githubRepo.repoFullName && envName
-          ? `${githubRepo.repoFullName} · ${envName}`
-          : !envName
-            ? "Select an environment"
-            : githubRepo.repoFullName
-              ? githubRepo.repoFullName
-              : "Select repository and environment";
+  const status: CardStatus =
+    !user || !githubRepo.selectedAccount || !githubRepo.selectedRepo
+      ? "idle"
+      : githubRepo.status !== "complete"
+        ? "error"
+        : envSelected
+          ? env.branchMatchError
+            ? "error"
+            : "complete"
+          : "idle";
+  const summary =
+    !user || !githubRepo.selectedAccount || !githubRepo.selectedRepo
+      ? "Select repository and environment"
+      : githubRepo.templateStatus !== "ready"
+        ? "Not a clone repository"
+        : env.branchMatchError
+          ? `${env.branchMatchError}`
+          : env.branchMatchWarning
+            ? `${env.branchMatchWarning}`
+            : !envName
+              ? "Select an environment"
+              : `${githubRepo.repoFullName} · ${envName}`;
 
   const githubEnvUrl =
     githubRepo.repoFullName && env.selectedEnv
@@ -73,11 +70,12 @@ export function useRepoCard({ user }: UseRepoCardParams): UseRepoCard {
     status,
     summary,
     cardRequirements: ["github_login"],
-    cardDependencyLabel: isCloneRepo
-      ? envReady
-        ? null
-        : "Choose an environment"
-      : "Select a repository & environment",
-    done: isCloneRepo && envReady,
+    cardDependencyLabel:
+      githubRepo.status === "complete"
+        ? envReady
+          ? null
+          : "Choose an environment"
+        : "Select a repository & environment",
+    done: githubRepo.status === "complete" && envReady,
   };
 }

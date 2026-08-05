@@ -34,10 +34,10 @@ vi.mock("../api", () => ({
 }));
 
 function HookHarness(props: {
-  opts: Parameters<typeof useGithubRepo>[0];
+  user: Parameters<typeof useGithubRepo>[0];
   onUpdate: (value: UseGithubRepo) => void;
 }) {
-  const value = useGithubRepo(props.opts);
+  const value = useGithubRepo(props.user);
 
   useEffect(() => {
     props.onUpdate(value);
@@ -109,26 +109,18 @@ describe("useGithubRepo", () => {
     const container = document.createElement("div");
     const root = createRoot(container);
 
-    const opts: Parameters<typeof useGithubRepo>[0] = {
-      user: { login: "jake" },
-      pendingRestore: makePendingRestore(),
-      urlAccountApplied: { current: false },
-      addRestoreWarning: vi.fn(),
-      checkRestoreDone: vi.fn(),
-    };
-
     await act(async () => {
-      root.render(<HookHarness opts={opts} onUpdate={(v) => { latest = v; }} />);
+      root.render(<HookHarness user={{ login: "jake" }} onUpdate={(v) => { latest = v; }} />);
     });
 
     await waitFor(() => {
       expect(latest?.selectedAccount?.login).toBe("org-one");
-      expect(latest?.accounts).toHaveLength(2);
+      expect(latest?.accountList).toHaveLength(2);
     });
 
     await waitFor(() => {
       expect(mockApi.fetchRepos).toHaveBeenCalledWith(accountOne);
-      expect(latest?.repos.map((r) => r.name)).toEqual(["repo-a"]);
+      expect(latest?.repoList.map((r) => r.name)).toEqual(["repo-a"]);
     });
 
     await act(async () => {
@@ -149,16 +141,8 @@ describe("useGithubRepo", () => {
     });
     const checkRestoreDone = vi.fn();
 
-    const opts: Parameters<typeof useGithubRepo>[0] = {
-      user: { login: "jake" },
-      pendingRestore,
-      urlAccountApplied: { current: false },
-      addRestoreWarning: vi.fn(),
-      checkRestoreDone,
-    };
-
     await act(async () => {
-      root.render(<HookHarness opts={opts} onUpdate={(v) => { latest = v; }} />);
+      root.render(<HookHarness user={{ login: "jake" }} onUpdate={(v) => { latest = v; }} />);
     });
 
     await waitFor(() => {
@@ -181,20 +165,12 @@ describe("useGithubRepo", () => {
     const container = document.createElement("div");
     const root = createRoot(container);
 
-    const opts: Parameters<typeof useGithubRepo>[0] = {
-      user: { login: "jake" },
-      pendingRestore: makePendingRestore(),
-      urlAccountApplied: { current: false },
-      addRestoreWarning: vi.fn(),
-      checkRestoreDone: vi.fn(),
-    };
-
     await act(async () => {
-      root.render(<HookHarness opts={opts} onUpdate={(v) => { latest = v; }} />);
+      root.render(<HookHarness user={{ login: "jake" }} onUpdate={(v) => { latest = v; }} />);
     });
 
     await waitFor(() => {
-      expect(latest?.repos.some((r) => r.name === "repo-a")).toBe(true);
+      expect(latest?.repoList.some((r) => r.name === "repo-a")).toBe(true);
     });
 
     await act(async () => {

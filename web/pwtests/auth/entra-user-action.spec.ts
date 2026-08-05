@@ -12,13 +12,9 @@ import {
 const users = loadAccessPassUsers({softFail: true,});
 test.skip(() => users.length === 0,"No local Access Pass users file was found. Authenticated tests are skipped.",);
 
-
-
 for (const [viewportName, viewport] of Object.entries(viewports)) {
   test.describe(`AP-${viewportName} - Entra User Actions`, () => {
     test.use({viewport,deviceScaleFactor: 1,});
-
-    
 
     test.skip(
       ({ browserName }) => browserName !== "chromium",
@@ -34,34 +30,6 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
       const targets = user.targetEntraUsers ?? [];
 
-      const auth =
-  getAccessPassUserAuth(
-    user,
-  );
-
-console.log({
-  user:
-    user.id,
-
-  usersLoaded:
-    users.length,
-
-  expectedEntraResult:
-    user.expectedEntraResult,
-
-  targetCount:
-    targets.length,
-
-  authExists:
-    auth.exists,
-
-  storageStateFile:
-    auth.storageStateFile,
-
-  sessionStorageFile:
-    auth.sessionStorageFile,
-});
-
       test.describe(user.id, () => {
         test.beforeEach(() => {
           const auth = getAccessPassUserAuth(user);
@@ -75,8 +43,6 @@ console.log({
             ].join(" "),
           );
         });
-
-
         
         // This test waits for the existing authenticated sessions to load its Entra users and verifies their action buttons.
         test(

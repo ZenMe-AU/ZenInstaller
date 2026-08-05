@@ -14,12 +14,14 @@ pnpm i
 pnpm exec playwright install
 ```
 
-3. Create your local `pwtests/auth/data/access-pass-users.local.json` file.
+3. Download "Playwright Test for VSCode" extension for Playwright Test Tab
+
+4. Create your local `pwtests/auth/data/access-pass-users.local.json` file.
  - Use the `pwtests/auth/data/access-pass-users.example.json` example template for reference.
  - Update `access-pass-users.local.json` with the users and tenant data that match your environment. The tests read this file at startup and will fail if it is missing.
 
 
-## OPTION 1: Running from the Test Tab 
+## OPTION 1: Running from the Playwright Test Tab 
 
 ### 1. Enable the following options in the Playwright menu.
 
@@ -36,7 +38,7 @@ pnpm exec playwright install
 
 ### 4. Remaining tests will automatically run.
 
-Ensure `RUN_ACCESS_PASS_CREATION=true` is set in your root .env file to allow Access Pass Creations tests to run.
+Ensure `RUN_ACCESS_PASS_CREATION=true` is set in your web .env file to allow Access Pass Creations tests to run.
 
 ### Updating snapshots
 When UI change is expected, snapshots can be updated using the 'Update snapshots' option in Playwright menu.
@@ -53,7 +55,7 @@ pnpm exec playwright test azure-passkey.setup.ts --project=chromium --headed --w
 ```
 
 - If you only want to prepare one configured user, set `ACCESS_PASS_AUTH_USER` to that user id before running the setup command.
-- This step creates the `.auth` files under `pwtests/auth/.auth/`.
+- This step creates the `.auth` files under `web/pwtests/auth/.auth/`.
 
 ### 2. Run the tests
 
@@ -70,7 +72,7 @@ pnpm exec playwright test --project=chromium
 pnpm exec playwright test --project=chromium-authenticated --workers=1
 ```
 
-Ensure `RUN_ACCESS_PASS_CREATION=true` is set in your root .env file to allow Access Pass Creation tests to run.
+Ensure `RUN_ACCESS_PASS_CREATION=true` is set in your web .env file to allow Access Pass Creation tests to run.
 
 ### Updating snapshots
 

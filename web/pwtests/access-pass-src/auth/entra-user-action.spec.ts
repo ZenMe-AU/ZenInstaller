@@ -1,5 +1,5 @@
 import {expect,test } from "@playwright/test";
-import {viewports,} from "../testInit";
+import {viewports,} from "../../testInit";
 import {
   escapeRegExp,
   expectPageSnapshot,

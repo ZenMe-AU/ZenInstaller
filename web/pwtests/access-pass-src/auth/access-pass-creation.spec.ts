@@ -1,7 +1,7 @@
 // Verifies temporary Access Pass creation for configured and permitted user pairs.
 
 import {expect,test,} from "@playwright/test";
-import {viewports,} from "../testInit";
+import {viewports,} from "../../testInit";
 import {
   changeTenantIdIfAvailable,
   expectAuthenticatedAccessPassState,

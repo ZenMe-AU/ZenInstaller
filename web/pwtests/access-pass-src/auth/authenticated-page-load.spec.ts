@@ -1,7 +1,7 @@
 // Verifies authenticated users can load Access Pass and see expected post-login state.
 
 import {expect,test,} from "@playwright/test";
-import {viewports,} from "../testInit";
+import {viewports,} from "../../testInit";
 import {
   escapeRegExp,
   expectPageSnapshot,

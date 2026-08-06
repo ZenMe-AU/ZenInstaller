@@ -6,6 +6,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+.env
 
 node_modules
 dist
@@ -36,5 +37,7 @@ deploy/.env
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
-/pwtests/auth/.auth/
-/pwtests/auth/data/access-pass-users.local.json
+/pwtests/access-pass-src/auth/.auth/
+/pwtests/access-pass-src/auth/data/access-pass-users.local.json
+/pwtests/corp-src/auth/.auth/
+/pwtests/corp-src/auth/data/access-pass-users.local.json

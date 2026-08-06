@@ -1,7 +1,7 @@
 // Verifies the Connect Azure flow and restored authenticated session behavior.
 
 import {expect,test,} from "@playwright/test";
-import {ACCESS_PASS_URL,viewports,} from "../testInit";
+import {ACCESS_PASS_URL,viewports,} from "../../testInit";
 import {
   escapeRegExp,
   expectAuthenticatedAccessPassState,

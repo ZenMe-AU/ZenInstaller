@@ -40,8 +40,7 @@ export default defineConfig({
         caret: "hide",
         scale: "css",
         maxDiffPixelRatio: 0.02,
-
-        pathTemplate: "{testDir}/snapshots/{arg}{ext}"
+        pathTemplate: "{testDir}/{arg}{ext}"
     },
   },
 
@@ -61,8 +60,9 @@ export default defineConfig({
      * then saves the authenticated browser state.
      */
     {
-      name: "azure-passkey-setup",
+      name: "access-pass-setup",
       testMatch: /azure-passkey\.setup\.ts/,
+      fullyParallel: false,
       use: {
         ...devices["Desktop Chrome"],
       },
@@ -74,7 +74,7 @@ export default defineConfig({
      * This ignores authenticated tests and setup tests.
      */
     {
-      name: "chromium",
+      name: "access-pass-chromium",
       testMatch: signedOutTests,
       fullyParallel: true,
       use: {
@@ -88,7 +88,7 @@ export default defineConfig({
      * This ignores authenticated tests and setup tests.
      */
     {
-      name: "chromium-authenticated",
+      name: "access-pass-authenticated",
       testMatch: authenticatedTests,
       // no parallel tests to avoid MSAL timeout when two test using same account
       fullyParallel: false,
@@ -97,31 +97,31 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
       },
-      dependencies: ["azure-passkey-setup"],
+      dependencies: ["access-pass-setup"],
     },
 
-
-    /**
-     * Normal signed-out Access Pass tests in Firefox.
-     */
     {
-      name: "firefox",
+      name: "corp-chromium",
+      testMatch: /corp-src\/unauth\/.*\.spec\.ts/,
+      fullyParallel: true,
       use: {
-        ...devices["Desktop Firefox"],
+        ...devices["Desktop Chrome"],
       },
-       dependencies: ["azure-passkey-setup"],
     },
 
-    /**
-     * Normal signed-out Access Pass tests in WebKit.
-     */
     {
-      name: "webkit",
+      name: "corp-authenticated",
+      testMatch: /corp-src\/auth\/.*\.spec\.ts/,
+      fullyParallel: false,
+      workers: 1,
+      retries: 1,
       use: {
-        ...devices["Desktop Safari"],
+        ...devices["Desktop Chrome"],
       },
-       dependencies: ["azure-passkey-setup"],
     },
+
+
+
   ],
 
   /**

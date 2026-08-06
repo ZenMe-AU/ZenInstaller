@@ -1,5 +1,5 @@
 import {expect,test,} from "@playwright/test";
-import {ACCESS_PASS_URL,viewports,} from "../testInit";
+import {ACCESS_PASS_URL,viewports,} from "../../testInit";
 import {expectPageSnapshot,} from "../testHelper";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {

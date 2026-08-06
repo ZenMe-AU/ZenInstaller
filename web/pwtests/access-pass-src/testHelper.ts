@@ -2,7 +2,7 @@
 
 import { expect, test, type Browser, type Locator, type Page, type TestInfo,} from "@playwright/test";
 import { getUserAuthFiles, restoreSessionStorage, userAuthFilesExist, } from "./authState";
-import { ACCESS_PASS_URL, type ViewportSize, } from "./testInit";
+import { ACCESS_PASS_URL, type ViewportSize, } from "../testInit";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath,} from "node:url";
@@ -184,7 +184,7 @@ export async function expectPageSnapshot(
 
   const normalisedSnapshotName =snapshotName.endsWith(".png") ? snapshotName : `${snapshotName}.png`;
   const snapshotFileName =`${projectName}-${normalisedSnapshotName}`;
-  const relativeSnapshotPath = [userFolder,viewportFolder,testFolder,"screenshots",snapshotFileName,];
+  const relativeSnapshotPath = ["access-pass-src", "snapshots", userFolder, viewportFolder, testFolder, snapshotFileName];
 
   const expectedSnapshotPath = testInfo.snapshotPath(...relativeSnapshotPath,);
   const baselineExists = fs.existsSync(expectedSnapshotPath,);

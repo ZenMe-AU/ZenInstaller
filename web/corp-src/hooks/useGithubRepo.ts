@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { checkTemplate, createBranch, fetchBranches, fetchOrgList, fetchRepos, generateRepo } from "../api";
 import { PIPELINE } from "../logic/pipeline";
 import { findIgnoreCase } from "../logic/search";
+import { INITIAL_URL_PARAMS, type UrlRestoreField } from "./useUrlStateManager";
 import type { Account, Branch, CardStatus, Repo, RepoOption, User } from "../types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -45,8 +46,8 @@ export interface UseGithubRepo {
   onCreateBranch: (targetName: string) => Promise<void>;
   // Restore
   restore: {
-    account: (value: string) => Promise<void>;
-    repo: (value: string) => Promise<void>;
+    account: UrlRestoreField;
+    repo: UrlRestoreField;
   };
 }
 
@@ -62,8 +63,10 @@ export function useGithubRepo(user: User | null): UseGithubRepo {
 
   // ── State ─────────────────────────────────────────────────────────────────
   const [accountList, setAccountList] = useState<Account[]>([]);
+  const [accountsLoaded, setAccountsLoaded] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [repoList, setRepoList] = useState<Repo[]>([]);
+  const [reposLoaded, setReposLoaded] = useState(false);
   const [selectedRepo, setSelectedRepo] = useState<RepoOption | null>(null);
 
   const [templateStatus, setTemplateStatus] = useState<"checking" | "ready" | "not_clone">("not_clone");
@@ -148,9 +151,11 @@ export function useGithubRepo(user: User | null): UseGithubRepo {
     fetchOrgList()
       .then((data) => {
         setAccountList(data);
-        setSelectedAccount(data[0] ?? null);
+        // Don't clobber a pending URL restore with the default selection.
+        if (!INITIAL_URL_PARAMS.has("account")) setSelectedAccount(data[0] ?? null);
       })
-      .catch(console.error);
+      .catch(console.error)
+      .finally(() => setAccountsLoaded(true));
   }, [user]);
 
   // Load repositories when account changes
@@ -158,19 +163,28 @@ export function useGithubRepo(user: User | null): UseGithubRepo {
     setRepoList([]);
     setSelectedRepo(null);
     setStatus("idle");
+    setReposLoaded(false);
     if (!selectedAccount) return;
     const key = String(selectedAccount.id);
     if (repoCache.current[key]) {
       setRepoList(repoCache.current[key]);
+      setReposLoaded(true);
       return;
     }
+    let cancelled = false;
     fetchRepos(selectedAccount)
       .then((list) => {
-        setRepoList(list);
         repoCache.current[key] = list;
+        if (!cancelled) setRepoList(list);
       })
-      .catch(console.error);
+      .catch(console.error)
+      .finally(() => {
+        if (!cancelled) setReposLoaded(true);
+      });
     setTemplateName(null);
+    return () => {
+      cancelled = true;
+    };
   }, [selectedAccount]);
 
   // Check selected repository
@@ -261,19 +275,21 @@ export function useGithubRepo(user: User | null): UseGithubRepo {
 
   // ── Restore ───────────────────────────────────────────────────────────────
   const restoreAccount = useCallback(
-    async (value: string) => {
+    (value: string): boolean => {
       const match = findIgnoreCase(accountList, (a) => a.login, value);
-      if (!match) throw new Error(`Account "${value}" not found`);
-      setSelectedAccount(match);
+      // Fall back to the default selection on a miss — leaving nothing selected strands the UI.
+      setSelectedAccount(match ?? accountList[0] ?? null);
+      return !!match;
     },
     [accountList],
   );
 
   const restoreRepo = useCallback(
-    async (value: string) => {
+    (value: string): boolean => {
       const match = findIgnoreCase(repoList, (r) => r.name, value);
-      if (!match) throw new Error(`Repository "${value}" not found`);
+      if (!match) return false;
       setSelectedRepo({ id: match.id, name: match.name });
+      return true;
     },
     [repoList],
   );
@@ -317,8 +333,8 @@ export function useGithubRepo(user: User | null): UseGithubRepo {
     onCreateBranch,
     // Restore
     restore: {
-      account: restoreAccount,
-      repo: restoreRepo,
+      account: { ready: accountsLoaded, scope: user?.login ?? null, apply: restoreAccount },
+      repo: { ready: reposLoaded, scope: selectedAccount?.id ?? null, apply: restoreRepo },
     },
   };
 }

@@ -2,11 +2,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Box, Typography } from "@mui/material";
 
 import {
+  type Account,
   type CardChrome,
   type CardHook,
   type CardId,
   type CardRequirements,
   type PendingRestore,
+  type RepoOption,
   type Requirement,
 } from "./types";
 import { AZURE_CLIENT_ID } from "./config/azureConfig";
@@ -14,6 +16,7 @@ import { groupLabelSx, groupSx, EXPANDED_W } from "./config/cardLayout";
 import { createResultStorage } from "./logic/resultStorage";
 import { useGithubLoginCard } from "./hooks/useGithubLoginCard";
 import { useRepoCard } from "./hooks/useRepoCard";
+import { useUrlRestore, useUrlSync } from "./hooks/useUrlStateManager";
 import { useAzureLoginCard } from "./hooks/useAzureLoginCard";
 import { useAzureAppRegistrationCard } from "./hooks/useAzureAppRegistrationCard";
 import { useAzureSubscriptionCard } from "./hooks/useAzureSubscriptionCard";
@@ -121,6 +124,28 @@ function AppDashboard() {
       spClientId: azureAppSetup.spClientId,
       tenantId: azureAppSetup.tenantId,
     }),
+  );
+
+  // ── URL restore + sync ───────────────────────────────────────────────────────
+  const urlRestore = useUrlRestore(
+    [
+      {
+        account: githubRepoEnv.repo.restore.account,
+        repo: githubRepoEnv.repo.restore.repo,
+        env: githubRepoEnv.env.restore.env,
+      },
+      // Future, parallel chain: { tenant: azureLogin.restore.tenant, subscription: azureSubscription.restore.subscription }
+    ],
+    { active: githubLogin.status === "complete" },
+  );
+  const selectedRepo = githubRepoEnv.repo.selectedRepo;
+  useUrlSync(
+    {
+      account: githubRepoEnv.repo.selectedAccount?.login,
+      repo: selectedRepo && !selectedRepo.isNew ? selectedRepo.name : undefined,
+      env: githubRepoEnv.env.selectedEnv?.name,
+    },
+    urlRestore.completed && !githubLogin.loggingIn,
   );
 
   // ── Accordion + completion flags ───────────────────────────────────────────
@@ -286,11 +311,11 @@ function AppDashboard() {
         </Box>
       </Box>
 
-      {/* <RestoreToast
-        loading={isAuthed && restore.urlRestoreMsg.loading}
-        warnings={isAuthed ? restore.urlRestoreMsg.warnings : []}
-        onDismiss={() => restore.setUrlRestoreMsg((p) => ({ ...p, warnings: [] }))}
-      /> */}
+      <RestoreToast
+        loading={!urlRestore.completed && githubLogin.status === "complete"}
+        warnings={urlRestore.warnings}
+        onDismiss={urlRestore.dismissWarnings}
+      />
     </>
   );
 }

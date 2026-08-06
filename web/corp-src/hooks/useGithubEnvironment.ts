@@ -3,6 +3,7 @@ import { fetchEnvs, /* fetchSecrets, */ fetchVariables } from "../api";
 import { type Account, type Branch, type CardStatus, type GhEnv, type RepoOption } from "../types";
 import { matchBranch } from "../logic/env";
 import { findIgnoreCase } from "../logic/search";
+import type { UrlRestoreField } from "./useUrlStateManager";
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface UseGithubEnvironment {
   // Env
@@ -25,7 +26,7 @@ export interface UseGithubEnvironment {
   onVariableConfirmed: (key: string, value: string) => void;
   // Restore
   restore: {
-    env: (value: string) => Promise<void>;
+    env: UrlRestoreField;
   };
 }
 
@@ -48,6 +49,7 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
 
   // ── Env state ─────────────────────────────────────────────────────────────
   const [envList, setEnvList] = useState<GhEnv[]>([]);
+  const [envsLoaded, setEnvsLoaded] = useState(false);
   const [selectedEnv, setSelectedEnv] = useState<GhEnv | null>(null);
   const [envLoading, setEnvLoading] = useState(false);
   const [branchMatchWarning, setBranchMatchWarning] = useState<string | null>(null);
@@ -66,6 +68,7 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
     const newId = opts.repo?.id ?? null;
     if (prevRepoId.current !== undefined && prevRepoId.current !== newId) {
       setEnvList([]);
+      setEnvsLoaded(false);
       setSelectedEnv(null);
       setBranchMatchWarning(null);
       setBranchMatchError(null);
@@ -91,6 +94,7 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
       setEnvRefreshFailed(true);
     } finally {
       setEnvLoading(false);
+      setEnvsLoaded(true);
     }
   }, []);
 
@@ -174,12 +178,11 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
   }, []);
 
   const restoreEnv = useCallback(
-    async (value: string) => {
+    (value: string): boolean => {
       const match = findIgnoreCase(envList, (e) => e.name, value);
-      if (!match) {
-        throw new Error(`Environment "${value}" not found`);
-      }
+      if (!match) return false;
       setSelectedEnv(match);
+      return true;
     },
     [envList],
   );
@@ -205,7 +208,7 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
     onVariableConfirmed,
     // Restore
     restore: {
-      env: restoreEnv,
+      env: { ready: envsLoaded, scope: opts.repo?.id ?? null, apply: restoreEnv },
     },
   };
 }

@@ -136,7 +136,8 @@ function AppDashboard() {
       },
     },
     {
-      active: azureLogin.status !== "unavailable" && !!azureLogin.account,
+      active: !!azureLogin.account,
+      disabled: azureLogin.status === "unavailable",
       fields: {
         tenant: azureLogin.restore.tenant,
         subscription: azureSubscription.restore.subscription,
@@ -314,7 +315,7 @@ function AppDashboard() {
       </Box>
 
       <RestoreToast
-        loading={!urlRestore.completed && githubLogin.status === "complete"}
+        loading={urlRestore.restoring}
         warnings={urlRestore.warnings}
         onDismiss={urlRestore.dismissWarnings}
       />

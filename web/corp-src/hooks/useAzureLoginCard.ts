@@ -74,7 +74,7 @@ export function useAzureLoginCard({ savedTenantId }: UseAzureLoginCardParams): U
   const done = !!azure.account && azure.confirmedTenantId !== null && !!azure.manualTenantId;
   const azureConfigured = !!AZURE_CLIENT_ID;
   const status: CardStatus = !azureConfigured
-    ? "error"
+    ? "unavailable"
     : azure.account && done
       ? "complete"
       : azure.account

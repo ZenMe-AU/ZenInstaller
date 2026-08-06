@@ -12,7 +12,7 @@ export type CardId =
   | "core_infra"
   | "create_domain"
   | "access_pass";
-export type CardStatus = "idle" | "loading" | "complete" | "warning" | "error" | "skipped";
+export type CardStatus = "idle" | "loading" | "complete" | "warning" | "error" | "skipped" | "unavailable";
 
 export type CardRequirements = CardId[]; //["github_login","repo"]
 

@@ -11,7 +11,6 @@ import {
   type RepoOption,
   type Requirement,
 } from "./types";
-import { AZURE_CLIENT_ID } from "./config/azureConfig";
 import { groupLabelSx, groupSx, EXPANDED_W } from "./config/cardLayout";
 import { createResultStorage } from "./logic/resultStorage";
 import { useGithubLoginCard } from "./hooks/useGithubLoginCard";
@@ -137,7 +136,7 @@ function AppDashboard() {
       },
     },
     {
-      active: !!azureLogin.account,
+      active: azureLogin.status !== "unavailable" && !!azureLogin.account,
       fields: {
         tenant: azureLogin.restore.tenant,
         subscription: azureSubscription.restore.subscription,
@@ -170,11 +169,6 @@ function AppDashboard() {
       else next.add(id);
       return next;
     });
-  // ── Derived card statuses ──────────────────────────────────────────────────
-  // Still needed here (not just inside useAzureLoginCard) for cardProps' own "unconfigured →
-  // skip the requirements list" special case below.
-  const azureConfigured = !!AZURE_CLIENT_ID;
-
   // Jumping to a prerequisite adds it to the expanded set rather than replacing it, so the card
   // you came from stays open too.
   const openCard = (id: CardId) => {
@@ -185,7 +179,7 @@ function AppDashboard() {
   };
 
   const cardProps = (id: CardId): CardChrome => {
-    const misconfigured = !azureConfigured && id === "azure_login"; //  A misconfigured Azure card isn't "locked" behind other steps — it's broken regardless of progress, so skip the normal prerequisite list for it.
+    const misconfigured = allCards[id].status === "unavailable";
     const requirementsForCard = (allCards[id].cardRequirements ?? [])
       .filter((reqCardId) => !allCards[reqCardId]?.done)
       .map((reqCardId) => ({
@@ -262,7 +256,7 @@ function AppDashboard() {
                 githubRepoEnv.repo.setSelectedRepo(null);
               }}
             />
-            <AzureLoginCard card={cardProps("azure_login")} azureLogin={azureLogin} configured={azureConfigured} />
+            <AzureLoginCard card={cardProps("azure_login")} azureLogin={azureLogin} />
 
             <RepoCard card={cardProps("repo")} githubRepo={githubRepoEnv} lockedByPR={false} />
 
@@ -275,7 +269,6 @@ function AppDashboard() {
               selectedEnv={githubRepoEnv.env.selectedEnv}
               onVariableConfirmed={githubRepoEnv.env.onVariableConfirmed}
               githubUrl={githubRepoEnv.githubEnvUrl}
-              configured={azureConfigured}
               onOpenAzureLogin={() => openCard("azure_login")}
               onUserInteract={() => urlRestore.cancel(["tenant", "subscription"])}
             />

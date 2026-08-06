@@ -22,7 +22,6 @@ type Props = {
   selectedEnv: GhEnv | null;
   onVariableConfirmed: (key: string, value: string) => void;
   githubUrl?: string;
-  configured: boolean;
   // Expands the Azure login card and scrolls to it — that's where the tenant itself is picked.
   onOpenAzureLogin: () => void;
   // Called on a genuine manual subscription pick, so a caller can cancel a pending URL restore.
@@ -45,7 +44,6 @@ export default function AzureSubscriptionCard({
   selectedEnv,
   onVariableConfirmed,
   githubUrl,
-  configured,
   onOpenAzureLogin,
   onUserInteract,
 }: Props) {
@@ -71,14 +69,6 @@ export default function AzureSubscriptionCard({
 
   const populate = { AZURE_TENANT_ID: manualTenantId, AZURE_SUBSCRIPTION_ID: selectedSubscriptionId };
   const tenantLabel = tenantDisplayName(tenants, manualTenantId);
-
-  if (!configured) {
-    return (
-      <Card title="Azure subscription" {...card}>
-        <ConfigErrorNotice />
-      </Card>
-    );
-  }
 
   return (
     <Card title="Azure subscription" {...card}>

@@ -38,3 +38,4 @@ deploy/.env
 /playwright/.auth/
 /pwtests/auth/.auth/
 pwtests/auth/data/access-pass-users.local.json
+web/coverage/coverage-final.json

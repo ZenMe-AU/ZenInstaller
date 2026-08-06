@@ -12,7 +12,7 @@ import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import type { useAzureAccessPass, SetupStep } from "../hooks/useAzureAccessPass";
+import type { useAzureAccessPass, SetupStep } from "../hooks/useAccessPass";
 import { CLOUD_DOCS } from "../config/docsConfig";
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
@@ -156,7 +156,7 @@ export default function AzureAccessPassCard({
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
               Signed in as{" "}
-              <Box component="span" data-testid="azure-account-username" sx={{ fontWeight: 600, ...mono }}>
+              <Box component="span" test-id="txtAzureAccount" sx={{ fontWeight: 600, ...mono }}>
                 {azureAccount.username}
               </Box>
             </Typography>

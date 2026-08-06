@@ -49,13 +49,25 @@ function HookHarness(props: {
 async function waitFor(assertion: () => void, timeoutMs = 1500) {
   const start = Date.now();
   while (true) {
-    try {
-      assertion();
-      return;
-    } catch (error) {
-      if (Date.now() - start > timeoutMs) throw error;
+    let passed = false;
+    let lastError: unknown;
+
+    await act(async () => {
+      try {
+        assertion();
+        passed = true;
+      } catch (error) {
+        lastError = error;
+      }
+    });
+
+    if (passed) return;
+    if (Date.now() - start > timeoutMs) throw lastError;
+
+    // Let queued async updates settle before retrying.
+    await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
-    }
+    });
   }
 }
 
@@ -119,7 +131,9 @@ describe("useGithubRepo", () => {
       expect(latest?.repos.map((r) => r.name)).toEqual(["repo-a"]);
     });
 
-    root.unmount();
+    await act(async () => {
+      root.unmount();
+    });
   });
 
   it("restores account and repo from pending URL state", async () => {
@@ -157,7 +171,9 @@ describe("useGithubRepo", () => {
     expect(checkRestoreDone).toHaveBeenCalled();
     expect(mockApi.fetchRepos).toHaveBeenCalledWith(accountTwo);
 
-    root.unmount();
+    await act(async () => {
+      root.unmount();
+    });
   });
 
   it("prevents cloning when the target repository already exists", async () => {
@@ -196,6 +212,8 @@ describe("useGithubRepo", () => {
     expect(latest?.cloneError).toBe('Repository "repo-a" already exists');
     expect(mockApi.generateRepo).not.toHaveBeenCalled();
 
-    root.unmount();
+    await act(async () => {
+      root.unmount();
+    });
   });
 });

@@ -4,6 +4,7 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { Account, CardChrome, GhEnv } from "../types";
 import type { UseAzureAccount } from "../hooks/useAzureAccount";
 import type { UseAzureSubscriptionCard } from "../hooks/useAzureSubscriptionCard";
+import { INITIAL_URL_PARAMS } from "../hooks/useUrlStateManager";
 import { tenantDisplayName } from "../logic/tenant";
 import { AZURE_TARGET_KEYS } from "../logic/variables";
 import CloudVariableDetail from "./CloudVariableDetail";
@@ -24,6 +25,8 @@ type Props = {
   configured: boolean;
   // Expands the Azure login card and scrolls to it — that's where the tenant itself is picked.
   onOpenAzureLogin: () => void;
+  // Called on a genuine manual subscription pick, so a caller can cancel a pending URL restore.
+  onUserInteract: () => void;
 };
 
 /*
@@ -44,14 +47,17 @@ export default function AzureSubscriptionCard({
   githubUrl,
   configured,
   onOpenAzureLogin,
+  onUserInteract,
 }: Props) {
   const { tenants, manualTenantId } = azure;
   const { subscriptions, selectedSubscriptionId, setSelectedSubscriptionId, subsError, subscriptionDrift, subscriptionNoAccess } = subscription;
   const [savedVars, setSavedVars] = useState<Record<string, string>>({});
 
-  // Pre-select subscription from the saved AZURE_SUBSCRIPTION_ID once its list is loaded.
+  // Pre-select subscription from the saved AZURE_SUBSCRIPTION_ID once its list is loaded — unless
+  // a URL restore is trying to apply a (possibly different) ?subscription= value, which should win.
   useEffect(() => {
     if (selectedSubscriptionId || subscriptions.length === 0) return;
+    if (INITIAL_URL_PARAMS.has("subscription")) return;
     const saved = savedVars.AZURE_SUBSCRIPTION_ID;
     if (saved && subscriptions.some((s) => s.id === saved)) setSelectedSubscriptionId(saved);
   }, [subscriptions, selectedSubscriptionId, savedVars, setSelectedSubscriptionId]);
@@ -104,7 +110,10 @@ export default function AzureSubscriptionCard({
           <Select
             size="small"
             value={selectedSubscriptionId || ""}
-            onChange={(e) => setSelectedSubscriptionId(e.target.value)}
+            onChange={(e) => {
+              onUserInteract();
+              setSelectedSubscriptionId(e.target.value);
+            }}
             displayEmpty
             renderValue={(v) => {
               if (!v) return <Typography sx={{ fontSize: "0.8rem", color: "#94a3b8", ...mono }}>Select a subscription</Typography>;

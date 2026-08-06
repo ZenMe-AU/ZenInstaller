@@ -9,12 +9,16 @@ export type UrlRestoreField = {
 };
 
 export type UrlRestoreChain = Record<string, UrlRestoreField>;
+export type UrlRestoreChainConfig = {
+  active: boolean;
+  fields: UrlRestoreChain;
+};
 
 export type UseUrlRestoreResult = {
   completed: boolean;
   warnings: string[];
   dismissWarnings: () => void;
-  cancel: () => void;
+  cancel: (keys?: string[]) => void;
 };
 
 export const INITIAL_URL_PARAMS = new URLSearchParams(window.location.search);
@@ -23,10 +27,10 @@ const RESTORE_TIMEOUT_MS = 10_000;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function computeInitialPending(chains: UrlRestoreChain[]): Record<string, string> {
+function computeInitialPending(chains: UrlRestoreChainConfig[]): Record<string, string> {
   const pending: Record<string, string> = {};
   for (const chain of chains) {
-    for (const key of Object.keys(chain)) {
+    for (const key of Object.keys(chain.fields)) {
       const value = INITIAL_URL_PARAMS.get(key);
       if (value !== null) pending[key] = value;
     }
@@ -34,12 +38,14 @@ function computeInitialPending(chains: UrlRestoreChain[]): Record<string, string
   return pending;
 }
 
-function readySignature(chains: UrlRestoreChain[]): string {
+function readySignature(chains: UrlRestoreChainConfig[]): string {
   return chains
-    .map((chain) =>
-      Object.entries(chain)
-        .map(([key, field]) => `${key}:${field.ready ? 1 : 0}:${field.scope ?? "-"}`)
-        .join("|"),
+    .map(
+      (chain) =>
+        `${chain.active ? 1 : 0}:` +
+        Object.entries(chain.fields)
+          .map(([key, field]) => `${key}:${field.ready ? 1 : 0}:${field.scope ?? "-"}`)
+          .join("|"),
     )
     .join("||");
 }
@@ -54,7 +60,7 @@ function buildQueryString(values: Record<string, string | undefined>): string {
 
 // ─── URL Restore ─────────────────────────────────────────────────────────────
 
-export function useUrlRestore(chains: UrlRestoreChain[], opts: { active: boolean }): UseUrlRestoreResult {
+export function useUrlRestore(chains: UrlRestoreChainConfig[]): UseUrlRestoreResult {
   const pendingRef = useRef<Record<string, string>>(computeInitialPending(chains));
   const [completed, setCompleted] = useState(() => Object.keys(computeInitialPending(chains)).length === 0);
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -67,20 +73,21 @@ export function useUrlRestore(chains: UrlRestoreChain[], opts: { active: boolean
   const readySig = readySignature(chains);
 
   useEffect(() => {
-    if (!opts.active || completed) return;
+    if (completed) return;
     const pending = pendingRef.current;
     const newWarnings: string[] = [];
 
     for (const chain of chainsRef.current) {
-      for (const key of Object.keys(chain)) {
+      if (!chain.active) continue; // inactive chains sit untouched — not attempted, not timed out
+      for (const key of Object.keys(chain.fields)) {
         if (!(key in pending)) continue;
-        const field = chain[key];
+        const field = chain.fields[key];
         if (!field.ready) break; // not ready yet — retry when readySig changes
         const value = pending[key];
         delete pending[key];
         if (!field.apply(value)) {
           newWarnings.push(`"${value}" not found`);
-          Object.keys(chain).forEach((k) => delete pending[k]); // cascade-abort this chain only
+          Object.keys(chain.fields).forEach((k) => delete pending[k]); // cascade-abort this chain only
         }
         break;
       }
@@ -88,25 +95,37 @@ export function useUrlRestore(chains: UrlRestoreChain[], opts: { active: boolean
 
     if (newWarnings.length > 0) setWarnings((prev) => [...prev, ...newWarnings]);
     if (Object.keys(pending).length === 0) setCompleted(true);
-  }, [readySig, opts.active, completed]);
+  }, [readySig, completed]);
 
   useEffect(() => {
-    if (!opts.active || completed) return;
-    const timer = setTimeout(() => {
-      const dropped = Object.keys(pendingRef.current);
-      if (dropped.length === 0) return;
-      pendingRef.current = {};
-      setWarnings((prev) => [...prev, `Could not restore from link: ${dropped.join(", ")}`]);
-      setCompleted(true);
-    }, RESTORE_TIMEOUT_MS);
-    return () => clearTimeout(timer);
-  }, [readySig, opts.active, completed]);
+    if (completed) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    for (const chain of chainsRef.current) {
+      if (!chain.active) continue;
+      const chainPending = Object.keys(chain.fields).filter((k) => k in pendingRef.current);
+      if (chainPending.length === 0) continue;
+      timers.push(
+        setTimeout(() => {
+          const dropped = chainPending.filter((k) => k in pendingRef.current);
+          if (dropped.length === 0) return;
+          dropped.forEach((k) => delete pendingRef.current[k]);
+          setWarnings((prev) => [...prev, `Could not restore from link: ${dropped.join(", ")}`]);
+          if (Object.keys(pendingRef.current).length === 0) setCompleted(true);
+        }, RESTORE_TIMEOUT_MS),
+      );
+    }
+    return () => timers.forEach(clearTimeout);
+  }, [readySig, completed]);
 
   const dismissWarnings = useCallback(() => setWarnings([]), []);
 
-  const cancel = useCallback(() => {
-    pendingRef.current = {};
-    setCompleted(true);
+  const cancel = useCallback((keys?: string[]) => {
+    if (keys === undefined) {
+      pendingRef.current = {};
+    } else {
+      keys.forEach((k) => delete pendingRef.current[k]);
+    }
+    if (Object.keys(pendingRef.current).length === 0) setCompleted(true);
   }, []);
 
   return { completed, warnings, dismissWarnings, cancel };

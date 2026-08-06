@@ -24,6 +24,7 @@ export interface UseAzureAccount extends LoginHook<AccountInfo> {
   confirmedTenantId: string | null;
   tenantIdError: string | null;
   selectTenant: (tenantId: string) => void;
+  tenantsLoaded: boolean;
 }
 
 const SESSION_KEY = "zeninstaller_arm_tenant";
@@ -53,6 +54,7 @@ export function useAzureAccount(): UseAzureAccount {
   const [manualTenantId, setManualTenantId] = useState("");
   const [confirmedTenantId, setConfirmedTenantId] = useState<string | null>(null);
   const [tenantIdError, setTenantIdError] = useState<string | null>(null);
+  const [tenantsLoaded, setTenantsLoaded] = useState(false);
 
   // Tenant IDs the signed-in account already exposes — the MSA fallback when ARM /tenants can't run.
   const availableTenants = useMemo(() => {
@@ -63,22 +65,27 @@ export function useAzureAccount(): UseAzureAccount {
   // Fetch the tenant list via ARM (display names); fall back to the account's known tenant IDs for MSA.
   const loadTenants = useCallback(async (acc: AccountInfo) => {
     try {
-      const list = await listTenants(acc);
-      if (list.length > 0) {
-        setTenants(list);
-        return;
+      try {
+        const list = await listTenants(acc);
+        if (list.length > 0) {
+          setTenants(list);
+          return;
+        }
+      } catch {
+        /* MSA / consent — fall through to the tenantProfiles fallback */
       }
-    } catch {
-      /* MSA / consent — fall through to the tenantProfiles fallback */
-    }
-    if (acc.tenantProfiles) {
-      const ids = Array.from(acc.tenantProfiles.keys()).filter((id) => id !== MSA_TENANT);
-      setTenants(ids.map((id) => ({ tenantId: id, displayName: id })));
+      if (acc.tenantProfiles) {
+        const ids = Array.from(acc.tenantProfiles.keys()).filter((id) => id !== MSA_TENANT);
+        setTenants(ids.map((id) => ({ tenantId: id, displayName: id })));
+      }
+    } finally {
+      setTenantsLoaded(true);
     }
   }, []);
 
   // Load the tenant list once signed in.
   useEffect(() => {
+    setTenantsLoaded(false);
     if (account) void loadTenants(account);
   }, [account, loadTenants]);
 
@@ -278,6 +285,7 @@ export function useAzureAccount(): UseAzureAccount {
     setManualTenantId,
     confirmedTenantId,
     tenantIdError,
+    tenantsLoaded,
     selectTenant,
   };
 }

@@ -1,9 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { AccountInfo } from "@azure/msal-browser";
 import type { CardHook, CardRequirements, CardStatus, LoginHook } from "../types";
 import { AZURE_CLIENT_ID } from "../config/azureConfig";
 import type { AzureTenant } from "../api/azureGraph";
 import { tenantDisplayName } from "../logic/tenant";
+import { findIgnoreCase } from "../logic/search";
+import { INITIAL_URL_PARAMS, type UrlRestoreField } from "./useUrlStateManager";
 import { useAzureAccount, type UseAzureAccount } from "./useAzureAccount";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -28,6 +30,9 @@ export interface UseAzureLoginCard extends UseAzureAccount, CardHook, LoginHook<
   selectTenant: (tenantId: string) => void;
   tenantIdError: string | null;
   savedTenantId: string;
+  restore: {
+    tenant: UrlRestoreField;
+  };
 }
 
 /*
@@ -43,12 +48,28 @@ export function useAzureLoginCard({ savedTenantId }: UseAzureLoginCardParams): U
   const appliedSavedTenantRef = useRef<string | null>(null);
   useEffect(() => {
     if (!savedTenantId || appliedSavedTenantRef.current === savedTenantId) return;
+    if (INITIAL_URL_PARAMS.has("tenant")) return; // Don't clobber a pending URL tenant restore.
     if (!azure.account || !azure.account.tenantProfiles?.has(savedTenantId)) return; // Can't apply a tenant without an account.
     appliedSavedTenantRef.current = savedTenantId;
     azure.selectTenant(savedTenantId);
     // azure itself is a fresh object every render — only its (useCallback-memoized) selectTenant matters here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedTenantId, azure.selectTenant]);
+
+  // ── Restore ───────────────────────────────────────────────────────────────
+  const restoreTenant = useCallback(
+    (value: string): boolean => {
+      const match =
+        azure.tenants.find((t) => t.tenantId.toLowerCase() === value.toLowerCase()) ??
+        findIgnoreCase(azure.tenants, (t) => t.displayName, value);
+      if (!match) return false;
+      azure.selectTenant(match.tenantId);
+      return true;
+    },
+    // azure itself is a fresh object every render — only tenants/selectTenant matter here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [azure.tenants, azure.selectTenant],
+  );
 
   const done = !!azure.account && azure.confirmedTenantId !== null && !!azure.manualTenantId;
   const azureConfigured = !!AZURE_CLIENT_ID;
@@ -80,5 +101,8 @@ export function useAzureLoginCard({ savedTenantId }: UseAzureLoginCardParams): U
     done,
 
     savedTenantId,
+    restore: {
+      tenant: { ready: azure.tenantsLoaded, scope: azure.account?.homeAccountId ?? null, apply: restoreTenant },
+    },
   };
 }

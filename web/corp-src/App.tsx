@@ -127,23 +127,31 @@ function AppDashboard() {
   );
 
   // ── URL restore + sync ───────────────────────────────────────────────────────
-  const urlRestore = useUrlRestore(
-    [
-      {
+  const urlRestore = useUrlRestore([
+    {
+      active: githubLogin.status === "complete",
+      fields: {
         account: githubRepoEnv.repo.restore.account,
         repo: githubRepoEnv.repo.restore.repo,
         env: githubRepoEnv.env.restore.env,
       },
-      // Future, parallel chain: { tenant: azureLogin.restore.tenant, subscription: azureSubscription.restore.subscription }
-    ],
-    { active: githubLogin.status === "complete" },
-  );
+    },
+    {
+      active: !!azureLogin.account,
+      fields: {
+        tenant: azureLogin.restore.tenant,
+        subscription: azureSubscription.restore.subscription,
+      },
+    },
+  ]);
   const selectedRepo = githubRepoEnv.repo.selectedRepo;
   useUrlSync(
     {
       account: githubRepoEnv.repo.selectedAccount?.login,
       repo: selectedRepo && !selectedRepo.isNew ? selectedRepo.name : undefined,
       env: githubRepoEnv.env.selectedEnv?.name,
+      tenant: azureLogin.confirmedTenantId || undefined,
+      subscription: azureSubscription.selectedSubscriptionId || undefined,
     },
     urlRestore.completed && !githubLogin.loggingIn,
   );
@@ -269,6 +277,7 @@ function AppDashboard() {
               githubUrl={githubRepoEnv.githubEnvUrl}
               configured={azureConfigured}
               onOpenAzureLogin={() => openCard("azure_login")}
+              onUserInteract={() => urlRestore.cancel(["tenant", "subscription"])}
             />
 
             <AccessPassCard card={cardProps("access_pass")} accessPass={azureAccessPass} />

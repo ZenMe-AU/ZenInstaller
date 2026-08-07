@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { Box, Button, CircularProgress, IconButton, InputAdornment, TextField, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import ClearIcon from "@mui/icons-material/Clear";
-import { switchToDirect, switchToBackend } from "../api";
+import { switchToBackend } from "../api";
 import { MONO as monoSx } from "../config/styles";
 import Card from "../components/Card";
 import type { CardChrome } from "../types";
-import type { UseGithubLoginCard } from "../hooks/useGithubLoginCard";
+import { readGithubAuthRecord, type UseGithubLoginCard } from "../hooks/useGithubLoginCard";
 
 type Props = {
   card: CardChrome;
@@ -16,12 +16,15 @@ type Props = {
 export default function GithubLoginCard({ card, auth, onDirectLogout }: Props) {
   const { loggingIn: authLoading, account: user, login: onLogin, logout: onLogout, onPatLogin } = auth;
   const [mode, setModeState] = useState<"backend" | "direct">("backend");
-  const [pat, setPat] = useState(sessionStorage.getItem("pat_token") ?? "");
+  const [pat, setPat] = useState(() => {
+    const record = readGithubAuthRecord();
+    return record?.mode === "direct" ? record.token : "";
+  });
   const [patError, setPatError] = useState("");
 
   // When auth restores from a saved PAT, reflect that in local mode state
   useEffect(() => {
-    if (user && sessionStorage.getItem("pat_token")) setModeState("direct");
+    if (user && readGithubAuthRecord()?.mode === "direct") setModeState("direct");
   }, [user]);
 
   const handleModeChange = (_: unknown, next: "backend" | "direct" | null) => {
@@ -37,7 +40,6 @@ export default function GithubLoginCard({ card, auth, onDirectLogout }: Props) {
       return;
     }
     setPatError("");
-    switchToDirect(trimmed);
     onPatLogin(trimmed);
   };
 

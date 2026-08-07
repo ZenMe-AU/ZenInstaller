@@ -3,20 +3,37 @@ import { verifyAuth, switchToDirect, switchToBackend } from "../api";
 import type { CardHook, CardStatus, LoginHook, User } from "../types";
 
 const url = import.meta.env.VITE_API_URL;
-const PAT_SESSION = "pat_token";
+const AUTH_RECORD_KEY = "zeninstaller_github_auth";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+export type GithubAuthRecord = { mode: "direct"; token: string } | { mode: "backend" };
 
 export interface UseGithubLoginCard extends CardHook, LoginHook<User> {
   readonly cardId: "github_login";
   sessionExpired: boolean;
   redirecting: "login" | "logout" | null;
   status: CardStatus; // "loading" while the auth check is in-flight; "complete" once signed in; "idle" otherwise.
-  onPatLogin: (token: string) => void; // Direct/PAT mode: token is already stored in api/mode.ts; just re-verify and update state.
+  onPatLogin: (token: string) => void; // Direct/PAT mode: switches the provider, verifies, and records the mode.
   onDirectLogout: () => void; // Direct/PAT mode: clear user state locally without redirecting to backend logout.
   // Narrowed from CardHook (optional there) — every card provides one. `done` and `cardRequirements`
   // aren't re-listed: `done` is already required on CardHook, and this card has no requirements.
   cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Sign in to GitHub")
+}
+
+// ─── Storage ──────────────────────────────────────────────────────────────────
+export function readGithubAuthRecord(): GithubAuthRecord | null {
+  const raw = sessionStorage.getItem(AUTH_RECORD_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as GithubAuthRecord;
+  } catch {
+    return null;
+  }
+}
+
+function writeGithubAuthRecord(record: GithubAuthRecord | null): void {
+  if (record === null) sessionStorage.removeItem(AUTH_RECORD_KEY);
+  else sessionStorage.setItem(AUTH_RECORD_KEY, JSON.stringify(record));
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -27,18 +44,20 @@ export function useGithubLoginCard(): UseGithubLoginCard {
   const [sessionExpired, setSessionExpired] = useState(false);
   const [redirecting, setRedirecting] = useState<"login" | "logout" | null>(null);
 
-  // Verify session on mount — restore PAT if one was saved
+  // Verify session on mount
   useEffect(() => {
     async function init() {
-      const savedPat = sessionStorage.getItem(PAT_SESSION);
-      if (savedPat) {
-        switchToDirect(savedPat);
+      const record = readGithubAuthRecord();
+      if (!record) {
+        setLoggingIn(false);
+        return;
       }
+      if (record.mode === "direct") switchToDirect(record.token);
       try {
         const data = await verifyAuth();
         setAccount({ login: data.login });
       } catch {
-        if (savedPat) sessionStorage.removeItem(PAT_SESSION);
+        writeGithubAuthRecord(null);
         setAccount(null);
       } finally {
         setLoggingIn(false);
@@ -55,20 +74,24 @@ export function useGithubLoginCard(): UseGithubLoginCard {
   }, []);
 
   const login = useCallback(() => {
+    writeGithubAuthRecord({ mode: "backend" });
     setRedirecting("login");
     window.location.href = `${url}/auth/login/github?post_login_redirect_uri=${encodeURIComponent(window.location.href)}`;
   }, []);
 
   const logout = useCallback(() => {
+    writeGithubAuthRecord(null);
+    setAccount(null);
     setRedirecting("logout");
     window.location.href = `${url}/auth/logout?post_logout_redirect_uri=${encodeURIComponent(window.location.href)}`;
   }, []);
 
-  const onPatLogin = useCallback((_token: string) => {
+  const onPatLogin = useCallback((token: string) => {
     setLoggingIn(true);
+    switchToDirect(token);
     verifyAuth()
       .then((data) => {
-        sessionStorage.setItem(PAT_SESSION, _token);
+        writeGithubAuthRecord({ mode: "direct", token });
         setAccount({ login: data.login });
       })
       .catch(() => setAccount(null))
@@ -76,7 +99,7 @@ export function useGithubLoginCard(): UseGithubLoginCard {
   }, []);
 
   const onDirectLogout = useCallback(() => {
-    sessionStorage.removeItem(PAT_SESSION);
+    writeGithubAuthRecord(null);
     switchToBackend();
     setAccount(null);
     setLoggingIn(false);

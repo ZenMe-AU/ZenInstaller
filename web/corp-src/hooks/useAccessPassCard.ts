@@ -6,22 +6,29 @@ import {
   listUsersManagedBySignedInUser,
   ensureTemporaryAccessPassEnabled,
   listUserAuthenticationMethods,
-  deleteUserAuthenticationMethod,
   resetUserPassword,
+  deleteUserAuthenticationMethod,
   createTemporaryAccessPassForUser,
   temporaryAccessPassMethodExists,
   type EntraUser,
   type GraphAuthMethod,
 } from "../api/azureGraph";
+import type { Account, StageDefinition } from "../types";
 import { isConsentError } from "../logic/consent";
 import { generateRandomPassword } from "../logic/password";
 import { createResultStorage } from "../logic/resultStorage";
+import { logEvent } from "../monitor/telemetry";
 import { useStepRunner } from "./util/useStepRunner";
 import type { CardHook, CardRequirements, CardStatus, SetupStep } from "../types";
+export type StepStatus = "pending" | "running" | "done" | "skipped" | "error";
+export type SetupStep = { id: string; label: string; status: StepStatus; detail?: string };
+export type AzureSetupResult = {
+  accessPassValue: string;
+  tenantId: string;
+  targetUserId?: string;
+  tapMethodId?: string;
+};
 
-// Which of a user's Graph authentication methods we remove before issuing a TAP, and the
-// REST path to delete each — password isn't removable this way (rotated via passwordProfile),
-// unrecognized types are skipped rather than failing the whole flow.
 function getAuthMethodDeletePath(userId: string, method: GraphAuthMethod): string | null {
   const methodType = method["@odata.type"]?.toLowerCase();
 
@@ -279,6 +286,11 @@ export function useAccessPassCard({ azureAccount, confirmedTenantId }: UseAccess
         saveResult(r);
         return r;
       } catch (err) {
+        logEvent("accessPassWorkflowStepFailed", {
+          targetUserId,
+          stepId: currentStepId,
+          message: err instanceof Error ? err.message : String(err),
+        });
         const msg = err instanceof Error ? err.message : "Failed";
         if (isConsentError(msg)) {
           setConsentRequired(true);

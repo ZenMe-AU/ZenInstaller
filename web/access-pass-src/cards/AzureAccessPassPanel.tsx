@@ -230,7 +230,10 @@ export default function AzureAccessPassCard({
 
               <Button
                 variant="contained"
-                onClick={run}
+                onClick={() => {
+                  reset();
+                  void run();
+                }}
                 disabled={disabled || !selectedManagerUserId}
                 sx={{
                   alignSelf: "flex-start",

@@ -141,6 +141,11 @@ export default function AccessPassCard({ card, accessPass }: Props) {
   const handleCreateForUser = async (userId: string) => {
     setConfirmationUserId(null);
     setPhotoIdConfirmed(false);
+    setPassValuesByUserId((prev) => {
+      const next = { ...prev };
+      delete next[userId];
+      return next;
+    });
     setDeliveryConfirmedByUserId((prev) => ({ ...prev, [userId]: false }));
     setCompletedByUserId((prev) => ({ ...prev, [userId]: false }));
     setCreatingUserId(userId);

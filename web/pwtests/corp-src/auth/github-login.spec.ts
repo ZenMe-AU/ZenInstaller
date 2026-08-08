@@ -1,0 +1,48 @@
+import {expect, test, type Page,} from "@playwright/test";
+import {corpGithubAuthStateExists, storageStateFile,} from "../authState";
+import {CORP_URL, viewports,} from "../../testInit";
+import {expectPageSnapshot,} from "../testHelper";
+
+async function expandGithubLoginCard(page: Page,) {
+	const githubCard = page.locator("#card-github_login",);
+	const introText = githubCard.getByText(
+		/Connect your GitHub account so ZenInstaller can create the repository, environment, and secrets needed to deploy Zenblox\./i,
+	);
+
+	if (!(await introText.isVisible())) {
+		await githubCard.getByText(/^GitHub login$/i,).click();
+	}
+
+	await expect(introText).toBeVisible();
+	return githubCard;
+}
+
+for (const [viewportName, viewport] of Object.entries(viewports)) {
+	test.describe(`Corp-${viewportName} - GitHub OAuth Authenticated`, () => {
+		test.use({viewport, deviceScaleFactor: 1, storageState: storageStateFile,});
+
+		test.skip(
+			!corpGithubAuthStateExists(),
+			`Missing GitHub auth state: ${storageStateFile}. Run pwtests/corp-src/setup/github-login.setup.ts first.`,
+		);
+
+		test.beforeEach(async ({page,}) => {
+			await page.goto(CORP_URL);
+		});
+
+		test("Shows authenticated GitHub card state from saved OAuth session", async ({page,}, testInfo) => {
+			const githubCard = await expandGithubLoginCard(page,);
+
+			await expect(githubCard.getByText(/Authenticated as/i,),).toBeVisible();
+			await expect(githubCard.getByRole("button", {name: "Sign out", exact: true,}),).toBeVisible();
+			await expect(githubCard.getByRole("button", {name: "Login with GitHub", exact: true,}),).toHaveCount(0);
+
+			await expectPageSnapshot(
+				page,
+				testInfo,
+				"oauth-authenticated-state.png",
+				{userId: "github-oauth", viewportName, testFolder: "GitHub Login Card Authenticated",},
+			);
+		});
+	});
+}

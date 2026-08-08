@@ -11,6 +11,8 @@ import {
   Typography,
 } from "@mui/material";
 import ClearIcon from "@mui/icons-material/Clear";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { MONO as monoSx } from "../config/styles";
 import Card from "../components/Card";
 import type { CardChrome } from "../types";
@@ -33,6 +35,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
     setToken: setPat,
   } = auth;
   const [patError, setPatError] = useState("");
+  const [showPat, setShowPat] = useState(false);
 
   const handleModeChange = (_: unknown, next: "backend" | "direct" | null) => {
     if (!next) return;
@@ -97,6 +100,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1, maxWidth: 400 }}>
               <TextField
                 size="small"
+                type={showPat ? "text" : "password"}
                 placeholder="ghp_… or github_pat_…"
                 value={pat}
                 onChange={(e) => {
@@ -107,21 +111,35 @@ export default function GithubLoginCard({ card, auth }: Props) {
                 helperText={patError || "Personal Access Token with repo + workflow scopes"}
                 inputProps={{ style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" } }}
                 InputProps={{
-                  endAdornment: pat ? (
+                  endAdornment: (
                     <InputAdornment position="end">
+                      {pat && (
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            setPat("");
+                            setPatError("");
+                          }}
+                          tabIndex={-1}
+                        >
+                          <ClearIcon sx={{ fontSize: 14, color: "#94a3b8" }} />
+                        </IconButton>
+                      )}
                       <IconButton
                         size="small"
-                        onClick={() => {
-                          setPat("");
-                          setPatError("");
-                        }}
+                        onClick={() => setShowPat((v) => !v)}
                         edge="end"
                         tabIndex={-1}
+                        aria-label={showPat ? "Hide token" : "Show token"}
                       >
-                        <ClearIcon sx={{ fontSize: 14, color: "#94a3b8" }} />
+                        {showPat ? (
+                          <VisibilityOffIcon sx={{ fontSize: 14, color: "#94a3b8" }} />
+                        ) : (
+                          <VisibilityIcon sx={{ fontSize: 14, color: "#94a3b8" }} />
+                        )}
                       </IconButton>
                     </InputAdornment>
-                  ) : undefined,
+                  ),
                 }}
                 FormHelperTextProps={{ sx: { ...monoSx, fontSize: "0.68rem" } }}
               />

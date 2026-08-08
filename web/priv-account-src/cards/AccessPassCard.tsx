@@ -450,33 +450,48 @@ export default function AzureAccessPassCard({
                                         </Typography>
                                       </Box>
                                       <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                                        <Button
-                                          size="small"
-                                          data-id="btnMarkComplete"
-                                          data-upn={user.userPrincipalName}
-                                          variant="contained"
-                                          onClick={() => {
-                                            if (!isDeliveryConfirmed) return;
-                                            logEvent("btnMarkCompleteClicked", {
-                                              targetUserId: user.id,
-                                              deliveryConfirmed: isDeliveryConfirmed,
-                                            });
-                                            setCompletedByUserId((prev) => ({ ...prev, [user.id]: true }));
-                                          }}
-                                          disabled={!isDeliveryConfirmed}
-                                          sx={{
-                                            textTransform: "none",
-                                            ...mono,
-                                            fontSize: "0.72rem",
-                                            py: 0.35,
-                                            px: 1.2,
-                                            background: isCompletedUser ? "#1d4ed8" : "#2563eb",
-                                            "&:hover": { background: isCompletedUser ? "#1e40af" : "#1d4ed8" },
-                                            "&.Mui-disabled": { background: "#e2e8f0", color: "#94a3b8" },
-                                          }}
-                                        >
-                                          {isCompletedUser ? "Completed" : "Mark Complete"}
-                                        </Button>
+                                        {isCompletedUser ? (
+                                          <Typography
+                                            sx={{
+                                              ...mono,
+                                              fontSize: "0.72rem",
+                                              color: "#1d4ed8",
+                                              fontWeight: 600,
+                                              px: 1.2,
+                                              py: 0.35,
+                                            }}
+                                          >
+                                            Completed
+                                          </Typography>
+                                        ) : (
+                                          <Button
+                                            size="small"
+                                            data-id="btnMarkComplete"
+                                            data-upn={user.userPrincipalName}
+                                            variant="contained"
+                                            onClick={() => {
+                                              if (!isDeliveryConfirmed) return;
+                                              logEvent("btnMarkCompleteClicked", {
+                                                targetUserId: user.id,
+                                                deliveryConfirmed: isDeliveryConfirmed,
+                                              });
+                                              setCompletedByUserId((prev) => ({ ...prev, [user.id]: true }));
+                                            }}
+                                            disabled={!isDeliveryConfirmed}
+                                            sx={{
+                                              textTransform: "none",
+                                              ...mono,
+                                              fontSize: "0.72rem",
+                                              py: 0.35,
+                                              px: 1.2,
+                                              background: "#2563eb",
+                                              "&:hover": { background: "#1d4ed8" },
+                                              "&.Mui-disabled": { background: "#e2e8f0", color: "#94a3b8" },
+                                            }}
+                                          >
+                                            Mark Complete
+                                          </Button>
+                                        )}
                                       </Box>
                                     </Box>
                                   </TableCell>

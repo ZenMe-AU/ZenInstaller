@@ -120,6 +120,16 @@ export default defineConfig({
     },
 
     {
+      name: "corp-github-pat-setup",
+      testMatch: /github-pat-login\.setup\.ts/,
+      fullyParallel: false,
+      retries: 0,
+      use: {
+        ...devices["Desktop Chrome"],
+      },
+    },
+
+    {
       name: "corp-authenticated",
       testMatch: /corp-src\/auth\/.*\.spec\.ts/,
       fullyParallel: false,

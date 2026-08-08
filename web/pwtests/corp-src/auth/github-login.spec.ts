@@ -1,5 +1,5 @@
 import {expect, test, type Page,} from "@playwright/test";
-import {corpGithubAuthStateExists, storageStateFile,} from "../authState";
+import {corpGithubAuthStateExists, restoreCorpSessionStorage, storageStateFile,} from "../authState";
 import {CORP_URL, viewports,} from "../../testInit";
 import {expectPageSnapshot,} from "../testHelper";
 
@@ -18,30 +18,32 @@ async function expandGithubLoginCard(page: Page,) {
 }
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
-	test.describe(`Corp-${viewportName} - GitHub OAuth Authenticated`, () => {
+	test.describe(`Corp-${viewportName} - GitHub PAT Authenticated`, () => {
 		test.use({viewport, deviceScaleFactor: 1, storageState: storageStateFile,});
 
 		test.skip(
 			!corpGithubAuthStateExists(),
-			`Missing GitHub auth state: ${storageStateFile}. Run pwtests/corp-src/setup/github-login.setup.ts first.`,
+			"Run pwtests/corp-src/setup/github-pat-login.setup.ts first.",
 		);
 
-		test.beforeEach(async ({page,}) => {
+		test.beforeEach(async ({page, context}) => {
+			await restoreCorpSessionStorage(context,);
 			await page.goto(CORP_URL);
 		});
 
-		test("Shows authenticated GitHub card state from saved OAuth session", async ({page,}, testInfo) => {
+		test("Shows authenticated GitHub card state after PAT login", async ({page,}, testInfo) => {
 			const githubCard = await expandGithubLoginCard(page,);
 
 			await expect(githubCard.getByText(/Authenticated as/i,),).toBeVisible();
+			await expect(githubCard.getByText(/· PAT mode/i,),).toBeVisible();
 			await expect(githubCard.getByRole("button", {name: "Sign out", exact: true,}),).toBeVisible();
 			await expect(githubCard.getByRole("button", {name: "Login with GitHub", exact: true,}),).toHaveCount(0);
 
 			await expectPageSnapshot(
 				page,
 				testInfo,
-				"oauth-authenticated-state.png",
-				{userId: "github-oauth", viewportName, testFolder: "GitHub Login Card Authenticated",},
+				"pat-authenticated-state.png",
+				{userId: "github-pat", viewportName, testFolder: "GitHub Login Card Authenticated",},
 			);
 		});
 	});

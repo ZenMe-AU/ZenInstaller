@@ -103,7 +103,7 @@ test.describe("AP-Desktop - Temporary Access Pass Creation", () => {
 
               await expect(page.getByText("Access pass created",{exact: true,},).first(),).toBeVisible();
 
-              const accessPassLabel = page.getByText("ACCESS_PASS_PASSWORD_VALUE",{exact: true,},).last();
+              const accessPassLabel = page.getByText("New Temporary Access Pass:",{exact: true,},).last();
               await expect(accessPassLabel,).toBeVisible();
 
               const accessPassResultRow =accessPassLabel.locator("xpath=..",);

@@ -417,7 +417,7 @@ export default function AzureAccessPassCard({
                               {savedPass && (
                                 <TableRow sx={rowHighlightSx ?? { background: "inherit" }}>
                                   <TableCell colSpan={3} sx={{ py: 0.5, px: 1.5 }}>
-                                    <CopyRow label="ACCESS_PASS_PASSWORD_VALUE" value={savedPass} masked />
+                                    <CopyRow label="New Temporary Access Pass:" value={savedPass} masked />
                                   </TableCell>
                                 </TableRow>
                               )}

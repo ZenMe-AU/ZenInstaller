@@ -297,7 +297,7 @@ export default function AzureAccessPassCard({
           {showingSelectedUserPass && (
             <Box sx={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "8px", px: 2, py: 1.5 }}>
               <Typography sx={{ ...labelSx, mb: 1, color: "#15803d" }}>Temporary Access Pass</Typography>
-              <CopyRow label="ACCESS_PASS_PASSWORD_VALUE" value={result.accessPassValue} masked />
+              <CopyRow label="New Temporary Access Pass:" value={result.accessPassValue} masked />
             </Box>
           )}
 

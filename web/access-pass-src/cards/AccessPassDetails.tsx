@@ -168,6 +168,11 @@ export default function AzureAccessPassCard({
     });
     setConfirmationUserId(null);
     setPhotoIdConfirmed(false);
+    setPassValuesByUserId((prev) => {
+      const next = { ...prev };
+      delete next[userId];
+      return next;
+    });
     setDeliveryConfirmedByUserId((prev) => ({ ...prev, [userId]: false }));
     setCompletedByUserId((prev) => ({ ...prev, [userId]: false }));
     setCreatingUserId(userId);
@@ -196,6 +201,9 @@ export default function AzureAccessPassCard({
       : steps;
   const hasFinishedOrErroredStep = hydratedSelectedUserSteps.some((s) => s.status === "done" || s.status === "error");
   const showingSelectedUserSteps = hydratedSelectedUserSteps.length > 0 && (running || showingSelectedUserPass || hasFinishedOrErroredStep);
+  const selectedUserRunSucceeded =
+    showingSelectedUserPass && hydratedSelectedUserSteps.length > 0 && hydratedSelectedUserSteps.every((s) => s.status === "done");
+  const shouldShowTryAgain = !running && showingSelectedUserSteps && !selectedUserRunSucceeded;
   const statusUserId = creatingUserId ?? selectedManagerUserId;
   const showLockedState = locked || !azureAccount;
 
@@ -387,7 +395,7 @@ export default function AzureAccessPassCard({
                                         <StepRow key={`${user.id}-${s.id}`} step={s} />
                                       ))}
                                       {running && <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, mt: 0.25 }}>Running...</Typography>}
-                                      {!running && (
+                                      {shouldShowTryAgain && (
                                         <Button
                                           size="small"
                                           onClick={reset}
@@ -413,7 +421,7 @@ export default function AzureAccessPassCard({
                               {savedPass && (
                                 <TableRow sx={rowHighlightSx ?? { background: "inherit" }}>
                                   <TableCell colSpan={3} sx={{ py: 0.5, px: 1.5 }}>
-                                    <CopyRow label="ACCESS_PASS_PASSWORD_VALUE" value={savedPass} masked />
+                                    <CopyRow label="New Temporary Access Pass:" value={savedPass} masked />
                                   </TableCell>
                                 </TableRow>
                               )}
@@ -445,33 +453,48 @@ export default function AzureAccessPassCard({
                                         </Typography>
                                       </Box>
                                       <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                                        <Button
-                                          size="small"
-                                          data-id="btnMarkComplete"
-                                          data-upn={user.userPrincipalName}
-                                          variant="contained"
-                                          onClick={() => {
-                                            if (!isDeliveryConfirmed) return;
-                                            logEvent("btnMarkCompleteClicked", {
-                                              targetUserId: user.id,
-                                              deliveryConfirmed: isDeliveryConfirmed,
-                                            });
-                                            setCompletedByUserId((prev) => ({ ...prev, [user.id]: true }));
-                                          }}
-                                          disabled={!isDeliveryConfirmed}
-                                          sx={{
-                                            textTransform: "none",
-                                            ...mono,
-                                            fontSize: "0.72rem",
-                                            py: 0.35,
-                                            px: 1.2,
-                                            background: isCompletedUser ? "#1d4ed8" : "#2563eb",
-                                            "&:hover": { background: isCompletedUser ? "#1e40af" : "#1d4ed8" },
-                                            "&.Mui-disabled": { background: "#e2e8f0", color: "#94a3b8" },
-                                          }}
-                                        >
-                                          {isCompletedUser ? "Completed" : "Mark Complete"}
-                                        </Button>
+                                        {isCompletedUser ? (
+                                          <Typography
+                                            sx={{
+                                              ...mono,
+                                              fontSize: "0.72rem",
+                                              color: "#1d4ed8",
+                                              fontWeight: 600,
+                                              px: 1.2,
+                                              py: 0.35,
+                                            }}
+                                          >
+                                            Completed
+                                          </Typography>
+                                        ) : (
+                                          <Button
+                                            size="small"
+                                            data-id="btnMarkComplete"
+                                            data-upn={user.userPrincipalName}
+                                            variant="contained"
+                                            onClick={() => {
+                                              if (!isDeliveryConfirmed) return;
+                                              logEvent("btnMarkCompleteClicked", {
+                                                targetUserId: user.id,
+                                                deliveryConfirmed: isDeliveryConfirmed,
+                                              });
+                                              setCompletedByUserId((prev) => ({ ...prev, [user.id]: true }));
+                                            }}
+                                            disabled={!isDeliveryConfirmed}
+                                            sx={{
+                                              textTransform: "none",
+                                              ...mono,
+                                              fontSize: "0.72rem",
+                                              py: 0.35,
+                                              px: 1.2,
+                                              background: "#2563eb",
+                                              "&:hover": { background: "#1d4ed8" },
+                                              "&.Mui-disabled": { background: "#e2e8f0", color: "#94a3b8" },
+                                            }}
+                                          >
+                                            Mark Complete
+                                          </Button>
+                                        )}
                                       </Box>
                                     </Box>
                                   </TableCell>

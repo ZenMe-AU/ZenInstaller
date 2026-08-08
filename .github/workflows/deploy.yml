@@ -33,7 +33,7 @@ jobs:
                   cache: pnpm
 
             - name: Install dependencies
-              run: pnpm install
+              run: pnpm install --frozen-lockfile
 
             - name: Build React app
               run: pnpm run build
@@ -45,16 +45,16 @@ jobs:
               run: pnpm run docs:build
 
             - name: Merge docs into dist
-              run: cp -r docs/.vitepress/dist dist/docs
+              run: cp -r web/docs/.vitepress/dist web/dist/docs
 
             - name: Write CNAME
               if: vars.CNAME != ''
-              run: echo "${{ vars.CNAME }}" > dist/CNAME
+              run: echo "${{ vars.CNAME }}" > web/dist/CNAME
 
             - name: Upload build files
               uses: actions/upload-pages-artifact@v3
               with:
-                  path: ./dist
+                  path: ./web/dist
 
             - name: Deploy to Pages
               uses: actions/deploy-pages@v4

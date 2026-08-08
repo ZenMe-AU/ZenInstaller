@@ -49,9 +49,9 @@ export interface CardHook {
 export interface LoginHook<TAccount> {
   account: TAccount | null;
   loggingIn: boolean;
-  login: () => void;
-  logout: () => void;
-  refresh: () => void;
+  login: () => void | Promise<void>;
+  logout: () => void | Promise<void>;
+  refresh: () => void | Promise<void>;
 }
 
 export interface ResettableHook {

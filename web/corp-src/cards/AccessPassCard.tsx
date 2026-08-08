@@ -147,6 +147,11 @@ export default function AccessPassCard({ card, accessPass }: Props) {
     });
     setConfirmationUserId(null);
     setPhotoIdConfirmed(false);
+    setPassValuesByUserId((prev) => {
+      const next = { ...prev };
+      delete next[userId];
+      return next;
+    });
     setDeliveryConfirmedByUserId((prev) => ({ ...prev, [userId]: false }));
     setCompletedByUserId((prev) => ({ ...prev, [userId]: false }));
     setCreatingUserId(userId);
@@ -175,6 +180,8 @@ export default function AccessPassCard({ card, accessPass }: Props) {
       : steps;
   const hasFinishedOrErroredStep = hydratedSelectedUserSteps.some((s) => s.status === "done" || s.status === "error");
   const showingSelectedUserSteps = hydratedSelectedUserSteps.length > 0 && (running || showingSelectedUserPass || hasFinishedOrErroredStep);
+  const selectedUserRunSucceeded = showingSelectedUserPass && !hydratedSelectedUserSteps.some((s) => s.status === "error");
+  const shouldShowTryAgain = !running && showingSelectedUserSteps && !selectedUserRunSucceeded;
   const statusUserId = creatingUserId ?? selectedManagerUserId;
 
   return (
@@ -360,22 +367,24 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                           Grant consent
                                         </Button>
                                       )}
-                                      <Button
-                                        size="small"
-                                        onClick={reset}
-                                        sx={{
-                                          alignSelf: "flex-start",
-                                          textTransform: "none",
-                                          ...mono,
-                                          fontSize: "0.72rem",
-                                          color: "#64748b",
-                                          px: 0.5,
-                                          minWidth: 0,
-                                          "&:hover": { color: "#2563eb" },
-                                        }}
-                                      >
-                                        ↩ Try again
-                                      </Button>
+                                      {shouldShowTryAgain && (
+                                        <Button
+                                          size="small"
+                                          onClick={reset}
+                                          sx={{
+                                            alignSelf: "flex-start",
+                                            textTransform: "none",
+                                            ...mono,
+                                            fontSize: "0.72rem",
+                                            color: "#64748b",
+                                            px: 0.5,
+                                            minWidth: 0,
+                                            "&:hover": { color: "#2563eb" },
+                                          }}
+                                        >
+                                          ↩ Try again
+                                        </Button>
+                                      )}
                                     </Box>
                                   )}
                                 </Box>
@@ -385,7 +394,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                           {savedPass && (
                             <TableRow sx={rowHighlightSx ?? { background: "inherit" }}>
                               <TableCell colSpan={3} sx={{ py: 0.5, px: 1.5 }}>
-                                <CopyRow label="ACCESS_PASS_PASSWORD_VALUE" value={savedPass} masked />
+                                <CopyRow label="New Temporary Access Pass:" value={savedPass} masked />
                               </TableCell>
                             </TableRow>
                           )}
@@ -417,33 +426,42 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                     </Typography>
                                   </Box>
                                   <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                                    <Button
-                                      size="small"
-                                          data-id="btnMarkComplete"
-                                          data-upn={user.userPrincipalName}
-                                      variant="contained"
-                                      onClick={() => {
-                                        if (!isDeliveryConfirmed) return;
-                                            logEvent("btnMarkCompleteClicked", {
-                                              targetUserId: user.id,
-                                              deliveryConfirmed: isDeliveryConfirmed,
-                                            });
-                                        setCompletedByUserId((prev) => ({ ...prev, [user.id]: true }));
-                                      }}
-                                      disabled={!isDeliveryConfirmed}
-                                      sx={{
-                                        textTransform: "none",
-                                        ...mono,
-                                        fontSize: "0.72rem",
-                                        py: 0.35,
-                                        px: 1.2,
-                                        background: isCompletedUser ? "#1d4ed8" : "#2563eb",
-                                        "&:hover": { background: isCompletedUser ? "#1e40af" : "#1d4ed8" },
-                                        "&.Mui-disabled": { background: "#e2e8f0", color: "#94a3b8" },
-                                      }}
-                                    >
-                                      {isCompletedUser ? "Completed" : "Mark Complete"}
-                                    </Button>
+                                    {isCompletedUser ? (
+                                      <Typography
+                                        sx={{
+                                          ...mono,
+                                          fontSize: "0.72rem",
+                                          color: "#1d4ed8",
+                                          fontWeight: 600,
+                                          px: 1.2,
+                                          py: 0.35,
+                                        }}
+                                      >
+                                        Completed
+                                      </Typography>
+                                    ) : (
+                                      <Button
+                                        size="small"
+                                        variant="contained"
+                                        onClick={() => {
+                                          if (!isDeliveryConfirmed) return;
+                                          setCompletedByUserId((prev) => ({ ...prev, [user.id]: true }));
+                                        }}
+                                        disabled={!isDeliveryConfirmed}
+                                        sx={{
+                                          textTransform: "none",
+                                          ...mono,
+                                          fontSize: "0.72rem",
+                                          py: 0.35,
+                                          px: 1.2,
+                                          background: "#2563eb",
+                                          "&:hover": { background: "#1d4ed8" },
+                                          "&.Mui-disabled": { background: "#e2e8f0", color: "#94a3b8" },
+                                        }}
+                                      >
+                                        Mark Complete
+                                      </Button>
+                                    )}
                                   </Box>
                                 </Box>
                               </TableCell>

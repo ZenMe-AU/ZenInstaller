@@ -62,7 +62,7 @@ export function useAzureSubscriptionCard({
   // Reload whenever the account or the confirmed tenant changes — the list is per-tenant.
   useEffect(() => {
     setSubscriptionsLoaded(false);
-    if (!azureAccount || confirmedTenantId === null) return;
+    if (!azureAccount || !confirmedTenantId?.trim()) return;
     let cancelled = false;
     const tenant = confirmedTenantId;
     listSubscriptions(azureAccount, tenant || undefined)

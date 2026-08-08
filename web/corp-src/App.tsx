@@ -248,15 +248,7 @@ function AppDashboard() {
           </Box>
 
           <Box sx={groupSx}>
-            <GithubLoginCard
-              card={cardProps("github_login")}
-              auth={githubLogin}
-              onDirectLogout={() => {
-                githubLogin.onDirectLogout();
-                githubRepoEnv.repo.setSelectedAccount(null);
-                githubRepoEnv.repo.setSelectedRepo(null);
-              }}
-            />
+            <GithubLoginCard card={cardProps("github_login")} auth={githubLogin} />
             <AzureLoginCard card={cardProps("azure_login")} azureLogin={azureLogin} />
 
             <RepoCard card={cardProps("repo")} githubRepo={githubRepoEnv} lockedByPR={false} />

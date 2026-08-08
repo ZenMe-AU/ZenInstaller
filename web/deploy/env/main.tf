@@ -107,7 +107,7 @@ resource "azurerm_function_app_flex_consumption" "fa" {
   auth_settings_v2 {
     auth_enabled           = true
     default_provider       = "github"
-    unauthenticated_action = "Return401"
+    unauthenticated_action = "RedirectToLoginPage"
     http_route_api_prefix  = "/auth" # only apply auth to routes under /auth, so we can have a health check endpoint that doesn't require auth
     github_v2 {
       client_id                  = var.oauth_client_id

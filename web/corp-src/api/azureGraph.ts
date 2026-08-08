@@ -72,12 +72,12 @@ export async function listSubscriptions(account: AccountInfo, overrideTenantId?:
   const data = await gFetch(token, ARM, "/subscriptions?api-version=2020-01-01");
   const targetTenantId = overrideTenantId || account.tenantId;
   return (data.value ?? [])
-    .map((s: { subscriptionId: string; displayName: string; tenantId: string }) => ({
+    .filter((s) => s.tenantId === targetTenantId && s.state === "Enabled")
+    .map((s) => ({
       id: s.subscriptionId,
       displayName: s.displayName,
       tenantId: s.tenantId,
-    }))
-    .filter((s: Subscription) => s.tenantId === targetTenantId);
+    }));
 }
 
 // ── Tenants ──────────────────────────────────────────────────────────────────────

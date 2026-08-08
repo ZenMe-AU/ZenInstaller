@@ -169,6 +169,8 @@ export default function AccessPassCard({ card, accessPass }: Props) {
       : steps;
   const hasFinishedOrErroredStep = hydratedSelectedUserSteps.some((s) => s.status === "done" || s.status === "error");
   const showingSelectedUserSteps = hydratedSelectedUserSteps.length > 0 && (running || showingSelectedUserPass || hasFinishedOrErroredStep);
+  const selectedUserRunSucceeded = showingSelectedUserPass && !hydratedSelectedUserSteps.some((s) => s.status === "error");
+  const shouldShowTryAgain = !running && showingSelectedUserSteps && !selectedUserRunSucceeded;
   const statusUserId = creatingUserId ?? selectedManagerUserId;
 
   return (
@@ -345,22 +347,24 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                           Grant consent
                                         </Button>
                                       )}
-                                      <Button
-                                        size="small"
-                                        onClick={reset}
-                                        sx={{
-                                          alignSelf: "flex-start",
-                                          textTransform: "none",
-                                          ...mono,
-                                          fontSize: "0.72rem",
-                                          color: "#64748b",
-                                          px: 0.5,
-                                          minWidth: 0,
-                                          "&:hover": { color: "#2563eb" },
-                                        }}
-                                      >
-                                        ↩ Try again
-                                      </Button>
+                                      {shouldShowTryAgain && (
+                                        <Button
+                                          size="small"
+                                          onClick={reset}
+                                          sx={{
+                                            alignSelf: "flex-start",
+                                            textTransform: "none",
+                                            ...mono,
+                                            fontSize: "0.72rem",
+                                            color: "#64748b",
+                                            px: 0.5,
+                                            minWidth: 0,
+                                            "&:hover": { color: "#2563eb" },
+                                          }}
+                                        >
+                                          ↩ Try again
+                                        </Button>
+                                      )}
                                     </Box>
                                   )}
                                 </Box>

@@ -196,6 +196,9 @@ export default function AzureAccessPassCard({
       : steps;
   const hasFinishedOrErroredStep = hydratedSelectedUserSteps.some((s) => s.status === "done" || s.status === "error");
   const showingSelectedUserSteps = hydratedSelectedUserSteps.length > 0 && (running || showingSelectedUserPass || hasFinishedOrErroredStep);
+  const selectedUserRunSucceeded =
+    showingSelectedUserPass && hydratedSelectedUserSteps.length > 0 && hydratedSelectedUserSteps.every((s) => s.status === "done");
+  const shouldShowTryAgain = !running && showingSelectedUserSteps && !selectedUserRunSucceeded;
   const statusUserId = creatingUserId ?? selectedManagerUserId;
   const showLockedState = locked || !azureAccount;
 
@@ -387,7 +390,7 @@ export default function AzureAccessPassCard({
                                         <StepRow key={`${user.id}-${s.id}`} step={s} />
                                       ))}
                                       {running && <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, mt: 0.25 }}>Running...</Typography>}
-                                      {!running && (
+                                      {shouldShowTryAgain && (
                                         <Button
                                           size="small"
                                           onClick={reset}

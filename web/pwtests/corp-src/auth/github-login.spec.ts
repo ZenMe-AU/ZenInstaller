@@ -1,7 +1,7 @@
 import {expect, test, type Page,} from "@playwright/test";
 import {corpGithubAuthStateExists, restoreCorpSessionStorage, storageStateFile,} from "../authState";
 import {CORP_URL, viewports,} from "../../testInit";
-import {expectPageSnapshot,} from "../testHelper";
+import {expectPageSnapshot, sensitiveTextMasks} from "../testHelper";
 
 async function expandGithubLoginCard(page: Page,) {
 	const githubCard = page.locator("#card-github_login",);
@@ -43,7 +43,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				page,
 				testInfo,
 				"pat-authenticated-state.png",
-				{userId: "github-pat", viewportName, testFolder: "GitHub Login Card Authenticated",},
+				{userId: "github-pat", viewportName, testFolder: "GitHub Login Card Authenticated", mask: sensitiveTextMasks(page,),},
 			);
 		});
 	});

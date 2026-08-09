@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
@@ -48,14 +47,12 @@ function CompanyInfoDetailBody({
 
   const {
     localValues: localVarValues,
-    setLocalValues: setLocalVarValues,
     upsertStatuses: varUpsertStatuses,
-    setUpsertStatuses: setVarUpsertStatuses,
     updating: updatingVars,
     dirtyKeys: dirtyVarKeys,
     onChange: handleVarChange,
     onRevert: handleVarRevert,
-    save,
+    onSave,
   } = useVariableEditor({
     keys: GITHUB_VARIABLE_KEYS,
     savedValues: variableValues,
@@ -64,17 +61,6 @@ function CompanyInfoDetailBody({
     envName: selectedEnv.name,
     onSavedKey: onVariableConfirmed,
   });
-
-  /*
-   * Controlled sync: reset local edits when the parent refreshes variableValues
-   * (e.g. after Recheck). setState-during-render skips the stale frame.
-   */
-  const [prevVariableValues, setPrevVariableValues] = useState(variableValues);
-  if (prevVariableValues !== variableValues) {
-    setPrevVariableValues(variableValues);
-    setLocalVarValues(variableValues);
-    setVarUpsertStatuses([]);
-  }
 
   return (
     <Box>
@@ -128,7 +114,7 @@ function CompanyInfoDetailBody({
           noun="variable"
           count={dirtyVarKeys.length}
           loading={updatingVars}
-          onClick={() => void save()}
+          onClick={() => void onSave()}
         />
         {githubUrl && (
           <Button

@@ -266,7 +266,7 @@ function AppDashboard() {
               githubAccount={githubRepoEnv.repo.selectedAccount}
               repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
               selectedEnv={githubRepoEnv.env.selectedEnv}
-              onVariableConfirmed={githubVariables.onConfirmed}
+              variables={githubVariables}
               githubUrl={githubRepoEnv.githubEnvUrl}
               onOpenAzureLogin={() => openCard("azure_login")}
               onUserInteract={() => urlRestore.cancel(["tenant", "subscription"])}
@@ -290,6 +290,7 @@ function AppDashboard() {
               repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
               selectedEnv={githubRepoEnv.env.selectedEnv}
               subscriptionId={azureSubscription.selectedSubscriptionId}
+              variables={githubVariables}
               githubUrl={githubRepoEnv.githubEnvUrl}
             />
 

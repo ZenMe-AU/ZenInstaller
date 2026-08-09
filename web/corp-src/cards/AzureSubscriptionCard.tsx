@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Box, Button, CircularProgress, MenuItem, Select, Typography } from "@mui/material";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { Account, CardChrome, GhEnv } from "../types";
 import type { UseAzureAccount } from "../hooks/useAzureAccount";
 import type { UseAzureSubscriptionCard } from "../hooks/useAzureSubscriptionCard";
+import type { UseGithubVariables } from "../hooks/useGithubVariables";
 import { INITIAL_URL_PARAMS } from "../hooks/useUrlStateManager";
 import { tenantDisplayName } from "../logic/tenant";
 import { AZURE_TARGET_KEYS } from "../logic/variables";
@@ -20,7 +21,7 @@ type Props = {
   githubAccount: Account | null;
   repoName: string;
   selectedEnv: GhEnv | null;
-  onVariableConfirmed: (key: string, value: string) => void;
+  variables: UseGithubVariables;
   githubUrl?: string;
   // Expands the Azure login card and scrolls to it — that's where the tenant itself is picked.
   onOpenAzureLogin: () => void;
@@ -42,7 +43,7 @@ export default function AzureSubscriptionCard({
   githubAccount,
   repoName,
   selectedEnv,
-  onVariableConfirmed,
+  variables,
   githubUrl,
   onOpenAzureLogin,
   onUserInteract,
@@ -56,16 +57,15 @@ export default function AzureSubscriptionCard({
     subscriptionDrift,
     subscriptionNoAccess,
   } = subscription;
-  const [savedVars, setSavedVars] = useState<Record<string, string>>({});
 
   // Pre-select subscription from the saved AZURE_SUBSCRIPTION_ID once its list is loaded — unless
   // a URL restore is trying to apply a (possibly different) ?subscription= value, which should win.
   useEffect(() => {
     if (selectedSubscriptionId || subscriptions.length === 0) return;
     if (INITIAL_URL_PARAMS.has("subscription")) return;
-    const saved = savedVars.AZURE_SUBSCRIPTION_ID;
+    const saved = variables.values.AZURE_SUBSCRIPTION_ID;
     if (saved && subscriptions.some((s) => s.id === saved)) setSelectedSubscriptionId(saved);
-  }, [subscriptions, selectedSubscriptionId, savedVars, setSelectedSubscriptionId]);
+  }, [subscriptions, selectedSubscriptionId, variables.values, setSelectedSubscriptionId]);
 
   // Once the current tenant's subscriptions are known, a selection that doesn't belong to it (e.g. left
   // over from a different tenant) is invalid — clear it rather than let it silently stay "selected".
@@ -172,6 +172,7 @@ export default function AzureSubscriptionCard({
           repo={repoName}
           envName={selectedEnv?.name ?? null}
           keys={AZURE_TARGET_KEYS}
+          variables={variables}
           populate={populate}
           title="Saved to GitHub"
           githubUrl={githubUrl}
@@ -183,14 +184,6 @@ export default function AzureSubscriptionCard({
               </Box>
             ) : undefined
           }
-          onLoaded={(saved) => setSavedVars(saved)}
-          onSaved={(savedKeys) => {
-            // Reflect the save immediately in App's env cache so drift clears without a full recheck.
-            for (const key of savedKeys) {
-              const value = populate[key as keyof typeof populate];
-              if (value !== undefined) onVariableConfirmed(key, value);
-            }
-          }}
         />
       </Box>
     </Card>

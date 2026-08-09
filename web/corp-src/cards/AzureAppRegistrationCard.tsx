@@ -5,6 +5,7 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { Account, CardChrome, GhEnv } from "../types";
 import type { UseAzureAppRegistrationCard } from "../hooks/useAzureAppRegistrationCard";
+import type { UseGithubVariables } from "../hooks/useGithubVariables";
 import StepRow from "./StepRow";
 import Card from "../components/Card";
 import { AZURE_APP_KEYS } from "../logic/variables";
@@ -18,6 +19,7 @@ type Props = {
   repoName: string;
   selectedEnv: GhEnv | null;
   subscriptionId: string;
+  variables: UseGithubVariables;
   githubUrl?: string;
 };
 
@@ -28,6 +30,7 @@ export default function AzureAppRegistrationCard({
   repoName,
   selectedEnv,
   subscriptionId,
+  variables,
   githubUrl,
 }: Props) {
   const {
@@ -48,13 +51,13 @@ export default function AzureAppRegistrationCard({
   } = appReg;
   const disabled = card.locked;
   const [varExpanded, setVarExpanded] = useState(false);
-  const [loadedVars, setLoadedVars] = useState<Record<string, string> | null>(null);
   const [autoSaveCounter, setAutoSaveCounter] = useState(0);
   const [bannerState, setBannerState] = useState<"none" | "saved" | "no-changes" | "error">("none");
   const prevResultRef = useRef(result);
   const prefilledNameRef = useRef(false);
+  const varExpandedInitRef = useRef(false);
 
-  const varHasAny = !!loadedVars && Object.keys(loadedVars).length > 0;
+  const varHasAny = AZURE_APP_KEYS.some((k) => !!variables.values[k]);
   // App was created (persisted result) but doesn't exist in the currently selected tenant.
   const spNotFound = !!result && rbacStatus === "sp-not-found";
   // App exists in this tenant but its SP has no RBAC on the currently selected subscription.
@@ -88,19 +91,30 @@ export default function AzureAppRegistrationCard({
     prevResultRef.current = result;
   }, [result]);
 
-  // Reset per-env guard when the target env changes.
+  // Reset per-env guards when the target env changes.
   useEffect(() => {
     prefilledNameRef.current = false;
+    varExpandedInitRef.current = false;
   }, [selectedEnv?.name]);
 
   // Prefill App registration name from the saved client id (falls back silently if not found).
   useEffect(() => {
     if (prefilledNameRef.current || !azureAccount) return;
-    const savedClientId = loadedVars?.AZURE_CLIENT_ID;
+    const savedClientId = variables.values.AZURE_CLIENT_ID;
     if (!savedClientId) return;
     prefilledNameRef.current = true;
     void prefillAppName(savedClientId);
-  }, [azureAccount, loadedVars, prefillAppName]);
+  }, [azureAccount, variables.values, prefillAppName]);
+
+  // Auto-expand once, based on whether any saved value already exists — fires once the shared
+  // cache has settled (already loaded, or just finished loading), not on every later edit.
+  useEffect(() => {
+    if (varExpandedInitRef.current) return;
+    if (!githubAccount || !repoName || !selectedEnv?.name) return;
+    if (variables.loading || variables.error) return;
+    varExpandedInitRef.current = true;
+    setVarExpanded(varHasAny);
+  }, [variables.loading, variables.error, variables.values, githubAccount, repoName, selectedEnv?.name, varHasAny]);
 
   const populate = result ? { AZURE_CLIENT_ID: result.clientId, AZURE_PLAN_CLIENT_ID: result.clientId } : undefined;
   const keyErrors = spNotFound
@@ -317,13 +331,14 @@ export default function AzureAppRegistrationCard({
           <Box sx={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
         </Box>
 
-        {/* ── Variable editor (Collapse keeps it mounted so onLoaded fires) ── */}
+        {/* ── Variable editor (unmountOnExit=false keeps in-progress draft edits and auto-save state alive while collapsed) ── */}
         <Collapse in={varExpanded} timeout={300} unmountOnExit={false}>
           <CloudVariableDetail
             account={githubAccount}
             repo={repoName}
             envName={selectedEnv?.name ?? null}
             keys={AZURE_APP_KEYS}
+            variables={variables}
             populate={populate}
             title="Connection details"
             disabled={disabled}
@@ -331,11 +346,6 @@ export default function AzureAppRegistrationCard({
             onComplete={onVariablesComplete}
             onAutoSaveResult={(result) => setBannerState(result)}
             githubUrl={githubUrl}
-            onLoaded={(saved) => {
-              setLoadedVars(saved);
-              // Any saved value → expand; none → collapse.
-              setVarExpanded(Object.keys(saved).length > 0);
-            }}
             autoSaveCounter={autoSaveCounter}
           />
         </Collapse>

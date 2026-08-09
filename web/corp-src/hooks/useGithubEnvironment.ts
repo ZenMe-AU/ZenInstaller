@@ -1,53 +1,33 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { fetchEnvs, fetchSecrets, fetchVariables } from "../api";
-import { AZURE_SECRET_KEYS, AWS_SECRET_KEYS } from "../logic/variables";
-import {
-  type Account,
-  type Branch,
-  type CardStatus,
-  type GhEnv,
-  type PendingRestore,
-  type PullRequest,
-  type RepoOption,
-  type SecretsStatus,
-} from "../types";
-import { matchBranch, matchEnv } from "../logic/env";
-
+import { useCallback, useEffect, useRef, useState } from "react";
+import { fetchEnvs, /* fetchSecrets, */ fetchVariables } from "../api";
+import { type Account, type Branch, type CardStatus, type GhEnv, type RepoOption } from "../types";
+import { matchBranch } from "../logic/env";
+import { findIgnoreCase } from "../logic/search";
+import type { UrlRestoreField } from "./useUrlStateManager";
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-/*
- * env selection + variables + secrets are one tier of GitHub operations (repo →
- * environment → {variables, secrets}) — not a card. env selection renders inside the
- * repo card; variables back the company_info card; secrets have no UI mounted today
- * (kept for headroom — azureSecrets.valid still feeds azure_app_registration's status).
- */
 export interface UseGithubEnvironment {
-  // env selection
+  // Env
   envList: GhEnv[];
   selectedEnv: GhEnv | null;
   setSelectedEnv: (env: GhEnv | null) => void;
-  envLoading: boolean;
   branchMatchWarning: string | null;
   branchMatchError: string | null;
-  envReady: boolean;
+  // Status
+  envLoading: boolean;
   status: CardStatus;
-  onRefresh: () => void;
   envRefreshFailed: boolean;
-  // variables
+  // Variables
   presentVariableValues: Record<string, string>;
   variablesRechecking: boolean;
   varRecheckFailed: boolean;
+  // Actions
+  onRefresh: () => void;
   onVariableRecheck: () => Promise<void>;
   onVariableConfirmed: (key: string, value: string) => void;
-  // secrets
-  presentSecretKeys: string[];
-  azureSecrets: SecretsStatus;
-  awsSecrets: SecretsStatus;
-  rechecking: boolean;
-  recheckFailed: boolean;
-  onRecheck: () => Promise<void>;
-  onAzureValid: (valid: boolean | null) => void;
-  onAwsValid: (valid: boolean | null) => void;
+  // Restore
+  restore: {
+    env: UrlRestoreField;
+  };
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -55,42 +35,31 @@ export interface UseGithubEnvironment {
 export type UseGithubEnvironmentParams = {
   account: Account | null;
   repo: RepoOption | null;
-  isCloneRepo: boolean;
-  selectedPR: PullRequest | null;
+  isRepoReady: boolean;
   branches: Branch[];
-  validEnvs: readonly string[];
-  pendingRestore: React.MutableRefObject<PendingRestore>;
-  addRestoreWarning: (msg: string) => void;
-  checkRestoreDone: () => void;
 };
 
 export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithubEnvironment {
-  const { pendingRestore, addRestoreWarning, checkRestoreDone } = opts;
-
   const accountRef = useRef(opts.account);
   const repoRef = useRef(opts.repo);
-  useLayoutEffect(() => {
+  useEffect(() => {
     accountRef.current = opts.account;
     repoRef.current = opts.repo;
   });
 
   // ── Env state ─────────────────────────────────────────────────────────────
   const [envList, setEnvList] = useState<GhEnv[]>([]);
+  const [envsLoaded, setEnvsLoaded] = useState(false);
   const [selectedEnv, setSelectedEnv] = useState<GhEnv | null>(null);
   const [envLoading, setEnvLoading] = useState(false);
   const [branchMatchWarning, setBranchMatchWarning] = useState<string | null>(null);
   const [branchMatchError, setBranchMatchError] = useState<string | null>(null);
   const [status, setStatus] = useState<CardStatus>("idle");
 
-  // ── Secrets & variables state ──────────────────────────────────────────────
-  const [presentSecretKeys, setPresentSecretKeys] = useState<string[]>([]);
-  const [azureSecrets, setAzureSecrets] = useState<SecretsStatus>({ configured: null, valid: null });
-  const [awsSecrets, setAwsSecrets] = useState<SecretsStatus>({ configured: null, valid: null });
-  const [rechecking, setRechecking] = useState(false);
+  // ── Variables state ──────────────────────────────────────────────
   const [presentVariableValues, setPresentVariableValues] = useState<Record<string, string>>({});
   const [variablesRechecking, setVariablesRechecking] = useState(false);
   const [envRefreshFailed, setEnvRefreshFailed] = useState(false);
-  const [recheckFailed, setRecheckFailed] = useState(false);
   const [varRecheckFailed, setVarRecheckFailed] = useState(false);
 
   // Clear env + secrets when repo changes
@@ -99,6 +68,7 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
     const newId = opts.repo?.id ?? null;
     if (prevRepoId.current !== undefined && prevRepoId.current !== newId) {
       setEnvList([]);
+      setEnvsLoaded(false);
       setSelectedEnv(null);
       setBranchMatchWarning(null);
       setBranchMatchError(null);
@@ -109,51 +79,22 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
 
   // Clear secrets when env changes (selectedEnv is internal state, always null on mount)
   useEffect(() => {
-    setPresentSecretKeys([]);
-    setAzureSecrets({ configured: null, valid: null });
-    setAwsSecrets({ configured: null, valid: null });
     setPresentVariableValues({});
   }, [selectedEnv?.id]);
 
   // ── Loaders ───────────────────────────────────────────────────────────────
-  const loadEnvs = useCallback(
-    async (account: Account, repo: RepoOption) => {
-      setEnvLoading(true);
-      setEnvRefreshFailed(false);
-      try {
-        const list = await fetchEnvs(account, repo.name);
-        setEnvList(list);
-        const targetEnv = pendingRestore.current.env;
-        pendingRestore.current.env = null;
-        if (targetEnv && !pendingRestore.current.pr) {
-          const match = list.find((e) => e.name.toLowerCase() === targetEnv.toLowerCase());
-          if (match) setSelectedEnv(match);
-          else addRestoreWarning(`Environment "${targetEnv}" not found`);
-        }
-        checkRestoreDone();
-      } catch (e) {
-        console.error(e);
-        setEnvRefreshFailed(true);
-      } finally {
-        setEnvLoading(false);
-      }
-    },
-    [addRestoreWarning, checkRestoreDone, pendingRestore],
-  );
-
-  const loadSecrets = useCallback(async (envName: string): Promise<boolean> => {
-    const acc = accountRef.current;
-    const repo = repoRef.current;
-    if (!acc || !repo) return false;
+  const loadEnvs = useCallback(async (account: Account, repo: RepoOption) => {
+    setEnvLoading(true);
+    setEnvRefreshFailed(false);
     try {
-      const keys = await fetchSecrets(acc, repo.name, envName);
-      setAzureSecrets((prev) => ({ ...prev, configured: AZURE_SECRET_KEYS.every((k) => keys.includes(k)) }));
-      setAwsSecrets((prev) => ({ ...prev, configured: AWS_SECRET_KEYS.every((k) => keys.includes(k)) }));
-      setPresentSecretKeys(keys);
-      return true;
+      const list = await fetchEnvs(account, repo.name);
+      setEnvList(list);
     } catch (e) {
-      console.error("Failed to load secrets:", e);
-      return false;
+      console.error(e);
+      setEnvRefreshFailed(true);
+    } finally {
+      setEnvLoading(false);
+      setEnvsLoaded(true);
     }
   }, []);
 
@@ -170,45 +111,21 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
     }
   }, []);
 
-  // Load envs when repo becomes a clone
+  // Load envs when repo is ready
   useEffect(() => {
-    if (!opts.account || !opts.repo || !opts.isCloneRepo) return;
+    if (!opts.account || !opts.repo || !opts.isRepoReady) return;
     loadEnvs(opts.account, opts.repo);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opts.account?.id, opts.repo?.id, opts.isCloneRepo, loadEnvs]);
+  }, [opts.account?.id, opts.repo?.id, opts.isRepoReady, loadEnvs]);
 
   // Auto-load secrets + variables when env is confirmed (selected + no branch error)
   useEffect(() => {
     if (!selectedEnv || branchMatchError) return;
-    loadSecrets(selectedEnv.name);
     loadVariables(selectedEnv.name);
-  }, [selectedEnv, branchMatchError, loadSecrets, loadVariables]);
+  }, [selectedEnv, branchMatchError, loadVariables]);
 
-  // When PR selected: auto-match env from PR's base branch
+  // When env selected: match against branch list
   useEffect(() => {
-    if (!opts.selectedPR) return;
-    const result = matchEnv(opts.selectedPR.base_branch, envList, opts.validEnvs);
-    if (result.status === "exact") {
-      setSelectedEnv(result.env);
-      setBranchMatchWarning(null);
-      setBranchMatchError(null);
-      setStatus("complete");
-    } else if (result.status === "case") {
-      setSelectedEnv(result.env);
-      setBranchMatchWarning(`Base branch "${opts.selectedPR.base_branch}" and environment "${result.env.name}" have mismatched casing.`);
-      setBranchMatchError(null);
-      setStatus("warning");
-    } else {
-      setSelectedEnv(null);
-      setBranchMatchWarning(null);
-      setBranchMatchError(`No matching environment found for base branch "${opts.selectedPR.base_branch}".`);
-      setStatus("error");
-    }
-  }, [opts.selectedPR, envList]);
-
-  // When env manually selected (no active PR): match against branch list
-  useEffect(() => {
-    if (opts.selectedPR) return;
     if (!selectedEnv) {
       setBranchMatchWarning(null);
       setBranchMatchError(null);
@@ -221,7 +138,9 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
       setBranchMatchError(null);
       setStatus("complete");
     } else if (result.status === "case") {
-      setBranchMatchWarning(`Environment "${selectedEnv.name}" and branch "${result.branch.name}" have mismatched casing.`);
+      setBranchMatchWarning(
+        `Environment "${selectedEnv.name}" and branch "${result.branch.name}" have mismatched casing.`,
+      );
       setBranchMatchError(null);
       setStatus("warning");
     } else if (result.status === "multiple") {
@@ -233,7 +152,7 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
       setBranchMatchError(`No branch found matching environment "${selectedEnv.name}".`);
       setStatus("error");
     }
-  }, [selectedEnv, opts.branches, opts.selectedPR]);
+  }, [selectedEnv, opts.branches]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const onRefresh = useCallback(() => {
@@ -241,18 +160,6 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
     const repo = repoRef.current;
     if (acc && repo) loadEnvs(acc, repo);
   }, [loadEnvs]);
-
-  const onRecheck = useCallback(async () => {
-    if (!selectedEnv) return;
-    setRechecking(true);
-    setRecheckFailed(false);
-    try {
-      const ok = await loadSecrets(selectedEnv.name);
-      if (!ok) setRecheckFailed(true);
-    } finally {
-      setRechecking(false);
-    }
-  }, [selectedEnv, loadSecrets]);
 
   const onVariableRecheck = useCallback(async () => {
     if (!selectedEnv) return;
@@ -270,39 +177,38 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
     setPresentVariableValues((prev) => ({ ...prev, [key]: value }));
   }, []);
 
-  const onAzureValid = useCallback((valid: boolean | null) => {
-    setAzureSecrets((prev) => ({ ...prev, valid }));
-  }, []);
-
-  const onAwsValid = useCallback((valid: boolean | null) => {
-    setAwsSecrets((prev) => ({ ...prev, valid }));
-  }, []);
-
-  const envReady = !!selectedEnv && !branchMatchError;
+  const restoreEnv = useCallback(
+    (value: string): boolean => {
+      const match = findIgnoreCase(envList, (e) => e.name, value);
+      if (!match) return false;
+      setSelectedEnv(match);
+      return true;
+    },
+    [envList],
+  );
 
   return {
+    // Env
     envList,
     selectedEnv,
     setSelectedEnv,
-    envLoading,
     branchMatchWarning,
     branchMatchError,
-    envReady,
+    // Status
+    envLoading,
     status,
-    onRefresh,
-    presentSecretKeys,
-    azureSecrets,
-    awsSecrets,
-    rechecking,
+    envRefreshFailed,
+    // Variables
     presentVariableValues,
     variablesRechecking,
-    envRefreshFailed,
-    recheckFailed,
     varRecheckFailed,
-    onRecheck,
+    // Actions
+    onRefresh,
     onVariableRecheck,
     onVariableConfirmed,
-    onAzureValid,
-    onAwsValid,
+    // Restore
+    restore: {
+      env: { ready: envsLoaded, scope: opts.repo?.id ?? null, apply: restoreEnv },
+    },
   };
 }

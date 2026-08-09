@@ -4,6 +4,7 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { Account, CardChrome, GhEnv } from "../types";
 import type { UseAzureAccount } from "../hooks/useAzureAccount";
 import type { UseAzureSubscriptionCard } from "../hooks/useAzureSubscriptionCard";
+import { INITIAL_URL_PARAMS } from "../hooks/useUrlStateManager";
 import { tenantDisplayName } from "../logic/tenant";
 import { AZURE_TARGET_KEYS } from "../logic/variables";
 import CloudVariableDetail from "./CloudVariableDetail";
@@ -21,9 +22,10 @@ type Props = {
   selectedEnv: GhEnv | null;
   onVariableConfirmed: (key: string, value: string) => void;
   githubUrl?: string;
-  configured: boolean;
   // Expands the Azure login card and scrolls to it — that's where the tenant itself is picked.
   onOpenAzureLogin: () => void;
+  // Called on a genuine manual subscription pick, so a caller can cancel a pending URL restore.
+  onUserInteract: () => void;
 };
 
 /*
@@ -42,16 +44,25 @@ export default function AzureSubscriptionCard({
   selectedEnv,
   onVariableConfirmed,
   githubUrl,
-  configured,
   onOpenAzureLogin,
+  onUserInteract,
 }: Props) {
   const { tenants, manualTenantId } = azure;
-  const { subscriptions, selectedSubscriptionId, setSelectedSubscriptionId, subsError, subscriptionDrift, subscriptionNoAccess } = subscription;
+  const {
+    subscriptions,
+    selectedSubscriptionId,
+    setSelectedSubscriptionId,
+    subsError,
+    subscriptionDrift,
+    subscriptionNoAccess,
+  } = subscription;
   const [savedVars, setSavedVars] = useState<Record<string, string>>({});
 
-  // Pre-select subscription from the saved AZURE_SUBSCRIPTION_ID once its list is loaded.
+  // Pre-select subscription from the saved AZURE_SUBSCRIPTION_ID once its list is loaded — unless
+  // a URL restore is trying to apply a (possibly different) ?subscription= value, which should win.
   useEffect(() => {
     if (selectedSubscriptionId || subscriptions.length === 0) return;
+    if (INITIAL_URL_PARAMS.has("subscription")) return;
     const saved = savedVars.AZURE_SUBSCRIPTION_ID;
     if (saved && subscriptions.some((s) => s.id === saved)) setSelectedSubscriptionId(saved);
   }, [subscriptions, selectedSubscriptionId, savedVars, setSelectedSubscriptionId]);
@@ -65,109 +76,123 @@ export default function AzureSubscriptionCard({
 
   const populate = { AZURE_TENANT_ID: manualTenantId, AZURE_SUBSCRIPTION_ID: selectedSubscriptionId };
   const tenantLabel = tenantDisplayName(tenants, manualTenantId);
-
-  if (!configured) {
-    return (
-      <Card title="Azure subscription" {...card}>
-        <ConfigErrorNotice />
-      </Card>
-    );
-  }
+  const subscriptionOptions = subscriptions.filter((s) => s.tenantId === manualTenantId);
 
   return (
     <Card title="Azure subscription" {...card}>
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
-        Pick the subscription to deploy into. This is where the resource group, storage account and DNS zone will be created, and it's saved to GitHub so
-        the pipeline uses the same target.
-      </Typography>
-
-      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}>
-        <Typography sx={{ ...labelSx, "& span": { color: "#0f172a", textTransform: "none" } }}>
-          Tenant: <span>{tenantLabel}</span>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+          Pick the subscription to deploy into. This is where the resource group, storage account and DNS zone will be
+          created, and it's saved to GitHub so the pipeline uses the same target.
         </Typography>
-        <Button
-          size="small"
-          onClick={onOpenAzureLogin}
-          sx={{ minWidth: 0, fontSize: "0.68rem", color: "#2563eb", textTransform: "none", ...mono, py: 0, px: 0.5, "&:hover": { textDecoration: "underline" } }}
-        >
-          Change on Azure login →
-        </Button>
-      </Box>
 
-      {subsError && !subscriptionNoAccess && <Typography sx={{ fontSize: "0.72rem", color: "#ef4444" }}>{subsError}</Typography>}
-
-      {/* Subscription */}
-      <Box>
-        <Typography sx={{ ...labelSx, mb: 0.75 }}>Subscription</Typography>
-        {subscriptions.length > 0 ? (
-          <Select
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}>
+          <Typography sx={{ ...labelSx, "& span": { color: "#0f172a", textTransform: "none" } }}>
+            Tenant: <span>{tenantLabel}</span>
+          </Typography>
+          <Button
             size="small"
-            value={selectedSubscriptionId || ""}
-            onChange={(e) => setSelectedSubscriptionId(e.target.value)}
-            displayEmpty
-            renderValue={(v) => {
-              if (!v) return <Typography sx={{ fontSize: "0.8rem", color: "#94a3b8", ...mono }}>Select a subscription</Typography>;
-              const name = subscriptions.find((s) => s.id === v)?.displayName ?? v;
-              return <Typography sx={{ fontSize: "0.8rem", ...mono }}>{name}</Typography>;
+            onClick={onOpenAzureLogin}
+            sx={{
+              minWidth: 0,
+              fontSize: "0.68rem",
+              color: "#2563eb",
+              textTransform: "none",
+              ...mono,
+              py: 0,
+              px: 0.5,
+              "&:hover": { textDecoration: "underline" },
             }}
-            sx={{ minWidth: { xs: 0, sm: 380 }, width: "100%", fontSize: "0.8rem", ...mono }}
           >
-            {subscriptions.map((s) => (
-              <MenuItem key={s.id} value={s.id} sx={{ py: 0.75 }}>
-                <Box>
-                  <Typography sx={{ fontSize: "0.8rem", ...mono }}>{s.displayName}</Typography>
-                  <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono }}>{s.id}</Typography>
-                </Box>
-              </MenuItem>
-            ))}
-          </Select>
-        ) : subscriptionNoAccess ? (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-            <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
-            <Typography sx={{ fontSize: "0.75rem", color: "#d97706" }}>This tenant has no subscriptions you can access.</Typography>
-          </Box>
-        ) : (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <CircularProgress size={12} sx={{ color: "#cbd5e1" }} />
-            <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8", ...mono }}>Loading subscriptions...</Typography>
-          </Box>
+            Change on Azure login →
+          </Button>
+        </Box>
+
+        {subsError && !subscriptionNoAccess && (
+          <Typography sx={{ fontSize: "0.72rem", color: "#ef4444" }}>{subsError}</Typography>
         )}
-      </Box>
 
-      {!selectedEnv && (
-        <Typography sx={{ fontSize: "0.72rem", color: "#d97706" }}>
-          Select a repository & environment to save the tenant and subscription to GitHub.
-        </Typography>
-      )}
-
-      {/* Save AZURE_TENANT_ID + AZURE_SUBSCRIPTION_ID to the env's GitHub variables */}
-      <CloudVariableDetail
-        account={githubAccount}
-        repo={repoName}
-        envName={selectedEnv?.name ?? null}
-        keys={AZURE_TARGET_KEYS}
-        populate={populate}
-        title="Saved to GitHub"
-        githubUrl={githubUrl}
-        saveHint={
-          subscriptionDrift ? (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+        {/* Subscription */}
+        <Box>
+          <Typography sx={{ ...labelSx, mb: 0.75 }}>Subscription</Typography>
+          {subscriptionOptions.length > 0 ? (
+            <Select
+              size="small"
+              value={selectedSubscriptionId || ""}
+              onChange={(e) => {
+                onUserInteract();
+                setSelectedSubscriptionId(e.target.value);
+              }}
+              displayEmpty
+              renderValue={(v) => {
+                if (!v)
+                  return (
+                    <Typography sx={{ fontSize: "0.8rem", color: "#94a3b8", ...mono }}>
+                      Select a subscription
+                    </Typography>
+                  );
+                const name = subscriptionOptions.find((s) => s.id === v)?.displayName ?? v;
+                return <Typography sx={{ fontSize: "0.8rem", ...mono }}>{name}</Typography>;
+              }}
+              sx={{ minWidth: { xs: 0, sm: 380 }, width: "100%", fontSize: "0.8rem", ...mono }}
+            >
+              {subscriptionOptions.map((s) => (
+                <MenuItem key={s.id} value={s.id} sx={{ py: 0.75 }}>
+                  <Box>
+                    <Typography sx={{ fontSize: "0.8rem", ...mono }}>{s.displayName}</Typography>
+                    <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono }}>{s.id}</Typography>
+                  </Box>
+                </MenuItem>
+              ))}
+            </Select>
+          ) : subscriptionNoAccess ? (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
               <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
-              <Typography sx={{ fontSize: "0.72rem", color: "#d97706" }}>Unsaved change — save to apply.</Typography>
+              <Typography sx={{ fontSize: "0.75rem", color: "#d97706" }}>
+                This tenant has no subscriptions you can access.
+              </Typography>
             </Box>
-          ) : undefined
-        }
-        onLoaded={(saved) => setSavedVars(saved)}
-        onSaved={(savedKeys) => {
-          // Reflect the save immediately in App's env cache so drift clears without a full recheck.
-          for (const key of savedKeys) {
-            const value = populate[key as keyof typeof populate];
-            if (value !== undefined) onVariableConfirmed(key, value);
+          ) : (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <CircularProgress size={12} sx={{ color: "#cbd5e1" }} />
+              <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8", ...mono }}>Loading subscriptions...</Typography>
+            </Box>
+          )}
+        </Box>
+
+        {!selectedEnv && (
+          <Typography sx={{ fontSize: "0.72rem", color: "#d97706" }}>
+            Select a repository & environment to save the tenant and subscription to GitHub.
+          </Typography>
+        )}
+
+        {/* Save AZURE_TENANT_ID + AZURE_SUBSCRIPTION_ID to the env's GitHub variables */}
+        <CloudVariableDetail
+          account={githubAccount}
+          repo={repoName}
+          envName={selectedEnv?.name ?? null}
+          keys={AZURE_TARGET_KEYS}
+          populate={populate}
+          title="Saved to GitHub"
+          githubUrl={githubUrl}
+          saveHint={
+            subscriptionDrift ? (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
+                <Typography sx={{ fontSize: "0.72rem", color: "#d97706" }}>Unsaved change — save to apply.</Typography>
+              </Box>
+            ) : undefined
           }
-        }}
-      />
-    </Box>
+          onLoaded={(saved) => setSavedVars(saved)}
+          onSaved={(savedKeys) => {
+            // Reflect the save immediately in App's env cache so drift clears without a full recheck.
+            for (const key of savedKeys) {
+              const value = populate[key as keyof typeof populate];
+              if (value !== undefined) onVariableConfirmed(key, value);
+            }
+          }}
+        />
+      </Box>
     </Card>
   );
 }

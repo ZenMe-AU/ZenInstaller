@@ -15,7 +15,16 @@ import { isConsentError } from "../logic/consent";
 import { createResultStorage } from "../logic/resultStorage";
 import { useStepRunner } from "./util/useStepRunner";
 import { useRbacCheck, type RbacCheckStatus } from "./util/useRbacCheck";
-import type { Account, AzureConfigHook, AzureTarget, CardHook, CardRequirements, CardStatus, SetupStep } from "../types";
+import type {
+  Account,
+  AzureConfigHook,
+  AzureTarget,
+  CardHook,
+  CardRequirements,
+  CardStatus,
+  SetupStep,
+} from "../types";
+import { PIPELINE } from "../logic/pipeline";
 
 export type AzureAppRegistrationResult = { clientId: string; tenantId: string; subscriptionIds: string[] };
 
@@ -24,11 +33,9 @@ export type AzureAppRegistrationResult = { clientId: string; tenantId: string; s
 export interface UseAzureAppRegistrationCardParams extends AzureTarget {
   githubAccount: Account | null;
   githubRepo: string;
-  validEnvs: readonly string[];
   variableValues: Record<string, string>; // github.presentVariableValues — reads AZURE_CLIENT_ID / AZURE_PLAN_CLIENT_ID.
   manualTenantId: string; // azure.manualTenantId — last-resort tenant fallback before any saved/result tenant exists.
   subscriptionLabel?: string; // Display name for the target subscription — shown on the RBAC step; falls back to the id.
-  azureSecretsValid: boolean | null; // github.azureSecrets.valid — surfaced only in this card's status/summary.
 }
 
 // steps / running / run / reset come from AzureConfigHook.
@@ -71,17 +78,17 @@ export function useAzureAppRegistrationCard({
   azureAccount,
   githubAccount,
   githubRepo,
-  validEnvs,
   subscriptionId,
   subscriptionLabel,
   tenantId,
   variableValues,
   manualTenantId,
-  azureSecretsValid,
 }: UseAzureAppRegistrationCardParams): UseAzureAppRegistrationCard {
   const [appName, setAppName] = useState("zeninstaller-github");
-  const defaultSelected = ["PROD", "TEST"].filter((e) => validEnvs.includes(e));
-  const [environments, setEnvironments] = useState<string[]>(defaultSelected.length > 0 ? defaultSelected : ["PROD", "TEST"]);
+  const defaultSelected = ["PROD", "TEST"].filter((e) => PIPELINE.validEnvs.includes(e));
+  const [environments, setEnvironments] = useState<string[]>(
+    defaultSelected.length > 0 ? defaultSelected : ["PROD", "TEST"],
+  );
   const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
   const [result, setResult] = useState<AzureAppRegistrationResult | null>(loadResult);
   const [variablesComplete, setVariablesComplete] = useState(false);
@@ -213,8 +220,18 @@ export function useAzureAppRegistrationCard({
       setRunning(false);
     }
   }, [
-    azureAccount, subscriptionId, subscriptionLabel, effectiveTenantId, githubAccount, githubRepo,
-    appName, environments, setSteps, setRunning, updateStep, requestAppConsent,
+    azureAccount,
+    subscriptionId,
+    subscriptionLabel,
+    effectiveTenantId,
+    githubAccount,
+    githubRepo,
+    appName,
+    environments,
+    setSteps,
+    setRunning,
+    updateStep,
+    requestAppConsent,
   ]);
 
   const done = variablesComplete && rbacStatus === "ready" && !planClientIdMismatch;
@@ -228,9 +245,7 @@ export function useAzureAppRegistrationCard({
       ? "warning"
       : rbacStatus === "sp-not-found" || rbacStatus === "missing-role" || planClientIdMismatch
         ? "warning" // vars saved but the app reg is gone from this tenant, the SP lost access, or AZURE_PLAN_CLIENT_ID drifted
-        : azureSecretsValid === false
-          ? "error"
-          : "complete"; // filled in — validated (true) or not yet run (null) both count as complete
+        : "complete"; // filled in — validated (true) or not yet run (null) both count as complete
   const summary = !azureConfigured
     ? "Unavailable"
     : rbacStatus === "sp-not-found"

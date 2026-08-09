@@ -1,30 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { checkTemplate, createBranch, fetchBranches, fetchOrgList, fetchRepos, generateRepo } from "../api";
-import { PIPELINES } from "../logic/pipeline";
-import type { Account, Branch, CardStatus, PipelineConfig, Repo, RepoOption, User } from "../types";
-import type { PendingRestore } from "./useUrlRestore";
+import { PIPELINE } from "../logic/pipeline";
+import { findIgnoreCase } from "../logic/search";
+import { INITIAL_URL_PARAMS, type UrlRestoreField } from "./useUrlStateManager";
+import type { Account, Branch, CardStatus, Repo, RepoOption, User } from "../types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface UseGithubRepo {
-  // Accounts
-  accounts: Account[];
+  // Account
+  accountList: Account[];
   selectedAccount: Account | null;
   setSelectedAccount: (a: Account | null) => void;
-  // Repos
-  repos: Repo[];
+  // Repository
+  repoList: Repo[];
   selectedRepo: RepoOption | null;
   setSelectedRepo: (r: RepoOption | null) => void;
-  repoCache: Record<string, Repo[]>;
   // Template
   templateStatus: "checking" | "ready" | "not_clone";
   templateName: string | null;
-  isCloneRepo: boolean;
   repoFullName: string | null;
-  // Pipeline
-  pipeline: PipelineConfig;
-  selectedPipeline: string;
-  setSelectedPipeline: (key: string) => void;
   // Clone
   isPrivate: boolean;
   setIsPrivate: (v: boolean) => void;
@@ -35,9 +30,8 @@ export interface UseGithubRepo {
   createEnvs: boolean;
   setCreateEnvs: (v: boolean) => void;
   cloneEnvWarning: string | null;
-  // Branches
-  branches: Branch[];
-  branchesLoading: boolean;
+  // Branch
+  branchList: Branch[];
   sourceBranch: string;
   setSourceBranch: (v: string) => void;
   creatingBranch: boolean;
@@ -48,38 +42,35 @@ export interface UseGithubRepo {
   repoRefreshFailed: boolean;
   // Actions
   onClone: () => Promise<void>;
-  onCreateBranch: (targetName: string) => Promise<void>;
   onRefresh: () => void;
+  onCreateBranch: (targetName: string) => Promise<void>;
+  // Restore
+  restore: {
+    account: UrlRestoreField;
+    repo: UrlRestoreField;
+  };
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export type UseGithubRepoParams = {
-  user: User | null;
-  pendingRestore: React.MutableRefObject<PendingRestore>;
-  urlAccountApplied: React.MutableRefObject<boolean>;
-  addRestoreWarning: (msg: string) => void;
-  checkRestoreDone: () => void;
-};
-
 /*
  * The GitHub account/repo/clone/branch layer — not a card. Shared by the repo card
- * (which just needs isCloneRepo) and useGithubEnvironment (which needs the account,
+ * (which just needs status) and useGithubEnvironment (which needs the account,
  * selected repo, and branches to load environments and match a branch).
  */
-export function useGithubRepo(opts: UseGithubRepoParams): UseGithubRepo {
-  const { pendingRestore, urlAccountApplied, addRestoreWarning, checkRestoreDone } = opts;
+export function useGithubRepo(user: User | null): UseGithubRepo {
+  const { validEnvs, templateRepo } = PIPELINE;
 
   // ── State ─────────────────────────────────────────────────────────────────
-  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [accountList, setAccountList] = useState<Account[]>([]);
+  const [accountsLoaded, setAccountsLoaded] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
-  const [repos, setRepos] = useState<Repo[]>([]);
-  const [repoCache, setRepoCache] = useState<Record<string, Repo[]>>({});
+  const [repoList, setRepoList] = useState<Repo[]>([]);
+  const [reposLoaded, setReposLoaded] = useState(false);
   const [selectedRepo, setSelectedRepo] = useState<RepoOption | null>(null);
 
   const [templateStatus, setTemplateStatus] = useState<"checking" | "ready" | "not_clone">("not_clone");
   const [templateName, setTemplateName] = useState<string | null>(null);
-  const [selectedPipeline, setSelectedPipeline] = useState<string>("corpSetup");
 
   const [isPrivate, setIsPrivate] = useState(true);
   const [includeAllBranch, setIncludeAllBranch] = useState(false);
@@ -88,8 +79,7 @@ export function useGithubRepo(opts: UseGithubRepoParams): UseGithubRepo {
   const [createEnvs, setCreateEnvs] = useState(true);
   const [cloneEnvWarning, setCloneEnvWarning] = useState<string | null>(null);
 
-  const [branches, setBranches] = useState<Branch[]>([]);
-  const [branchesLoading, setBranchesLoading] = useState(false);
+  const [branchList, setBranchList] = useState<Branch[]>([]);
   const [sourceBranch, setSourceBranch] = useState<string>("main");
   const [creatingBranch, setCreatingBranch] = useState(false);
   const [createBranchError, setCreateBranchError] = useState<string | null>(null);
@@ -98,183 +88,128 @@ export function useGithubRepo(opts: UseGithubRepoParams): UseGithubRepo {
   const [repoLoading, setRepoLoading] = useState(false);
   const [repoRefreshFailed, setRepoRefreshFailed] = useState(false);
 
-  // ── Derived ───────────────────────────────────────────────────────────────
-  const isCloneRepo = templateStatus === "ready";
-  const isNewRepo = selectedRepo?.isNew ?? false;
-  const repoFullName = selectedAccount && selectedRepo && !isNewRepo ? `${selectedAccount.login}/${selectedRepo.name}` : null;
-  const pipeline = PIPELINES[selectedPipeline];
+  // Pure cache to avoid refetching a repo list already seen this session — never rendered directly.
+  const repoCache = useRef<Record<string, Repo[]>>({});
 
-  const pipelineRef = useRef(pipeline);
-  pipelineRef.current = pipeline;
+  // ── Derived ───────────────────────────────────────────────────────────────
+  const isNewRepo = selectedRepo?.isNew ?? false;
+  const repoFullName =
+    selectedAccount && selectedRepo && !isNewRepo ? `${selectedAccount.login}/${selectedRepo.name}` : null;
 
   // Auto-clear clone error when a different repo is selected
   useEffect(() => {
     setCloneError(null);
   }, [selectedRepo?.id]);
 
-  // Re-evaluate template match when user switches pipeline (repo may already be selected)
-  const templateNameRef = useRef<string | null>(null);
-  templateNameRef.current = templateName;
-  useEffect(() => {
-    const tName = templateNameRef.current;
-    if (!tName) return;
-    const isMatch = tName === pipeline.templateRepo;
-    setTemplateStatus(isMatch ? "ready" : "not_clone");
-    setStatus(isMatch ? "complete" : "warning");
-    if (isMatch) {
-      const acc = selectedAccountRef.current;
-      const repo = selectedRepoRef.current;
-      if (acc && repo && !repo.isNew) {
-        setBranchesLoading(true);
-        fetchBranches(acc, repo.name)
-          .then((list) => {
-            setBranches(list);
-            const main = list.find((b) => b.name === "main");
-            setSourceBranch(main ? "main" : (list[0]?.name ?? "main"));
-          })
-          .catch((e) => console.error("Failed to fetch branches:", e))
-          .finally(() => setBranchesLoading(false));
-      }
-    } else {
-      setBranches([]);
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  const loadBranches = useCallback(async (account: Account, repo: RepoOption) => {
+    try {
+      const list = await fetchBranches(account, repo.name);
+      setBranchList(list);
+      const main = list.find((b) => b.name === "main");
+      setSourceBranch(main ? "main" : (list[0]?.name ?? "main"));
+    } catch (e) {
+      console.error("Failed to fetch branches:", e);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedPipeline]);
+  }, []);
 
-  // ── Effects ───────────────────────────────────────────────────────────────
-
-  // Load org list once user authenticates
-  useEffect(() => {
-    if (!opts.user) return;
-    fetchOrgList()
-      .then((data) => {
-        setAccounts(data);
-        const p = pendingRestore.current;
-        const hasUrlParams = p.account !== null || p.repo !== null || p.pr !== null || p.env !== null;
-        if (!hasUrlParams) setSelectedAccount(data[0] ?? null);
-      })
-      .catch(console.error);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opts.user]);
-
-  // URL-restore: apply URL account param once org list is ready (fires exactly once)
-  useEffect(() => {
-    if (urlAccountApplied.current || !opts.user || accounts.length === 0) return;
-    const p = pendingRestore.current;
-    if (p.account === null && p.repo === null && p.pr === null && p.env === null) return;
-    urlAccountApplied.current = true;
-    const targetLogin = p.account;
-    const match = targetLogin ? accounts.find((a) => a.login.toLowerCase() === targetLogin.toLowerCase()) : null;
-    if (targetLogin && !match) {
-      addRestoreWarning(`Account "${targetLogin}" not found or not accessible`);
-      p.repo = null;
-      p.pr = null;
-      p.env = null;
-    }
-    p.account = null;
-    setSelectedAccount(match ?? accounts[0] ?? null);
-    checkRestoreDone();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opts.user, accounts]);
-
-  // Fetch repos when account changes
-  useEffect(() => {
-    setRepos([]);
-    setSelectedRepo(null);
-    setStatus("idle");
-    if (!selectedAccount) return;
-    const key = String(selectedAccount.id);
-    const applyRepoRestore = (list: Repo[]) => {
-      const p = pendingRestore.current;
-      const targetRepo = p.repo;
-      p.repo = null;
-      if (targetRepo) {
-        const match = list.find((r) => r.name === targetRepo);
-        if (match) {
-          setSelectedRepo({ id: match.id, name: match.name });
-        } else {
-          addRestoreWarning(`Repository "${targetRepo}" not found`);
-          p.pr = null;
-          p.env = null;
-        }
-      }
-      checkRestoreDone();
-    };
-    if (repoCache[key]) {
-      setRepos(repoCache[key]);
-      applyRepoRestore(repoCache[key]);
-      return;
-    }
-    fetchRepos(selectedAccount)
-      .then((list) => {
-        setRepos(list);
-        setRepoCache((prev) => ({ ...prev, [key]: list }));
-        applyRepoRestore(list);
-      })
-      .catch(console.error);
-    setTemplateName(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedAccount]);
-
-  // Check template & fetch branches when repo is selected
-  useEffect(() => {
-    setTemplateStatus("checking");
-    setTemplateName(null);
-    setBranches([]);
-    setBranchesLoading(false);
-    setStatus("loading");
-    if (!selectedAccount || !selectedRepo || selectedRepo.isNew) return;
-    checkTemplate(selectedAccount, selectedRepo.name)
-      .then((data) => {
+  const checkSelectedRepo = useCallback(
+    async (account: Account | null, repo: RepoOption | null) => {
+      setTemplateStatus("checking");
+      setTemplateName(null);
+      setBranchList([]);
+      setStatus("loading");
+      if (!account || !repo || repo.isNew) return;
+      try {
+        const data = await checkTemplate(account, repo.name);
         const tName = data.templateName || null;
         setTemplateName(tName);
-        const isTemplate = tName !== null && tName === pipelineRef.current.templateRepo;
-        setTemplateStatus(isTemplate ? "ready" : "not_clone");
-        setStatus(isTemplate ? "complete" : "warning");
-
-        if (isTemplate) {
-          setBranchesLoading(true);
-          fetchBranches(selectedAccount, selectedRepo.name)
-            .then((list) => {
-              setBranches(list);
-              const main = list.find((b) => b.name === "main");
-              setSourceBranch(main ? "main" : (list[0]?.name ?? "main"));
-            })
-            .catch((e) => console.error("Failed to fetch branches:", e))
-            .finally(() => setBranchesLoading(false));
-        } else {
-          const rp = pendingRestore.current;
-          rp.pr = null;
-          rp.env = null;
-          checkRestoreDone();
+        const isTemplate = tName !== null && tName === templateRepo;
+        if (!isTemplate) {
+          setTemplateStatus("not_clone");
+          setStatus("warning");
+          return;
         }
-      })
-      .catch((e) => {
+
+        setTemplateStatus("ready");
+        setStatus("complete");
+        await loadBranches(account, repo);
+      } catch (e) {
         console.error("Failed to check template:", e);
         setTemplateStatus("not_clone");
         setStatus("warning");
-        const rp = pendingRestore.current;
-        if (rp.pr !== null) rp.pr = null;
-        if (rp.env !== null) rp.env = null;
-        checkRestoreDone();
-      });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedRepo?.id, selectedAccount?.id]);
+      }
+    },
+    [templateRepo, loadBranches],
+  );
 
-  // ── Stable actions ────────────────────────────────────────────────────────
-  const reposRef = useRef(repos);
-  reposRef.current = repos;
+  // ── Effects ───────────────────────────────────────────────────────────────
+
+  // Load organizations once user authenticates
+  useEffect(() => {
+    if (!user) return;
+    fetchOrgList()
+      .then((data) => {
+        setAccountList(data);
+        // Don't clobber a pending URL restore with the default selection.
+        if (!INITIAL_URL_PARAMS.has("account")) setSelectedAccount(data[0] ?? null);
+      })
+      .catch(console.error)
+      .finally(() => setAccountsLoaded(true));
+  }, [user]);
+
+  // Load repositories when account changes
+  useEffect(() => {
+    setRepoList([]);
+    setSelectedRepo(null);
+    setStatus("idle");
+    setReposLoaded(false);
+    if (!selectedAccount) return;
+    const key = String(selectedAccount.id);
+    if (repoCache.current[key]) {
+      setRepoList(repoCache.current[key]);
+      setReposLoaded(true);
+      return;
+    }
+    let cancelled = false;
+    fetchRepos(selectedAccount)
+      .then((list) => {
+        repoCache.current[key] = list;
+        if (!cancelled) setRepoList(list);
+      })
+      .catch(console.error)
+      .finally(() => {
+        if (!cancelled) setReposLoaded(true);
+      });
+    setTemplateName(null);
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedAccount]);
+
+  // Check selected repository
+  useEffect(() => {
+    checkSelectedRepo(selectedAccount, selectedRepo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRepo?.id, selectedAccount?.id, checkSelectedRepo]);
+
+  // ── Stable refs (for callbacks below that shouldn't re-create on every state change) ──
+  const repoListRef = useRef(repoList);
+  repoListRef.current = repoList;
   const selectedAccountRef = useRef(selectedAccount);
   selectedAccountRef.current = selectedAccount;
   const selectedRepoRef = useRef(selectedRepo);
   selectedRepoRef.current = selectedRepo;
+  const sourceBranchRef = useRef(sourceBranch);
+  sourceBranchRef.current = sourceBranch;
 
+  // ── Actions ───────────────────────────────────────────────────────────────
   const onClone = useCallback(async () => {
     const acc = selectedAccountRef.current;
     const repo = selectedRepoRef.current;
     if (!acc || !repo) return;
     const name = repo.name;
-    if (reposRef.current.find((r) => r.name === name)) {
+    if (repoListRef.current.find((r) => r.name === name)) {
       setCloneError(`Repository "${name}" already exists`);
       return;
     }
@@ -286,10 +221,10 @@ export function useGithubRepo(opts: UseGithubRepoParams): UseGithubRepo {
         repo: newRepo,
         envSuccess,
         results,
-      } = await generateRepo(acc, name, isPrivate, includeAllBranch, createEnvs, pipeline.templateRepo, pipeline.validEnvs);
-      const updated = [...reposRef.current, newRepo];
-      setRepos(updated);
-      setRepoCache((prev) => ({ ...prev, [String(acc.id)]: updated }));
+      } = await generateRepo(acc, name, isPrivate, includeAllBranch, createEnvs, templateRepo, validEnvs);
+      const updated = [...repoListRef.current, newRepo];
+      setRepoList(updated);
+      repoCache.current[String(acc.id)] = updated;
       setSelectedRepo({ id: newRepo.id, name: newRepo.name });
       if (!envSuccess) {
         const failed = results.envs.filter((e) => !e.success).map((e) => e.name);
@@ -300,10 +235,7 @@ export function useGithubRepo(opts: UseGithubRepoParams): UseGithubRepo {
     } finally {
       setCloning(false);
     }
-  }, [isPrivate, includeAllBranch, createEnvs]);
-
-  const sourceBranchRef = useRef(sourceBranch);
-  sourceBranchRef.current = sourceBranch;
+  }, [isPrivate, includeAllBranch, createEnvs, templateRepo, validEnvs]);
 
   const onRefresh = useCallback(() => {
     const acc = selectedAccountRef.current;
@@ -311,16 +243,12 @@ export function useGithubRepo(opts: UseGithubRepoParams): UseGithubRepo {
     const key = String(acc.id);
     setRepoLoading(true);
     setRepoRefreshFailed(false);
-    setRepoCache((prev) => {
-      const next = { ...prev };
-      delete next[key];
-      return next;
-    });
+    delete repoCache.current[key];
     Promise.all([fetchOrgList(), fetchRepos(acc)])
       .then(([orgs, list]) => {
-        setAccounts(orgs);
-        setRepos(list);
-        setRepoCache((prev) => ({ ...prev, [key]: list }));
+        setAccountList(orgs);
+        setRepoList(list);
+        repoCache.current[key] = list;
       })
       .catch((e) => {
         console.error(e);
@@ -337,7 +265,7 @@ export function useGithubRepo(opts: UseGithubRepoParams): UseGithubRepo {
     setCreateBranchError(null);
     try {
       const newBranch = await createBranch(acc, repo.name, targetName, sourceBranchRef.current);
-      setBranches((prev) => [...prev, newBranch]);
+      setBranchList((prev) => [...prev, newBranch]);
     } catch {
       setCreateBranchError("Failed to create branch");
     } finally {
@@ -345,21 +273,41 @@ export function useGithubRepo(opts: UseGithubRepoParams): UseGithubRepo {
     }
   }, []);
 
+  // ── Restore ───────────────────────────────────────────────────────────────
+  const restoreAccount = useCallback(
+    (value: string): boolean => {
+      const match = findIgnoreCase(accountList, (a) => a.login, value);
+      // Fall back to the default selection on a miss — leaving nothing selected strands the UI.
+      setSelectedAccount(match ?? accountList[0] ?? null);
+      return !!match;
+    },
+    [accountList],
+  );
+
+  const restoreRepo = useCallback(
+    (value: string): boolean => {
+      const match = findIgnoreCase(repoList, (r) => r.name, value);
+      if (!match) return false;
+      setSelectedRepo({ id: match.id, name: match.name });
+      return true;
+    },
+    [repoList],
+  );
+
   return {
-    accounts,
+    // Account
+    accountList,
     selectedAccount,
     setSelectedAccount,
-    repos,
+    // Repository
+    repoList,
     selectedRepo,
     setSelectedRepo,
-    repoCache,
+    // Template
     templateStatus,
     templateName,
-    isCloneRepo,
     repoFullName,
-    pipeline,
-    selectedPipeline,
-    setSelectedPipeline,
+    // Clone
     isPrivate,
     setIsPrivate,
     includeAllBranch,
@@ -369,17 +317,24 @@ export function useGithubRepo(opts: UseGithubRepoParams): UseGithubRepo {
     createEnvs,
     setCreateEnvs,
     cloneEnvWarning,
-    branches,
-    branchesLoading,
+    // Branch
+    branchList,
     sourceBranch,
     setSourceBranch,
     creatingBranch,
     createBranchError,
+    // Status
     status,
     repoLoading,
     repoRefreshFailed,
+    // Actions
     onClone,
-    onCreateBranch,
     onRefresh,
+    onCreateBranch,
+    // Restore
+    restore: {
+      account: { ready: accountsLoaded, scope: user?.login ?? null, apply: restoreAccount },
+      repo: { ready: reposLoaded, scope: selectedAccount?.id ?? null, apply: restoreRepo },
+    },
   };
 }

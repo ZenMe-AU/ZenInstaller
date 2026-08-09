@@ -11,7 +11,8 @@ const url = import.meta.env.VITE_API_URL;
  * redirects to login. Not used by verifyAuth (initial check should show a login button).
  */
 async function fetchWithAuth(input: string, init: RequestInit = {}): Promise<Response> {
-  const headers = (init.method ?? "GET").toUpperCase() === "POST" ? { "X-CSRF-Token": "1", ...init.headers } : init.headers;
+  const headers =
+    (init.method ?? "GET").toUpperCase() === "POST" ? { "X-CSRF-Token": "1", ...init.headers } : init.headers;
   const res = await fetch(input, { credentials: "include", ...init, headers });
   if (res.status !== 401) return res;
 
@@ -33,9 +34,21 @@ export async function verifyAuth(): Promise<{ login: string }> {
   return data.user;
 }
 
+export async function logout(): Promise<void> {
+  await fetch(`${url}/logout?redirect_uri=${encodeURIComponent(window.location.href)}`, {
+    method: "GET",
+    credentials: "include",
+  });
+}
+
 // ─── PKCE auth (used by usePkceAuth — inactive until VITE_AUTH_PKCE=true) ────
 
-export async function exchangePkceCode(code: string, verifier: string, clientId: string, redirectUri: string): Promise<string> {
+export async function exchangePkceCode(
+  code: string,
+  verifier: string,
+  clientId: string,
+  redirectUri: string,
+): Promise<string> {
   const res = await fetch(`${url}/getAccessToken`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -55,7 +68,11 @@ export async function fetchOrgList(): Promise<Account[]> {
   const [userData, orgsData] = await Promise.all([userRes.json(), orgsRes.json()]);
   return [
     { login: userData.user.login, type: "User", id: userData.user.id },
-    ...orgsData.orgList.map((o: { login: string; id: number }) => ({ login: o.login, type: "Organization" as const, id: o.id })),
+    ...orgsData.orgList.map((o: { login: string; id: number }) => ({
+      login: o.login,
+      type: "Organization" as const,
+      id: o.id,
+    })),
   ];
 }
 
@@ -69,7 +86,10 @@ export async function fetchRepos(account: Account): Promise<Repo[]> {
 
 // ─── Template ─────────────────────────────────────────────────────────────────
 
-export async function checkTemplate(account: Account, repo: string): Promise<{ isTemplate: boolean; templateName: string }> {
+export async function checkTemplate(
+  account: Account,
+  repo: string,
+): Promise<{ isTemplate: boolean; templateName: string }> {
   const params = new URLSearchParams({ owner: account.login, repo, type: account.type });
   const res = await fetchWithAuth(`${url}/checkTemplate?${params}`);
   if (!res.ok) throw new Error(`Failed to check template: ${res.status}`);
@@ -86,7 +106,11 @@ export async function generateRepo(
   createEnvs: boolean,
   templateRepo?: string,
   validEnvs?: readonly string[],
-): Promise<{ repo: Repo; envSuccess: boolean; results: { envs: { name: string; success: boolean; error?: string }[] } }> {
+): Promise<{
+  repo: Repo;
+  envSuccess: boolean;
+  results: { envs: { name: string; success: boolean; error?: string }[] };
+}> {
   const res = await fetchWithAuth(`${url}/generateRepo`, {
     method: "POST",
     body: JSON.stringify({
@@ -115,7 +139,12 @@ export async function fetchBranches(account: Account, repo: string): Promise<Bra
   return data.branches || [];
 }
 
-export async function createBranch(account: Account, repo: string, branchName: string, sourceBranch: string): Promise<Branch> {
+export async function createBranch(
+  account: Account,
+  repo: string,
+  branchName: string,
+  sourceBranch: string,
+): Promise<Branch> {
   const res = await fetchWithAuth(`${url}/createBranch`, {
     method: "POST",
     body: JSON.stringify({ owner: account.login, type: account.type, repo, branch: branchName, source: sourceBranch }),
@@ -165,7 +194,11 @@ export async function fetchSecrets(account: Account, repo: string, envName: stri
   return (data.secrets || []) as string[];
 }
 
-export async function fetchPublicKey(account: Account, repo: string, envName?: string): Promise<{ key: string; keyId: string }> {
+export async function fetchPublicKey(
+  account: Account,
+  repo: string,
+  envName?: string,
+): Promise<{ key: string; keyId: string }> {
   const params = new URLSearchParams({ owner: account.login, repo, type: account.type });
   if (envName) params.set("env", envName);
   const res = await fetchWithAuth(`${url}/getPublicKey?${params}`);
@@ -209,7 +242,13 @@ export async function fetchVariables(account: Account, repo: string, envName: st
   return data.variables || {};
 }
 
-export async function createVariable(account: Account, repo: string, name: string, value: string, envName: string): Promise<void> {
+export async function createVariable(
+  account: Account,
+  repo: string,
+  name: string,
+  value: string,
+  envName: string,
+): Promise<void> {
   const res = await fetchWithAuth(`${url}/createVariable`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -218,7 +257,13 @@ export async function createVariable(account: Account, repo: string, name: strin
   if (!res.ok) throw new Error(`Failed to create variable "${name}": ${res.status}`);
 }
 
-export async function updateVariable(account: Account, repo: string, name: string, value: string, envName: string): Promise<void> {
+export async function updateVariable(
+  account: Account,
+  repo: string,
+  name: string,
+  value: string,
+  envName: string,
+): Promise<void> {
   const res = await fetchWithAuth(`${url}/updateVariable`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -255,7 +300,11 @@ export async function fetchEnv(account: Account, repo: string): Promise<Record<s
   return parse(data.content);
 }
 
-export async function getPlanEnv(account: Account, repo: string, envId: number): Promise<Record<string, string> | null> {
+export async function getPlanEnv(
+  account: Account,
+  repo: string,
+  envId: number,
+): Promise<Record<string, string> | null> {
   const params = new URLSearchParams({ artifacts_id: String(envId), owner: account.login, type: account.type, repo });
   const res = await fetchWithAuth(`${url}/downloadArtifacts?${params}`);
   if (!res.ok) return null;
@@ -269,7 +318,13 @@ export async function getPlanEnv(account: Account, repo: string, envId: number):
 
 // ─── Workflow ─────────────────────────────────────────────────────────────────
 
-export async function triggerWorkflow(account: Account, repo: string, workflowId: string, githubEnvName: string, ref: string) {
+export async function triggerWorkflow(
+  account: Account,
+  repo: string,
+  workflowId: string,
+  githubEnvName: string,
+  ref: string,
+) {
   const res = await fetchWithAuth(`${url}/triggerActions`, {
     method: "POST",
     body: JSON.stringify({
@@ -285,7 +340,13 @@ export async function triggerWorkflow(account: Account, repo: string, workflowId
   return res.json();
 }
 
-export async function triggerWorkflowFromPR(account: Account, repo: string, workflowId: string, githubEnvName: string, commitSha: string) {
+export async function triggerWorkflowFromPR(
+  account: Account,
+  repo: string,
+  workflowId: string,
+  githubEnvName: string,
+  commitSha: string,
+) {
   const res = await fetchWithAuth(`${url}/triggerActions`, {
     method: "POST",
     body: JSON.stringify({
@@ -301,7 +362,14 @@ export async function triggerWorkflowFromPR(account: Account, repo: string, work
   return res.json();
 }
 
-export async function deployChangeset(account: Account, repo: string, runId: string, dir: string, githubEnvName: string, ref: string) {
+export async function deployChangeset(
+  account: Account,
+  repo: string,
+  runId: string,
+  dir: string,
+  githubEnvName: string,
+  ref: string,
+) {
   const res = await fetchWithAuth(`${url}/triggerActions`, {
     method: "POST",
     body: JSON.stringify({

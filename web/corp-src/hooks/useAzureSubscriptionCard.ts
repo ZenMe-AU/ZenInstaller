@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { AccountInfo } from "@azure/msal-browser";
 import { listSubscriptions, type Subscription } from "../api/azureGraph";
 import { AZURE_CLIENT_ID } from "../config/azureConfig";
+import { findIgnoreCase } from "../logic/search";
+import type { UrlRestoreField } from "./useUrlStateManager";
 import type { CardHook, CardRequirements, CardStatus } from "../types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -9,7 +11,6 @@ export type UseAzureSubscriptionCardParams = {
   azureAccount: AccountInfo | null;
   confirmedTenantId: string | null;
   manualTenantId: string;
-  savedTenantId: string; // AZURE_TENANT_ID as saved on the GitHub environment.
   savedSubscriptionId: string; // AZURE_SUBSCRIPTION_ID as saved on the GitHub environment.
 };
 
@@ -25,6 +26,9 @@ export interface UseAzureSubscriptionCard extends CardHook {
   // Narrowed from CardHook (optional there) — every card provides these.
   cardRequirements: CardRequirements;
   cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Select a subscription")
+  restore: {
+    subscription: UrlRestoreField;
+  };
 }
 
 // Maps a raw MSAL/AADSTS failure to user-facing text — never surface the raw trace/correlation-id blob.
@@ -40,13 +44,13 @@ export function useAzureSubscriptionCard({
   azureAccount,
   confirmedTenantId,
   manualTenantId,
-  savedTenantId,
   savedSubscriptionId,
 }: UseAzureSubscriptionCardParams): UseAzureSubscriptionCard {
   const pickedTenant = manualTenantId.trim();
 
   const [loaded, setLoaded] = useState<{ tenant: string; subs: Subscription[]; error: string | null } | null>(null);
   const [picked, setPicked] = useState<{ tenant: string; id: string } | null>(null);
+  const [subscriptionsLoaded, setSubscriptionsLoaded] = useState(false);
 
   const forThisTenant = loaded?.tenant === pickedTenant;
   const subscriptions = forThisTenant ? loaded.subs : [];
@@ -57,7 +61,8 @@ export function useAzureSubscriptionCard({
 
   // Reload whenever the account or the confirmed tenant changes — the list is per-tenant.
   useEffect(() => {
-    if (!azureAccount || confirmedTenantId === null) return;
+    setSubscriptionsLoaded(false);
+    if (!azureAccount || !confirmedTenantId?.trim()) return;
     let cancelled = false;
     const tenant = confirmedTenantId;
     listSubscriptions(azureAccount, tenant || undefined)
@@ -68,27 +73,42 @@ export function useAzureSubscriptionCard({
       })
       .catch((err) => {
         if (!cancelled) setLoaded({ tenant, subs: [], error: friendlySubsError(err) });
+      })
+      .finally(() => {
+        if (!cancelled) setSubscriptionsLoaded(true);
       });
     return () => {
       cancelled = true;
     };
   }, [azureAccount, confirmedTenantId]);
 
-  const subscriptionConfirmed = !!savedSubscriptionId && savedSubscriptionId === selectedSubscriptionId && savedTenantId === pickedTenant;
+  // ── Restore ───────────────────────────────────────────────────────────────
+  const restoreSubscription = useCallback(
+    (value: string): boolean => {
+      const match =
+        subscriptions.find((s) => s.id === value) ?? findIgnoreCase(subscriptions, (s) => s.displayName, value);
+      if (!match) return false;
+      setSelectedSubscriptionId(match.id);
+      return true;
+    },
+    [subscriptions],
+  );
+
+  const subscriptionConfirmed =
+    !!savedSubscriptionId && savedSubscriptionId === selectedSubscriptionId && confirmedTenantId === pickedTenant;
   const subscriptionDrift = !!selectedSubscriptionId && !subscriptionConfirmed;
   const subscriptionNoAccess = !!pickedTenant && !!subsError && subscriptions.length === 0;
-  const subscriptionLabel = subscriptions.find((s) => s.id === savedSubscriptionId)?.displayName ?? (savedSubscriptionId || undefined);
+  const subscriptionLabel =
+    subscriptions.find((s) => s.id === savedSubscriptionId)?.displayName ?? (savedSubscriptionId || undefined);
 
   const azureConfigured = !!AZURE_CLIENT_ID;
   // Assumes prerequisites are met — App locks this card (via cardRequirements) whenever they're not,
   // which overrides this status to "idle" regardless of what's computed here.
-  const status: CardStatus = !azureConfigured
-    ? "error"
-    : subscriptionConfirmed
-      ? "complete"
-      : subscriptionDrift || subscriptionNoAccess
-        ? "warning"
-        : "idle";
+  const status: CardStatus = subscriptionConfirmed
+    ? "complete"
+    : subscriptionDrift || subscriptionNoAccess
+      ? "warning"
+      : "idle";
   const summary = !azureConfigured
     ? "Unavailable"
     : subscriptionConfirmed
@@ -111,7 +131,10 @@ export function useAzureSubscriptionCard({
     status,
     summary,
     cardRequirements: ["azure_login", "repo"],
-    cardDependencyLabel: "Select a subscription",
+    cardDependencyLabel: subscriptionDrift ? "Unsaved Subscription change" : "Select a subscription",
     done: subscriptionConfirmed,
+    restore: {
+      subscription: { ready: subscriptionsLoaded, scope: confirmedTenantId ?? null, apply: restoreSubscription },
+    },
   };
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { AccountInfo } from "@azure/msal-browser";
+import { InteractionRequiredAuthError, type AccountInfo } from "@azure/msal-browser";
 import { getMsal } from "../api/msal";
 import { LOGIN_SCOPES, ARM_SCOPES } from "../config/azureConfig";
 import { getToken, listTenants, MSA_TENANT, type AzureTenant } from "../api/azureGraph";
@@ -24,6 +24,7 @@ export interface UseAzureAccount extends LoginHook<AccountInfo> {
   confirmedTenantId: string | null;
   tenantIdError: string | null;
   selectTenant: (tenantId: string) => void;
+  tenantsLoaded: boolean;
 }
 
 const SESSION_KEY = "zeninstaller_arm_tenant";
@@ -53,6 +54,7 @@ export function useAzureAccount(): UseAzureAccount {
   const [manualTenantId, setManualTenantId] = useState("");
   const [confirmedTenantId, setConfirmedTenantId] = useState<string | null>(null);
   const [tenantIdError, setTenantIdError] = useState<string | null>(null);
+  const [tenantsLoaded, setTenantsLoaded] = useState(false);
 
   // Tenant IDs the signed-in account already exposes — the MSA fallback when ARM /tenants can't run.
   const availableTenants = useMemo(() => {
@@ -63,22 +65,27 @@ export function useAzureAccount(): UseAzureAccount {
   // Fetch the tenant list via ARM (display names); fall back to the account's known tenant IDs for MSA.
   const loadTenants = useCallback(async (acc: AccountInfo) => {
     try {
-      const list = await listTenants(acc);
-      if (list.length > 0) {
-        setTenants(list);
-        return;
+      try {
+        const list = await listTenants(acc);
+        if (list.length > 0) {
+          setTenants(list);
+          return;
+        }
+      } catch {
+        /* MSA / consent — fall through to the tenantProfiles fallback */
       }
-    } catch {
-      /* MSA / consent — fall through to the tenantProfiles fallback */
-    }
-    if (acc.tenantProfiles) {
-      const ids = Array.from(acc.tenantProfiles.keys()).filter((id) => id !== MSA_TENANT);
-      setTenants(ids.map((id) => ({ tenantId: id, displayName: id })));
+      if (acc.tenantProfiles) {
+        const ids = Array.from(acc.tenantProfiles.keys()).filter((id) => id !== MSA_TENANT);
+        setTenants(ids.map((id) => ({ tenantId: id, displayName: id })));
+      }
+    } finally {
+      setTenantsLoaded(true);
     }
   }, []);
 
   // Load the tenant list once signed in.
   useEffect(() => {
+    setTenantsLoaded(false);
     if (account) void loadTenants(account);
   }, [account, loadTenants]);
 
@@ -121,7 +128,8 @@ export function useAzureAccount(): UseAzureAccount {
           }
         };
 
-        const msaTenant = (acc: AccountInfo) => (acc.tenantId === MSA_TENANT ? (azureResult.load()?.tenantId ?? undefined) : undefined);
+        const msaTenant = (acc: AccountInfo) =>
+          acc.tenantId === MSA_TENANT ? (azureResult.load()?.tenantId ?? undefined) : undefined;
 
         if (result?.account) {
           setAccount(result.account);
@@ -203,7 +211,8 @@ export function useAzureAccount(): UseAzureAccount {
         return;
       } catch (err) {
         const msg = err instanceof Error ? err.message : "";
-        const needsConsent = msg.includes("AADSTS65001") || msg.includes("interaction_required") || msg.includes("MSA_NEEDS_TENANT");
+        const needsConsent =
+          msg.includes("AADSTS65001") || msg.includes("interaction_required") || msg.includes("MSA_NEEDS_TENANT");
         if (!needsConsent) {
           setTenantIdError(friendlyTenantError(err));
           return;
@@ -230,6 +239,17 @@ export function useAzureAccount(): UseAzureAccount {
   // useAzureSubscriptionCard watches manualTenantId and reloads its own list.
   const selectTenant = useCallback(
     (tid: string) => {
+      if (!account?.tenantProfiles?.has(tid)) {
+        (async () => {
+          const msal = await getMsal();
+          if (!msal) return;
+          await msal.acquireTokenRedirect({
+            account: account,
+            scopes: ARM_SCOPES,
+            authority: `https://login.microsoftonline.com/${tid}`,
+          });
+        })();
+      }
       setManualTenantId(tid);
       setTenantIdError(null);
       void confirmTenantId(tid);
@@ -252,16 +272,20 @@ export function useAzureAccount(): UseAzureAccount {
   }, [clearSession]);
 
   return {
+    // loginHook
     account,
+    login,
+    logout,
+    refresh: () => {},
     loggingIn,
+
     loginError,
     tenants,
     manualTenantId,
     setManualTenantId,
     confirmedTenantId,
     tenantIdError,
+    tenantsLoaded,
     selectTenant,
-    login,
-    logout,
   };
 }

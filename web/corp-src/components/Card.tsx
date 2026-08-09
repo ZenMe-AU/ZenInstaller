@@ -18,6 +18,7 @@ const BORDER: Record<CardStatus, string> = {
   warning: "#fed7aa",
   error: "#fecaca",
   skipped: "#f1f5f9",
+  unavailable: "#e2e8f0",
 };
 
 const ICON_COLOR: Record<CardStatus, string> = {
@@ -27,19 +28,20 @@ const ICON_COLOR: Record<CardStatus, string> = {
   warning: "#f97316",
   error: "#ef4444",
   skipped: "#94a3b8",
+  unavailable: "#cbd5e1",
 };
 
-function StatusIcon({ status, locked, unavailable }: { status: CardStatus; locked: boolean; unavailable: boolean }) {
+function StatusIcon({ status, locked }: { status: CardStatus; locked: boolean }) {
   /*
    * Same muted grey as the lock icon - unavailable is styled identically to
    * locked, the glyph is the only thing that tells them apart.
    */
-  if (unavailable) return <WarningAmberIcon sx={{ fontSize: 15, color: "#cbd5e1" }} />;
   if (locked) return <LockIcon sx={{ fontSize: 16, color: "#cbd5e1" }} />;
   const c = ICON_COLOR[status];
   switch (status) {
     case "complete":
       return <CheckCircleIcon sx={{ fontSize: 16, color: c }} />;
+    case "unavailable":
     case "warning":
       return <WarningAmberIcon sx={{ fontSize: 15, color: c }} />;
     case "error":
@@ -74,7 +76,6 @@ export default function Card({
   status,
   locked,
   requirements,
-  unavailable,
   expanded,
   onToggle,
   onRequirementClick,
@@ -85,7 +86,7 @@ export default function Card({
    * locked and unavailable share the same muted chrome - the only visual
    * difference between them is the icon (padlock vs warning triangle).
    */
-  const muted = locked || unavailable;
+  const muted = locked || status === "unavailable";
   /*
    * Unlike locked, an unavailable card still shows its summary - that IS the
    * "here's what's wrong" message, not a prerequisite result worth hiding.
@@ -119,13 +120,13 @@ export default function Card({
           alignItems: "center",
           gap: 1.25,
           px: 2,
-          py: muted ? 2 : 1.5,
+          py: showSummary ? 1.5 : 2,
           cursor: "pointer",
           "&:hover": { background: muted ? "#f1f5f9" : "#fafafa" },
         }}
         onClick={onToggle}
       >
-        <StatusIcon status={status} locked={locked} unavailable={unavailable} />
+        <StatusIcon status={status} locked={locked} />
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography
             sx={{
@@ -145,15 +146,16 @@ export default function Card({
             <Typography
               sx={{
                 fontSize: "0.72rem",
-                color: unavailable
-                  ? "#64748b"
-                  : status === "complete"
-                    ? "#16a34a"
-                    : status === "warning" || status === "idle"
-                      ? "#ea580c"
-                      : status === "error"
-                        ? "#dc2626"
-                        : "#64748b",
+                color:
+                  status === "unavailable"
+                    ? "#64748b"
+                    : status === "complete"
+                      ? "#16a34a"
+                      : status === "warning" || status === "idle"
+                        ? "#ea580c"
+                        : status === "error"
+                          ? "#dc2626"
+                          : "#64748b",
                 ...mono,
                 mt: 0.25,
                 whiteSpace: "nowrap",
@@ -193,7 +195,15 @@ export default function Card({
                 borderRadius: "8px",
               }}
             >
-              <Typography sx={{ fontSize: "0.7rem", color: "#64748b", ...mono, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+              <Typography
+                sx={{
+                  fontSize: "0.7rem",
+                  color: "#64748b",
+                  ...mono,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                }}
+              >
                 Complete these first
               </Typography>
               {requirements.map((r) => (

@@ -11,7 +11,7 @@ import Card from "../components/Card";
 import { useRefreshIndicator } from "../hooks/util/useRefreshIndicator";
 import { useVariableEditor } from "../hooks/util/useVariableEditor";
 import { sectionLabelSx } from "../config/styles";
-import type { UseGithubEnvironment } from "../hooks/useGithubEnvironment";
+import type { UseRepoCard } from "../hooks/useRepoCard";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -123,7 +123,13 @@ function CompanyInfoDetailBody({
 
       {/* Save button row */}
       <Box sx={{ mt: 2, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
-        <SaveButton verb="Save" noun="variable" count={dirtyVarKeys.length} loading={updatingVars} onClick={() => void save()} />
+        <SaveButton
+          verb="Save"
+          noun="variable"
+          count={dirtyVarKeys.length}
+          loading={updatingVars}
+          onClick={() => void save()}
+        />
         {githubUrl && (
           <Button
             size="small"
@@ -153,25 +159,26 @@ function CompanyInfoDetailBody({
 
 type Props = {
   card: CardChrome;
-  github: UseGithubEnvironment;
+  github: UseRepoCard;
   githubAccount: Account | null;
   repoName: string;
   githubUrl?: string;
 };
 
 export default function CompanyInfoCard({ card, github, githubAccount, repoName, githubUrl }: Props) {
+  const { env } = github;
   return (
     <Card title="Company info" {...card}>
-      {github.selectedEnv && (
+      {env.selectedEnv && (
         <CompanyInfoDetailBody
           account={githubAccount}
           repo={repoName}
-          selectedEnv={github.selectedEnv}
-          variableValues={github.presentVariableValues}
-          onVariableRecheck={github.onVariableRecheck}
-          variablesRechecking={github.variablesRechecking}
-          varRecheckFailed={github.varRecheckFailed}
-          onVariableConfirmed={github.onVariableConfirmed}
+          selectedEnv={env.selectedEnv}
+          variableValues={env.presentVariableValues}
+          onVariableRecheck={env.onVariableRecheck}
+          variablesRechecking={env.variablesRechecking}
+          varRecheckFailed={env.varRecheckFailed}
+          onVariableConfirmed={env.onVariableConfirmed}
           githubUrl={githubUrl}
         />
       )}

@@ -11,15 +11,14 @@ import { tenantDisplayName } from "../logic/tenant";
 type Props = {
   card: CardChrome;
   azureLogin: UseAzureLoginCard;
-  configured: boolean;
 };
 
 /*
  * Azure sign-in on its own — independent of GitHub, not gated by environment.
  * App-registration, domain, and terraform cards all reuse the session it establishes.
  */
-export default function AzureLoginCard({ card, azureLogin, configured }: Props) {
-  if (!configured) {
+export default function AzureLoginCard({ card, azureLogin }: Props) {
+  if (card.status === "unavailable") {
     return (
       <Card title="Azure login" {...card}>
         <ConfigErrorNotice />

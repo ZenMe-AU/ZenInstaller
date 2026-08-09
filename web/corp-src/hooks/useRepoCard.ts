@@ -1,46 +1,80 @@
-import type { CardHook, CardStatus } from "../types";
-import type { UseGithubRepo } from "./useGithubRepo";
+import type { CardHook, CardStatus, PendingRestore, User } from "../types";
+import { useGithubRepo, type UseGithubRepo } from "./useGithubRepo";
+import { useGithubEnvironment, type UseGithubEnvironment } from "./useGithubEnvironment";
+import { getEnvSettingsUrl } from "../logic/github";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type UseRepoCardParams = {
-  githubRepo: UseGithubRepo;
-  envReady: boolean; // from useGithubEnvironment — the repo card is only done once an env is also chosen.
-  isAuthed: boolean; // github_login's own done — this card has no cardRequirements, so it reads this directly.
-  envName?: string; // github.selectedEnv?.name
+  user: User | null;
 };
 
-// No own fields — this card has nothing to render beyond its CardHook chrome.
-// No cardRequirements — the repo card is never locked behind GitHub sign-in today
-// (a pre-existing gap, left as-is; see corp-src/App.tsx's card composition comment).
 export interface UseRepoCard extends CardHook {
   readonly cardId: "repo";
   cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Choose an environment")
+  githubEnvUrl: string | undefined;
+  repo: UseGithubRepo;
+  env: UseGithubEnvironment;
 }
 
-/*
- * The repo card: self-reports `done` from useGithubRepo + useGithubEnvironment, which
- * both live upstream of it (App calls useGithubRepo, then useGithubEnvironment, then
- * this). Everything the card actually renders — accounts, repos, branches, the env
- * picker — comes straight from those two shared hooks, not from here.
- */
-export function useRepoCard({ githubRepo, envReady, isAuthed, envName }: UseRepoCardParams): UseRepoCard {
+export function useRepoCard({ user }: UseRepoCardParams): UseRepoCard {
+  const githubRepo = useGithubRepo(user);
+  const isRepoReady = githubRepo.status === "complete";
+
+  const env = useGithubEnvironment({
+    account: githubRepo.selectedAccount,
+    repo: githubRepo.selectedRepo,
+    branches: githubRepo.branchList,
+    isRepoReady: isRepoReady,
+  });
+
+  const isEnvReady = env.status === "complete" || env.status === "warning";
+  const envName = env.selectedEnv?.name;
+
   const envSelected = !!envName;
   // Merged Repository & environment card: complete only when the repo is cloned AND an env is picked.
-  const status: CardStatus = !isAuthed ? "idle" : githubRepo.isCloneRepo && envSelected ? "complete" : "idle";
+  const status: CardStatus =
+    !user || !githubRepo.selectedAccount || !githubRepo.selectedRepo
+      ? "idle"
+      : githubRepo.status !== "complete"
+        ? "error"
+        : envSelected
+          ? env.branchMatchError
+            ? "error"
+            : "complete"
+          : "idle";
   const summary =
-    githubRepo.repoFullName && envName
-      ? `${githubRepo.repoFullName} · ${envName}`
-      : githubRepo.repoFullName
-        ? githubRepo.repoFullName
-        : "Select repository and environment";
+    !user || !githubRepo.selectedAccount || !githubRepo.selectedRepo
+      ? "Select repository and environment"
+      : githubRepo.templateStatus !== "ready"
+        ? "Not a clone repository"
+        : env.branchMatchError
+          ? `${env.branchMatchError}`
+          : env.branchMatchWarning
+            ? `${env.branchMatchWarning}`
+            : !envName
+              ? "Select an environment"
+              : `${githubRepo.repoFullName} · ${envName}`;
+
+  const githubEnvUrl =
+    githubRepo.repoFullName && env.selectedEnv
+      ? getEnvSettingsUrl(githubRepo.repoFullName, env.selectedEnv.id)
+      : undefined;
 
   return {
+    repo: githubRepo,
+    env,
+    githubEnvUrl,
+    // cardHook
     cardId: "repo" as const,
     status,
     summary,
     cardRequirements: ["github_login"],
-    cardDependencyLabel: "Choose an environment",
-    done: githubRepo.isCloneRepo && envReady,
+    cardDependencyLabel: isRepoReady
+      ? isEnvReady
+        ? null
+        : "Choose an environment"
+      : "Select a repository & environment",
+    done: isRepoReady && isEnvReady,
   };
 }

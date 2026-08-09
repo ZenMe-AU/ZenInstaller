@@ -12,7 +12,7 @@ export type CardId =
   | "core_infra"
   | "create_domain"
   | "access_pass";
-export type CardStatus = "idle" | "loading" | "complete" | "warning" | "error" | "skipped";
+export type CardStatus = "idle" | "loading" | "complete" | "warning" | "error" | "skipped" | "unavailable";
 
 export type CardRequirements = CardId[]; //["github_login","repo"]
 
@@ -42,14 +42,16 @@ export interface CardHook {
   summary?: string;
   cardRequirements?: CardRequirements;
   cardDependencyLabel?: string;
+  stage?: string;
 }
 
 // ─── Composable hook shapes ───────────────────────────────────────────────────
 export interface LoginHook<TAccount> {
   account: TAccount | null;
   loggingIn: boolean;
-  login: () => void;
-  logout: () => void;
+  login: () => void | Promise<void>;
+  logout: () => void | Promise<void>;
+  refresh: () => void | Promise<void>;
 }
 
 export interface ResettableHook {
@@ -71,7 +73,12 @@ export interface AzureSpTarget extends AzureTarget {
   spClientId: string; // Client id of the GitHub Actions app registration (AZURE_CLIENT_ID variable).
 }
 
-export type SetupStep = { id: string; label: string; status: "pending" | "running" | "done" | "skipped" | "error"; detail?: string };
+export type SetupStep = {
+  id: string;
+  label: string;
+  status: "pending" | "running" | "done" | "skipped" | "error";
+  detail?: string;
+};
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 

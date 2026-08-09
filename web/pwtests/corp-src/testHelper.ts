@@ -1,11 +1,22 @@
-import { expect, type Page, type TestInfo,} from "@playwright/test";
+import { expect, type Locator, type Page, type TestInfo } from "@playwright/test";
 import fs from "fs";
 
 export type PageSnapshotOptions = {
 	userId: string;
 	viewportName: string;
 	testFolder?: string;
+	mask?: Locator[];
+  	stabilizeAuth?: boolean;
 };
+
+// Returns locators that mask sensitive identity fields in screenshots.
+export function sensitiveTextMasks(page: Page,): Locator[] {
+  return [page.getByTestId("txtAzureUsername",),
+    page.getByTestId("txtUPN"),
+    page.getByText(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i,),
+	page.getByTestId("txtGithubUser"),
+  ];
+}
 
 // Normalizes arbitrary strings into stable snapshot path segments.
 function safePathSegment(value: string,): string {
@@ -71,6 +82,8 @@ export async function expectPageSnapshot(
 			animations: "disabled",
 			caret: "hide",
 			maxDiffPixelRatio: 0.02,
+			mask: options.mask ?? [],
+        	maskColor: "rgb(0, 0, 0)",
 		},
 	);
 }

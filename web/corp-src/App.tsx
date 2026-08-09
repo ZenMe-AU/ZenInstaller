@@ -24,6 +24,7 @@ import { useCreateDomainCard } from "./hooks/useCreateDomainCard";
 import { useCoreInfraCard } from "./hooks/useCoreInfraCard";
 import { useCompanyInfoCard } from "./hooks/useCompanyInfoCard";
 import { useAccessPassCard } from "./hooks/useAccessPassCard";
+import { useGlobalGroupsCard } from "./hooks/useGlobalGroupsCard";
 
 import NavBar from "./components/NavBar";
 import RestoreToast from "./components/RestoreToast";
@@ -37,6 +38,7 @@ import AzureSubscriptionCard from "./cards/AzureSubscriptionCard";
 import CoreInfraCard from "./cards/CoreInfraCard";
 import CreateDomainCard from "./cards/CreateDomainCard";
 import AccessPassCard from "./cards/AccessPassCard";
+import GlobalGroupsCard from "./cards/GlobalGroupsCard";
 
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
@@ -95,6 +97,13 @@ function AppDashboard() {
       confirmedTenantId: azureLogin.confirmedTenantId,
       manualTenantId: azureLogin.manualTenantId,
       savedSubscriptionId: githubVariableValues.AZURE_SUBSCRIPTION_ID ?? "",
+    }),
+  );
+
+  const globalGroups = addCard(
+    useGlobalGroupsCard({
+      azureAccount: azureLogin.account,
+      confirmedTenantId: azureLogin.confirmedTenantId,
     }),
   );
 
@@ -310,6 +319,8 @@ function AppDashboard() {
               corpName={companyInfo.corpName}
               dnsName={companyInfo.dnsName}
             />
+
+            <GlobalGroupsCard card={cardProps("global_groups")} globalGroups={globalGroups} />
           </Box>
         </Box>
       </Box>

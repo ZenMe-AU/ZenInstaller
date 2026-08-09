@@ -1,6 +1,6 @@
 import type { AccountInfo } from "@azure/msal-browser";
 import { getMsal } from "./msal";
-import { APP_SCOPES, LOGIN_SCOPES, ARM_SCOPES, DOMAIN_SCOPES, GRANT_CONSENT_SCOPES, ACCESS_PASS_SCOPES } from "../config/azureConfig";
+import { APP_SCOPES, LOGIN_SCOPES, ARM_SCOPES, DOMAIN_SCOPES, GRANT_CONSENT_SCOPES, ACCESS_PASS_SCOPES, GROUPS_SCOPES } from "../config/azureConfig";
 import { RBAC_ROLE_IDS } from "../config/azureConfig";
 import { deterministicUuid } from "../logic/crypto";
 import { getFederatedCredentialName } from "../logic/naming";
@@ -482,4 +482,104 @@ export async function temporaryAccessPassMethodExists(
     if (msg.includes("404")) return false;
     throw err;
   }
+}
+
+// ── Entra security groups ──────────────────────────────────────────────────────
+
+export type EntraGroup = { id: string; displayName: string; description: string };
+
+// list — client-side sorted (matches listUsersManagedBySignedInUser's own client-side sort,
+// avoids $orderby's ConsistencyLevel:eventual header requirement on directory objects).
+export async function listGroups(account: AccountInfo, overrideTenantId?: string): Promise<EntraGroup[]> {
+  const token = await getToken(account, GROUPS_SCOPES, overrideTenantId);
+  const data = await gFetch(token, GRAPH, "/groups?$select=id,displayName,description&$top=999");
+  return (data.value ?? [])
+    .map((g: { id: string; displayName?: string; description?: string }) => ({
+      id: g.id,
+      displayName: g.displayName ?? g.id,
+      description: g.description ?? "",
+    }))
+    .sort((a: EntraGroup, b: EntraGroup) => a.displayName.localeCompare(b.displayName));
+}
+
+// The groups (only, not admin units/directory roles) this group is itself a member of —
+// i.e. its PARENT groups. Powers "Member of" without listing every group's members.
+export async function getGroupParents(account: AccountInfo, groupId: string, overrideTenantId?: string): Promise<EntraGroup[]> {
+  const token = await getToken(account, GROUPS_SCOPES, overrideTenantId);
+  const data = await gFetch(token, GRAPH, `/groups/${groupId}/memberOf/microsoft.graph.group?$select=id,displayName,description`);
+  return (data.value ?? []).map((g: { id: string; displayName?: string; description?: string }) => ({
+    id: g.id,
+    displayName: g.displayName ?? g.id,
+    description: g.description ?? "",
+  }));
+}
+
+export async function updateGroup(
+  account: AccountInfo,
+  groupId: string,
+  patch: { displayName?: string; description?: string },
+  overrideTenantId?: string,
+): Promise<void> {
+  const token = await getToken(account, GROUPS_SCOPES, overrideTenantId);
+  await gFetch(token, GRAPH, `/groups/${groupId}`, { method: "PATCH", body: JSON.stringify(patch) });
+}
+
+// Removes a member (user or group) from a group — the inverse of addGroupMember.
+export async function removeGroupMember(account: AccountInfo, groupId: string, memberObjectId: string, overrideTenantId?: string): Promise<void> {
+  const token = await getToken(account, GROUPS_SCOPES, overrideTenantId);
+  await gFetch(token, GRAPH, `/groups/${groupId}/members/${memberObjectId}/$ref`, { method: "DELETE" });
+}
+
+// Permanently deletes the group. Irreversible — callers must confirm with the user first.
+export async function deleteGroup(account: AccountInfo, groupId: string, overrideTenantId?: string): Promise<void> {
+  const token = await getToken(account, GROUPS_SCOPES, overrideTenantId);
+  await gFetch(token, GRAPH, `/groups/${groupId}`, { method: "DELETE" });
+}
+
+// Group display names aren't unique in Entra, so this — not a POST-and-catch-409 — is the
+// only reliable way to avoid creating duplicate groups on a repeat sync.
+export async function getGroupByName(account: AccountInfo, displayName: string, overrideTenantId?: string): Promise<EntraGroup | null> {
+  const token = await getToken(account, GROUPS_SCOPES, overrideTenantId);
+  const data = await gFetch(token, GRAPH, `/groups?$filter=displayName eq '${displayName}'&$select=id,displayName,description`);
+  const g = data.value?.[0];
+  return g ? { id: g.id, displayName: g.displayName, description: g.description ?? "" } : null;
+}
+
+export async function createGroup(
+  account: AccountInfo,
+  params: { displayName: string; description: string; mailNickname: string },
+  overrideTenantId?: string,
+): Promise<EntraGroup> {
+  const token = await getToken(account, GROUPS_SCOPES, overrideTenantId);
+  const data = await gFetch(token, GRAPH, "/groups", {
+    method: "POST",
+    body: JSON.stringify({
+      displayName: params.displayName,
+      description: params.description,
+      mailNickname: params.mailNickname,
+      mailEnabled: false,
+      securityEnabled: true,
+    }),
+  });
+  return { id: data.id, displayName: data.displayName, description: data.description ?? params.description };
+}
+
+// Works for both a user-in-group and a group-in-group member (both are directoryObjects).
+export async function addGroupMember(account: AccountInfo, groupId: string, memberObjectId: string, overrideTenantId?: string): Promise<void> {
+  const token = await getToken(account, GROUPS_SCOPES, overrideTenantId);
+  await gFetch(token, GRAPH, `/groups/${groupId}/members/$ref`, {
+    method: "POST",
+    body: JSON.stringify({ "@odata.id": `${GRAPH}/directoryObjects/${memberObjectId}` }),
+  });
+}
+
+// Uses the checkMemberGroups action (not a members/{id} GET, which Graph doesn't support for
+// this navigation property) — the documented way to test membership without listing everyone.
+export async function isGroupMember(account: AccountInfo, groupId: string, memberObjectId: string, overrideTenantId?: string): Promise<boolean> {
+  const token = await getToken(account, GROUPS_SCOPES, overrideTenantId);
+  const data = await gFetch(token, GRAPH, `/directoryObjects/${memberObjectId}/checkMemberGroups`, {
+    method: "POST",
+    body: JSON.stringify({ groupIds: [groupId] }),
+  });
+  return !!(data?.value ?? []).includes(groupId);
 }

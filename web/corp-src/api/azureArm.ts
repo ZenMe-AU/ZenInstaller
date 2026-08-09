@@ -270,6 +270,7 @@ export async function ensureRbacRoleAtScope(
   principalId: string,
   roleName: string,
   overrideTenantId?: string,
+  principalType: "ServicePrincipal" | "Group" | "User" = "ServicePrincipal",
 ): Promise<EnsureResult> {
   if (await hasRbacRoleAtScope(account, scope, principalId, roleName, overrideTenantId)) return "exists";
 
@@ -282,7 +283,7 @@ export async function ensureRbacRoleAtScope(
       properties: {
         roleDefinitionId: `/providers/Microsoft.Authorization/roleDefinitions/${roleId}`,
         principalId,
-        principalType: "ServicePrincipal",
+        principalType,
       },
     }),
   });
@@ -295,4 +296,8 @@ export function storageAccountScope(subscriptionId: string, resourceGroup: strin
 
 export function resourceGroupScope(subscriptionId: string, resourceGroup: string): string {
   return `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}`;
+}
+
+export function subscriptionScope(subscriptionId: string): string {
+  return `/subscriptions/${subscriptionId}`;
 }

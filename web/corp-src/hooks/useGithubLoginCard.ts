@@ -128,6 +128,9 @@ export function useGithubLoginCard(): UseGithubLoginCard {
       writeGithubAuthRecord(config);
     } catch {
       setAccount(null);
+      if (config.mode === "backend") {
+        window.location.href = `${url}/auth/login/github?post_login_redirect_uri=${encodeURIComponent(window.location.href)}`;
+      }
       writeGithubAuthRecord(null);
     } finally {
       setLoggingIn(false);

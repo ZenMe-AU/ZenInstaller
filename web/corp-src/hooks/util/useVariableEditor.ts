@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Account, UpsertStatus } from "../../types";
-import { createVariable, updateVariable } from "../../api";
+import { createVariable, updateVariable, deleteVariable } from "../../api";
 
 export type SaveResult = {
   result: "saved" | "no-changes" | "error";
@@ -55,13 +55,15 @@ export function useVariableEditor({ keys, savedValues, account, repo, envName, o
     for (const key of dirty) {
       const value = vals[key] ?? "";
       const isNew = !savedValues[key];
+      const isDelete = !isNew && !value;
       try {
-        await (isNew ? createVariable : updateVariable)(account, repo, key, value, envName);
+        if (isDelete) await deleteVariable(account, repo, key, envName);
+        else await (isNew ? createVariable : updateVariable)(account, repo, key, value, envName);
         statuses.push({ key, status: "success" });
         newlySaved[key] = value;
         onSavedKey?.(key, value);
       } catch (e) {
-        console.error(`Failed to ${isNew ? "create" : "update"} variable "${key}":`, e);
+        console.error(`Failed to ${isDelete ? "delete" : isNew ? "create" : "update"} variable "${key}":`, e);
         statuses.push({ key, status: "error", error: "Save failed" });
         hasError = true;
       }
@@ -72,5 +74,15 @@ export function useVariableEditor({ keys, savedValues, account, repo, envName, o
     return { result: hasError ? "error" : "saved", savedKeys, newlySaved };
   };
 
-  return { localValues, setLocalValues, upsertStatuses, setUpsertStatuses, updating, dirtyKeys, onChange, onRevert, save };
+  return {
+    localValues,
+    setLocalValues,
+    upsertStatuses,
+    setUpsertStatuses,
+    updating,
+    dirtyKeys,
+    onChange,
+    onRevert,
+    save,
+  };
 }

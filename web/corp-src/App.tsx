@@ -15,6 +15,7 @@ import { groupLabelSx, groupSx, EXPANDED_W } from "./config/cardLayout";
 import { createResultStorage } from "./logic/resultStorage";
 import { useGithubLoginCard } from "./hooks/useGithubLoginCard";
 import { useRepoCard } from "./hooks/useRepoCard";
+import { useGithubVariables } from "./hooks/useGithubVariables";
 import { useUrlRestore, useUrlSync } from "./hooks/useUrlStateManager";
 import { useAzureLoginCard } from "./hooks/useAzureLoginCard";
 import { useAzureAppRegistrationCard } from "./hooks/useAzureAppRegistrationCard";
@@ -60,7 +61,12 @@ function AppDashboard() {
       user: githubLogin.account,
     }),
   );
-  const githubVariableValues = githubRepoEnv.env.presentVariableValues ?? {};
+  const githubVariables = useGithubVariables({
+    account: githubRepoEnv.repo.selectedAccount,
+    repoName: githubRepoEnv.repo.selectedRepo?.name ?? null,
+    envName: githubRepoEnv.env.branchMatchError ? null : (githubRepoEnv.env.selectedEnv?.name ?? null),
+  });
+  const githubVariableValues = githubVariables.values;
 
   const companyInfo = addCard(
     useCompanyInfoCard({
@@ -260,7 +266,7 @@ function AppDashboard() {
               githubAccount={githubRepoEnv.repo.selectedAccount}
               repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
               selectedEnv={githubRepoEnv.env.selectedEnv}
-              onVariableConfirmed={githubRepoEnv.env.onVariableConfirmed}
+              onVariableConfirmed={githubVariables.onConfirmed}
               githubUrl={githubRepoEnv.githubEnvUrl}
               onOpenAzureLogin={() => openCard("azure_login")}
               onUserInteract={() => urlRestore.cancel(["tenant", "subscription"])}
@@ -270,7 +276,8 @@ function AppDashboard() {
 
             <CompanyInfoCard
               card={cardProps("company_info")}
-              github={githubRepoEnv}
+              selectedEnv={githubRepoEnv.env.selectedEnv}
+              variables={githubVariables}
               githubAccount={githubRepoEnv.repo.selectedAccount}
               repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
               githubUrl={githubRepoEnv.githubEnvUrl}

@@ -11,7 +11,7 @@ import Card from "../components/Card";
 import { useRefreshIndicator } from "../hooks/util/useRefreshIndicator";
 import { useVariableEditor } from "../hooks/util/useVariableEditor";
 import { sectionLabelSx } from "../config/styles";
-import type { UseRepoCard } from "../hooks/useRepoCard";
+import type { UseGithubVariables } from "../hooks/useGithubVariables";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -159,26 +159,26 @@ function CompanyInfoDetailBody({
 
 type Props = {
   card: CardChrome;
-  github: UseRepoCard;
+  selectedEnv: GhEnv | null;
+  variables: UseGithubVariables;
   githubAccount: Account | null;
   repoName: string;
   githubUrl?: string;
 };
 
-export default function CompanyInfoCard({ card, github, githubAccount, repoName, githubUrl }: Props) {
-  const { env } = github;
+export default function CompanyInfoCard({ card, selectedEnv, variables, githubAccount, repoName, githubUrl }: Props) {
   return (
     <Card title="Company info" {...card}>
-      {env.selectedEnv && (
+      {selectedEnv && (
         <CompanyInfoDetailBody
           account={githubAccount}
           repo={repoName}
-          selectedEnv={env.selectedEnv}
-          variableValues={env.presentVariableValues}
-          onVariableRecheck={env.onVariableRecheck}
-          variablesRechecking={env.variablesRechecking}
-          varRecheckFailed={env.varRecheckFailed}
-          onVariableConfirmed={env.onVariableConfirmed}
+          selectedEnv={selectedEnv}
+          variableValues={variables.values}
+          onVariableRecheck={variables.onRefresh}
+          variablesRechecking={variables.refreshing}
+          varRecheckFailed={variables.error}
+          onVariableConfirmed={variables.onConfirmed}
           githubUrl={githubUrl}
         />
       )}

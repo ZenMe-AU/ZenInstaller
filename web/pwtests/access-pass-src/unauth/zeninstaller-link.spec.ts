@@ -17,7 +17,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
       await expectPageSnapshot(
         page,
         testInfo,
-        "initial-before-test.png",
+        "before-redirect.png",
         {userId: "signed-out", viewportName}
       );
     });
@@ -39,7 +39,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
       await expectPageSnapshot(
         page,
         testInfo,
-        "end-of-test.png",
+        "after-redirect.png",
         {userId: "signed-out", viewportName}
       );
     });

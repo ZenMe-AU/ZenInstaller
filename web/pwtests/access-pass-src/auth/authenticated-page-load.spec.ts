@@ -59,7 +59,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
             await expectPageSnapshot(
               page,
               testInfo,
-              "authenticated-access-pass-loaded.png",
+              "access-pass-loaded.png",
               {userId: user.id, viewportName,
                 mask: sensitiveTextMasks(page),
                 stabilizeAuth: true,

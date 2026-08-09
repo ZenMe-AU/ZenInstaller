@@ -74,7 +74,7 @@ export default defineConfig({
      * This ignores authenticated tests and setup tests.
      */
     {
-      name: "access-pass-chromium",
+      name: "access-pass",
       testMatch: signedOutTests,
       fullyParallel: true,
       use: {
@@ -88,7 +88,7 @@ export default defineConfig({
      * This ignores authenticated tests and setup tests.
      */
     {
-      name: "access-pass-authenticated",
+      name: "access-pass-auth",
       testMatch: authenticatedTests,
       // no parallel tests to avoid MSAL timeout when two test using same account
       fullyParallel: false,
@@ -101,7 +101,7 @@ export default defineConfig({
     },
 
     {
-      name: "corp-chromium",
+      name: "corp-src",
       testMatch: /corp-src\/unauth\/.*\.spec\.ts/,
       fullyParallel: true,
       use: {
@@ -130,7 +130,7 @@ export default defineConfig({
     },
 
     {
-      name: "corp-authenticated",
+      name: "corp-src-auth",
       testMatch: /corp-src\/auth\/.*\.spec\.ts/,
       fullyParallel: false,
       workers: 1,

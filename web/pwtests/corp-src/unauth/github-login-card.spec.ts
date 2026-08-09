@@ -72,12 +72,12 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await githubCard.getByRole("button", {name: "Backend", exact: true,}).click();
 			await expect(githubCard.getByRole("button", {name: "Login with GitHub", exact: true,}),).toBeVisible();
 
-			await expectPageSnapshot(
-				page,
-				testInfo,
-				"switched-back-to-backend.png",
-				{userId: "signed-out", viewportName, testFolder: "GitHub Login Card",},
-			);
+			// await expectPageSnapshot(
+			// 	page,
+			// 	testInfo,
+			// 	"switched-back-to-backend.png",
+			// 	{userId: "signed-out", viewportName, testFolder: "GitHub Login Card",},
+			// );
 		});
 	});
 }

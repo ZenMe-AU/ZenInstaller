@@ -71,7 +71,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
           await expectPageSnapshot(
             page,
             testInfo,
-            "signed-out-before-connect-azure.png",
+            "signed-out.png",
             {userId: "signed-out", viewportName, stabilizeAuth: true}
           );
         },
@@ -124,7 +124,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
             await expect(authenticatedPage.getByTestId("txtAzureUsername",),).toBeVisible();
 
             await expectPageSnapshot(authenticatedPage,testInfo,
-              "authenticated-after-azure-connect.png",
+              "after-azure-connect.png",
               {
                 userId: user.id, 
                 viewportName,

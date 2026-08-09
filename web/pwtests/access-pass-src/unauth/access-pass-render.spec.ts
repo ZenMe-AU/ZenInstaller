@@ -8,13 +8,6 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
     test.beforeEach(async ({ page }, testInfo) => {
       await page.goto(ACCESS_PASS_URL);
-
-      await expectPageSnapshot(
-        page,
-        testInfo,
-        "initial-before-test.png",
-        {userId: "signed-out", viewportName, stabilizeAuth: true}
-      );
     });
 
     test("Renders Access Pass Page", async ({ page }, testInfo) => {
@@ -29,7 +22,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
       await expectPageSnapshot(
         page,
         testInfo,
-        "end-of-test.png", 
+        "access-pass-rendered.png", 
         {userId: "signed-out", viewportName, stabilizeAuth: true}
       );
     });

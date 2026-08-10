@@ -91,29 +91,37 @@ describe("useVariableEditor", () => {
 			expect(latest?.dirtyKeys).toEqual(["NAME", "DNS"]);
 		});
 
-		await act(async () => {
-			saveResult = await latest!.save();
-		});
+    await act(async () => {
+      saveResult = await latest!.save();
+    });
+    expect(latest?.upsertStatuses).toEqual([
+      { key: "NAME", status: "success" },
+      { key: "DNS", status: "success" },
+    ]);
 
-		expect(saveResult).toEqual({
-			result: "saved",
-			savedKeys: ["NAME", "DNS"],
-			newlySaved: { NAME: "Zenblox", DNS: "zenblox.io" },
-		});
-		expect(apiMocks.updateVariable).toHaveBeenCalledWith(
-			{ login: "org-one", type: "Organization", id: 101 },
-			"repo-one",
-			"NAME",
-			"Zenblox",
-			"prod",
-		);
-		expect(apiMocks.createVariable).toHaveBeenCalledWith(
-			{ login: "org-one", type: "Organization", id: 101 },
-			"repo-one",
-			"DNS",
-			"zenblox.io",
-			"prod",
-		);
+    expect(saveResult).toEqual({
+      result: "saved",
+      savedKeys: ["NAME", "DNS"],
+      newlySaved: { NAME: "Zenblox", DNS: "zenblox.io" },
+    });
+    expect(apiMocks.updateVariable).toHaveBeenCalledWith(
+      { login: "org-one", type: "Organization", id: 101 },
+      "repo-one",
+      "NAME",
+      "Zenblox",
+      "prod",
+    );
+    expect(apiMocks.createVariable).toHaveBeenCalledWith(
+      { login: "org-one", type: "Organization", id: 101 },
+      "repo-one",
+      "DNS",
+      "zenblox.io",
+      "prod",
+    );
+
+    await act(async () => {
+      latest?.onChange("NAME", "Zenblox2");
+    });
 
 		await act(async () => {
 			latest?.onRevert("DNS");

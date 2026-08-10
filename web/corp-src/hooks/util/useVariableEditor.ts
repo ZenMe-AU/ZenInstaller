@@ -30,6 +30,8 @@ export function useVariableEditor({ keys, savedValues, account, repo, envName, o
   const [upsertStatuses, setUpsertStatuses] = useState<UpsertStatus[]>([]);
   const [updating, setUpdating] = useState(false);
 
+  const isDependenciesReady = account && repo && envName;
+
   const dirtyKeys = keys.filter((k) => (localValues[k] ?? "") !== (savedValues[k] ?? ""));
 
   const onChange = (key: string, value: string) => {
@@ -45,7 +47,7 @@ export function useVariableEditor({ keys, savedValues, account, repo, envName, o
   const save = async (overrideValues?: Record<string, string>): Promise<SaveResult> => {
     const vals = overrideValues ?? localValues;
     const newlySaved = { ...savedValues };
-    if (!account || !repo || !envName) return { result: "error", savedKeys: [], newlySaved };
+    if (!isDependenciesReady) return { result: "error", savedKeys: [], newlySaved };
     const dirty = keys.filter((k) => (vals[k] ?? "") !== (savedValues[k] ?? ""));
     if (dirty.length === 0) return { result: "no-changes", savedKeys: [], newlySaved };
 

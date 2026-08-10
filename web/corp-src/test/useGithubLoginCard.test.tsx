@@ -1,7 +1,11 @@
 import { act, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useGithubLoginCard, type UseGithubLoginCard } from "../hooks/useGithubLoginCard";
+import {
+	readGithubAuthRecord,
+	useGithubLoginCard,
+	type UseGithubLoginCard,
+} from "../hooks/useGithubLoginCard";
 
 const { apiMocks } = vi.hoisted(() => ({
 	apiMocks: {
@@ -81,6 +85,38 @@ describe("useGithubLoginCard", () => {
 		});
 	});
 
+	it("returns null when auth record JSON is invalid", () => {
+		sessionStorage.setItem("zeninstaller_github_auth", "{not-valid-json");
+		expect(readGithubAuthRecord()).toBeNull();
+	});
+
+	it("treats invalid saved auth record as missing and stays idle", async () => {
+		sessionStorage.setItem("zeninstaller_github_auth", "{not-valid-json");
+
+		let latest: UseGithubLoginCard | null = null;
+		const root = createRoot(document.createElement("div"));
+
+		await act(async () => {
+			root.render(
+				<HookHarness
+					onUpdate={(value) => {
+						latest = value;
+					}}
+				/>,
+			);
+		});
+
+		await waitFor(() => {
+			expect(apiMocks.verifyAuth).not.toHaveBeenCalled();
+			expect(latest?.status).toBe("idle");
+			expect(latest?.loggingIn).toBe(false);
+		});
+
+		await act(async () => {
+			root.unmount();
+		});
+	});
+
 	it("restores backend auth from session storage on mount", async () => {
 		sessionStorage.setItem("zeninstaller_github_auth", JSON.stringify({ mode: "backend" }));
 
@@ -140,6 +176,35 @@ describe("useGithubLoginCard", () => {
 		});
 	});
 
+	it("clears session record and account when mount auth verification fails", async () => {
+		sessionStorage.setItem("zeninstaller_github_auth", JSON.stringify({ mode: "backend" }));
+		apiMocks.verifyAuth.mockRejectedValueOnce(new Error("expired"));
+
+		let latest: UseGithubLoginCard | null = null;
+		const root = createRoot(document.createElement("div"));
+
+		await act(async () => {
+			root.render(
+				<HookHarness
+					onUpdate={(value) => {
+						latest = value;
+					}}
+				/>,
+			);
+		});
+
+		await waitFor(() => {
+			expect(latest?.loggingIn).toBe(false);
+			expect(latest?.account).toBeNull();
+			expect(sessionStorage.getItem("zeninstaller_github_auth")).toBeNull();
+			expect(latest?.status).toBe("idle");
+		});
+
+		await act(async () => {
+			root.unmount();
+		});
+	});
+
 	it("logs in through the backend mode and persists the selected auth record", async () => {
 		let latest: UseGithubLoginCard | null = null;
 		const root = createRoot(document.createElement("div"));
@@ -168,6 +233,117 @@ describe("useGithubLoginCard", () => {
 			expect(latest?.account?.login).toBe("octocat");
 			expect(latest?.status).toBe("complete");
 			expect(JSON.parse(sessionStorage.getItem("zeninstaller_github_auth") ?? "null")).toEqual({ mode: "backend" });
+		});
+
+		await act(async () => {
+			root.unmount();
+		});
+	});
+
+	it("preserves direct token when setting direct mode again", async () => {
+		let latest: UseGithubLoginCard | null = null;
+		const root = createRoot(document.createElement("div"));
+
+		await act(async () => {
+			root.render(
+				<HookHarness
+					onUpdate={(value) => {
+						latest = value;
+					}}
+				/>,
+			);
+		});
+
+		await waitFor(() => {
+			expect(latest?.loggingIn).toBe(false);
+		});
+
+		await act(async () => {
+			latest?.setMode("direct");
+			latest?.setToken("ghp_keep_me");
+			latest?.setMode("direct");
+		});
+
+		await act(async () => {
+			await latest!.login();
+		});
+
+		await waitFor(() => {
+			expect(apiMocks.switchToDirect).toHaveBeenCalledWith("ghp_keep_me");
+			expect(JSON.parse(sessionStorage.getItem("zeninstaller_github_auth") ?? "null")).toEqual({
+				mode: "direct",
+				token: "ghp_keep_me",
+			});
+		});
+
+		await act(async () => {
+			root.unmount();
+		});
+	});
+
+	it("does not login in direct mode when token is missing", async () => {
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+		let latest: UseGithubLoginCard | null = null;
+		const root = createRoot(document.createElement("div"));
+
+		await act(async () => {
+			root.render(
+				<HookHarness
+					onUpdate={(value) => {
+						latest = value;
+					}}
+				/>,
+			);
+		});
+
+		await waitFor(() => {
+			expect(latest?.loggingIn).toBe(false);
+		});
+
+		apiMocks.verifyAuth.mockClear();
+		await act(async () => {
+			latest?.setMode("direct");
+			latest?.setToken(null);
+			await latest?.login();
+		});
+
+		expect(consoleError).toHaveBeenCalledWith("Missing PAT");
+		expect(apiMocks.switchToDirect).not.toHaveBeenCalled();
+		expect(apiMocks.verifyAuth).not.toHaveBeenCalled();
+
+		consoleError.mockRestore();
+		await act(async () => {
+			root.unmount();
+		});
+	});
+
+	it("clears account and auth record when login verifyAuth fails", async () => {
+		let latest: UseGithubLoginCard | null = null;
+		const root = createRoot(document.createElement("div"));
+
+		await act(async () => {
+			root.render(
+				<HookHarness
+					onUpdate={(value) => {
+						latest = value;
+					}}
+				/>,
+			);
+		});
+
+		await waitFor(() => {
+			expect(latest?.loggingIn).toBe(false);
+		});
+
+		apiMocks.verifyAuth.mockRejectedValueOnce(new Error("auth failed"));
+		await act(async () => {
+			await latest?.login();
+		});
+
+		await waitFor(() => {
+			expect(latest?.account).toBeNull();
+			expect(sessionStorage.getItem("zeninstaller_github_auth")).toBeNull();
+			expect(latest?.loggingIn).toBe(false);
 		});
 
 		await act(async () => {
@@ -218,6 +394,39 @@ describe("useGithubLoginCard", () => {
 			expect(sessionStorage.getItem("zeninstaller_github_auth")).toBeNull();
 			expect(latest?.account).toBeNull();
 		});
+
+		await act(async () => {
+			root.unmount();
+		});
+	});
+
+	it("calls backend logout in backend mode and swallows backend errors", async () => {
+		apiMocks.backendLogout.mockRejectedValueOnce(new Error("network"));
+		let latest: UseGithubLoginCard | null = null;
+		const root = createRoot(document.createElement("div"));
+
+		await act(async () => {
+			root.render(
+				<HookHarness
+					onUpdate={(value) => {
+						latest = value;
+					}}
+				/>,
+			);
+		});
+
+		await waitFor(() => {
+			expect(latest?.loggingIn).toBe(false);
+			expect(latest?.mode).toBe("backend");
+		});
+
+		await act(async () => {
+			await latest?.logout();
+		});
+
+		expect(apiMocks.backendLogout).toHaveBeenCalledTimes(1);
+		expect(latest?.account).toBeNull();
+		expect(sessionStorage.getItem("zeninstaller_github_auth")).toBeNull();
 
 		await act(async () => {
 			root.unmount();

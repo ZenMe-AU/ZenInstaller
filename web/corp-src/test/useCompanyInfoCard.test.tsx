@@ -24,4 +24,15 @@ describe("useCompanyInfoCard", () => {
 		expect(card.summary).toBe("Set company info");
 		expect(card.done).toBe(false);
 	});
+
+	it("shows warning when environment is selected but company info is incomplete", () => {
+		const card = useCompanyInfoCard({
+			variableValues: { NAME: "Zenblox" },
+			envSelected: true,
+		});
+
+		expect(card.status).toBe("warning");
+		expect(card.summary).toBe("Set company info");
+		expect(card.done).toBe(false);
+	});
 });

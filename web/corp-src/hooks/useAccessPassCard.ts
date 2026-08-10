@@ -20,8 +20,7 @@ import { createResultStorage } from "../logic/resultStorage";
 import { logEvent } from "../monitor/telemetry";
 import { useStepRunner } from "./util/useStepRunner";
 import type { CardHook, CardRequirements, CardStatus, SetupStep } from "../types";
-export type StepStatus = "pending" | "running" | "done" | "skipped" | "error";
-export type SetupStep = { id: string; label: string; status: StepStatus; detail?: string };
+
 export type AzureSetupResult = {
   accessPassValue: string;
   tenantId: string;

@@ -71,6 +71,15 @@ type Props = {
   accessPass: UseAccessPassCard;
 };
 
+function Intro() {
+  return (
+    <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+      Create a Temporary Access Pass for a user managed by your signed-in account. This removes their existing sign-in
+      methods, randomizes their password, and issues a one-hour access pass.
+    </Typography>
+  );
+}
+
 /*
  * Creates a Microsoft Entra Temporary Access Pass for a user managed by the signed-in
  * account. Locked behind "azure_login" (see cardRequirements on useAccessPassCard), so
@@ -185,12 +194,9 @@ export default function AccessPassCard({ card, accessPass }: Props) {
   const statusUserId = creatingUserId ?? selectedManagerUserId;
 
   return (
-    <Card title="Access pass" {...card}>
+    <Card title="Access pass" lockedIntro={<Intro />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-        <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
-          Create a Temporary Access Pass for a user managed by your signed-in account. This removes their existing sign-in methods, randomizes their
-          password, and issues a one-hour access pass.
-        </Typography>
+        <Intro />
 
         {/* Entra user selector */}
         <Box

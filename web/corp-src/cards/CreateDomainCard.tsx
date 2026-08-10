@@ -17,6 +17,15 @@ type Props = {
   dnsName: string;
 };
 
+function Intro({ dnsName }: { dnsName: string }) {
+  return (
+    <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+      Creates the DNS zone for <b>{dnsName || "your domain"}</b>, adds it to Entra ID as a custom domain, then verifies
+      it and sets it as primary.
+    </Typography>
+  );
+}
+
 export default function CreateDomainCard({ card, createDomain, azureAccount, corpName, dnsName }: Props) {
   const {
     checkingStatus,
@@ -40,11 +49,9 @@ export default function CreateDomainCard({ card, createDomain, azureAccount, cor
   const ready = !!azureAccount && missing.length === 0;
 
   return (
-    <Card title="Corp domain" {...card}>
+    <Card title="Corp domain" lockedIntro={<Intro dnsName={dnsName} />} {...card}>
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
-        Creates the DNS zone for <b>{dnsName || "your domain"}</b>, adds it to Entra ID as a custom domain, then verifies it and sets it as primary.
-      </Typography>
+      <Intro dnsName={dnsName} />
 
       {/* Gating hints */}
       {!azureAccount && (

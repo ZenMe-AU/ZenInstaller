@@ -20,6 +20,19 @@ type Props = {
   spClientId: string;
 };
 
+function Intro({ containerName }: { containerName: string }) {
+  return (
+    <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+      Creates the root Azure resources — resource group, Log Analytics, Application Insights, the private storage account
+      — then the{" "}
+      <Box component="span" sx={mono}>
+        {containerName}
+      </Box>{" "}
+      container Terraform uses for state, granting GitHub Actions access to it.
+    </Typography>
+  );
+}
+
 export default function CoreInfraCard({ card, infra, azureAccount, corpName, subscriptionId, spClientId }: Props) {
   const {
     location,
@@ -56,15 +69,9 @@ export default function CoreInfraCard({ card, infra, azureAccount, corpName, sub
   const locationDisplayName = locations.find((l) => l.name === location)?.displayName ?? location;
 
   return (
-    <Card title="Core infrastructure" {...card}>
+    <Card title="Core infrastructure" lockedIntro={<Intro containerName={containerName} />} {...card}>
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
-        Creates the root Azure resources — resource group, Log Analytics, Application Insights, the private storage account — then the{" "}
-        <Box component="span" sx={mono}>
-          {containerName}
-        </Box>{" "}
-        container Terraform uses for state, granting GitHub Actions access to it.
-      </Typography>
+      <Intro containerName={containerName} />
 
       {/* Gating hints */}
       {!azureAccount && (

@@ -47,6 +47,15 @@ type Props = {
   globalGroups: UseGlobalGroupsCard;
 };
 
+function Intro() {
+  return (
+    <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+      A simple view of this tenant's Entra security groups — edit, create, or delete groups and manage their nesting
+      directly.
+    </Typography>
+  );
+}
+
 /*
  * A lightweight Entra security-groups manager: the list mirrors what actually exists in the
  * tenant. Rows with unsynced edits are tinted and get an amber "pending" status circle, the same
@@ -96,12 +105,10 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
   };
 
   return (
-    <Card title="Global groups" {...card}>
+    <Card title="Global groups" lockedIntro={<Intro />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1 }}>
-          <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
-            A simple view of this tenant's Entra security groups — edit, create, or delete groups and manage their nesting directly.
-          </Typography>
+          <Intro />
           <RefreshButton busy={refreshing} result={refreshResult} disabled={disabled || loading} onClick={handleRefresh} />
         </Box>
 

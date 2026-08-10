@@ -60,6 +60,7 @@ function StatusIcon({ status, locked }: { status: CardStatus; locked: boolean })
 type Props = CardChrome & {
   title: string;
   action?: React.ReactNode;
+  lockedIntro?: React.ReactNode;
   children: React.ReactNode;
 };
 
@@ -80,6 +81,7 @@ export default function Card({
   onToggle,
   onRequirementClick,
   action,
+  lockedIntro,
   children,
 }: Props) {
   /*
@@ -177,63 +179,66 @@ export default function Card({
       </Box>
 
       {/*
-       * Content - a locked card shows ONLY what's missing, not the (unusable)
-       * real content dimmed underneath it.
+       * Content - a locked card can show read-only intro copy, then what's missing,
+       * without rendering the unusable interactive content underneath it.
        */}
       <Collapse in={expanded}>
         <Box sx={{ borderTop: "1px solid #f1f5f9", px: 2.5, py: 2.5 }}>
           {locked ? (
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 0.75,
-                px: 1.75,
-                py: 1.5,
-                background: "#f1f5f9",
-                border: "1px solid #e2e8f0",
-                borderRadius: "8px",
-              }}
-            >
-              <Typography
+            <>
+              {lockedIntro && <Box sx={{ mb: 2 }}>{lockedIntro}</Box>}
+              <Box
                 sx={{
-                  fontSize: "0.7rem",
-                  color: "#64748b",
-                  ...mono,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.08em",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 0.75,
+                  px: 1.75,
+                  py: 1.5,
+                  background: "#f1f5f9",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "8px",
                 }}
               >
-                Complete these first
-              </Typography>
-              {requirements.map((r) => (
-                <Box
-                  key={r.label}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRequirementClick(r.target);
-                  }}
+                <Typography
                   sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 0.5,
-                    cursor: "pointer",
-                    borderRadius: "6px",
-                    px: 0.75,
-                    py: 0.4,
-                    mx: -0.75,
-                    transition: "background 0.15s",
-                    "&:hover": { background: "#e0e7ff" },
-                    "&:hover .req-label": { textDecoration: "underline" },
+                    fontSize: "0.7rem",
+                    color: "#64748b",
+                    ...mono,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
                   }}
                 >
-                  <ChevronRightIcon sx={{ fontSize: 15, color: "#2563eb", flexShrink: 0 }} />
-                  <Typography className="req-label" sx={{ fontSize: "0.76rem", color: "#2563eb", fontWeight: 500 }}>
-                    {r.label}
-                  </Typography>
-                </Box>
-              ))}
-            </Box>
+                  Complete these first
+                </Typography>
+                {requirements.map((r) => (
+                  <Box
+                    key={r.label}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRequirementClick(r.target);
+                    }}
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0.5,
+                      cursor: "pointer",
+                      borderRadius: "6px",
+                      px: 0.75,
+                      py: 0.4,
+                      mx: -0.75,
+                      transition: "background 0.15s",
+                      "&:hover": { background: "#e0e7ff" },
+                      "&:hover .req-label": { textDecoration: "underline" },
+                    }}
+                  >
+                    <ChevronRightIcon sx={{ fontSize: 15, color: "#2563eb", flexShrink: 0 }} />
+                    <Typography className="req-label" sx={{ fontSize: "0.76rem", color: "#2563eb", fontWeight: 500 }}>
+                      {r.label}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+            </>
           ) : (
             children
           )}

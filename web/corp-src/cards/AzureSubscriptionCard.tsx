@@ -29,6 +29,15 @@ type Props = {
   onUserInteract: () => void;
 };
 
+function Intro() {
+  return (
+    <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+      Pick the subscription to deploy into. This is where the resource group, storage account and DNS zone will be
+      created, and it's saved to GitHub so the pipeline uses the same target.
+    </Typography>
+  );
+}
+
 /*
  * Picks the subscription the corp resources go into, and saves AZURE_TENANT_ID +
  * AZURE_SUBSCRIPTION_ID to the environment's GitHub variables. The tenant itself is
@@ -79,12 +88,9 @@ export default function AzureSubscriptionCard({
   const subscriptionOptions = subscriptions.filter((s) => s.tenantId === manualTenantId);
 
   return (
-    <Card title="Azure subscription" {...card}>
+    <Card title="Azure subscription" lockedIntro={<Intro />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
-          Pick the subscription to deploy into. This is where the resource group, storage account and DNS zone will be
-          created, and it's saved to GitHub so the pipeline uses the same target.
-        </Typography>
+        <Intro />
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}>
           <Typography sx={{ ...labelSx, "& span": { color: "#0f172a", textTransform: "none" } }}>

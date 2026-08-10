@@ -23,6 +23,15 @@ type Props = {
   githubUrl?: string;
 };
 
+function Intro() {
+  return (
+    <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+      Create an app registration for GitHub Actions and grant it access on your selected subscription. Name it and
+      create it — the AZURE_CLIENT_ID connection variables are written to GitHub automatically.
+    </Typography>
+  );
+}
+
 export default function AzureAppRegistrationCard({
   card,
   appReg,
@@ -122,7 +131,7 @@ export default function AzureAppRegistrationCard({
     : undefined;
 
   return (
-    <Card title="Azure app registration" {...card}>
+    <Card title="Azure app registration" lockedIntro={<Intro />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {/* ── Result banner (shown after create+auto-save completes) ── */}
         {bannerState !== "none" && (
@@ -155,10 +164,7 @@ export default function AzureAppRegistrationCard({
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {/* Description — always visible */}
           <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-            <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
-              Create an app registration for GitHub Actions and grant it access on your selected subscription. Name it
-              and create it — the AZURE_CLIENT_ID connection variables are written to GitHub automatically.
-            </Typography>
+            <Intro />
           </Box>
 
           {/* Requires the Azure sign-in from the Azure login card */}

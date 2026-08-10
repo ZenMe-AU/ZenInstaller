@@ -26,6 +26,15 @@ type DetailProps = {
   githubUrl?: string;
 };
 
+function Intro() {
+  return (
+    <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
+      {" "}
+      Variables used by GitHub Actions when building and deploying this environment.
+    </Typography>
+  );
+}
+
 /*
  * Azure/AWS infra variables (AZURE_CLIENT_ID, AWS_ROLE_ARN, …) save from their own
  * setup cards — this section only manages deployment variables (Company & Domain).
@@ -79,10 +88,7 @@ function CompanyInfoDetailBody({
               ) : null;
             })()}
           </Box>
-          <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
-            {" "}
-            Variables used by GitHub Actions when building and deploying this environment.
-          </Typography>
+          <Intro />
         </Box>
         <RefreshButton
           busy={variablesRechecking}
@@ -154,7 +160,7 @@ type Props = {
 
 export default function CompanyInfoCard({ card, selectedEnv, variables, githubAccount, repoName, githubUrl }: Props) {
   return (
-    <Card title="Company info" {...card}>
+    <Card title="Company info" lockedIntro={<Intro />} {...card}>
       {selectedEnv && (
         <CompanyInfoDetailBody
           account={githubAccount}

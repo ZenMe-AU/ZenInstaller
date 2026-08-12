@@ -1,5 +1,7 @@
 import type { AccountInfo } from "@azure/msal-browser";
 
+export type AzureAccount = AccountInfo;
+
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
 export type CardId =
@@ -68,7 +70,7 @@ export interface AzureConfigHook extends ResettableHook {
 }
 
 export interface AzureTarget {
-  azureAccount: AccountInfo | null;
+  azureAccount: AzureAccount | null;
   subscriptionId: string;
   tenantId?: string; // MSA (personal) accounts sign in via the consumer tenant, so the real AAD tenant is passed explicitly.
 }

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import type { AccountInfo } from "@azure/msal-browser";
 import { getMsal } from "../api/msal";
 import { ACCESS_PASS_SCOPES } from "../config/azureConfig";
 import {
@@ -13,13 +12,12 @@ import {
   type EntraUser,
   type GraphAuthMethod,
 } from "../api/azureGraph";
-import type { Account, StageDefinition } from "../types";
 import { isConsentError } from "../logic/consent";
 import { generateRandomPassword } from "../logic/password";
 import { createResultStorage } from "../logic/resultStorage";
 import { logEvent } from "../monitor/telemetry";
 import { useStepRunner } from "./util/useStepRunner";
-import type { CardHook, CardRequirements, CardStatus, SetupStep } from "../types";
+import type { CardHook, CardRequirements, CardStatus, SetupStep, AzureAccount } from "../types";
 
 export type AzureSetupResult = {
   accessPassValue: string;
@@ -54,7 +52,7 @@ function getAuthMethodDeletePath(userId: string, method: GraphAuthMethod): strin
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type UseAccessPassCardParams = {
-  azureAccount: AccountInfo | null;
+  azureAccount: AzureAccount | null;
   // From useAzureAccount — this card locks behind azure_login, so both are set once it renders.
   confirmedTenantId: string | null;
 };

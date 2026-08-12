@@ -2,8 +2,8 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AccountInfo } from "@azure/msal-browser";
 import { useAccessPassCard, type UseAccessPassCard } from "../hooks/useAccessPassCard";
+import type { AzureAccount } from "../types";
 
 const { apiMocks } = vi.hoisted(() => ({
   apiMocks: {
@@ -82,7 +82,7 @@ function baseProps(
   overrides: Partial<Parameters<typeof useAccessPassCard>[0]> = {},
 ): Parameters<typeof useAccessPassCard>[0] {
   return {
-    azureAccount: { tenantId: "tenant-a", homeAccountId: "h1", environment: "login.microsoftonline.com", username: "user@contoso.com", localAccountId: "l1", name: "User" } as AccountInfo,
+    azureAccount: { tenantId: "tenant-a", homeAccountId: "h1", environment: "login.microsoftonline.com", username: "user@contoso.com", localAccountId: "l1", name: "User" } as AzureAccount,
     confirmedTenantId: "tenant-a",
     ...overrides,
   };

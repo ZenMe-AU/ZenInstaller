@@ -2,7 +2,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AccountInfo } from "@azure/msal-browser";
+import type { AzureAccount } from "../types";
 import {
 	useAzureAppRegistrationCard,
 	type UseAzureAppRegistrationCard,
@@ -90,7 +90,7 @@ function baseProps(
 	overrides: Partial<Parameters<typeof useAzureAppRegistrationCard>[0]> = {},
 ): Parameters<typeof useAzureAppRegistrationCard>[0] {
 	return {
-		azureAccount: { tenantId: "tenant-home" } as AccountInfo,
+		azureAccount: { tenantId: "tenant-home" } as AzureAccount,
 		githubAccount: { id: 1, login: "org-one", type: "User" },
 		githubRepo: "repo-one",
 		subscriptionId: "sub-1",

@@ -1,5 +1,4 @@
 import { useCallback, useState } from "react";
-import type { AccountInfo } from "@azure/msal-browser";
 import { getMsal } from "../api/msal";
 import { AZURE_CLIENT_ID, APP_SCOPES } from "../config/azureConfig";
 import {
@@ -17,6 +16,7 @@ import { useStepRunner } from "./util/useStepRunner";
 import { useRbacCheck, type RbacCheckStatus } from "./util/useRbacCheck";
 import type {
   Account,
+  AzureAccount,
   AzureConfigHook,
   AzureTarget,
   CardHook,
@@ -33,7 +33,7 @@ export type AzureAppRegistrationResult = { clientId: string; tenantId: string; s
 export interface UseAzureAppRegistrationCardParams extends AzureTarget {
   githubAccount: Account | null;
   githubRepo: string;
-  variableValues: Record<string, string>; // github.presentVariableValues — reads AZURE_CLIENT_ID / AZURE_PLAN_CLIENT_ID.
+  variableValues: Record<string, string>; // githubVariables.values — reads AZURE_CLIENT_ID / AZURE_PLAN_CLIENT_ID.
   manualTenantId: string; // azure.manualTenantId — last-resort tenant fallback before any saved/result tenant exists.
   subscriptionLabel?: string; // Display name for the target subscription — shown on the RBAC step; falls back to the id.
 }
@@ -41,7 +41,7 @@ export interface UseAzureAppRegistrationCardParams extends AzureTarget {
 // steps / running / run / reset come from AzureConfigHook.
 export interface UseAzureAppRegistrationCard extends CardHook, AzureConfigHook {
   readonly cardId: "azure_app_registration";
-  azureAccount: AccountInfo | null;
+  azureAccount: AzureAccount | null;
   appName: string;
   setAppName: (name: string) => void;
   environments: string[];

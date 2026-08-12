@@ -2,8 +2,8 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AccountInfo } from "@azure/msal-browser";
 import { useCoreInfraCard, type UseCoreInfraCard } from "../hooks/useCoreInfraCard";
+import type { AzureAccount } from "../types";
 
 async function waitFor(assertion: () => void, timeoutMs = 2000) {
 	const start = Date.now();
@@ -90,7 +90,7 @@ function baseProps(
 	overrides: Partial<Parameters<typeof useCoreInfraCard>[0]> = {},
 ): Parameters<typeof useCoreInfraCard>[0] {
 	return {
-		azureAccount: { tenantId: "tenant-1" } as AccountInfo,
+		azureAccount: { tenantId: "tenant-1" } as AzureAccount,
 		subscriptionId: "sub-1",
 		corpName: "Zenblox",
 		spClientId: "client-a",

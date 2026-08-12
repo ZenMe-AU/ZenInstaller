@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAzureSubscriptionCard, type UseAzureSubscriptionCard } from "../hooks/useAzureSubscriptionCard";
-import type { AccountInfo } from "@azure/msal-browser";
+import type { AzureAccount } from "../types";
 
 async function waitFor(assertion: () => void, timeoutMs = 1000) {
 	const start = Date.now();
@@ -53,7 +53,7 @@ describe("useAzureSubscriptionCard", () => {
 	it("loads subscriptions and marks a saved subscription complete", async () => {
 		let latest: UseAzureSubscriptionCard | null = null;
 		const root = createRoot(document.createElement("div"));
-		const account = { username: "org@example.com", tenantId: "tenant-1" } as AccountInfo;
+		const account = { username: "org@example.com", tenantId: "tenant-1" } as AzureAccount;
 
 		await act(async () => {
 			root.render(
@@ -120,7 +120,7 @@ describe("useAzureSubscriptionCard", () => {
 	it("does not load subscriptions when confirmed tenant is blank", async () => {
 		let latest: UseAzureSubscriptionCard | null = null;
 		const root = createRoot(document.createElement("div"));
-		const account = { username: "org@example.com", tenantId: "tenant-1" } as AccountInfo;
+		const account = { username: "org@example.com", tenantId: "tenant-1" } as AzureAccount;
 
 		await act(async () => {
 			root.render(
@@ -150,7 +150,7 @@ describe("useAzureSubscriptionCard", () => {
 		apiMocks.listSubscriptions.mockResolvedValueOnce([]);
 		let latest: UseAzureSubscriptionCard | null = null;
 		const root = createRoot(document.createElement("div"));
-		const account = { username: "org@example.com", tenantId: "tenant-1" } as AccountInfo;
+		const account = { username: "org@example.com", tenantId: "tenant-1" } as AzureAccount;
 
 		await act(async () => {
 			root.render(
@@ -182,7 +182,7 @@ describe("useAzureSubscriptionCard", () => {
 		apiMocks.listSubscriptions.mockRejectedValueOnce(new Error("AADSTS90072: User is not a member"));
 		let latest: UseAzureSubscriptionCard | null = null;
 		const root = createRoot(document.createElement("div"));
-		const account = { username: "org@example.com", tenantId: "tenant-1" } as AccountInfo;
+		const account = { username: "org@example.com", tenantId: "tenant-1" } as AzureAccount;
 
 		await act(async () => {
 			root.render(
@@ -215,7 +215,7 @@ describe("useAzureSubscriptionCard", () => {
 		apiMocks.listSubscriptions.mockRejectedValueOnce(new Error("Network timeout"));
 		let latest: UseAzureSubscriptionCard | null = null;
 		const root = createRoot(document.createElement("div"));
-		const account = { username: "org@example.com", tenantId: "tenant-1" } as AccountInfo;
+		const account = { username: "org@example.com", tenantId: "tenant-1" } as AzureAccount;
 
 		await act(async () => {
 			root.render(

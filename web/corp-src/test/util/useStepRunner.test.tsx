@@ -2,8 +2,8 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { describe, expect, it } from "vitest";
 import { useEffect } from "react";
-import { useStepRunner } from "../hooks/util/useStepRunner";
-import type { SetupStep } from "../types";
+import { useStepRunner } from "../../hooks/util/useStepRunner";
+import type { SetupStep } from "../../types";
 
 function HookHarness(props: { onUpdate: (value: ReturnType<typeof useStepRunner>) => void }) {
 	const value = useStepRunner();

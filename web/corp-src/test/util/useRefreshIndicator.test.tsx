@@ -2,7 +2,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { useRefreshIndicator, type RefreshResult } from "../hooks/util/useRefreshIndicator";
+import { useRefreshIndicator, type RefreshResult } from "../../hooks/util/useRefreshIndicator";
 
 function HookHarness(props: {
 	busy: boolean;

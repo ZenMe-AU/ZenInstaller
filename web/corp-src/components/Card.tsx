@@ -3,7 +3,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
-import LockIcon from "@mui/icons-material/Lock";
+import BlockIcon from "@mui/icons-material/Block";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -33,10 +33,10 @@ const ICON_COLOR: Record<CardStatus, string> = {
 
 function StatusIcon({ status, locked }: { status: CardStatus; locked: boolean }) {
   /*
-   * Same muted grey as the lock icon - unavailable is styled identically to
+   * Same muted grey as the blocked icon - unavailable is styled identically to
    * locked, the glyph is the only thing that tells them apart.
    */
-  if (locked) return <LockIcon sx={{ fontSize: 16, color: "#cbd5e1" }} />;
+  if (locked) return <BlockIcon sx={{ fontSize: 16, color: "#cbd5e1" }} />;
   const c = ICON_COLOR[status];
   switch (status) {
     case "complete":

@@ -8,13 +8,11 @@ import type { Account, Branch, GhEnv, RepoOption } from "../types";
 const { apiMocks } = vi.hoisted(() => ({
 	apiMocks: {
 		fetchEnvs: vi.fn(),
-		fetchVariables: vi.fn(),
 	},
 }));
 
 vi.mock("../api", () => ({
 	fetchEnvs: apiMocks.fetchEnvs,
-	fetchVariables: apiMocks.fetchVariables,
 }));
 
 function HookHarness(props: { onUpdate: (value: UseGithubEnvironment) => void } & Parameters<typeof useGithubEnvironment>[0]) {
@@ -60,7 +58,6 @@ describe("useGithubEnvironment", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		apiMocks.fetchEnvs.mockResolvedValue([env()]);
-		apiMocks.fetchVariables.mockResolvedValue({ NAME: "Zenblox" });
 	});
 
 	it("loads environments, matches the selected branch, and restores by name", async () => {
@@ -93,7 +90,6 @@ describe("useGithubEnvironment", () => {
 		await waitFor(() => {
 			expect(latest?.status).toBe("complete");
 			expect(latest?.branchMatchWarning).toBeNull();
-			expect(latest?.presentVariableValues).toEqual({ NAME: "Zenblox" });
 		});
 
 		await act(async () => {
@@ -348,76 +344,7 @@ describe("useGithubEnvironment", () => {
 		});
 	});
 
-	it("onVariableRecheck fails when selected env exists but account/repo refs are missing", async () => {
-		let latest: UseGithubEnvironment | null = null;
-		const root = createRoot(document.createElement("div"));
-
-		await act(async () => {
-			root.render(
-				<HookHarness
-					{...baseProps({ account: null, repo: null, isRepoReady: false })}
-					onUpdate={(value) => {
-						latest = value;
-					}}
-				/>,
-			);
-		});
-
-		await act(async () => {
-			latest?.setSelectedEnv(env("prod"));
-		});
-
-		await act(async () => {
-			await latest?.onVariableRecheck();
-		});
-
-		expect(latest?.variablesRechecking).toBe(false);
-		expect(latest?.varRecheckFailed).toBe(true);
-
-		await act(async () => {
-			root.unmount();
-		});
-	});
-
-	it("onVariableRecheck sets varRecheckFailed when variable loading throws", async () => {
-		const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
-		apiMocks.fetchVariables.mockRejectedValue(new Error("var load failed"));
-
-		let latest: UseGithubEnvironment | null = null;
-		const root = createRoot(document.createElement("div"));
-
-		await act(async () => {
-			root.render(
-				<HookHarness
-					{...baseProps()}
-					onUpdate={(value) => {
-						latest = value;
-					}}
-				/>,
-			);
-		});
-
-		await act(async () => {
-			latest?.setSelectedEnv(env("prod"));
-		});
-
-		await act(async () => {
-			await latest?.onVariableRecheck();
-		});
-
-		await waitFor(() => {
-			expect(latest?.variablesRechecking).toBe(false);
-			expect(latest?.varRecheckFailed).toBe(true);
-			expect(consoleError).toHaveBeenCalled();
-		});
-
-		consoleError.mockRestore();
-		await act(async () => {
-			root.unmount();
-		});
-	});
-
-	it("onVariableConfirmed merges values and restore.apply handles unmatched values", async () => {
+	it("restore.apply handles unmatched values", async () => {
 		let latest: UseGithubEnvironment | null = null;
 		const root = createRoot(document.createElement("div"));
 
@@ -439,13 +366,6 @@ describe("useGithubEnvironment", () => {
 
 		await act(async () => {
 			expect(latest?.restore.env.apply("missing")).toBe(false);
-			latest?.onVariableConfirmed("AZURE_CLIENT_ID", "client-1");
-			latest?.onVariableConfirmed("AZURE_TENANT_ID", "tenant-1");
-		});
-
-		expect(latest?.presentVariableValues).toMatchObject({
-			AZURE_CLIENT_ID: "client-1",
-			AZURE_TENANT_ID: "tenant-1",
 		});
 
 		await act(async () => {

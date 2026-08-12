@@ -92,7 +92,7 @@ describe("useVariableEditor", () => {
 		});
 
     await act(async () => {
-      saveResult = await latest!.save();
+      saveResult = await latest!.onSave();
     });
     expect(latest?.upsertStatuses).toEqual([
       { key: "NAME", status: "success" },
@@ -161,7 +161,7 @@ describe("useVariableEditor", () => {
 		});
 
 		await act(async () => {
-			saveResult = await latest!.save();
+			saveResult = await latest!.onSave();
 		});
 
 		expect(saveResult?.result).toBe("no-changes");

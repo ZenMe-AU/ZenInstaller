@@ -16,6 +16,25 @@ export interface DeployStageParams {
   branches: Branch[];
 }
 
+export interface UseDeploymentPlan {
+  stages: Stage[];
+  stageSummaries: Record<string, PlanSummary>;
+  hasPlan: boolean;
+  running: boolean;
+  stagesLoading: boolean;
+  runError: string | null;
+  countdown: number;
+  lastTriggeredAt: number | null;
+  retryCount: number;
+  deployedEnv: Record<string, string> | null;
+  isStale: boolean;
+  statusUpdateStatus: CardStatus;
+  statusFileRunId: string | null;
+  onRun: () => Promise<void>;
+  deployStage: (params: DeployStageParams) => Promise<void>;
+  setStageSummary: (key: string, summary: PlanSummary) => void;
+}
+
 const POLL_DELAYS = [150, 180, 200, 300];
 
 export function useDeploymentPlan(opts: {
@@ -26,7 +45,7 @@ export function useDeploymentPlan(opts: {
   branches: Branch[];
   branchMatchError: string | null;
   envReady: boolean;
-}) {
+}): UseDeploymentPlan {
   const accountRef = useRef(opts.account);
   const repoNameRef = useRef(opts.repoName);
   const pipelineRef = useRef(opts.pipeline);

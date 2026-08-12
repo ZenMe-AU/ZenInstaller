@@ -1,5 +1,6 @@
 import type {
   ActionType,
+  CardId,
   CardStatus,
   PlanItem,
   PlanSummary,
@@ -10,6 +11,10 @@ import type {
   Stage,
   StageStatus,
 } from "../types";
+
+export function getStageCardId(stageKey: string): CardId {
+  return `stage_${stageKey}`;
+}
 
 export function getActionType(actions: string[]): ActionType {
   if (actions.includes("delete") && actions.includes("create")) return "replace";
@@ -43,6 +48,28 @@ export function getEffectiveStatus(stage: Stage, summary?: PlanSummary, isOption
   if (isNoChanges(summary)) return "deployed";
   if (isOptional && stage.status === "pending") return "skipped";
   return stage.status;
+}
+
+export function getStageSummaryText(
+  stage: Stage,
+  summary: PlanSummary | undefined,
+  loading: boolean,
+  stale: boolean,
+  optional?: boolean,
+): string {
+  if (stale) return "Status update required";
+  if (loading) return "Loading status...";
+  if (isNoChanges(summary)) return "No changes";
+  const effectiveStatus = getEffectiveStatus(stage, summary, optional);
+  return (
+    {
+      deployed: "Deployed",
+      success: "Ready to deploy",
+      failed: "Failed",
+      pending: "Not yet executed",
+      skipped: "Skipped",
+    } as Record<StageStatus, string>
+  )[effectiveStatus];
 }
 
 export function stageToCardStatus(effectiveStatus: StageStatus, isStale: boolean, isLoading: boolean): CardStatus {

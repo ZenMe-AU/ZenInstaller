@@ -5,20 +5,16 @@ import {
   type CardChrome,
   type CardHook,
   type CardId,
-  type CardStatus,
-  type PlanSummary,
-  type Stage,
-  type StageDefinition,
 } from "./types";
 import { groupSx, EXPANDED_W } from "./config/cardLayout";
 import { createResultStorage } from "./logic/resultStorage";
 import { PIPELINE } from "./logic/pipeline";
-import { getEffectiveStatus, hasVariableDiff, isNoChanges, stageToCardStatus } from "./logic/stage";
 import { useGithubLoginCard } from "./hooks/useGithubLoginCard";
 import { useRepoCard } from "./hooks/useRepoCard";
 import { useGithubVariables } from "./hooks/useGithubVariables";
 import { useUrlRestore, useUrlSync } from "./hooks/useUrlStateManager";
 import { useDeploymentPlan } from "./hooks/useDeploymentPlan";
+import { useCorpStageCards } from "./hooks/useCorpStageCards";
 import { useAzureLoginCard } from "./hooks/useAzureLoginCard";
 import { useAzureAppRegistrationCard } from "./hooks/useAzureAppRegistrationCard";
 import { useAzureSubscriptionCard } from "./hooks/useAzureSubscriptionCard";
@@ -27,6 +23,7 @@ import { useCoreInfraCard } from "./hooks/useCoreInfraCard";
 import { useCompanyInfoCard } from "./hooks/useCompanyInfoCard";
 import { useAccessPassCard } from "./hooks/useAccessPassCard";
 import { useGlobalGroupsCard } from "./hooks/useGlobalGroupsCard";
+import { useAwsConnectionCard } from "./hooks/useAwsConnectionCard";
 
 import NavBar from "./components/NavBar";
 import RestoreToast from "./components/RestoreToast";
@@ -41,6 +38,7 @@ import CoreInfraCard from "./cards/CoreInfraCard";
 import CreateDomainCard from "./cards/CreateDomainCard";
 import AccessPassCard from "./cards/AccessPassCard";
 import GlobalGroupsCard from "./cards/GlobalGroupsCard";
+import AwsConnectionCard from "./cards/AwsConnectionCard";
 import StageCard from "./cards/StageCard";
 
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
@@ -50,24 +48,6 @@ import { reactPlugin } from "./monitor/applicationInsights";
 
 const EXPANDED_CARDS_KEY = "zeninstaller_corp_expanded_cards";
 const { save: saveExpandedCards, load: loadExpandedCards } = createResultStorage<CardId[]>(EXPANDED_CARDS_KEY);
-
-const stageCardId = (stageKey: string): CardId => `stage_${stageKey}`;
-
-function stageSummaryText(stage: Stage, summary: PlanSummary | undefined, loading: boolean, stale: boolean, optional?: boolean): string {
-  if (stale) return "Status update required";
-  if (loading) return "Loading status...";
-  if (isNoChanges(summary)) return "No changes";
-  const effectiveStatus = getEffectiveStatus(stage, summary, optional);
-  return (
-    {
-      deployed: "Deployed",
-      success: "Ready to deploy",
-      failed: "Failed",
-      pending: "Not yet executed",
-      skipped: "Skipped",
-    } as Record<string, string>
-  )[effectiveStatus];
-}
 
 function AppDashboard() {
   const allCards: Record<string, CardHook> = {};
@@ -125,6 +105,14 @@ function AppDashboard() {
     useGlobalGroupsCard({
       azureAccount: azureLogin.account,
       confirmedTenantId: azureLogin.confirmedTenantId,
+    }),
+  );
+
+  const awsConnection = addCard(
+    useAwsConnectionCard({
+      org: githubRepoEnv.repo.selectedAccount?.login ?? "",
+      repo: githubRepoEnv.repo.selectedRepo?.name ?? "",
+      variableValues: githubVariableValues,
     }),
   );
 
@@ -249,33 +237,22 @@ function AppDashboard() {
       onRequirementClick: openCard,
     };
   };
-  const cardStatusForStages = Object.fromEntries(
-    Object.entries(allCards).map(([id, hook]) => [id, hook.status]),
-  ) as Record<CardId, CardStatus>;
-  const stageCardProps = (stageDef: StageDefinition, stage: Stage, summary?: PlanSummary): CardChrome => {
-    const id = stageCardId(stageDef.key);
-    const requirements = githubRepoEnv.done
-      ? []
-      : [
-          {
-            label: githubRepoEnv.cardDependencyLabel ?? "Repository & environment",
-            target: "repo" as CardId,
-          },
-        ];
-    const locked = requirements.length > 0;
-    const effectiveStatus = getEffectiveStatus(stage, summary, stageDef.optional);
-    return {
-      cardId: id,
-      status: locked ? "idle" : stageToCardStatus(effectiveStatus, plan.isStale, plan.stagesLoading),
-      summary: locked ? undefined : stageSummaryText(stage, summary, plan.stagesLoading, plan.isStale, stageDef.optional),
-      locked,
-      requirements,
-      unavailable: false,
-      expanded: expandedIds.has(id),
-      onToggle: () => toggle(id),
-      onRequirementClick: openCard,
-    };
-  };
+  const stageCards = useCorpStageCards({
+    pipeline: PIPELINE,
+    plan,
+    allCards,
+    repoDone: githubRepoEnv.done,
+    repoDependencyLabel: githubRepoEnv.cardDependencyLabel,
+    expandedIds,
+    account: githubRepoEnv.repo.selectedAccount,
+    repoName: githubRepoEnv.repo.selectedRepo?.name ?? "",
+    selectedEnv: githubRepoEnv.env.selectedEnv,
+    branches: githubRepoEnv.repo.branchList,
+    variableValues: githubVariableValues,
+    onVariableConfirmed: githubVariables.onConfirmed,
+    onToggle: toggle,
+    onRequirementClick: openCard,
+  });
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
@@ -380,48 +357,19 @@ function AppDashboard() {
 
             <GlobalGroupsCard card={cardProps("global_groups")} globalGroups={globalGroups} />
 
-            {PIPELINE.stages.map((stageDef) => {
-              const stage = plan.stages.find((s) => s.stage === stageDef.key) ?? { stage: stageDef.key, status: "pending" as const };
-              const summary = plan.stageSummaries[stageDef.key];
-              const effectiveStatus = getEffectiveStatus(stage, summary, stageDef.optional);
-              const varsMismatch = plan.deployedEnv != null && hasVariableDiff(stageDef.prerequisites, githubVariableValues, plan.deployedEnv);
-              const deployDisabled = plan.isStale || varsMismatch;
-              const onDeploy =
-                effectiveStatus === "success" && stage.runId && githubRepoEnv.env.selectedEnv
-                  ? async () => {
-                      await plan.deployStage({
-                        stageDef,
-                        stage,
-                        envName: githubRepoEnv.env.selectedEnv!.name,
-                        branches: githubRepoEnv.repo.branchList,
-                      });
-                    }
-                  : undefined;
+            <AwsConnectionCard
+              card={cardProps("aws_connection")}
+              awsConnection={awsConnection}
+              account={githubRepoEnv.repo.selectedAccount}
+              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+              repoFullName={githubRepoEnv.repo.repoFullName}
+              selectedEnv={githubRepoEnv.env.selectedEnv}
+              variables={githubVariables}
+            />
 
-              return (
-                <StageCard
-                  key={stageDef.key}
-                  card={stageCardProps(stageDef, stage, summary)}
-                  stageDef={stageDef}
-                  stage={stage}
-                  deployDisabled={deployDisabled}
-                  deployedEnv={plan.deployedEnv}
-                  variableValues={githubVariableValues}
-                  cardStatus={cardStatusForStages}
-                  account={githubRepoEnv.repo.selectedAccount}
-                  repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
-                  selectedEnv={githubRepoEnv.env.selectedEnv}
-                  onVariableConfirmed={githubVariables.onConfirmed}
-                  onDeploy={onDeploy}
-                  onPlanSummary={(s) => plan.setStageSummary(stageDef.key, s)}
-                  onRunStatusUpdate={plan.onRun}
-                  statusUpdateRunning={plan.running}
-                  statusUpdateCountdown={plan.countdown}
-                  statusUpdateDisabled={!githubRepoEnv.done || plan.running || plan.retryCount > 0}
-                  runError={plan.runError}
-                />
-              );
-            })}
+            {stageCards.map(({ key, ...stageCard }) => (
+              <StageCard key={key} {...stageCard} />
+            ))}
           </Box>
         </Box>
       </Box>

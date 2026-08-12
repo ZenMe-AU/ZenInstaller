@@ -26,6 +26,8 @@ type Props = {
   keyErrors?: Partial<Record<string, string>>; // Per-key external validation error, shown as a row-level error icon.
   autoSaveCounter?: number; // Increment to auto-apply populate values and immediately save them to GitHub.
   onAutoSaveResult?: (result: "saved" | "no-changes" | "error") => void; // Called when auto-save (triggered by autoSaveCounter) completes.
+  onLoaded?: (saved: Record<string, string>) => void;
+  onSaved?: (keys: string[]) => void;
 };
 
 export default function CloudVariableDetail({
@@ -43,6 +45,8 @@ export default function CloudVariableDetail({
   keyErrors,
   autoSaveCounter,
   onAutoSaveResult,
+  onLoaded,
+  onSaved,
 }: Props) {
   const { refreshResult, markClicked } = useRefreshIndicator(variables.refreshing, variables.error);
 
@@ -69,6 +73,16 @@ export default function CloudVariableDetail({
   const notConfigured = keys.filter((k) => !variables.values[k]).length;
 
   const complete = keys.every((k) => !!variables.values[k]);
+  const scopedValues = Object.fromEntries(keys.map((k) => [k, variables.values[k] ?? ""]));
+  const onLoadedRef = useRef(onLoaded);
+  useEffect(() => {
+    onLoadedRef.current = onLoaded;
+  }, [onLoaded]);
+  useEffect(() => {
+    onLoadedRef.current?.(scopedValues);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(scopedValues)]);
+
   const onCompleteRef = useRef(onComplete);
   useEffect(() => {
     onCompleteRef.current = onComplete;
@@ -80,6 +94,10 @@ export default function CloudVariableDetail({
   const handleRefresh = () => {
     markClicked();
     void variables.onRefresh();
+  };
+  const handleSave = async () => {
+    const result = await onSave();
+    if (result.savedKeys.length > 0) onSaved?.(result.savedKeys);
   };
 
   return (
@@ -133,7 +151,7 @@ export default function CloudVariableDetail({
             count={dirtyKeys.length}
             loading={updating}
             disabled={!!disabled || !account || !repo || !envName || updating || dirtyKeys.length === 0}
-            onClick={() => void onSave()}
+            onClick={() => void handleSave()}
           />
           {saveHint}
         </Box>

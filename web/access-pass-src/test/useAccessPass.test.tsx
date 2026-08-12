@@ -25,6 +25,10 @@ vi.mock("../../access-pass-src/api/accessPassGraph", () => ({
   MSA_TENANT: "9188040d-6c67-4c5b-b112-36a304b66dad",
 }));
 
+vi.mock("../monitor/telemetry", () => ({
+  logEvent: vi.fn(),
+}));
+
 type HarnessResult = ReturnType<typeof useAzureAccessPass>;
 
 type HarnessProps = {

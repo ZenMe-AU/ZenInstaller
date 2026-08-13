@@ -1,11 +1,7 @@
 import { useEffect, useState } from "react";
 import { Box, Typography } from "@mui/material";
 
-import {
-  type CardChrome,
-  type CardHook,
-  type CardId,
-} from "./types";
+import { type CardChrome, type CardHook, type CardId } from "./types";
 import { groupSx, EXPANDED_W } from "./config/cardLayout";
 import { createResultStorage } from "./logic/resultStorage";
 import { PIPELINE } from "./logic/pipeline";
@@ -23,7 +19,8 @@ import { useCoreInfraCard } from "./hooks/useCoreInfraCard";
 import { useCompanyInfoCard } from "./hooks/useCompanyInfoCard";
 import { useAccessPassCard } from "./hooks/useAccessPassCard";
 import { useGlobalGroupsCard } from "./hooks/useGlobalGroupsCard";
-import { useAwsConnectionCard } from "./hooks/useAwsConnectionCard";
+import { useAwsLoginCard } from "./hooks/useAwsLoginCard";
+import { useAwsSetupCard } from "./hooks/useAwsSetupCard";
 
 import NavBar from "./components/NavBar";
 import RestoreToast from "./components/RestoreToast";
@@ -38,7 +35,8 @@ import CoreInfraCard from "./cards/CoreInfraCard";
 import CreateDomainCard from "./cards/CreateDomainCard";
 import AccessPassCard from "./cards/AccessPassCard";
 import GlobalGroupsCard from "./cards/GlobalGroupsCard";
-import AwsConnectionCard from "./cards/AwsConnectionCard";
+import AwsLoginCard from "./cards/AwsLoginCard";
+import AwsSetupCard from "./cards/AwsSetupCard";
 import StageCard from "./cards/StageCard";
 
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
@@ -85,6 +83,8 @@ function AppDashboard() {
     }),
   );
 
+  const awsLogin = addCard(useAwsLoginCard());
+
   const azureAccessPass = addCard(
     useAccessPassCard({
       azureAccount: azureLogin.account,
@@ -108,14 +108,6 @@ function AppDashboard() {
     }),
   );
 
-  const awsConnection = addCard(
-    useAwsConnectionCard({
-      org: githubRepoEnv.repo.selectedAccount?.login ?? "",
-      repo: githubRepoEnv.repo.selectedRepo?.name ?? "",
-      variableValues: githubVariableValues,
-    }),
-  );
-
   const azureAppSetup = addCard(
     useAzureAppRegistrationCard({
       azureAccount: azureLogin.account,
@@ -129,6 +121,15 @@ function AppDashboard() {
     }),
   );
 
+  const awsSetup = addCard(
+    useAwsSetupCard({
+      githubAccount: githubRepoEnv.repo.selectedAccount?.login ?? "",
+      githubRepo: githubRepoEnv.repo.selectedRepo?.name ?? "",
+      variableValues: githubVariableValues,
+      awsReady: awsLogin.done,
+      awsAccount: awsLogin.account,
+    }),
+  );
   const infra = addCard(
     useCoreInfraCard({
       azureAccount: azureLogin.account,
@@ -357,9 +358,11 @@ function AppDashboard() {
 
             <GlobalGroupsCard card={cardProps("global_groups")} globalGroups={globalGroups} />
 
-            <AwsConnectionCard
-              card={cardProps("aws_connection")}
-              awsConnection={awsConnection}
+            <AwsLoginCard card={cardProps("aws_login")} awsLogin={awsLogin} />
+
+            <AwsSetupCard
+              card={cardProps("aws_setup")}
+              awsSetup={awsSetup}
               account={githubRepoEnv.repo.selectedAccount}
               repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
               repoFullName={githubRepoEnv.repo.repoFullName}

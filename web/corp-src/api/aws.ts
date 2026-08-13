@@ -15,6 +15,7 @@ import {
   GITHUB_OIDC_AUD_CONDITION_KEY,
   GITHUB_OIDC_SUB_CONDITION_KEY,
 } from "../config/awsConfig";
+import { requireCurrentAwsSessionCredentials } from "./awsSession";
 
 // AWS calls made directly from the browser with the user's own credentials — no
 // backend involved. STS/IAM support signed cross-origin requests, so the whole
@@ -103,7 +104,8 @@ const isAwsError = (err: unknown, name: string): boolean => err instanceof Error
 
 // Registers GitHub Actions as an OIDC identity provider in IAM. Idempotent —
 // reports whether it already existed vs was just created.
-export async function ensureGithubOidcProvider(credentials: AwsSessionCredentials): Promise<{ created: boolean }> {
+export async function ensureGithubOidcProvider(): Promise<{ created: boolean }> {
+  const credentials = requireCurrentAwsSessionCredentials();
   const iam = new IAMClient({ region: "us-east-1", credentials });
   try {
     await iam.send(
@@ -132,9 +134,9 @@ export type CreateAwsIamRoleParams = {
 // via OIDC — no long-lived AWS secrets stored in GitHub. Idempotent: re-running with
 // additional environments merges them into the existing trust policy.
 export async function createOrUpdateGithubOidcRole(
-  credentials: AwsSessionCredentials,
   { accountId, org, repo, environments, roleName }: CreateAwsIamRoleParams,
 ): Promise<{ roleArn: string; updated: boolean }> {
+  const credentials = requireCurrentAwsSessionCredentials();
   const iam = new IAMClient({ region: "us-east-1", credentials });
 
   const oidcProviderArn = `arn:aws:iam::${accountId}:oidc-provider/token.actions.githubusercontent.com`;

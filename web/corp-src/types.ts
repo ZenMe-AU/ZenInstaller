@@ -15,7 +15,8 @@ export type CardId =
   | "create_domain"
   | "access_pass"
   | "global_groups"
-  | "aws_connection"
+  | "aws_login"
+  | "aws_setup"
   | `stage_${string}`;
 export type CardStatus = "idle" | "loading" | "complete" | "warning" | "error" | "skipped" | "unavailable";
 

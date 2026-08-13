@@ -124,14 +124,16 @@ export function useGithubLoginCard(): UseGithubLoginCard {
     }
 
     try {
+      writeGithubAuthRecord(config);
+      setSessionExpired(false);
       const data = await verifyAuth();
       setAccount({ login: data.login });
-      setSessionExpired(false);
-      writeGithubAuthRecord(config);
     } catch {
       setAccount(null);
       if (config.mode === "backend") {
         window.location.href = `${url}/auth/login/github?post_login_redirect_uri=${encodeURIComponent(window.location.href)}`;
+      } else {
+        console.error("Login failed");
       }
       writeGithubAuthRecord(null);
     } finally {

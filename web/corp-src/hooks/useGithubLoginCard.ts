@@ -134,8 +134,8 @@ export function useGithubLoginCard(): UseGithubLoginCard {
         window.location.href = `${url}/auth/login/github?post_login_redirect_uri=${encodeURIComponent(window.location.href)}`;
       } else {
         console.error("Login failed");
+        setSessionExpired(true);
       }
-      writeGithubAuthRecord(null);
     } finally {
       setLoggingIn(false);
     }

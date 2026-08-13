@@ -318,7 +318,7 @@ describe("useGithubLoginCard", () => {
 		});
 	});
 
-	it("clears account and auth record when login verifyAuth fails", async () => {
+	it("preserves backend auth record when login verifyAuth fails", async () => {
 		let latest: UseGithubLoginCard | null = null;
 		const root = createRoot(document.createElement("div"));
 
@@ -343,7 +343,7 @@ describe("useGithubLoginCard", () => {
 
 		await waitFor(() => {
 			expect(latest?.account).toBeNull();
-			expect(sessionStorage.getItem("zeninstaller_github_auth")).toBeNull();
+			expect(JSON.parse(sessionStorage.getItem("zeninstaller_github_auth") ?? "null")).toEqual({ mode: "backend" });
 			expect(latest?.loggingIn).toBe(false);
 		});
 

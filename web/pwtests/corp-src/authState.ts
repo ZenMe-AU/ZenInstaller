@@ -7,11 +7,18 @@ import type { BrowserContext } from "@playwright/test";
 export const authDir = path.join(process.cwd(), "web/pwtests/corp-src/auth/.auth");
 export const storageStateFile = path.join(authDir, "github-pat.storage.json");
 export const sessionStorageFile = path.join(authDir, "github-pat.session.json");
+export const azureStorageStateFile = path.join(authDir, "azure-login.storage.json");
+export const azureSessionStorageFile = path.join(authDir, "azure-login.session.json");
 
 
 export function corpGithubAuthStateExists() {
 	return (fs.existsSync(storageStateFile) && fs.existsSync(sessionStorageFile));
 }
+
+export function corpAzureAuthStateExists() {
+	return (fs.existsSync(azureStorageStateFile) && fs.existsSync(azureSessionStorageFile));
+}
+
 
 export function loadGithubPatFromLocalSettings(): string | null {
 	const settingsPath = path.join(process.cwd(), "backend/local.settings.json");
@@ -26,6 +33,14 @@ export function loadGithubPatFromLocalSettings(): string | null {
 }
 
 export async function saveCorpSessionStorage(context: BrowserContext,) {
+	await saveSessionStorageTo(context, sessionStorageFile,);
+}
+
+export async function saveCorpAzureSessionStorage(context: BrowserContext,) {
+	await saveSessionStorageTo(context, azureSessionStorageFile,);
+}
+
+async function saveSessionStorageTo(context: BrowserContext, targetFile: string,) {
 	const pages = context.pages();
 	const page = pages[0];
 
@@ -47,15 +62,23 @@ export async function saveCorpSessionStorage(context: BrowserContext,) {
 		);
 	});
 
-	fs.writeFileSync(sessionStorageFile, JSON.stringify(sessionStorageData, null,2,),);
+	fs.writeFileSync(targetFile, JSON.stringify(sessionStorageData, null,2,),);
 }
 
 export async function restoreCorpSessionStorage(context: BrowserContext,) {
-	if (!fs.existsSync(sessionStorageFile)) {
-		throw new Error(`Missing Corp GitHub session storage: ${sessionStorageFile}`,);
+	await restoreSessionStorageFrom(context, sessionStorageFile,);
+}
+
+export async function restoreCorpAzureSessionStorage(context: BrowserContext,) {
+	await restoreSessionStorageFrom(context, azureSessionStorageFile,);
+}
+
+async function restoreSessionStorageFrom(context: BrowserContext, sourceFile: string,) {
+	if (!fs.existsSync(sourceFile)) {
+		throw new Error(`Missing Corp session storage: ${sourceFile}`,);
 	}
 
-	const sessionStorageData = JSON.parse(fs.readFileSync(sessionStorageFile,"utf-8",),) as Record<string, string>;
+	const sessionStorageData = JSON.parse(fs.readFileSync(sourceFile,"utf-8",),) as Record<string, string>;
 
 	await context.addInitScript(({storage}) => {
 			for (const [key,value,] of Object.entries(storage)) {

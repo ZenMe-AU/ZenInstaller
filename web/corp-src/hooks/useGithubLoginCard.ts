@@ -88,9 +88,10 @@ export function useGithubLoginCard(): UseGithubLoginCard {
       try {
         const data = await verifyAuth();
         setAccount({ login: data.login });
+        setSessionExpired(false);
       } catch {
-        writeGithubAuthRecord(null);
         setAccount(null);
+        setSessionExpired(true);
       } finally {
         setLoggingIn(false);
       }
@@ -125,6 +126,7 @@ export function useGithubLoginCard(): UseGithubLoginCard {
     try {
       const data = await verifyAuth();
       setAccount({ login: data.login });
+      setSessionExpired(false);
       writeGithubAuthRecord(config);
     } catch {
       setAccount(null);

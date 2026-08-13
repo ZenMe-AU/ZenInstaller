@@ -48,7 +48,7 @@ export default defineConfig({
     baseURL: "http://localhost:5173",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
-    testIdAttribute:"test-id",
+    testIdAttribute:"data-id",
   },
 
   projects: [
@@ -130,6 +130,16 @@ export default defineConfig({
     },
 
     {
+      name: "azure-login-setup",
+      testMatch: /corp-src\/setup\/azure-login\.setup\.ts/,
+      fullyParallel: false,
+      retries: 0,
+      use: {
+        ...devices["Desktop Chrome"],
+      },
+    },
+
+    {
       name: "corp-src-auth",
       testMatch: /corp-src\/auth\/.*\.spec\.ts/,
       fullyParallel: false,
@@ -138,10 +148,8 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
       },
-      dependencies: ["corp-github-setup"],
+      dependencies: ["corp-github-pat-setup", "azure-login-setup"],
     },
-
-
 
   ],
 

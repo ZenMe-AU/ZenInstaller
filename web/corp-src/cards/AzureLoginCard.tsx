@@ -125,6 +125,7 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
               {tenants.length > 0 ? (
                 // Fetched (or MSA-fallback) list available — plain dropdown, picking loads that tenant immediately.
                 <Select
+                  data-id="tenant-select"
                   size="small"
                   value={manualTenantId || ""}
                   onChange={(e) => selectTenant(e.target.value)}
@@ -136,7 +137,13 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
                   sx={{ minWidth: { xs: 0, sm: 380 }, width: "100%", fontSize: "0.8rem", ...mono }}
                 >
                   {tenants.map((t) => (
-                    <MenuItem key={t.tenantId} value={t.tenantId} sx={{ py: 0.75 }}>
+                    <MenuItem
+                      key={t.tenantId}
+                      value={t.tenantId}
+                      sx={{ py: 0.75 }}
+                      data-id="tenant-option"
+                      data-tenant-name={t.displayName}
+                    >
                       <Box>
                         <Typography sx={{ fontSize: "0.8rem", ...mono }}>{t.displayName}</Typography>
                         <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono }}>{t.tenantId}</Typography>

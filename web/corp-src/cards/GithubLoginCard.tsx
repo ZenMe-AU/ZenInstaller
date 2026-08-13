@@ -197,7 +197,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
           <Box>
             <Typography sx={{ fontSize: "0.78rem", color: "#64748b", mb: 2 }}>
               Authenticated as{" "}
-              <Box component="span" test-id="txtGithubUser" sx={{ ...monoSx, fontWeight: 600 }}>
+              <Box component="span" data-id="txtGithubUser" sx={{ ...monoSx, fontWeight: 600 }}>
                 {user.login}
               </Box>
               {mode === "direct" && (

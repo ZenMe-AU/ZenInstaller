@@ -1,0 +1,49 @@
+{
+  "folders": [
+    {
+      "name": "ROOT",
+      "path": "./",
+    },
+    {
+      "name": "web",
+      "path": "./web",
+    },
+    {
+      "name": "backend",
+      "path": "./backend",
+    },
+  ],
+  "launch": {
+    "version": "0.2.0",
+    "compounds": [],
+  },
+  "settings": {
+    // These settings apply to all workspaces.
+    "files.exclude": {
+      "node_modules/": false,
+    },
+    // Powershell settings
+    "powershell.cwd": "ROOT",
+    "powershell.scriptAnalysis.enable": true,
+
+    "debug.internalConsoleOptions": "neverOpen",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": "explicit",
+    },
+    // ESLint settings
+    "eslint.enable": true,
+    "eslint.lintTask.enable": true,
+    "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
+    "eslint.workingDirectories": ["./", "./web", "./backend"],
+
+    // For Linux, set the NVM_DIR in VsCode to same NVM install dir as user shell
+    "terminal.integrated.automationProfile.linux": {
+      "path": "/bin/bash",
+      "args": ["-ic"],
+    },
+    "terminal.integrated.env.linux": {
+      "NVM_DIR": "${env:HOME}/.nvm",
+    },
+  },
+}

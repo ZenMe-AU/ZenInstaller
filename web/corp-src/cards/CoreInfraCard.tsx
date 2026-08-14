@@ -3,22 +3,34 @@ import { Box, Button, CircularProgress, IconButton, MenuItem, Select, TextField,
 import EditIcon from "@mui/icons-material/Edit";
 import CheckIcon from "@mui/icons-material/Check";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import type { AccountInfo } from "@azure/msal-browser";
 import type { UseCoreInfraCard } from "../hooks/useCoreInfraCard";
 import StepRow from "./StepRow";
 import Card from "../components/Card";
 import { getVariableDisplayName } from "../logic/variables";
 import { MONO as mono, labelSx } from "../config/styles";
-import type { CardChrome } from "../types";
+import type { CardChrome, AzureAccount } from "../types";
 
 type Props = {
   card: CardChrome;
   infra: UseCoreInfraCard;
-  azureAccount: AccountInfo | null;
+  azureAccount: AzureAccount | null;
   corpName: string;
   subscriptionId: string;
   spClientId: string;
 };
+
+function Intro({ containerName }: { containerName: string }) {
+  return (
+    <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+      Creates the root Azure resources — resource group, Log Analytics, Application Insights, the private storage account
+      — then the{" "}
+      <Box component="span" sx={mono}>
+        {containerName}
+      </Box>{" "}
+      container Terraform uses for state, granting GitHub Actions access to it.
+    </Typography>
+  );
+}
 
 export default function CoreInfraCard({ card, infra, azureAccount, corpName, subscriptionId, spClientId }: Props) {
   const {
@@ -56,15 +68,9 @@ export default function CoreInfraCard({ card, infra, azureAccount, corpName, sub
   const locationDisplayName = locations.find((l) => l.name === location)?.displayName ?? location;
 
   return (
-    <Card title="Core infrastructure" {...card}>
+    <Card title="Core infrastructure" lockedIntro={<Intro containerName={containerName} />} {...card}>
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
-        Creates the root Azure resources — resource group, Log Analytics, Application Insights, the private storage account — then the{" "}
-        <Box component="span" sx={mono}>
-          {containerName}
-        </Box>{" "}
-        container Terraform uses for state, granting GitHub Actions access to it.
-      </Typography>
+      <Intro containerName={containerName} />
 
       {/* Gating hints */}
       {!azureAccount && (

@@ -1,7 +1,7 @@
 import { Box, Button } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import Card from "../components/Card";
-import RepoDetail from "./RepoDetail";
+import RepoDetail, { Intro as RepoDetailIntro } from "./RepoDetail";
 import EnvDetail from "./EnvDetail";
 import { getRepoUrl } from "../logic/github";
 import { PIPELINE } from "../logic/pipeline";
@@ -14,6 +14,10 @@ type Props = {
   githubRepo: UseRepoCard;
   lockedByPR: boolean;
 };
+
+function Intro() {
+  return <RepoDetailIntro />;
+}
 
 /*
  * The repo card actually spans two concerns — which repo, and which environment in
@@ -44,7 +48,7 @@ export default function RepoCard({ card, githubRepo, lockedByPR }: Props) {
   ) : undefined;
 
   return (
-    <Card title="Repository & environment" action={viewRepoAction} {...card}>
+    <Card title="Repository & environment" action={viewRepoAction} lockedIntro={<Intro />} {...card}>
       <RepoDetail
         accounts={repo.accountList}
         selectedAccount={repo.selectedAccount}

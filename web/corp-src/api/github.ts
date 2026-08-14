@@ -243,6 +243,16 @@ export function createGithubApi(token: string) {
     if (!res.ok) throw new Error(`Failed to update variable "${name}": ${res.status}`);
   }
 
+  async function deleteVariable(account: Account, repo: string, name: string, envName: string): Promise<void> {
+    const res = await gh(
+      `/repos/${account.login}/${repo}/environments/${encodeURIComponent(envName)}/variables/${name}`,
+      {
+        method: "DELETE",
+      },
+    );
+    if (!res.ok) throw new Error(`Failed to delete variable "${name}": ${res.status}`);
+  }
+
   // ── Repo contents ─────────────────────────────────────────────────────────────
 
   async function fetchStatus(account: Account, repo: string, ref: string): Promise<object | null> {
@@ -315,11 +325,31 @@ export function createGithubApi(token: string) {
   }
 
   return {
-    verifyAuth, fetchOrgList, fetchRepos, checkTemplate, generateRepo,
-    fetchBranches, createBranch, fetchPullRequests, fetchRuns, fetchEnvs,
-    fetchSecrets, fetchPublicKey, upsertSecret, fetchVariables, createVariable,
-    updateVariable, fetchStatus, fetchEnv, getPlanEnv, fetchDeployLog,
-    fetchPlan, triggerWorkflow, triggerWorkflowFromPR, deployChangeset,
+    verifyAuth,
+    fetchOrgList,
+    fetchRepos,
+    checkTemplate,
+    generateRepo,
+    fetchBranches,
+    createBranch,
+    fetchPullRequests,
+    fetchRuns,
+    fetchEnvs,
+    fetchSecrets,
+    fetchPublicKey,
+    upsertSecret,
+    fetchVariables,
+    createVariable,
+    updateVariable,
+    deleteVariable,
+    fetchStatus,
+    fetchEnv,
+    getPlanEnv,
+    fetchDeployLog,
+    fetchPlan,
+    triggerWorkflow,
+    triggerWorkflowFromPR,
+    deployChangeset,
   };
 }
 

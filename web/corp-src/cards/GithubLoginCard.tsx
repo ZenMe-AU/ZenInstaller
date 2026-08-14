@@ -23,6 +23,15 @@ type Props = {
   auth: UseGithubLoginCard;
 };
 
+function Intro() {
+  return (
+    <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+      Connect your GitHub account so ZenInstaller can create the repository, environment, and secrets needed to deploy
+      Zenblox.
+    </Typography>
+  );
+}
+
 export default function GithubLoginCard({ card, auth }: Props) {
   const {
     loggingIn: authLoading,
@@ -54,12 +63,11 @@ export default function GithubLoginCard({ card, auth }: Props) {
   };
 
   return (
-    <Card title="GitHub login" {...card}>
+    <Card title="GitHub login" lockedIntro={<Intro />} {...card}>
       <Box>
-        <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7, mb: 2 }}>
-          Connect your GitHub account so ZenInstaller can create the repository, environment, and secrets needed to
-          deploy Zenblox.
-        </Typography>
+        <Box sx={{ mb: 2 }}>
+          <Intro />
+        </Box>
 
         {/* Mode toggle — hidden once logged in */}
         {!user && (

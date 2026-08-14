@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { InteractionRequiredAuthError, type AccountInfo } from "@azure/msal-browser";
+import { InteractionRequiredAuthError } from "@azure/msal-browser";
 import { getMsal } from "../api/msal";
 import { LOGIN_SCOPES, ARM_SCOPES } from "../config/azureConfig";
 import { getToken, listTenants, MSA_TENANT, type AzureTenant } from "../api/azureGraph";
 import { createResultStorage } from "../logic/resultStorage";
-import type { LoginHook } from "../types";
+import type { AzureAccount, LoginHook } from "../types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface UseAzureAccount extends LoginHook<AccountInfo> {
+export interface UseAzureAccount extends LoginHook<AzureAccount> {
   login: () => Promise<void>;
   logout: () => Promise<void>;
   loginError: string | null;
@@ -47,7 +47,7 @@ function friendlyTenantError(err: unknown): string {
  * card — useAzureLoginCard, useAzureSubscriptionCard and useAzureAppRegistrationCard all read from it.
  */
 export function useAzureAccount(): UseAzureAccount {
-  const [account, setAccount] = useState<AccountInfo | null>(null);
+  const [account, setAccount] = useState<AzureAccount | null>(null);
   const [tenants, setTenants] = useState<AzureTenant[]>([]);
   const [loggingIn, setLoggingIn] = useState(true);
   const [loginError, setLoginError] = useState<string | null>(null);
@@ -63,7 +63,7 @@ export function useAzureAccount(): UseAzureAccount {
   }, [account]);
 
   // Fetch the tenant list via ARM (display names); fall back to the account's known tenant IDs for MSA.
-  const loadTenants = useCallback(async (acc: AccountInfo) => {
+  const loadTenants = useCallback(async (acc: AzureAccount) => {
     try {
       try {
         const list = await listTenants(acc);
@@ -111,7 +111,7 @@ export function useAzureAccount(): UseAzureAccount {
 
         // Probe for an ARM token so the pending-consent redirect fires here rather than
         // surfacing later as an unexplained failure in whichever card reads ARM first.
-        const tryConfirmArm = async (acc: AccountInfo, tenant: string | undefined) => {
+        const tryConfirmArm = async (acc: AzureAccount, tenant: string | undefined) => {
           try {
             await getToken(acc, ARM_SCOPES, tenant);
             if (tenant) sessionStorage.removeItem(SESSION_KEY);
@@ -128,7 +128,7 @@ export function useAzureAccount(): UseAzureAccount {
           }
         };
 
-        const msaTenant = (acc: AccountInfo) =>
+        const msaTenant = (acc: AzureAccount) =>
           acc.tenantId === MSA_TENANT ? (azureResult.load()?.tenantId ?? undefined) : undefined;
 
         if (result?.account) {

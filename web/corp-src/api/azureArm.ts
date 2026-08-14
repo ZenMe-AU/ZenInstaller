@@ -1,7 +1,7 @@
-import type { AccountInfo } from "@azure/msal-browser";
 import { getToken, gFetch } from "./azureGraph";
 import { ARM_SCOPES, RBAC_ROLE_IDS } from "../config/azureConfig";
 import { deterministicUuid } from "../logic/crypto";
+import type { AzureAccount } from "../types";
 
 const ARM = "https://management.azure.com";
 
@@ -45,7 +45,7 @@ export type EnsureResult = "created" | "exists";
 export type AzureLocation = { name: string; displayName: string };
 
 // Lists physical Azure regions available to the subscription (excludes logical/paired regions).
-export async function listLocations(account: AccountInfo, subscriptionId: string, overrideTenantId?: string): Promise<AzureLocation[]> {
+export async function listLocations(account: AzureAccount, subscriptionId: string, overrideTenantId?: string): Promise<AzureLocation[]> {
   const token = await getToken(account, ARM_SCOPES, overrideTenantId);
   const data = await gFetch(token, ARM, `/subscriptions/${subscriptionId}/locations?api-version=2022-12-01`);
   const raw: { name: string; displayName: string; metadata?: { regionType?: string } }[] = data?.value ?? [];
@@ -62,7 +62,7 @@ function resourceGroupPath(subscriptionId: string, name: string): string {
 }
 
 export async function ensureResourceGroup(
-  account: AccountInfo,
+  account: AzureAccount,
   subscriptionId: string,
   name: string,
   location: string,
@@ -76,7 +76,7 @@ export async function ensureResourceGroup(
 }
 
 // Read-only existence check — used by live "is infra still operable" checks (no create-on-miss).
-export async function resourceGroupExists(account: AccountInfo, subscriptionId: string, name: string, overrideTenantId?: string): Promise<boolean> {
+export async function resourceGroupExists(account: AzureAccount, subscriptionId: string, name: string, overrideTenantId?: string): Promise<boolean> {
   const token = await getToken(account, ARM_SCOPES, overrideTenantId);
   return !!(await armGet(token, resourceGroupPath(subscriptionId, name)));
 }
@@ -84,7 +84,7 @@ export async function resourceGroupExists(account: AccountInfo, subscriptionId: 
 // ── Log Analytics workspace ────────────────────────────────────────────────────
 
 export async function ensureLogAnalyticsWorkspace(
-  account: AccountInfo,
+  account: AzureAccount,
   subscriptionId: string,
   resourceGroup: string,
   name: string,
@@ -109,7 +109,7 @@ export async function ensureLogAnalyticsWorkspace(
 // ── Subscription activity-log diagnostics ──────────────────────────────────────
 
 export async function ensureSubscriptionDiagnostics(
-  account: AccountInfo,
+  account: AzureAccount,
   subscriptionId: string,
   settingName: string,
   workspaceId: string,
@@ -136,7 +136,7 @@ export async function ensureSubscriptionDiagnostics(
 // ── Application Insights ───────────────────────────────────────────────────────
 
 export async function ensureAppInsights(
-  account: AccountInfo,
+  account: AzureAccount,
   subscriptionId: string,
   resourceGroup: string,
   name: string,
@@ -157,7 +157,7 @@ export async function ensureAppInsights(
 // ── DNS zone + TXT record ──────────────────────────────────────────────────────
 
 export async function ensureDnsZone(
-  account: AccountInfo,
+  account: AzureAccount,
   subscriptionId: string,
   resourceGroup: string,
   dnsName: string,
@@ -173,7 +173,7 @@ export async function ensureDnsZone(
 
 // Ensures the apex TXT record contains `value`. Merges with existing TXT values rather than overwriting.
 export async function ensureDnsTxtRecord(
-  account: AccountInfo,
+  account: AzureAccount,
   subscriptionId: string,
   resourceGroup: string,
   dnsName: string,
@@ -195,7 +195,7 @@ export async function ensureDnsTxtRecord(
 // ── Storage account + container ────────────────────────────────────────────────
 
 export async function ensureStorageAccount(
-  account: AccountInfo,
+  account: AzureAccount,
   subscriptionId: string,
   resourceGroup: string,
   name: string,
@@ -226,7 +226,7 @@ export async function ensureStorageAccount(
 }
 
 export async function ensureStorageContainer(
-  account: AccountInfo,
+  account: AzureAccount,
   subscriptionId: string,
   resourceGroup: string,
   storageAccountName: string,
@@ -246,7 +246,7 @@ export async function ensureStorageContainer(
 // Read-only check — includes assignments inherited from an ancestor scope (e.g. subscription-level
 // Contributor satisfies a resource-group-scoped check too), since assignedTo() reports effective access.
 export async function hasRbacRoleAtScope(
-  account: AccountInfo,
+  account: AzureAccount,
   scope: string,
   principalId: string,
   roleName: string,
@@ -265,11 +265,12 @@ export async function hasRbacRoleAtScope(
 }
 
 export async function ensureRbacRoleAtScope(
-  account: AccountInfo,
+  account: AzureAccount,
   scope: string,
   principalId: string,
   roleName: string,
   overrideTenantId?: string,
+  principalType: "ServicePrincipal" | "Group" | "User" = "ServicePrincipal",
 ): Promise<EnsureResult> {
   if (await hasRbacRoleAtScope(account, scope, principalId, roleName, overrideTenantId)) return "exists";
 
@@ -282,7 +283,7 @@ export async function ensureRbacRoleAtScope(
       properties: {
         roleDefinitionId: `/providers/Microsoft.Authorization/roleDefinitions/${roleId}`,
         principalId,
-        principalType: "ServicePrincipal",
+        principalType,
       },
     }),
   });
@@ -295,4 +296,8 @@ export function storageAccountScope(subscriptionId: string, resourceGroup: strin
 
 export function resourceGroupScope(subscriptionId: string, resourceGroup: string): string {
   return `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}`;
+}
+
+export function subscriptionScope(subscriptionId: string): string {
+  return `/subscriptions/${subscriptionId}`;
 }

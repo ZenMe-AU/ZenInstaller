@@ -1,8 +1,8 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Box, Button, CircularProgress, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from "@mui/material";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import type { CardChrome } from "../types";
-import type { UseAccessPassCard , SetupStep} from "../hooks/useAccessPassCard";
+import type { CardChrome, SetupStep } from "../types";
+import type { UseAccessPassCard } from "../hooks/useAccessPassCard";
 import StepRow from "./StepRow";
 import { logEvent } from "../monitor/telemetry";
 import Card from "../components/Card";
@@ -71,6 +71,15 @@ type Props = {
   accessPass: UseAccessPassCard;
 };
 
+function Intro() {
+  return (
+    <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+      Create a Temporary Access Pass for a user managed by your signed-in account. This removes their existing sign-in
+      methods, randomizes their password, and issues a one-hour access pass.
+    </Typography>
+  );
+}
+
 /*
  * Creates a Microsoft Entra Temporary Access Pass for a user managed by the signed-in
  * account. Locked behind "azure_login" (see cardRequirements on useAccessPassCard), so
@@ -79,20 +88,19 @@ type Props = {
  */
 export default function AccessPassCard({ card, accessPass }: Props) {
   const {
-  steps,
-  result,
-  running,
-  subsError,
+    steps,
+    result,
+    running,
     managerUsers,
     selectedManagerUserId,
     managerUsersLoading,
     managerUsersError,
     consentRequired,
     requestAccessPassConsent,
-  reset,
+    reset,
     runForUser,
-  disabled,
   } = accessPass;
+  const disabled = card.locked;
 
   const PAGE_SIZE = 200;
   const [creatingUserId, setCreatingUserId] = useState<string | null>(null);
@@ -185,12 +193,9 @@ export default function AccessPassCard({ card, accessPass }: Props) {
   const statusUserId = creatingUserId ?? selectedManagerUserId;
 
   return (
-    <Card title="Access pass" {...card}>
+    <Card title="Access pass" lockedIntro={<Intro />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-        <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
-          Create a Temporary Access Pass for a user managed by your signed-in account. This removes their existing sign-in methods, randomizes their
-          password, and issues a one-hour access pass.
-        </Typography>
+        <Intro />
 
         {/* Entra user selector */}
         <Box
@@ -549,7 +554,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
             )}
           </Box>
         </Box>
-          {subsError && <Typography sx={{ fontSize: "0.72rem", color: "#ef4444", ...mono }}>{subsError}</Typography>}
+          {managerUsersError && <Typography sx={{ fontSize: "0.72rem", color: "#ef4444", ...mono }}>{managerUsersError}</Typography>}
       </Box>
     </Card>
   );

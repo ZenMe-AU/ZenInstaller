@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import type { AccountInfo } from "@azure/msal-browser";
-import type { CardHook, CardRequirements, CardStatus, LoginHook } from "../types";
+import type { CardHook, CardRequirements, CardStatus, LoginHook, AzureAccount } from "../types";
 import { AZURE_CLIENT_ID } from "../config/azureConfig";
 import type { AzureTenant } from "../api/azureGraph";
 import { tenantDisplayName } from "../logic/tenant";
@@ -14,7 +13,7 @@ export type UseAzureLoginCardParams = {
   savedTenantId: string; // AZURE_TENANT_ID as saved on the GitHub environment — auto-applied once known.
 };
 
-export interface UseAzureLoginCard extends UseAzureAccount, CardHook, LoginHook<AccountInfo> {
+export interface UseAzureLoginCard extends UseAzureAccount, CardHook, LoginHook<AzureAccount> {
   readonly cardId: "azure_login";
   cardRequirements: CardRequirements;
   cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Sign in to Azure")

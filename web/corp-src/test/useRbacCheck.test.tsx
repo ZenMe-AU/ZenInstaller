@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useRbacCheck, type RbacCheckResult } from "../hooks/util/useRbacCheck";
+import type { AzureAccount } from "../types";
 
 const { apiMocks } = vi.hoisted(() => ({
 	apiMocks: {
@@ -16,13 +17,7 @@ vi.mock("../api/azureGraph", () => ({
 	hasRbacRole: apiMocks.hasRbacRole,
 }));
 
-function HookHarness(props: {
-	onUpdate: (value: RbacCheckResult) => void;
-	azureAccount: { login: string } | null;
-	spClientId: string;
-	subscriptionId: string;
-	tenantId?: string;
-}) {
+function HookHarness(props: { onUpdate: (value: RbacCheckResult) => void } & Parameters<typeof useRbacCheck>[0]) {
 	const value = useRbacCheck(props);
 	useEffect(() => {
 		props.onUpdate(value);
@@ -34,6 +29,14 @@ describe("useRbacCheck", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 	});
+
+	const azureAccount: AzureAccount = {
+		homeAccountId: "home-1",
+		environment: "login.microsoftonline.com",
+		tenantId: "tenant-1",
+		username: "admin@example.com",
+		localAccountId: "local-1",
+	};
 
 	it("reports ready when the service principal has both roles", async () => {
 		apiMocks.getExistingSP.mockResolvedValue({ id: "sp-1" });
@@ -48,7 +51,7 @@ describe("useRbacCheck", () => {
 					onUpdate={(value) => {
 						latest = value;
 					}}
-					azureAccount={{ login: "org-one" }}
+					azureAccount={azureAccount}
 					spClientId="client-1"
 					subscriptionId="sub-1"
 					tenantId="tenant-1"
@@ -80,7 +83,7 @@ describe("useRbacCheck", () => {
 					onUpdate={(value) => {
 						latest = value;
 					}}
-					azureAccount={{ login: "org-one" }}
+					azureAccount={azureAccount}
 					spClientId="client-1"
 					subscriptionId="sub-1"
 				/>,

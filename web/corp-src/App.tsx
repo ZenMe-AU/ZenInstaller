@@ -1,21 +1,20 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Box, Typography } from "@mui/material";
 
 import {
-  type Account,
   type CardChrome,
   type CardHook,
   type CardId,
-  type CardRequirements,
-  type PendingRestore,
-  type RepoOption,
-  type Requirement,
 } from "./types";
-import { groupLabelSx, groupSx, EXPANDED_W } from "./config/cardLayout";
+import { groupSx, EXPANDED_W } from "./config/cardLayout";
 import { createResultStorage } from "./logic/resultStorage";
+import { PIPELINE } from "./logic/pipeline";
 import { useGithubLoginCard } from "./hooks/useGithubLoginCard";
 import { useRepoCard } from "./hooks/useRepoCard";
+import { useGithubVariables } from "./hooks/useGithubVariables";
 import { useUrlRestore, useUrlSync } from "./hooks/useUrlStateManager";
+import { useDeploymentPlan } from "./hooks/useDeploymentPlan";
+import { useCorpStageCards } from "./hooks/useCorpStageCards";
 import { useAzureLoginCard } from "./hooks/useAzureLoginCard";
 import { useAzureAppRegistrationCard } from "./hooks/useAzureAppRegistrationCard";
 import { useAzureSubscriptionCard } from "./hooks/useAzureSubscriptionCard";
@@ -23,6 +22,8 @@ import { useCreateDomainCard } from "./hooks/useCreateDomainCard";
 import { useCoreInfraCard } from "./hooks/useCoreInfraCard";
 import { useCompanyInfoCard } from "./hooks/useCompanyInfoCard";
 import { useAccessPassCard } from "./hooks/useAccessPassCard";
+import { useGlobalGroupsCard } from "./hooks/useGlobalGroupsCard";
+import { useAwsConnectionCard } from "./hooks/useAwsConnectionCard";
 
 import NavBar from "./components/NavBar";
 import RestoreToast from "./components/RestoreToast";
@@ -36,6 +37,9 @@ import AzureSubscriptionCard from "./cards/AzureSubscriptionCard";
 import CoreInfraCard from "./cards/CoreInfraCard";
 import CreateDomainCard from "./cards/CreateDomainCard";
 import AccessPassCard from "./cards/AccessPassCard";
+import GlobalGroupsCard from "./cards/GlobalGroupsCard";
+import AwsConnectionCard from "./cards/AwsConnectionCard";
+import StageCard from "./cards/StageCard";
 
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
@@ -60,7 +64,12 @@ function AppDashboard() {
       user: githubLogin.account,
     }),
   );
-  const githubVariableValues = githubRepoEnv.env.presentVariableValues ?? {};
+  const githubVariables = useGithubVariables({
+    account: githubRepoEnv.repo.selectedAccount,
+    repoName: githubRepoEnv.repo.selectedRepo?.name ?? null,
+    envName: githubRepoEnv.env.branchMatchError ? null : (githubRepoEnv.env.selectedEnv?.name ?? null),
+  });
+  const githubVariableValues = githubVariables.values;
 
   const companyInfo = addCard(
     useCompanyInfoCard({
@@ -89,6 +98,21 @@ function AppDashboard() {
       confirmedTenantId: azureLogin.confirmedTenantId,
       manualTenantId: azureLogin.manualTenantId,
       savedSubscriptionId: githubVariableValues.AZURE_SUBSCRIPTION_ID ?? "",
+    }),
+  );
+
+  const globalGroups = addCard(
+    useGlobalGroupsCard({
+      azureAccount: azureLogin.account,
+      confirmedTenantId: azureLogin.confirmedTenantId,
+    }),
+  );
+
+  const awsConnection = addCard(
+    useAwsConnectionCard({
+      org: githubRepoEnv.repo.selectedAccount?.login ?? "",
+      repo: githubRepoEnv.repo.selectedRepo?.name ?? "",
+      variableValues: githubVariableValues,
     }),
   );
 
@@ -124,6 +148,16 @@ function AppDashboard() {
       tenantId: azureAppSetup.tenantId,
     }),
   );
+
+  const plan = useDeploymentPlan({
+    account: githubRepoEnv.repo.selectedAccount,
+    repoName: githubRepoEnv.repo.selectedRepo?.name ?? null,
+    pipeline: PIPELINE,
+    selectedEnv: githubRepoEnv.env.selectedEnv,
+    branches: githubRepoEnv.repo.branchList,
+    branchMatchError: githubRepoEnv.env.branchMatchError,
+    envReady: githubRepoEnv.done,
+  });
 
   // ── URL restore + sync ───────────────────────────────────────────────────────
   const urlRestore = useUrlRestore([
@@ -203,6 +237,22 @@ function AppDashboard() {
       onRequirementClick: openCard,
     };
   };
+  const stageCards = useCorpStageCards({
+    pipeline: PIPELINE,
+    plan,
+    allCards,
+    repoDone: githubRepoEnv.done,
+    repoDependencyLabel: githubRepoEnv.cardDependencyLabel,
+    expandedIds,
+    account: githubRepoEnv.repo.selectedAccount,
+    repoName: githubRepoEnv.repo.selectedRepo?.name ?? "",
+    selectedEnv: githubRepoEnv.env.selectedEnv,
+    branches: githubRepoEnv.repo.branchList,
+    variableValues: githubVariableValues,
+    onVariableConfirmed: githubVariables.onConfirmed,
+    onToggle: toggle,
+    onRequirementClick: openCard,
+  });
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
@@ -260,7 +310,7 @@ function AppDashboard() {
               githubAccount={githubRepoEnv.repo.selectedAccount}
               repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
               selectedEnv={githubRepoEnv.env.selectedEnv}
-              onVariableConfirmed={githubRepoEnv.env.onVariableConfirmed}
+              variables={githubVariables}
               githubUrl={githubRepoEnv.githubEnvUrl}
               onOpenAzureLogin={() => openCard("azure_login")}
               onUserInteract={() => urlRestore.cancel(["tenant", "subscription"])}
@@ -270,7 +320,8 @@ function AppDashboard() {
 
             <CompanyInfoCard
               card={cardProps("company_info")}
-              github={githubRepoEnv}
+              selectedEnv={githubRepoEnv.env.selectedEnv}
+              variables={githubVariables}
               githubAccount={githubRepoEnv.repo.selectedAccount}
               repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
               githubUrl={githubRepoEnv.githubEnvUrl}
@@ -283,6 +334,7 @@ function AppDashboard() {
               repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
               selectedEnv={githubRepoEnv.env.selectedEnv}
               subscriptionId={azureSubscription.selectedSubscriptionId}
+              variables={githubVariables}
               githubUrl={githubRepoEnv.githubEnvUrl}
             />
 
@@ -302,6 +354,22 @@ function AppDashboard() {
               corpName={companyInfo.corpName}
               dnsName={companyInfo.dnsName}
             />
+
+            <GlobalGroupsCard card={cardProps("global_groups")} globalGroups={globalGroups} />
+
+            <AwsConnectionCard
+              card={cardProps("aws_connection")}
+              awsConnection={awsConnection}
+              account={githubRepoEnv.repo.selectedAccount}
+              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+              repoFullName={githubRepoEnv.repo.repoFullName}
+              selectedEnv={githubRepoEnv.env.selectedEnv}
+              variables={githubVariables}
+            />
+
+            {stageCards.map(({ key, ...stageCard }) => (
+              <StageCard key={key} {...stageCard} />
+            ))}
           </Box>
         </Box>
       </Box>

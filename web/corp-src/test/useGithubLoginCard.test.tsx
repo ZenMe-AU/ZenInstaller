@@ -176,7 +176,7 @@ describe("useGithubLoginCard", () => {
 		});
 	});
 
-	it("clears session record and account when mount auth verification fails", async () => {
+	it("preserves session record and marks expired when mount auth verification fails", async () => {
 		sessionStorage.setItem("zeninstaller_github_auth", JSON.stringify({ mode: "backend" }));
 		apiMocks.verifyAuth.mockRejectedValueOnce(new Error("expired"));
 
@@ -196,7 +196,8 @@ describe("useGithubLoginCard", () => {
 		await waitFor(() => {
 			expect(latest?.loggingIn).toBe(false);
 			expect(latest?.account).toBeNull();
-			expect(sessionStorage.getItem("zeninstaller_github_auth")).toBeNull();
+			expect(JSON.parse(sessionStorage.getItem("zeninstaller_github_auth") ?? "null")).toEqual({ mode: "backend" });
+			expect(latest?.sessionExpired).toBe(true);
 			expect(latest?.status).toBe("idle");
 		});
 
@@ -317,7 +318,7 @@ describe("useGithubLoginCard", () => {
 		});
 	});
 
-	it("clears account and auth record when login verifyAuth fails", async () => {
+	it("preserves backend auth record when login verifyAuth fails", async () => {
 		let latest: UseGithubLoginCard | null = null;
 		const root = createRoot(document.createElement("div"));
 
@@ -342,7 +343,7 @@ describe("useGithubLoginCard", () => {
 
 		await waitFor(() => {
 			expect(latest?.account).toBeNull();
-			expect(sessionStorage.getItem("zeninstaller_github_auth")).toBeNull();
+			expect(JSON.parse(sessionStorage.getItem("zeninstaller_github_auth") ?? "null")).toEqual({ mode: "backend" });
 			expect(latest?.loggingIn).toBe(false);
 		});
 

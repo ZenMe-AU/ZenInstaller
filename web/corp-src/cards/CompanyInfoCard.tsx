@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
@@ -11,7 +10,7 @@ import Card from "../components/Card";
 import { useRefreshIndicator } from "../hooks/util/useRefreshIndicator";
 import { useVariableEditor } from "../hooks/util/useVariableEditor";
 import { sectionLabelSx } from "../config/styles";
-import type { UseRepoCard } from "../hooks/useRepoCard";
+import type { UseGithubVariables } from "../hooks/useGithubVariables";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -26,6 +25,15 @@ type DetailProps = {
   onVariableConfirmed: (key: string, value: string) => void;
   githubUrl?: string;
 };
+
+function Intro() {
+  return (
+    <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
+      {" "}
+      Variables used by GitHub Actions when building and deploying this environment.
+    </Typography>
+  );
+}
 
 /*
  * Azure/AWS infra variables (AZURE_CLIENT_ID, AWS_ROLE_ARN, …) save from their own
@@ -48,14 +56,12 @@ function CompanyInfoDetailBody({
 
   const {
     localValues: localVarValues,
-    setLocalValues: setLocalVarValues,
     upsertStatuses: varUpsertStatuses,
-    setUpsertStatuses: setVarUpsertStatuses,
     updating: updatingVars,
     dirtyKeys: dirtyVarKeys,
     onChange: handleVarChange,
     onRevert: handleVarRevert,
-    save,
+    onSave,
   } = useVariableEditor({
     keys: GITHUB_VARIABLE_KEYS,
     savedValues: variableValues,
@@ -64,17 +70,6 @@ function CompanyInfoDetailBody({
     envName: selectedEnv.name,
     onSavedKey: onVariableConfirmed,
   });
-
-  /*
-   * Controlled sync: reset local edits when the parent refreshes variableValues
-   * (e.g. after Recheck). setState-during-render skips the stale frame.
-   */
-  const [prevVariableValues, setPrevVariableValues] = useState(variableValues);
-  if (prevVariableValues !== variableValues) {
-    setPrevVariableValues(variableValues);
-    setLocalVarValues(variableValues);
-    setVarUpsertStatuses([]);
-  }
 
   return (
     <Box>
@@ -93,10 +88,7 @@ function CompanyInfoDetailBody({
               ) : null;
             })()}
           </Box>
-          <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
-            {" "}
-            Variables used by GitHub Actions when building and deploying this environment.
-          </Typography>
+          <Intro />
         </Box>
         <RefreshButton
           busy={variablesRechecking}
@@ -128,7 +120,7 @@ function CompanyInfoDetailBody({
           noun="variable"
           count={dirtyVarKeys.length}
           loading={updatingVars}
-          onClick={() => void save()}
+          onClick={() => void onSave()}
         />
         {githubUrl && (
           <Button
@@ -159,26 +151,26 @@ function CompanyInfoDetailBody({
 
 type Props = {
   card: CardChrome;
-  github: UseRepoCard;
+  selectedEnv: GhEnv | null;
+  variables: UseGithubVariables;
   githubAccount: Account | null;
   repoName: string;
   githubUrl?: string;
 };
 
-export default function CompanyInfoCard({ card, github, githubAccount, repoName, githubUrl }: Props) {
-  const { env } = github;
+export default function CompanyInfoCard({ card, selectedEnv, variables, githubAccount, repoName, githubUrl }: Props) {
   return (
-    <Card title="Company info" {...card}>
-      {env.selectedEnv && (
+    <Card title="Company info" lockedIntro={<Intro />} {...card}>
+      {selectedEnv && (
         <CompanyInfoDetailBody
           account={githubAccount}
           repo={repoName}
-          selectedEnv={env.selectedEnv}
-          variableValues={env.presentVariableValues}
-          onVariableRecheck={env.onVariableRecheck}
-          variablesRechecking={env.variablesRechecking}
-          varRecheckFailed={env.varRecheckFailed}
-          onVariableConfirmed={env.onVariableConfirmed}
+          selectedEnv={selectedEnv}
+          variableValues={variables.values}
+          onVariableRecheck={variables.onRefresh}
+          variablesRechecking={variables.refreshing}
+          varRecheckFailed={variables.error}
+          onVariableConfirmed={variables.onConfirmed}
           githubUrl={githubUrl}
         />
       )}

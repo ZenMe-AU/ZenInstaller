@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import type { AccountInfo } from "@azure/msal-browser";
 import { listSubscriptions, type Subscription } from "../api/azureGraph";
 import { AZURE_CLIENT_ID } from "../config/azureConfig";
 import { findIgnoreCase } from "../logic/search";
 import type { UrlRestoreField } from "./useUrlStateManager";
-import type { CardHook, CardRequirements, CardStatus } from "../types";
+import type { CardHook, CardRequirements, CardStatus, AzureAccount } from "../types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type UseAzureSubscriptionCardParams = {
-  azureAccount: AccountInfo | null;
+  azureAccount: AzureAccount | null;
   confirmedTenantId: string | null;
   manualTenantId: string;
   savedSubscriptionId: string; // AZURE_SUBSCRIPTION_ID as saved on the GitHub environment.

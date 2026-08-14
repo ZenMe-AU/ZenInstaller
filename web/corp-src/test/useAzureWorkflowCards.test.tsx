@@ -2,11 +2,11 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AccountInfo } from "@azure/msal-browser";
 import { useAccessPassCard, type UseAccessPassCard } from "../hooks/useAccessPassCard";
 import { useAzureAppRegistrationCard, type UseAzureAppRegistrationCard } from "../hooks/useAzureAppRegistrationCard";
 import { useCoreInfraCard, type UseCoreInfraCard } from "../hooks/useCoreInfraCard";
 import { useCreateDomainCard, type UseCreateDomainCard } from "../hooks/useCreateDomainCard";
+import type { AzureAccount } from "../types";
 
 const { apiMocks } = vi.hoisted(() => ({
 	apiMocks: {
@@ -179,7 +179,7 @@ describe("azure workflow cards", () => {
 	});
 
 	it("creates an access pass for a managed user", async () => {
-		const azureAccount = { tenantId: "tenant-1" } as AccountInfo;
+		const azureAccount = { tenantId: "tenant-1" } as AzureAccount;
 		let latest: UseAccessPassCard | null = null;
 		const { root, Harness } = mountHook(
 			() => useAccessPassCard({ azureAccount, confirmedTenantId: "tenant-1" }),
@@ -217,7 +217,7 @@ describe("azure workflow cards", () => {
 	});
 
 	it("prefills the app registration name and completes once variables are confirmed", async () => {
-		const azureAccount = { tenantId: "tenant-1" } as AccountInfo;
+		const azureAccount = { tenantId: "tenant-1" } as AzureAccount;
 		const githubAccount = { id: 1, login: "org-one", type: "User" as const };
 		const variableValues = { AZURE_CLIENT_ID: "client-a", AZURE_PLAN_CLIENT_ID: "client-a" };
 		let latest: UseAzureAppRegistrationCard | null = null;
@@ -269,7 +269,7 @@ describe("azure workflow cards", () => {
 	});
 
 	it("loads core infrastructure state and reaches ready status", async () => {
-		const azureAccount = { tenantId: "tenant-1" } as AccountInfo;
+		const azureAccount = { tenantId: "tenant-1" } as AzureAccount;
 		let latest: UseCoreInfraCard | null = null;
 		const { root, Harness } = mountHook(
 			() =>
@@ -301,7 +301,7 @@ describe("azure workflow cards", () => {
 	});
 
 	it("detects a verified primary domain on mount", async () => {
-		const azureAccount = { tenantId: "tenant-1" } as AccountInfo;
+		const azureAccount = { tenantId: "tenant-1" } as AzureAccount;
 		let latest: UseCreateDomainCard | null = null;
 		const { root, Harness } = mountHook(
 			() =>

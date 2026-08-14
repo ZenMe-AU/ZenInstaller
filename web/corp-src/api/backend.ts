@@ -272,6 +272,15 @@ export async function updateVariable(
   if (!res.ok) throw new Error(`Failed to update variable "${name}": ${res.status}`);
 }
 
+export async function deleteVariable(account: Account, repo: string, name: string, envName: string): Promise<void> {
+  const res = await fetchWithAuth(`${url}/deleteVariable`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ owner: account.login, repo, name, env: envName }),
+  });
+  if (!res.ok) throw new Error(`Failed to delete variable "${name}": ${res.status}`);
+}
+
 // ─── Status file ──────────────────────────────────────────────────────────────
 
 export async function fetchStatus(account: Account, repo: string, ref: string): Promise<object | null> {

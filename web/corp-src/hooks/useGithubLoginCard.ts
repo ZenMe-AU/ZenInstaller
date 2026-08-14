@@ -88,9 +88,10 @@ export function useGithubLoginCard(): UseGithubLoginCard {
       try {
         const data = await verifyAuth();
         setAccount({ login: data.login });
+        setSessionExpired(false);
       } catch {
-        writeGithubAuthRecord(null);
         setAccount(null);
+        setSessionExpired(true);
       } finally {
         setLoggingIn(false);
       }
@@ -123,12 +124,18 @@ export function useGithubLoginCard(): UseGithubLoginCard {
     }
 
     try {
+      writeGithubAuthRecord(config);
+      setSessionExpired(false);
       const data = await verifyAuth();
       setAccount({ login: data.login });
-      writeGithubAuthRecord(config);
     } catch {
       setAccount(null);
-      writeGithubAuthRecord(null);
+      if (config.mode === "backend") {
+        window.location.href = `${url}/auth/login/github?post_login_redirect_uri=${encodeURIComponent(window.location.href)}`;
+      } else {
+        console.error("Login failed");
+        setSessionExpired(true);
+      }
     } finally {
       setLoggingIn(false);
     }

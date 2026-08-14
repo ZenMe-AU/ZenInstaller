@@ -13,6 +13,15 @@ type Props = {
   azureLogin: UseAzureLoginCard;
 };
 
+function Intro() {
+  return (
+    <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+      Sign in with Azure so we can create the app registration and cloud resources for you. We never store your Azure
+      credentials — sign-in happens directly with Microsoft, and only a short-lived access token is used.
+    </Typography>
+  );
+}
+
 /*
  * Azure sign-in on its own — independent of GitHub, not gated by environment.
  * App-registration, domain, and terraform cards all reuse the session it establishes.
@@ -20,7 +29,7 @@ type Props = {
 export default function AzureLoginCard({ card, azureLogin }: Props) {
   if (card.status === "unavailable") {
     return (
-      <Card title="Azure login" {...card}>
+      <Card title="Azure login" lockedIntro={<Intro />} {...card}>
         <ConfigErrorNotice />
       </Card>
     );
@@ -44,12 +53,9 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
   const savedTenantNotInList = !!savedTenantId && manualTenantId === savedTenantId && tenants.length > 0 && !tenants.some((t) => t.tenantId === savedTenantId);
 
   return (
-    <Card title="Azure login" {...card}>
+    <Card title="Azure login" lockedIntro={<Intro />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
-          Sign in with Azure so we can create the app registration and cloud resources for you. We never store your Azure credentials — sign-in happens
-          directly with Microsoft, and only a short-lived access token is used.
-        </Typography>
+        <Intro />
 
         {!azureAccount ? (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>

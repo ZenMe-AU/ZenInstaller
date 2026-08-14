@@ -1,5 +1,7 @@
 import type { AccountInfo } from "@azure/msal-browser";
 
+export type AzureAccount = AccountInfo;
+
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
 export type CardId =
@@ -11,7 +13,10 @@ export type CardId =
   | "azure_app_registration"
   | "core_infra"
   | "create_domain"
-  | "access_pass";
+  | "access_pass"
+  | "global_groups"
+  | "aws_connection"
+  | `stage_${string}`;
 export type CardStatus = "idle" | "loading" | "complete" | "warning" | "error" | "skipped" | "unavailable";
 
 export type CardRequirements = CardId[]; //["github_login","repo"]
@@ -65,7 +70,7 @@ export interface AzureConfigHook extends ResettableHook {
 }
 
 export interface AzureTarget {
-  azureAccount: AccountInfo | null;
+  azureAccount: AzureAccount | null;
   subscriptionId: string;
   tenantId?: string; // MSA (personal) accounts sign in via the consumer tenant, so the real AAD tenant is passed explicitly.
 }

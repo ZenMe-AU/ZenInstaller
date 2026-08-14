@@ -72,6 +72,7 @@ export const upsertSecret: ApiProvider["upsertSecret"] = (...a) => _provider.ups
 export const fetchVariables: ApiProvider["fetchVariables"] = (...a) => _provider.fetchVariables(...a);
 export const createVariable: ApiProvider["createVariable"] = (...a) => _provider.createVariable(...a);
 export const updateVariable: ApiProvider["updateVariable"] = (...a) => _provider.updateVariable(...a);
+export const deleteVariable: ApiProvider["deleteVariable"] = (...a) => _provider.deleteVariable(...a);
 
 // ─── Status & Env files ───────────────────────────────────────────────────────
 

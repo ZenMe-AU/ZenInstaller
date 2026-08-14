@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchEnvs, /* fetchSecrets, */ fetchVariables } from "../api";
+import { fetchEnvs } from "../api";
 import { type Account, type Branch, type CardStatus, type GhEnv, type RepoOption } from "../types";
 import { matchBranch } from "../logic/env";
 import { findIgnoreCase } from "../logic/search";
@@ -16,14 +16,8 @@ export interface UseGithubEnvironment {
   envLoading: boolean;
   status: CardStatus;
   envRefreshFailed: boolean;
-  // Variables
-  presentVariableValues: Record<string, string>;
-  variablesRechecking: boolean;
-  varRecheckFailed: boolean;
   // Actions
   onRefresh: () => void;
-  onVariableRecheck: () => Promise<void>;
-  onVariableConfirmed: (key: string, value: string) => void;
   // Restore
   restore: {
     env: UrlRestoreField;
@@ -55,12 +49,7 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
   const [branchMatchWarning, setBranchMatchWarning] = useState<string | null>(null);
   const [branchMatchError, setBranchMatchError] = useState<string | null>(null);
   const [status, setStatus] = useState<CardStatus>("idle");
-
-  // ── Variables state ──────────────────────────────────────────────
-  const [presentVariableValues, setPresentVariableValues] = useState<Record<string, string>>({});
-  const [variablesRechecking, setVariablesRechecking] = useState(false);
   const [envRefreshFailed, setEnvRefreshFailed] = useState(false);
-  const [varRecheckFailed, setVarRecheckFailed] = useState(false);
 
   // Clear env + secrets when repo changes
   const prevRepoId = useRef<number | string | null | undefined>(undefined);
@@ -76,11 +65,6 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
     }
     prevRepoId.current = newId;
   }, [opts.repo?.id]);
-
-  // Clear secrets when env changes (selectedEnv is internal state, always null on mount)
-  useEffect(() => {
-    setPresentVariableValues({});
-  }, [selectedEnv?.id]);
 
   // ── Loaders ───────────────────────────────────────────────────────────────
   const loadEnvs = useCallback(async (account: Account, repo: RepoOption) => {
@@ -98,31 +82,12 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
     }
   }, []);
 
-  const loadVariables = useCallback(async (envName: string): Promise<boolean> => {
-    const acc = accountRef.current;
-    const repo = repoRef.current;
-    if (!acc || !repo) return false;
-    try {
-      setPresentVariableValues(await fetchVariables(acc, repo.name, envName));
-      return true;
-    } catch (e) {
-      console.error(e);
-      return false;
-    }
-  }, []);
-
   // Load envs when repo is ready
   useEffect(() => {
     if (!opts.account || !opts.repo || !opts.isRepoReady) return;
     loadEnvs(opts.account, opts.repo);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opts.account?.id, opts.repo?.id, opts.isRepoReady, loadEnvs]);
-
-  // Auto-load secrets + variables when env is confirmed (selected + no branch error)
-  useEffect(() => {
-    if (!selectedEnv || branchMatchError) return;
-    loadVariables(selectedEnv.name);
-  }, [selectedEnv, branchMatchError, loadVariables]);
 
   // When env selected: match against branch list
   useEffect(() => {
@@ -161,22 +126,6 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
     if (acc && repo) loadEnvs(acc, repo);
   }, [loadEnvs]);
 
-  const onVariableRecheck = useCallback(async () => {
-    if (!selectedEnv) return;
-    setVariablesRechecking(true);
-    setVarRecheckFailed(false);
-    try {
-      const ok = await loadVariables(selectedEnv.name);
-      if (!ok) setVarRecheckFailed(true);
-    } finally {
-      setVariablesRechecking(false);
-    }
-  }, [selectedEnv, loadVariables]);
-
-  const onVariableConfirmed = useCallback((key: string, value: string) => {
-    setPresentVariableValues((prev) => ({ ...prev, [key]: value }));
-  }, []);
-
   const restoreEnv = useCallback(
     (value: string): boolean => {
       const match = findIgnoreCase(envList, (e) => e.name, value);
@@ -198,14 +147,8 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
     envLoading,
     status,
     envRefreshFailed,
-    // Variables
-    presentVariableValues,
-    variablesRechecking,
-    varRecheckFailed,
     // Actions
     onRefresh,
-    onVariableRecheck,
-    onVariableConfirmed,
     // Restore
     restore: {
       env: { ready: envsLoaded, scope: opts.repo?.id ?? null, apply: restoreEnv },

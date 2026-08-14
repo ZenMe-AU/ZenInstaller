@@ -39,13 +39,3 @@ Setup Process:
 1. Sign in to ZenInstaller with your GitHub account and select the target account (user or organization).
 2. Choose an existing repository or generate a new repository from the supported template, then configure environments.
 3. Select PR/environment context, resolve required secrets and variables, and run the guided Azure/AWS deployment steps.
-
-## Example Prompts
-
-Try these prompts with ZenInstaller support:
-
-- "Create a new private repo from the Zenblox template and add PROD and TEST environments."
-- "Check whether my selected environment is missing required GitHub secrets or variables."
-- "Create a deployment branch from main for the selected environment."
-- "Trigger the deployment workflow for this repo and environment."
-- "Show me which stage is currently blocking deployment and what to fix next."

@@ -10,8 +10,8 @@ export default defineConfig({
       {
         items: [
           {
-            text: "Create GitHub OAuth App",
-            link: "/Create_GitHub_OAuth_App",
+            text: "Allow Zeninstaller access to GitHub",
+            link: "/Allow_access_to_GitHub.md",
           },
           {
             text: "Creating AZURE account",

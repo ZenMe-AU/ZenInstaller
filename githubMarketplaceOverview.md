@@ -9,12 +9,12 @@ It combines repository provisioning, environment setup, and deployment orchestra
 - GitHub authentication and account discovery for user and organization contexts.
 - Repository bootstrap from a template repository, including support for private repositories and branch options.
 - Automatic GitHub Environment creation for target stages (for example PROD and TEST).
-- Pull request and environment-aware workflow that helps users select the right deployment context.
+- Context and pull request aware workflow that helps users select the right deployment environment.
 - Environment secret and variable validation against expected deployment requirements.
 - Secret and variable management support for GitHub Actions and environment-scoped configuration.
 - Branch management support for deployment workflows, including branch creation.
 - Workflow dispatch support to trigger GitHub Actions for deployment-related automation.
-- End-to-end guided cards for Azure setup, AWS setup, deployment status, and stage progression.
+- End-to-end guided cards for Azure setup, AWS setup, deployment status, and deployment stage progression.
 - Session-aware UX that can restore state from URL parameters to resume in-progress setup.
 
 ## Benefits

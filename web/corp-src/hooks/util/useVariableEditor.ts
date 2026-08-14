@@ -42,6 +42,7 @@ export function useVariableEditor({
   const [localValues, setLocalValues] = useState<Record<string, string>>(savedValues);
   const [upsertStatuses, setUpsertStatuses] = useState<UpsertStatus[]>([]);
   const [updating, setUpdating] = useState(false);
+  const isDependenciesReady = account && repo && envName;
 
   // Resync the draft when `savedValues` actually changes at one of *this caller's own* keys —
   // scoped so an unrelated key changing elsewhere in a shared savedValues object doesn't wipe it.

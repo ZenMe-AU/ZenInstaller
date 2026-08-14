@@ -292,9 +292,12 @@ function AppDashboard() {
             }}
           >
             <Typography sx={{ fontSize: "0.85rem", color: "#475569", lineHeight: 1.7 }}>
-              The ZenInstaller is used to deploy Zenblox to your environment. It requires a Github repository in your
-              own account, an Azure, and AWS subscription in your name. Complete the cards below in any order — each
-              shows what it needs before it can run.
+              ZenInstaller is used to create your organisation configuration on a number of cloud hosting providers of
+              your choosing. Before starting, you will need the following: <br />
+              1. A personal email address, using Google, or any other email hosting provider. <br />
+              2. An organisation name and domain name. We recommend that you register the domain name with Godaddy
+              https://www.godaddy.com/ because we will have automations in place with them. <br />
+              Complete the cards below in any order — each shows what it needs before it can run.
             </Typography>
           </Box>
 

@@ -88,7 +88,7 @@ export default function AzureSubscriptionCard({
   const subscriptionOptions = subscriptions.filter((s) => s.tenantId === manualTenantId);
 
   return (
-    <Card title="Azure subscription" lockedIntro={<Intro />} {...card}>
+    <Card title="Choose Azure subscription" lockedIntro={<Intro />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Intro />
 

@@ -11,11 +11,7 @@ export type PageSnapshotOptions = {
 
 // Returns locators that mask sensitive identity fields in screenshots.
 export function sensitiveTextMasks(page: Page,): Locator[] {
-  return [page.getByTestId("txtAzureUsername",),
-    page.getByTestId("txtUPN"),
-    page.getByText(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i,),
-	page.getByTestId("txtGithubUser"),
-  ];
+  return [page.locator('[data-sensitive="true"]'),];
 }
 
 // Normalizes arbitrary strings into stable snapshot path segments.

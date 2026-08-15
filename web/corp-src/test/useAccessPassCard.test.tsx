@@ -305,8 +305,7 @@ describe("useAccessPassCard", () => {
     });
   });
 
-  it("hides stale persisted TAP result when method no longer exists or validation fails", async () => {
-    localStorage.setItem(
+  it("hides stale persisted TAP result when method no longer exists or validation fails", async () => {    localStorage.setItem(
       "zeninstaller_corp_access_pass_result",
       JSON.stringify({
         accessPassValue: "persisted",
@@ -371,6 +370,242 @@ describe("useAccessPassCard", () => {
 
     await act(async () => {
       root2.unmount();
+    });
+  });
+
+  it("skips validating a persisted TAP result when there is no signed-in account", async () => {
+    localStorage.setItem(
+      "zeninstaller_corp_access_pass_result",
+      JSON.stringify({
+        accessPassValue: "persisted",
+        tenantId: "tenant-a",
+        targetUserId: "u1",
+        tapMethodId: "tap-1",
+      }),
+    );
+
+    let latest: UseAccessPassCard | null = null;
+    const root = createRoot(document.createElement("div"));
+
+    await act(async () => {
+      root.render(
+        <HookHarness
+          {...baseProps({ azureAccount: null, confirmedTenantId: null })}
+          onUpdate={(value) => {
+            latest = value;
+          }}
+        />,
+      );
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(apiMocks.temporaryAccessPassMethodExists).not.toHaveBeenCalled();
+    expect(latest?.result?.accessPassValue).toBe("persisted");
+    expect(localStorage.getItem("zeninstaller_corp_access_pass_result")).not.toBeNull();
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("keeps a persisted TAP result once its method is confirmed to still exist", async () => {
+    localStorage.setItem(
+      "zeninstaller_corp_access_pass_result",
+      JSON.stringify({
+        accessPassValue: "persisted",
+        tenantId: "tenant-a",
+        targetUserId: "u1",
+        tapMethodId: "tap-1",
+      }),
+    );
+    apiMocks.temporaryAccessPassMethodExists.mockResolvedValueOnce(true);
+
+    let latest: UseAccessPassCard | null = null;
+    const root = createRoot(document.createElement("div"));
+
+    await act(async () => {
+      root.render(
+        <HookHarness
+          {...baseProps()}
+          onUpdate={(value) => {
+            latest = value;
+          }}
+        />,
+      );
+    });
+
+    await waitFor(() => {
+      expect(latest?.managerUsersLoading).toBe(false);
+    });
+
+    expect(apiMocks.temporaryAccessPassMethodExists).toHaveBeenCalledWith(
+      expect.anything(),
+      "u1",
+      "tap-1",
+      "tenant-a",
+    );
+    expect(latest?.result?.accessPassValue).toBe("persisted");
+    expect(localStorage.getItem("zeninstaller_corp_access_pass_result")).not.toBeNull();
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("falls back to a generic message when a non-Error is thrown while loading manager users", async () => {
+    apiMocks.listUsersManagedBySignedInUser.mockRejectedValueOnce("plain string rejection");
+
+    let latest: UseAccessPassCard | null = null;
+    const root = createRoot(document.createElement("div"));
+
+    await act(async () => {
+      root.render(
+        <HookHarness
+          {...baseProps()}
+          onUpdate={(value) => {
+            latest = value;
+          }}
+        />,
+      );
+    });
+
+    await waitFor(() => {
+      expect(latest?.managerUsersLoading).toBe(false);
+      expect(latest?.consentRequired).toBe(false);
+      expect(latest?.managerUsersError).toBe("No Entra users found that are managed by your signed-in account.");
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("discards a stale manager-users load when the tenant changes before it resolves", async () => {
+    let resolveFirst!: (users: Array<{ id: string; displayName: string; userPrincipalName: string }>) => void;
+    apiMocks.listUsersManagedBySignedInUser.mockImplementationOnce(
+      () => new Promise((resolve) => { resolveFirst = resolve; }),
+    );
+
+    let latest: UseAccessPassCard | null = null;
+    const root = createRoot(document.createElement("div"));
+
+    await act(async () => {
+      root.render(
+        <HookHarness
+          {...baseProps()}
+          onUpdate={(value) => {
+            latest = value;
+          }}
+        />,
+      );
+    });
+
+    apiMocks.listUsersManagedBySignedInUser.mockResolvedValueOnce([
+      { id: "u9", displayName: "User Nine", userPrincipalName: "u9@contoso.com" },
+    ]);
+    await act(async () => {
+      root.render(
+        <HookHarness
+          {...baseProps({ confirmedTenantId: "tenant-b" })}
+          onUpdate={(value) => {
+            latest = value;
+          }}
+        />,
+      );
+    });
+
+    await waitFor(() => {
+      expect(latest?.managerUsersLoading).toBe(false);
+      expect(latest?.managerUsers).toEqual([{ id: "u9", displayName: "User Nine", userPrincipalName: "u9@contoso.com" }]);
+    });
+
+    // The stale tenant-a lookup resolving afterwards must not overwrite the tenant-b result.
+    await act(async () => {
+      resolveFirst([{ id: "stale", displayName: "Stale", userPrincipalName: "stale@contoso.com" }]);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(latest?.managerUsers).toEqual([{ id: "u9", displayName: "User Nine", userPrincipalName: "u9@contoso.com" }]);
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("reports 'Loading users...' as the summary while manager users are being fetched", async () => {
+    let resolveUsers!: (users: Array<{ id: string; displayName: string; userPrincipalName: string }>) => void;
+    apiMocks.listUsersManagedBySignedInUser.mockImplementationOnce(
+      () => new Promise((resolve) => { resolveUsers = resolve; }),
+    );
+
+    let latest: UseAccessPassCard | null = null;
+    const root = createRoot(document.createElement("div"));
+
+    await act(async () => {
+      root.render(
+        <HookHarness
+          {...baseProps()}
+          onUpdate={(value) => {
+            latest = value;
+          }}
+        />,
+      );
+    });
+
+    expect(latest?.managerUsersLoading).toBe(true);
+    expect(latest?.summary).toBe("Loading users...");
+
+    await act(async () => {
+      resolveUsers([{ id: "u1", displayName: "User One", userPrincipalName: "u1@contoso.com" }]);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("reports whether the Temporary Access Pass policy was just enabled or already enabled", async () => {
+    let latest: UseAccessPassCard | null = null;
+    const root = createRoot(document.createElement("div"));
+
+    await act(async () => {
+      root.render(
+        <HookHarness
+          {...baseProps()}
+          onUpdate={(value) => {
+            latest = value;
+          }}
+        />,
+      );
+    });
+
+    await waitFor(() => {
+      expect(latest?.managerUsers).toHaveLength(2);
+    });
+
+    apiMocks.ensureTemporaryAccessPassEnabled.mockResolvedValueOnce(true);
+    await act(async () => {
+      await latest?.runForUser("u1");
+    });
+    expect(latest?.steps.find((s) => s.id === "policy")).toMatchObject({
+      status: "done",
+      detail: "Enabled Temporary Access Pass for this tenant",
+    });
+
+    apiMocks.ensureTemporaryAccessPassEnabled.mockResolvedValueOnce(false);
+    await act(async () => {
+      await latest?.runForUser("u1");
+    });
+    expect(latest?.steps.find((s) => s.id === "policy")).toMatchObject({
+      status: "skipped",
+      detail: "Already enabled",
+    });
+
+    await act(async () => {
+      root.unmount();
     });
   });
 
@@ -573,6 +808,43 @@ describe("useAccessPassCard", () => {
         expect(latest?.steps.find((s) => s.id === "policy")?.detail).toContain(c.expected);
       });
     }
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("falls back to a generic 'Failed' detail when a non-Error value is thrown", async () => {
+    apiMocks.ensureTemporaryAccessPassEnabled.mockRejectedValueOnce("plain string rejection");
+    apiMocks.isConsentError.mockReturnValue(false);
+
+    let latest: UseAccessPassCard | null = null;
+    const root = createRoot(document.createElement("div"));
+
+    await act(async () => {
+      root.render(
+        <HookHarness
+          {...baseProps()}
+          onUpdate={(value) => {
+            latest = value;
+          }}
+        />,
+      );
+    });
+
+    await act(async () => {
+      await latest?.runForUser("u1");
+    });
+
+    await waitFor(() => {
+      expect(latest?.steps.find((s) => s.id === "policy")?.status).toBe("error");
+      expect(latest?.steps.find((s) => s.id === "policy")?.detail).toBe("Failed");
+    });
+
+    expect(apiMocks.logEvent).toHaveBeenCalledWith(
+      "accessPassWorkflowStepFailed",
+      expect.objectContaining({ targetUserId: "u1", stepId: "policy", message: "plain string rejection" }),
+    );
 
     await act(async () => {
       root.unmount();

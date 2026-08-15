@@ -313,6 +313,31 @@ describe("useAzureAccessPass", () => {
     harness.unmount();
   });
 
+  it("falls back to a generic 'Failed' detail when a non-Error value is thrown", async () => {
+    const account = createMockAccount("tenant-1", new Map([["tenant-1", {}]]));
+    const msal = createMsalMock([account], account);
+
+    createTemporaryAccessPassForUserMock.mockRejectedValue("plain string rejection");
+    getMsalMock.mockResolvedValue(msal);
+
+    const harness = renderUseAccessPassHook();
+
+    await waitFor(() => harness.result.loggingIn === false);
+    await waitFor(() => harness.result.managerUsersLoading === false);
+
+    await act(async () => {
+      await harness.result.run();
+    });
+
+    await waitFor(() => harness.result.running === false);
+
+    const tapStep = harness.result.steps.find((s) => s.id === "tap");
+    expect(tapStep?.status).toBe("error");
+    expect(tapStep?.detail).toBe("Failed");
+
+    harness.unmount();
+  });
+
   it("surfaces an auth-methods authorization message when delete methods is forbidden", async () => {
     const account = createMockAccount("tenant-1", new Map([["tenant-1", {}]]));
     const msal = createMsalMock([account], account);

@@ -57,6 +57,7 @@ describe("useAzureAccount", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		sessionStorage.clear();
+		localStorage.clear();
 		apiMocks.listTenants.mockResolvedValue([{ tenantId: "tenant-1", displayName: "Tenant One" }]);
 		apiMocks.getToken.mockResolvedValue("arm-token");
 	});
@@ -929,6 +930,256 @@ it("sets a login error when the MSAL login redirect fails", async () => {
 	expect(latest?.loginError).toBe("Microsoft login failed");
 
 	consoleError.mockRestore();
+
+	await act(async () => {
+		root.unmount();
+	});
+});
+
+it("login is a no-op when MSAL is unavailable", async () => {
+	apiMocks.getMsal.mockResolvedValue(null);
+
+	let latest: UseAzureAccount | null = null;
+	const root = createRoot(document.createElement("div"));
+
+	await act(async () => {
+		root.render(<HookHarness onUpdate={(value) => { latest = value; }} />);
+	});
+
+	await act(async () => {
+		await new Promise((resolve) => setTimeout(resolve, 0));
+	});
+
+	await act(async () => {
+		await latest?.login();
+	});
+
+	expect(latest?.loginError).toBeNull();
+
+	await act(async () => {
+		root.unmount();
+	});
+});
+
+it("falls back to tenant profiles when the ARM tenant list resolves empty", async () => {
+	const account = {
+		username: "org@example.com",
+		tenantId: "tenant-1",
+		homeAccountId: "home",
+		environment: "login.microsoftonline.com",
+		localAccountId: "local",
+		tenantProfiles: new Map([
+			["tenant-1", {}],
+			["tenant-2", {}],
+			["msa-tenant", {}],
+		]) as AccountInfo["tenantProfiles"],
+	} as AccountInfo;
+
+	const msal = {
+		handleRedirectPromise: vi.fn().mockResolvedValue(null),
+		getAllAccounts: vi.fn().mockReturnValue([account]),
+		loginRedirect: vi.fn().mockResolvedValue(undefined),
+		acquireTokenSilent: vi.fn().mockResolvedValue(undefined),
+		acquireTokenRedirect: vi.fn().mockResolvedValue(undefined),
+		clearCache: vi.fn().mockResolvedValue(undefined),
+	};
+
+	apiMocks.getMsal.mockResolvedValue(msal);
+	apiMocks.listTenants.mockResolvedValueOnce([]);
+
+	let latest: UseAzureAccount | null = null;
+	const root = createRoot(document.createElement("div"));
+
+	await act(async () => {
+		root.render(<HookHarness onUpdate={(value) => { latest = value; }} />);
+	});
+
+	await act(async () => {
+		await new Promise((resolve) => setTimeout(resolve, 0));
+	});
+
+	expect(latest?.tenants).toEqual([
+		{ tenantId: "tenant-1", displayName: "tenant-1" },
+		{ tenantId: "tenant-2", displayName: "tenant-2" },
+	]);
+	expect(latest?.tenantsLoaded).toBe(true);
+
+	await act(async () => {
+		root.unmount();
+	});
+});
+
+it("MSA auto-select does not override a manualTenantId already restored from a saved session", async () => {
+	localStorage.setItem("zeninstaller_azure_result", JSON.stringify({ tenantId: "tenant-2" }));
+
+	const account = {
+		username: "personal@example.com",
+		tenantId: "msa-tenant",
+		homeAccountId: "home",
+		environment: "login.microsoftonline.com",
+		localAccountId: "local",
+		tenantProfiles: new Map([
+			["msa-tenant", {}],
+			["tenant-1", {}],
+			["tenant-2", {}],
+		]) as AccountInfo["tenantProfiles"],
+	} as AccountInfo;
+
+	const msal = {
+		handleRedirectPromise: vi.fn().mockResolvedValue(null),
+		getAllAccounts: vi.fn().mockReturnValue([account]),
+		loginRedirect: vi.fn().mockResolvedValue(undefined),
+		acquireTokenSilent: vi.fn().mockResolvedValue(undefined),
+		acquireTokenRedirect: vi.fn().mockResolvedValue(undefined),
+		clearCache: vi.fn().mockResolvedValue(undefined),
+	};
+
+	apiMocks.getMsal.mockResolvedValue(msal);
+
+	let latest: UseAzureAccount | null = null;
+	const root = createRoot(document.createElement("div"));
+
+	await act(async () => {
+		root.render(<HookHarness onUpdate={(value) => { latest = value; }} />);
+	});
+
+	await waitFor(() => {
+		expect(latest?.manualTenantId).toBe("tenant-2");
+	});
+
+	// The saved tenant (not availableTenants[0] === "tenant-1") must stick — auto-select only
+	// fires when manualTenantId is still blank.
+	expect(latest?.manualTenantId).not.toBe("tenant-1");
+	expect(apiMocks.getToken).toHaveBeenCalledWith(account, ["arm.scope"], "tenant-2");
+
+	await act(async () => {
+		root.unmount();
+	});
+});
+
+it("MSA auto-select does nothing when the account has no other tenant profiles", async () => {
+	const account = {
+		username: "personal@example.com",
+		tenantId: "msa-tenant",
+		homeAccountId: "home",
+		environment: "login.microsoftonline.com",
+		localAccountId: "local",
+		tenantProfiles: new Map([["msa-tenant", {}]]) as AccountInfo["tenantProfiles"],
+	} as AccountInfo;
+
+	const msal = {
+		handleRedirectPromise: vi.fn().mockResolvedValue(null),
+		getAllAccounts: vi.fn().mockReturnValue([account]),
+		loginRedirect: vi.fn().mockResolvedValue(undefined),
+		acquireTokenSilent: vi.fn().mockResolvedValue(undefined),
+		acquireTokenRedirect: vi.fn().mockResolvedValue(undefined),
+		clearCache: vi.fn().mockResolvedValue(undefined),
+	};
+
+	apiMocks.getMsal.mockResolvedValue(msal);
+
+	let latest: UseAzureAccount | null = null;
+	const root = createRoot(document.createElement("div"));
+
+	await act(async () => {
+		root.render(<HookHarness onUpdate={(value) => { latest = value; }} />);
+	});
+
+	await waitFor(() => {
+		expect(latest?.account?.username).toBe("personal@example.com");
+	});
+	await act(async () => {
+		await new Promise((resolve) => setTimeout(resolve, 0));
+	});
+
+	expect(latest?.manualTenantId).toBe("");
+	expect(msal.acquireTokenRedirect).not.toHaveBeenCalled();
+
+	await act(async () => {
+		root.unmount();
+	});
+});
+
+it("confirms ARM against the saved tenant on init and clears the session key", async () => {
+	sessionStorage.setItem("zeninstaller_arm_tenant", "tenant-1");
+
+	const account = {
+		username: "org@example.com",
+		tenantId: "tenant-1",
+		homeAccountId: "home",
+		environment: "login.microsoftonline.com",
+		localAccountId: "local",
+	} as AccountInfo;
+
+	const msal = {
+		handleRedirectPromise: vi.fn().mockResolvedValue(null),
+		getAllAccounts: vi.fn().mockReturnValue([account]),
+		loginRedirect: vi.fn().mockResolvedValue(undefined),
+		acquireTokenSilent: vi.fn().mockResolvedValue(undefined),
+		acquireTokenRedirect: vi.fn().mockResolvedValue(undefined),
+		clearCache: vi.fn().mockResolvedValue(undefined),
+	};
+
+	apiMocks.getMsal.mockResolvedValue(msal);
+
+	let latest: UseAzureAccount | null = null;
+	const root = createRoot(document.createElement("div"));
+
+	await act(async () => {
+		root.render(<HookHarness onUpdate={(value) => { latest = value; }} />);
+	});
+
+	await act(async () => {
+		await new Promise((resolve) => setTimeout(resolve, 0));
+	});
+
+	expect(apiMocks.getToken).toHaveBeenCalledWith(account, ["arm.scope"], "tenant-1");
+	expect(latest?.confirmedTenantId).toBe("tenant-1");
+	expect(sessionStorage.getItem("zeninstaller_arm_tenant")).toBeNull();
+	expect(msal.acquireTokenRedirect).not.toHaveBeenCalled();
+
+	await act(async () => {
+		root.unmount();
+	});
+});
+
+it("silently swallows a non-consent ARM confirmation failure on init", async () => {
+	const account = {
+		username: "org@example.com",
+		tenantId: "tenant-1",
+		homeAccountId: "home",
+		environment: "login.microsoftonline.com",
+		localAccountId: "local",
+	} as AccountInfo;
+
+	const msal = {
+		handleRedirectPromise: vi.fn().mockResolvedValue(null),
+		getAllAccounts: vi.fn().mockReturnValue([account]),
+		loginRedirect: vi.fn().mockResolvedValue(undefined),
+		acquireTokenSilent: vi.fn().mockResolvedValue(undefined),
+		acquireTokenRedirect: vi.fn().mockResolvedValue(undefined),
+		clearCache: vi.fn().mockResolvedValue(undefined),
+	};
+
+	apiMocks.getMsal.mockResolvedValue(msal);
+	apiMocks.getToken.mockRejectedValueOnce(new Error("Network timeout"));
+
+	let latest: UseAzureAccount | null = null;
+	const root = createRoot(document.createElement("div"));
+
+	await act(async () => {
+		root.render(<HookHarness onUpdate={(value) => { latest = value; }} />);
+	});
+
+	await act(async () => {
+		await new Promise((resolve) => setTimeout(resolve, 0));
+	});
+
+	expect(latest?.account?.username).toBe("org@example.com");
+	expect(latest?.confirmedTenantId).toBeNull();
+	expect(latest?.loggingIn).toBe(false);
+	expect(msal.acquireTokenRedirect).not.toHaveBeenCalled();
+	expect(msal.loginRedirect).not.toHaveBeenCalled();
 
 	await act(async () => {
 		root.unmount();

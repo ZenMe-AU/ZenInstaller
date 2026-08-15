@@ -26,6 +26,10 @@ export default defineConfig({
             link: "/Creating_AWS_account",
           },
           {
+            text: "Create AWS bootstrap credentials",
+            link: "/Create_AWS_bootstrap_credentials",
+          },
+          {
             text: "Set up GitHub oidc for AWS",
             link: "/Set_up_GitHub_oidc_for_AWS",
           },

@@ -254,6 +254,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                               {user.displayName}
                             </TableCell>
                             <TableCell
+                              data-sensitive="true"
                               sx={{
                                 ...mono,
                                 fontSize: "0.72rem",

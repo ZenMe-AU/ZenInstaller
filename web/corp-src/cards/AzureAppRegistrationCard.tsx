@@ -131,7 +131,7 @@ export default function AzureAppRegistrationCard({
     : undefined;
 
   return (
-    <Card title="Register ZenInstaller in Azure" lockedIntro={<Intro />} {...card}>
+    <Card title="Create an app registration in Azure" lockedIntro={<Intro />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {/* ── Result banner (shown after create+auto-save completes) ── */}
         {bannerState !== "none" && (

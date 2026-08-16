@@ -13,7 +13,13 @@ import type { SetupStep, UseAwsSetupCard } from "../hooks/useAwsSetupCard";
 import type { Account, CardChrome, GhEnv } from "../types";
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
-const labelSx = { fontSize: "0.68rem", color: "#94a3b8", textTransform: "uppercase" as const, letterSpacing: "0.08em", ...mono };
+const labelSx = {
+  fontSize: "0.68rem",
+  color: "#94a3b8",
+  textTransform: "uppercase" as const,
+  letterSpacing: "0.08em",
+  ...mono,
+};
 
 type Props = {
   card: CardChrome;
@@ -51,14 +57,27 @@ function StepRow({ step }: { step: SetupStep }) {
     <Box sx={{ display: "grid", gridTemplateColumns: "18px 1fr", alignItems: "start", py: 0.5 }}>
       <Box sx={{ display: "flex", alignItems: "center", height: "1.2em" }}>{icon}</Box>
       <Box>
-        <Typography sx={{ fontSize: "0.78rem", color: step.status === "error" ? "#ef4444" : "#475569", ...mono }}>{step.label}</Typography>
-        {step.detail && <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, mt: 0.25 }}>{step.detail}</Typography>}
+        <Typography sx={{ fontSize: "0.78rem", color: step.status === "error" ? "#ef4444" : "#475569", ...mono }}>
+          {step.label}
+        </Typography>
+        {step.detail && (
+          <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, mt: 0.25 }}>{step.detail}</Typography>
+        )}
       </Box>
     </Box>
   );
 }
 
-export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFullName, selectedEnv, variables, onAwsValid }: Props) {
+export default function AwsSetupCard({
+  card,
+  awsSetup,
+  account,
+  repoName,
+  repoFullName,
+  selectedEnv,
+  variables,
+  onAwsValid,
+}: Props) {
   const [varExpanded, setVarExpanded] = useState(false);
   const [loadedVars, setLoadedVars] = useState<Record<string, string> | null>(null);
   const [autoSaveCounter, setAutoSaveCounter] = useState(0);
@@ -66,7 +85,9 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
   const prevRoleArnRef = useRef<string | null>(null);
   const prefilledRoleRef = useRef(false);
   const githubUrl =
-    repoFullName && selectedEnv ? `https://github.com/${repoFullName}/settings/environments/${selectedEnv.id}/edit` : undefined;
+    repoFullName && selectedEnv
+      ? `https://github.com/${repoFullName}/settings/environments/${selectedEnv.id}/edit`
+      : undefined;
 
   const {
     roleName,
@@ -129,7 +150,18 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
         <Intro />
 
         {bannerState !== "none" && (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, background: bannerState === "error" ? "#fef9c3" : "#f0fdf4", border: `1px solid ${bannerState === "error" ? "#fde047" : "#bbf7d0"}`, borderRadius: "8px", px: 1.5, py: 1 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              background: bannerState === "error" ? "#fef9c3" : "#f0fdf4",
+              border: `1px solid ${bannerState === "error" ? "#fde047" : "#bbf7d0"}`,
+              borderRadius: "8px",
+              px: 1.5,
+              py: 1,
+            }}
+          >
             {bannerState === "error" ? (
               <WarningAmberIcon sx={{ fontSize: 16, color: "#d97706" }} />
             ) : (
@@ -162,14 +194,27 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
                 variant="contained"
                 onClick={handleCreate}
                 disabled={card.locked || !canCreate}
-                sx={{ background: "linear-gradient(135deg, #2563eb, #1d4ed8)", textTransform: "none", ...mono, fontSize: "0.85rem", py: 1, px: 2.5, borderRadius: "8px", boxShadow: "0 2px 8px #2563eb33", "&:hover": { background: "linear-gradient(135deg, #1d4ed8, #1e40af)" }, "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" } }}
+                sx={{
+                  background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+                  textTransform: "none",
+                  ...mono,
+                  fontSize: "0.85rem",
+                  py: 1,
+                  px: 2.5,
+                  borderRadius: "8px",
+                  boxShadow: "0 2px 8px #2563eb33",
+                  "&:hover": { background: "linear-gradient(135deg, #1d4ed8, #1e40af)" },
+                  "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
+                }}
               >
                 Create IAM Role
               </Button>
               {varHasAny && (
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                   <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
-                  <Typography sx={{ fontSize: "0.68rem", color: "#d97706" }}>This will overwrite your current connection details</Typography>
+                  <Typography sx={{ fontSize: "0.68rem", color: "#d97706" }}>
+                    This will overwrite your current connection details
+                  </Typography>
                 </Box>
               )}
             </Box>
@@ -183,8 +228,20 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
             ))}
             {loading && <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", mt: 0.5 }}>Running...</Typography>}
             {!loading && (
-              <Button size="small" onClick={handleRetry} sx={{ alignSelf: "flex-start", mt: 0.5, textTransform: "none", ...mono, fontSize: "0.72rem", color: "#64748b", "&:hover": { color: "#2563eb" } }}>
-                Try again
+              <Button
+                size="small"
+                onClick={handleRetry}
+                sx={{
+                  alignSelf: "flex-start",
+                  mt: 0.5,
+                  textTransform: "none",
+                  ...mono,
+                  fontSize: "0.72rem",
+                  color: "#64748b",
+                  "&:hover": { color: "#2563eb" },
+                }}
+              >
+                ↩ Try again
               </Button>
             )}
           </Box>
@@ -192,12 +249,22 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
 
         {error && <Typography sx={{ fontSize: "0.72rem", color: "#ef4444" }}>{error}</Typography>}
 
-        <Box onClick={() => setVarExpanded((e) => !e)} sx={{ display: "flex", alignItems: "center", gap: 1.5, cursor: "pointer", userSelect: "none", py: 0.25 }}>
+        <Box
+          onClick={() => setVarExpanded((e) => !e)}
+          sx={{ display: "flex", alignItems: "center", gap: 1.5, cursor: "pointer", userSelect: "none", py: 0.25 }}
+        >
           <Box sx={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
           <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, whiteSpace: "nowrap" }}>
             {varExpanded ? "collapse" : "open to enter application connection detail"}
           </Typography>
-          <KeyboardArrowDownIcon sx={{ fontSize: 14, color: "#94a3b8", transform: varExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
+          <KeyboardArrowDownIcon
+            sx={{
+              fontSize: 14,
+              color: "#94a3b8",
+              transform: varExpanded ? "rotate(180deg)" : "none",
+              transition: "transform 0.2s",
+            }}
+          />
           <Box sx={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
         </Box>
 

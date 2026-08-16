@@ -125,18 +125,30 @@ export async function createAppRegistration(
   overrideTenantId?: string,
 ): Promise<{ appId: string; id: string }> {
   const token = await getToken(account, APP_SCOPES, overrideTenantId);
+  const body: {
+    displayName: string;
+    signInAudience: string;
+    requiredResourceAccess?: Array<{
+      resourceAppId: string;
+      resourceAccess: Array<{ id: string; type: "Role" }>;
+    }>;
+  } = {
+    displayName,
+    signInAudience: "AzureADMyOrg",
+  };
+
+  if (permissions.length > 0) {
+    body.requiredResourceAccess = [
+      {
+        resourceAppId: "00000003-0000-0000-c000-000000000000",
+        resourceAccess: permissions.map((id) => ({ id, type: "Role" })),
+      },
+    ];
+  }
+
   const data = await gFetch(token, GRAPH, "/applications", {
     method: "POST",
-    body: JSON.stringify({
-      displayName,
-      signInAudience: "AzureADMyOrg",
-      requiredResourceAccess: [
-        {
-          resourceAppId: "00000003-0000-0000-c000-000000000000",
-          resourceAccess: permissions.map((id) => ({ id, type: "Role" })),
-        },
-      ],
-    }),
+    body: JSON.stringify(body),
   });
   return { appId: data.appId, id: data.id };
 }

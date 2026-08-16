@@ -32,7 +32,7 @@ type Props = {
   awsLogin: UseAwsLoginCard;
 };
 
-function Intro(done?: boolean) {
+function Intro() {
   return (
     <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
       Sign in with your AWS access key in this browser. We never send your long-term AWS access key or secret key to our
@@ -104,9 +104,9 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
   const usableDevices = mfaDevices.filter((d) => d.usable);
 
   return (
-    <Card title="AWS login" lockedIntro={<Intro done={false} />} {...card}>
+    <Card title="AWS login" lockedIntro={<Intro />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Intro done={done} />
+        <Intro />
 
         {!done && (
           <>

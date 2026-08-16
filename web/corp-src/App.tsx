@@ -257,12 +257,6 @@ function AppDashboard() {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
-      <SessionOverlay
-        sessionExpired={githubLogin.sessionExpired}
-        redirecting={githubLogin.redirecting}
-        onLogin={githubLogin.login}
-      />
-
       <Box
         sx={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a", fontFamily: "'IBM Plex Sans', sans-serif" }}
       >

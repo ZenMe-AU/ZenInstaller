@@ -61,7 +61,6 @@ export function useVariableEditor({
       for (const k of changedKeys) next[k] = savedValues[k] ?? "";
       return next;
     });
-    setUpsertStatuses((cur) => cur.filter((s) => !changedKeys.includes(s.key)));
   }
 
   const dirtyKeys = keys.filter((k) => (localValues[k] ?? "") !== (savedValues[k] ?? ""));

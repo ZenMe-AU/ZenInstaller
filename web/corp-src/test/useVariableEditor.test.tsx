@@ -41,6 +41,7 @@ function HookHarness(props: {
 	account: Account | null;
 	repo: string;
 	envName: string | null;
+	onSavedKey?: (key: string, value: string) => void;
 }) {
 	const value = useVariableEditor(props);
 	useEffect(() => {
@@ -167,6 +168,57 @@ describe("useVariableEditor", () => {
 		expect(saveResult?.result).toBe("no-changes");
 		expect(apiMocks.updateVariable).not.toHaveBeenCalled();
 		expect(apiMocks.createVariable).not.toHaveBeenCalled();
+
+		await act(async () => {
+			root.unmount();
+		});
+	});
+
+	it("keeps batch success statuses after saved values resync from the parent", async () => {
+		let latest: ReturnType<typeof useVariableEditor> | null = null;
+		let savedValues = { NAME: "Zen", DNS: "" };
+		const root = createRoot(document.createElement("div"));
+		const keys = ["NAME", "DNS"];
+		const account: Account = { login: "org-one", type: "Organization", id: 101 };
+
+		function render() {
+			root.render(
+				<HookHarness
+					onUpdate={(value) => {
+						latest = value;
+					}}
+					keys={keys}
+					savedValues={savedValues}
+					account={account}
+					repo="repo-one"
+					envName="prod"
+					onSavedKey={(key, value) => {
+						savedValues = { ...savedValues, [key]: value };
+						render();
+					}}
+				/>,
+			);
+		}
+
+		await act(async () => {
+			render();
+		});
+
+		await act(async () => {
+			latest?.onChange("NAME", "Zenblox");
+			latest?.onChange("DNS", "zenblox.io");
+		});
+
+		await act(async () => {
+			await latest!.onSave();
+		});
+
+		await waitFor(() => {
+			expect(latest?.upsertStatuses).toEqual([
+				{ key: "NAME", status: "success" },
+				{ key: "DNS", status: "success" },
+			]);
+		});
 
 		await act(async () => {
 			root.unmount();

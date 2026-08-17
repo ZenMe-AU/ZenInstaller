@@ -47,6 +47,7 @@ export interface UseAzureAppRegistrationCard extends CardHook, AzureConfigHook {
   environments: string[];
   setEnvironments: (envs: string[]) => void;
   result: AzureAppRegistrationResult | null;
+  runNonce: number; // Bumped on each successful run — the card uses it to auto-save the connection variables.
   prefillAppName: (appId: string) => Promise<void>;
   spClientId: string;
   tenantId?: string; // The resolved effective tenant — fed to useCoreInfraCard / useCreateDomainCard.
@@ -92,6 +93,11 @@ export function useAzureAppRegistrationCard({
   const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
   const [result, setResult] = useState<AzureAppRegistrationResult | null>(loadResult);
   const [variablesComplete, setVariablesComplete] = useState(false);
+  // Incremented on each successful run. Distinguishes "a run just finished" from "result exists",
+  // which a persisted result makes indistinguishable on reload.
+  const [runNonce, setRunNonce] = useState(0);
+  // "subscriptionId|tenantId|clientId" that the last successful run granted the RBAC roles on.
+  const [grantedFor, setGrantedFor] = useState<string | null>(null);
 
   // MSA (personal) accounts sign in via the consumer tenant, so the real AAD tenant is resolved
   // from whichever of these is known: the saved GitHub var, a prior successful run, or the tenant
@@ -105,12 +111,17 @@ export function useAzureAppRegistrationCard({
   const planClientIdMismatch = !!spClientId && !!planClientId && spClientId !== planClientId;
 
   // Live check: does the app reg exist in this tenant, and does its SP hold RBAC on the selected subscription?
-  const { status: rbacStatus, missingRoles: rbacMissingRoles } = useRbacCheck({
+  const { status: liveRbacStatus, missingRoles: liveRbacMissingRoles } = useRbacCheck({
     azureAccount,
     spClientId,
     subscriptionId,
     tenantId: effectiveTenantId,
   });
+
+  const grantKey = `${subscriptionId}|${effectiveTenantId ?? ""}|${spClientId}`;
+  const rbacTrusted = !!subscriptionId && !!spClientId && grantedFor === grantKey;
+  const rbacStatus = rbacTrusted ? "ready" : liveRbacStatus;
+  const rbacMissingRoles = rbacTrusted ? [] : liveRbacMissingRoles;
 
   // Resolve the app registration's display name from a known client id and prefill appName.
   const prefillAppName = useCallback(
@@ -130,6 +141,7 @@ export function useAzureAppRegistrationCard({
     resetSteps();
     setResult(null);
     saveResult(null);
+    setGrantedFor(null);
   }, [resetSteps]);
 
   // Redirects for Application/AppRoleAssignment.ReadWrite.All incremental consent; user re-runs after returning.
@@ -208,6 +220,8 @@ export function useAzureAppRegistrationCard({
       const r = { clientId: appId, tenantId: resolvedTenantId, subscriptionIds: [subscriptionId] };
       setResult(r);
       saveResult(r);
+      setGrantedFor(`${subscriptionId}|${resolvedTenantId ?? ""}|${appId}`);
+      setRunNonce((n) => n + 1);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed";
       if (isConsentError(msg)) {
@@ -267,6 +281,7 @@ export function useAzureAppRegistrationCard({
     setEnvironments,
     steps,
     result,
+    runNonce,
     running,
     reset,
     run,

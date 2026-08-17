@@ -49,6 +49,7 @@ export default function AzureAppRegistrationCard({
     setEnvironments,
     steps,
     result,
+    runNonce,
     running,
     reset,
     run,
@@ -62,7 +63,7 @@ export default function AzureAppRegistrationCard({
   const [varExpanded, setVarExpanded] = useState(false);
   const [autoSaveCounter, setAutoSaveCounter] = useState(0);
   const [bannerState, setBannerState] = useState<"none" | "saved" | "no-changes" | "error">("none");
-  const prevResultRef = useRef(result);
+  const prevRunNonceRef = useRef(runNonce);
   const prefilledNameRef = useRef(false);
   const varExpandedInitRef = useRef(false);
 
@@ -87,18 +88,17 @@ export default function AzureAppRegistrationCard({
     if (selectedEnv?.name) setEnvironments([selectedEnv.name]);
   }, [selectedEnv?.name, setEnvironments]);
 
-  // Trigger auto-save + expand once when result first becomes available.
+  // Trigger auto-save + expand after each successful run. Keyed on runNonce rather than `result`
+  // becoming non-null, because a persisted result makes a re-run indistinguishable on reload.
   useEffect(() => {
-    if (result && !prevResultRef.current) {
-      const t = setTimeout(() => {
-        setAutoSaveCounter((c) => c + 1);
-        setVarExpanded(true);
-      }, 0);
-      prevResultRef.current = result;
-      return () => clearTimeout(t);
-    }
-    prevResultRef.current = result;
-  }, [result]);
+    if (runNonce === prevRunNonceRef.current) return;
+    prevRunNonceRef.current = runNonce;
+    const t = setTimeout(() => {
+      setAutoSaveCounter((c) => c + 1);
+      setVarExpanded(true);
+    }, 0);
+    return () => clearTimeout(t);
+  }, [runNonce]);
 
   // Reset per-env guards when the target env changes.
   useEffect(() => {
@@ -131,7 +131,7 @@ export default function AzureAppRegistrationCard({
     : undefined;
 
   return (
-    <Card title="Register ZenInstaller in Azure" lockedIntro={<Intro />} {...card}>
+    <Card title="Create an app registration in Azure" lockedIntro={<Intro />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {/* ── Result banner (shown after create+auto-save completes) ── */}
         {bannerState !== "none" && (

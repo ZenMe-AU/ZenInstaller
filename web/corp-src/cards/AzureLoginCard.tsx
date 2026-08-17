@@ -120,7 +120,7 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
                 Signed in as{" "}
-                <Box component="span" data-senstive="true" data-id="txtAzureUsername" sx={{ fontWeight: 600, ...mono }}>
+                <Box component="span" data-sensitive="true" data-id="txtAzureUsername" sx={{ fontWeight: 600, ...mono }}>
                   {azureAccount.username}
                 </Box>
               </Typography>
@@ -168,6 +168,7 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
                 // Fetched (or MSA-fallback) list available — plain dropdown, picking loads that tenant immediately.
                 <Select
                   data-id="tenant-select"
+                  // data-sensitive="true"
                   size="small"
                   value={manualTenantId || ""}
                   onChange={(e) => selectTenant(e.target.value)}
@@ -189,11 +190,12 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
                       value={t.tenantId}
                       sx={{ py: 0.75 }}
                       data-id="tenant-option"
+                      // data-sensitive="true"
                       data-tenant-name={t.displayName}
                     >
-                      <Box>
+                      <Box >
                         <Typography sx={{ fontSize: "0.8rem", ...mono }}>{t.displayName}</Typography>
-                        <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono }}>{t.tenantId}</Typography>
+                        <Typography data-sensitive="true" sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono }}>{t.tenantId}</Typography>
                       </Box>
                     </MenuItem>
                   ))}

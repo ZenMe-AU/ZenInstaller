@@ -50,14 +50,14 @@ export async function expectPageSnapshot(
 		.waitForTimeout(300)
 		.catch(() => undefined);
 
-	const userFolder = safePathSegment(options.userId,);
-	const viewportFolder = safePathSegment(options.viewportName,);
-	const testFolder = safePathSegment(options.testFolder ?? testInfo.title,);
-	const projectName = safePathSegment(testInfo.project.name || "default",);
-
 	const normalizedSnapshotName = snapshotName.endsWith(".png") ? snapshotName : `${snapshotName}.png`;
-	const snapshotFileName = `${projectName}-${normalizedSnapshotName}`;
-	const relativeSnapshotPath = ["corp-src", "snapshots", userFolder, viewportFolder, testFolder, snapshotFileName,];
+	const testPathSegments = testInfo.file.split(/[\\/]/,);
+	const testDirectory = safePathSegment(testPathSegments.at(-2) ?? "unnamed",);
+	const testFile = safePathSegment(
+		testPathSegments.at(-1)?.replace(/\.spec\.tsx?$/, "") ?? "unnamed",
+	);
+	const viewportFolder = safePathSegment(options.viewportName,);
+	const relativeSnapshotPath = ["corp-src", "snapshots", testDirectory, testFile, viewportFolder, normalizedSnapshotName,];
 
 	const expectedSnapshotPath = testInfo.snapshotPath(...relativeSnapshotPath,);
 	const baselineExists = fs.existsSync(expectedSnapshotPath,);

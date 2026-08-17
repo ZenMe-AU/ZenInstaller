@@ -25,6 +25,8 @@ async function waitFor(assertion: () => void, timeoutMs = 2000) {
 const { apiMocks } = vi.hoisted(() => ({
 	apiMocks: {
 		getMsal: vi.fn(),
+		getProviderRegistrationState: vi.fn(),
+		registerProvider: vi.fn(),
 		ensureDnsZone: vi.fn(),
 		ensureDnsTxtRecord: vi.fn(),
 		getEntraDomain: vi.fn(),
@@ -49,6 +51,8 @@ vi.mock("../api/msal", () => ({
 }));
 
 vi.mock("../api/azureArm", () => ({
+	getProviderRegistrationState: apiMocks.getProviderRegistrationState,
+	registerProvider: apiMocks.registerProvider,
 	ensureDnsZone: apiMocks.ensureDnsZone,
 	ensureDnsTxtRecord: apiMocks.ensureDnsTxtRecord,
 }));
@@ -71,6 +75,7 @@ vi.mock("../config/azureConfig", () => ({
 	get AZURE_CLIENT_ID() {
 		return configMocks.azureClientId;
 	},
+	DNS_PROVIDERS: ["Microsoft.Network"],
 	DOMAIN_SCOPES: ["domain.scope"],
 	GRANT_CONSENT_SCOPES: ["grant.scope"],
 	GRAPH_PERMISSIONS: {
@@ -114,6 +119,7 @@ describe("useCreateDomainCard", () => {
 		apiMocks.getMsal.mockResolvedValue({
 			acquireTokenRedirect: vi.fn().mockResolvedValue(undefined),
 		});
+		apiMocks.getProviderRegistrationState.mockResolvedValue("Registered");
 		apiMocks.ensureDnsZone.mockResolvedValue({ result: "created", nameServers: ["ns1", "ns2"] });
 		apiMocks.ensureDnsTxtRecord.mockResolvedValue("created");
 		apiMocks.getEntraDomain.mockResolvedValue(null);

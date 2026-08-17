@@ -53,7 +53,11 @@ export async function gFetch(token: string, base: string, path: string, options?
     const body = await res.text().catch(() => "");
     throw new Error(`${res.status} ${path}: ${body}`);
   }
-  return res.status === 204 ? null : res.json();
+
+  const text = await res.text();
+  if (text) return JSON.parse(text);
+  if (res.status === 202 || res.status === 204) return null;
+  throw new Error(`${res.status} ${path}: expected a JSON body but got none`);
 }
 
 // ── Subscriptions ──────────────────────────────────────────────────────────────

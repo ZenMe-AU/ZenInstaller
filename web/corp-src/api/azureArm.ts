@@ -40,6 +40,46 @@ async function pollProvisioning(fetchState: () => Promise<string | undefined>, r
 
 export type EnsureResult = "created" | "exists";
 
+// ── Resource providers ─────────────────────────────────────────────────────────
+
+const PROVIDER_API = "2021-04-01";
+
+export type ProviderRegistrationState = "Registered" | "Registering" | "NotRegistered" | "Unregistered" | "Unknown";
+
+// Current registration state of a resource provider namespace on the subscription.
+export async function getProviderRegistrationState(
+  account: AzureAccount,
+  subscriptionId: string,
+  namespace: string,
+  overrideTenantId?: string,
+): Promise<ProviderRegistrationState> {
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+  const data = (await gFetch(
+    token,
+    ARM,
+    `/subscriptions/${subscriptionId}/providers/${namespace}?api-version=${PROVIDER_API}`,
+  )) as { registrationState?: string };
+  return (data?.registrationState as ProviderRegistrationState) ?? "Unknown";
+}
+
+// Requests registration. Returns immediately — ARM completes it asynchronously.
+export async function registerProvider(
+  account: AzureAccount,
+  subscriptionId: string,
+  namespace: string,
+  overrideTenantId?: string,
+): Promise<void> {
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+  await gFetch(
+    token,
+    ARM,
+    `/subscriptions/${subscriptionId}/providers/${namespace}/register?api-version=${PROVIDER_API}`,
+    {
+      method: "POST",
+    },
+  );
+}
+
 // ── Locations ───────────────────────────────────────────────────────────────────
 
 export type AzureLocation = { name: string; displayName: string };

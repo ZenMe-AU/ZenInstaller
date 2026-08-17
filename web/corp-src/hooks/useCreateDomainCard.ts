@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { getMsal } from "../api/msal";
-import { DOMAIN_SCOPES, GRANT_CONSENT_SCOPES, GRAPH_PERMISSIONS } from "../config/azureConfig";
+import { DNS_PROVIDERS, DOMAIN_SCOPES, GRANT_CONSENT_SCOPES, GRAPH_PERMISSIONS } from "../config/azureConfig";
 import { ensureDnsZone, ensureDnsTxtRecord } from "../api/azureArm";
+import { useProviderRegistration } from "./util/useProviderRegistration";
 import {
   getEntraDomain,
   createEntraDomain,
@@ -70,6 +71,7 @@ export function useCreateDomainCard({
   tenantId,
 }: UseCreateDomainCardParams): UseCreateDomainCard {
   const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
+  const { ensureRegistered } = useProviderRegistration({ azureAccount, subscriptionId, tenantId });
   const [result, setResult] = useState<CreateDomainResult | null>(loadResult);
   const [nameServers, setNameServers] = useState<string[]>(loadResult()?.nameServers ?? []);
   const [domainVerified, setDomainVerified] = useState<boolean>(loadResult()?.domainVerified ?? false);
@@ -163,6 +165,7 @@ export function useCreateDomainCard({
     setVerifyError(null);
 
     const initialSteps: SetupStep[] = [
+      { id: "providers", label: "Register required Azure resource providers", status: "pending" },
       { id: "dns", label: `Create DNS zone ${dnsName}`, status: "pending" },
       { id: "domain", label: "Add custom domain to Entra ID", status: "pending" },
       { id: "txt", label: "Create domain-verification TXT record", status: "pending" },
@@ -171,8 +174,17 @@ export function useCreateDomainCard({
     ];
     setSteps(initialSteps);
 
-    let currentStep = "dns";
+    let currentStep = "providers";
     try {
+      currentStep = "providers";
+      updateStep("providers", "running");
+      const providers = await ensureRegistered(DNS_PROVIDERS);
+      updateStep(
+        "providers",
+        providers.registered.length === 0 ? "skipped" : "done",
+        providers.registered.length === 0 ? "Already registered" : providers.registered.join(", "),
+      );
+
       currentStep = "dns";
       updateStep("dns", "running");
       const zone = await ensureDnsZone(azureAccount, subscriptionId, resourceGroupName, dnsName, tenantId);
@@ -251,7 +263,7 @@ export function useCreateDomainCard({
     }
   }, [
     azureAccount, subscriptionId, corpName, dnsName, spClientId, tenantId, resourceGroupName,
-    setSteps, setRunning, updateStep, requestDomainConsent, requestGrantConsent,
+    setSteps, setRunning, updateStep, requestDomainConsent, requestGrantConsent, ensureRegistered,
   ]);
 
   // Verifies the domain (if needed) and promotes it to primary — one button drives both.

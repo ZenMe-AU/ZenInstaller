@@ -9,7 +9,10 @@ export const AZURE_CLIENT_ID = import.meta.env.VITE_AZURE_CLIENT_ID as string | 
 export const LOGIN_SCOPES = ["openid", "profile", "User.Read"];
 
 // App-registration card: create/read the app + SP, manage federated credentials.
-export const APP_SCOPES = ["https://graph.microsoft.com/Application.ReadWrite.All", "https://graph.microsoft.com/AppRoleAssignment.ReadWrite.All"];
+export const APP_SCOPES = [
+  "https://graph.microsoft.com/Application.ReadWrite.All",
+  "https://graph.microsoft.com/AppRoleAssignment.ReadWrite.All",
+];
 
 export const ARM_SCOPES = ["https://management.azure.com/user_impersonation"];
 export const DOMAIN_SCOPES = ["https://graph.microsoft.com/Domain.ReadWrite.All"];

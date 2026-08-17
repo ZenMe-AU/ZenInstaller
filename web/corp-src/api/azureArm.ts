@@ -27,7 +27,11 @@ async function armGet(token: string, path: string): Promise<ArmResource | null> 
 }
 
 // Polls fetchState until it returns "Succeeded". Throws on "Failed"/"Canceled" or timeout.
-async function pollProvisioning(fetchState: () => Promise<string | undefined>, resourceLabel: string, timeoutMs = 120_000): Promise<void> {
+async function pollProvisioning(
+  fetchState: () => Promise<string | undefined>,
+  resourceLabel: string,
+  timeoutMs = 120_000,
+): Promise<void> {
   const start = Date.now();
   for (;;) {
     const state = await fetchState();
@@ -85,7 +89,11 @@ export async function registerProvider(
 export type AzureLocation = { name: string; displayName: string };
 
 // Lists physical Azure regions available to the subscription (excludes logical/paired regions).
-export async function listLocations(account: AzureAccount, subscriptionId: string, overrideTenantId?: string): Promise<AzureLocation[]> {
+export async function listLocations(
+  account: AzureAccount,
+  subscriptionId: string,
+  overrideTenantId?: string,
+): Promise<AzureLocation[]> {
   const token = await getToken(account, ARM_SCOPES, overrideTenantId);
   const data = await gFetch(token, ARM, `/subscriptions/${subscriptionId}/locations?api-version=2022-12-01`);
   const raw: { name: string; displayName: string; metadata?: { regionType?: string } }[] = data?.value ?? [];
@@ -116,7 +124,12 @@ export async function ensureResourceGroup(
 }
 
 // Read-only existence check — used by live "is infra still operable" checks (no create-on-miss).
-export async function resourceGroupExists(account: AzureAccount, subscriptionId: string, name: string, overrideTenantId?: string): Promise<boolean> {
+export async function resourceGroupExists(
+  account: AzureAccount,
+  subscriptionId: string,
+  name: string,
+  overrideTenantId?: string,
+): Promise<boolean> {
   const token = await getToken(account, ARM_SCOPES, overrideTenantId);
   return !!(await armGet(token, resourceGroupPath(subscriptionId, name)));
 }
@@ -189,7 +202,11 @@ export async function ensureAppInsights(
   if (await armGet(token, path)) return "exists";
   await gFetch(token, ARM, path, {
     method: "PUT",
-    body: JSON.stringify({ location, kind: "web", properties: { Application_Type: "web", WorkspaceResourceId: workspaceId } }),
+    body: JSON.stringify({
+      location,
+      kind: "web",
+      properties: { Application_Type: "web", WorkspaceResourceId: workspaceId },
+    }),
   });
   return "created";
 }
@@ -246,10 +263,15 @@ export async function ensureStorageAccount(
   const path = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Storage/storageAccounts/${name}?api-version=2023-01-01`;
   if (await armGet(token, path)) return "exists";
 
-  const availability = await gFetch(token, ARM, `/subscriptions/${subscriptionId}/providers/Microsoft.Storage/checkNameAvailability?api-version=2023-01-01`, {
-    method: "POST",
-    body: JSON.stringify({ name, type: "Microsoft.Storage/storageAccounts" }),
-  });
+  const availability = await gFetch(
+    token,
+    ARM,
+    `/subscriptions/${subscriptionId}/providers/Microsoft.Storage/checkNameAvailability?api-version=2023-01-01`,
+    {
+      method: "POST",
+      body: JSON.stringify({ name, type: "Microsoft.Storage/storageAccounts" }),
+    },
+  );
   if (availability?.nameAvailable === false) {
     throw new Error(`Storage account name "${name}" unavailable: ${availability.message ?? availability.reason}`);
   }
@@ -317,16 +339,21 @@ export async function ensureRbacRoleAtScope(
   const token = await getToken(account, ARM_SCOPES, overrideTenantId);
   const roleId = RBAC_ROLE_IDS[roleName];
   const assignmentName = await deterministicUuid(scope, roleId, principalId);
-  await gFetch(token, ARM, `${scope}/providers/Microsoft.Authorization/roleAssignments/${assignmentName}?api-version=2022-04-01`, {
-    method: "PUT",
-    body: JSON.stringify({
-      properties: {
-        roleDefinitionId: `/providers/Microsoft.Authorization/roleDefinitions/${roleId}`,
-        principalId,
-        principalType,
-      },
-    }),
-  });
+  await gFetch(
+    token,
+    ARM,
+    `${scope}/providers/Microsoft.Authorization/roleAssignments/${assignmentName}?api-version=2022-04-01`,
+    {
+      method: "PUT",
+      body: JSON.stringify({
+        properties: {
+          roleDefinitionId: `/providers/Microsoft.Authorization/roleDefinitions/${roleId}`,
+          principalId,
+          principalType,
+        },
+      }),
+    },
+  );
   return "created";
 }
 

@@ -24,6 +24,8 @@ async function waitFor(assertion: () => void, timeoutMs = 2000) {
 
 const { apiMocks } = vi.hoisted(() => ({
 	apiMocks: {
+		getProviderRegistrationState: vi.fn(),
+		registerProvider: vi.fn(),
 		ensureResourceGroup: vi.fn(),
 		resourceGroupExists: vi.fn(),
 		ensureLogAnalyticsWorkspace: vi.fn(),
@@ -50,6 +52,8 @@ const { configMocks } = vi.hoisted(() => ({
 }));
 
 vi.mock("../api/azureArm", () => ({
+	getProviderRegistrationState: apiMocks.getProviderRegistrationState,
+	registerProvider: apiMocks.registerProvider,
 	ensureResourceGroup: apiMocks.ensureResourceGroup,
 	resourceGroupExists: apiMocks.resourceGroupExists,
 	ensureLogAnalyticsWorkspace: apiMocks.ensureLogAnalyticsWorkspace,
@@ -72,6 +76,7 @@ vi.mock("../config/azureConfig", () => ({
 	get AZURE_CLIENT_ID() {
 		return configMocks.azureClientId;
 	},
+	CORE_INFRA_PROVIDERS: ["Microsoft.OperationalInsights", "Microsoft.Insights", "Microsoft.Storage"],
 }));
 
 function HookHarness(
@@ -111,6 +116,7 @@ describe("useCoreInfraCard", () => {
 		apiMocks.hasRbacRoleAtScope.mockResolvedValue(true);
 		apiMocks.listLocations.mockResolvedValue([{ name: "eastus", displayName: "East US" }]);
 
+		apiMocks.getProviderRegistrationState.mockResolvedValue("Registered");
 		apiMocks.ensureResourceGroup.mockResolvedValue("created");
 		apiMocks.ensureRbacRoleAtScope.mockResolvedValue("created");
 		apiMocks.ensureLogAnalyticsWorkspace.mockResolvedValue({ result: "created", id: "/law-id" });

@@ -257,12 +257,6 @@ function AppDashboard() {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
-      <SessionOverlay
-        sessionExpired={githubLogin.sessionExpired}
-        redirecting={githubLogin.redirecting}
-        onLogin={githubLogin.login}
-      />
-
       <Box
         sx={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a", fontFamily: "'IBM Plex Sans', sans-serif" }}
       >
@@ -303,9 +297,10 @@ function AppDashboard() {
 
           <Box sx={groupSx}>
             <GithubLoginCard card={cardProps("github_login")} auth={githubLogin} />
-            <AzureLoginCard card={cardProps("azure_login")} azureLogin={azureLogin} />
 
             <RepoCard card={cardProps("repo")} githubRepo={githubRepoEnv} lockedByPR={false} />
+
+            <AzureLoginCard card={cardProps("azure_login")} azureLogin={azureLogin} />
 
             <AzureSubscriptionCard
               card={cardProps("azure_subscription")}
@@ -320,17 +315,6 @@ function AppDashboard() {
               onUserInteract={() => urlRestore.cancel(["tenant", "subscription"])}
             />
 
-            <AccessPassCard card={cardProps("access_pass")} accessPass={azureAccessPass} />
-
-            <CompanyInfoCard
-              card={cardProps("company_info")}
-              selectedEnv={githubRepoEnv.env.selectedEnv}
-              variables={githubVariables}
-              githubAccount={githubRepoEnv.repo.selectedAccount}
-              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
-              githubUrl={githubRepoEnv.githubEnvUrl}
-            />
-
             <AzureAppRegistrationCard
               card={cardProps("azure_app_registration")}
               appReg={azureAppSetup}
@@ -339,6 +323,15 @@ function AppDashboard() {
               selectedEnv={githubRepoEnv.env.selectedEnv}
               subscriptionId={azureSubscription.selectedSubscriptionId}
               variables={githubVariables}
+              githubUrl={githubRepoEnv.githubEnvUrl}
+            />
+
+            <CompanyInfoCard
+              card={cardProps("company_info")}
+              selectedEnv={githubRepoEnv.env.selectedEnv}
+              variables={githubVariables}
+              githubAccount={githubRepoEnv.repo.selectedAccount}
+              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
               githubUrl={githubRepoEnv.githubEnvUrl}
             />
 
@@ -376,6 +369,8 @@ function AppDashboard() {
             {stageCards.map(({ key, ...stageCard }) => (
               <StageCard key={key} {...stageCard} />
             ))}
+
+            <AccessPassCard card={cardProps("access_pass")} accessPass={azureAccessPass} />
           </Box>
         </Box>
       </Box>

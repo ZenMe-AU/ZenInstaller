@@ -9,7 +9,10 @@ export const AZURE_CLIENT_ID = import.meta.env.VITE_AZURE_CLIENT_ID as string | 
 export const LOGIN_SCOPES = ["openid", "profile", "User.Read"];
 
 // App-registration card: create/read the app + SP, manage federated credentials.
-export const APP_SCOPES = ["https://graph.microsoft.com/Application.ReadWrite.All", "https://graph.microsoft.com/AppRoleAssignment.ReadWrite.All"];
+export const APP_SCOPES = [
+  "https://graph.microsoft.com/Application.ReadWrite.All",
+  "https://graph.microsoft.com/AppRoleAssignment.ReadWrite.All",
+];
 
 export const ARM_SCOPES = ["https://management.azure.com/user_impersonation"];
 export const DOMAIN_SCOPES = ["https://graph.microsoft.com/Domain.ReadWrite.All"];
@@ -54,3 +57,11 @@ export const RBAC_ROLE_IDS: Record<string, string> = {
   "Storage Blob Data Contributor": "ba92f5b4-2d11-453d-a403-e96b0029c9fe",
   Owner: "8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
 };
+
+// ── Resource provider namespaces ───────────────────────────────────────────────
+export const CORE_INFRA_PROVIDERS = [
+  "Microsoft.OperationalInsights",
+  "Microsoft.Insights",
+  "Microsoft.Storage",
+] as const;
+export const DNS_PROVIDERS = ["Microsoft.Network"] as const;

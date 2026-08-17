@@ -60,14 +60,18 @@ export default function EnvDetail({
   // Show EnvBranchDetail only when the error is "no branch found" (not PR mismatch / multiple)
   const showBranchCreate = !!selectedEnv && !!branchMatchError && branchMatchError.startsWith("No branch found");
   // Always available once a repo is known — points at the specific env once one's picked, otherwise the environments list (e.g. to add a new one).
-  const githubEnvironmentsUrl = repoFullName ? (selectedEnv ? getEnvSettingsUrl(repoFullName, selectedEnv.id) : getEnvironmentsUrl(repoFullName)) : null;
+  const githubEnvironmentsUrl = repoFullName
+    ? selectedEnv
+      ? getEnvSettingsUrl(repoFullName, selectedEnv.id)
+      : getEnvironmentsUrl(repoFullName)
+    : null;
 
   return (
     <Box>
       {/* ── Environment selection ── */}
 
       {/* Header row */}
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1.5 }}>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <Typography sx={{ fontSize: "0.78rem", color: "#64748b", lineHeight: 1.6 }}>
           Pick the environment to configure.{" "}
           <Box component="span" sx={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600 }}>
@@ -88,44 +92,27 @@ export default function EnvDetail({
         )}
       </Box>
 
-      {/* Branch match warning */}
-      {branchMatchWarning && (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1.5 }}>
-          <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706", flexShrink: 0 }} />
-          <Typography sx={{ fontSize: "0.75rem", color: "#d97706" }}>{branchMatchWarning}</Typography>
-        </Box>
-      )}
-
-      {/* Branch match error */}
-      {branchMatchError && (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: showBranchCreate ? 0 : 1.5 }}>
-          <ErrorOutlineIcon sx={{ fontSize: 14, color: "#ef4444", flexShrink: 0 }} />
-          <Typography sx={{ fontSize: "0.75rem", color: "#ef4444" }}>{branchMatchError}</Typography>
-        </Box>
-      )}
-
-      {/* Create branch — only when the selected env has no matching branch */}
-      {showBranchCreate && (
-        <EnvBranchDetail
-          targetBranch={selectedEnv!.name}
-          branches={branches}
-          sourceBranch={sourceBranch}
-          onSourceBranchChange={onSourceBranchChange}
-          creatingBranch={creatingBranch}
-          createBranchError={createBranchError}
-          onCreateBranch={onCreateBranch}
-        />
-      )}
-
       {/* Env chips */}
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5, py: 1, mt: showBranchCreate ? 2.5 : 0 }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 1.5,
+          py: 1,
+        }}
+      >
         {loading ? (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <CircularProgress size={14} sx={{ color: "#cbd5e1" }} />
-            <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>Loading environments...</Typography>
+            <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>
+              Loading environments...
+            </Typography>
           </Box>
         ) : filteredEnvs.length === 0 ? (
-          <Typography sx={{ fontSize: "0.78rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>No environment found.</Typography>
+          <Typography sx={{ fontSize: "0.78rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>
+            No environment found.
+          </Typography>
         ) : (
           <Box sx={{ display: !selectedEnv && lockedByPR ? "none" : "flex", gap: 1.5, flexWrap: "wrap" }}>
             {filteredEnvs.map((env) => {
@@ -151,13 +138,21 @@ export default function EnvDetail({
                     cursor: lockedByPR ? "default" : "pointer",
                     userSelect: "none",
                     transition: "all 0.15s",
-                    "&:hover": !lockedByPR ? { borderColor: isSelected ? "#1d4ed8" : "#cbd5e1", background: isSelected ? "#1d4ed8" : "#f8fafc" } : {},
+                    "&:hover": !lockedByPR
+                      ? {
+                          borderColor: isSelected ? "#1d4ed8" : "#cbd5e1",
+                          background: isSelected ? "#1d4ed8" : "#f8fafc",
+                        }
+                      : {},
                   }}
                 >
                   {isSelected && lockedByPR && <LockIcon sx={{ fontSize: 13 }} />}
                   {env.name}
                   {isSelected && lockedByPR && (
-                    <Typography component="span" sx={{ fontSize: "0.65rem", fontFamily: "'IBM Plex Mono', monospace", opacity: 0.75, ml: 0.25 }}>
+                    <Typography
+                      component="span"
+                      sx={{ fontSize: "0.65rem", fontFamily: "'IBM Plex Mono', monospace", opacity: 0.75, ml: 0.25 }}
+                    >
                       from PR
                     </Typography>
                   )}
@@ -187,6 +182,35 @@ export default function EnvDetail({
           </Button>
         )}
       </Box>
+
+      {/* Branch match error */}
+      {branchMatchError && (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, my: 1.5 }}>
+          <ErrorOutlineIcon sx={{ fontSize: 14, color: "#ef4444", flexShrink: 0 }} />
+          <Typography sx={{ fontSize: "0.75rem", color: "#ef4444" }}>{branchMatchError}</Typography>
+        </Box>
+      )}
+
+      {/* Branch match warning */}
+      {branchMatchWarning && (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, my: 1.5 }}>
+          <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706", flexShrink: 0 }} />
+          <Typography sx={{ fontSize: "0.75rem", color: "#d97706" }}>{branchMatchWarning}</Typography>
+        </Box>
+      )}
+
+      {/* Create branch — only when the selected env has no matching branch */}
+      {showBranchCreate && (
+        <EnvBranchDetail
+          targetBranch={selectedEnv!.name}
+          branches={branches}
+          sourceBranch={sourceBranch}
+          onSourceBranchChange={onSourceBranchChange}
+          creatingBranch={creatingBranch}
+          createBranchError={createBranchError}
+          onCreateBranch={onCreateBranch}
+        />
+      )}
     </Box>
   );
 }

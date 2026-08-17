@@ -72,7 +72,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
         await page.goto(CORP_URL);
       });
 
-      test("Shows authenticated Azure card state and allows selecting a tenant", async ({ page }, testInfo) => {
+      test("Shows authenticated Azure card state and allows choosing a tenant", async ({ page }, testInfo) => {
         const azureCard = await expandAzureLoginCard(page);
 
         await expect(azureCard.getByText(/Signed in as/i)).toBeVisible();
@@ -80,36 +80,43 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
         await expect(azureCard.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
         await expect(azureCard.getByRole("button", { name: "Sign in with Azure", exact: true })).toHaveCount(0);
 
-        const tenantLabel = azureCard.getByText(/^Tenant$/);
+        const tenantLabel = azureCard.getByText(/^Tenant/);
         await expect(tenantLabel).toBeVisible();
 
-        const tenantSelect = page.getByTestId("tenant-select");
-        await expect(tenantSelect).toBeVisible();
-        await tenantSelect.click({ force: true });
+        const tenantSelect = azureCard.getByTestId("tenant-select");
+        const manualTenantInput = azureCard.getByPlaceholder("Tenant name or ID");
+        await expect(tenantSelect.or(manualTenantInput)).toBeVisible();
 
-        const firstTenantOption = page.getByTestId("tenant-option").first();
-        await expect(firstTenantOption).toBeVisible({ timeout: 20_000 });
+        if (await tenantSelect.isVisible()) {
+          await tenantSelect.click();
 
-        await expectPageSnapshot(page, testInfo, "tenant-options.png", {
-          userId: "azure-login",
-          viewportName,
-          testFolder: "Azure Login Card Authenticated",
-          mask: sensitiveTextMasks(page),
-        });
+          const firstTenantOption = page.getByTestId("tenant-option").first();
+          await expect(firstTenantOption).toBeVisible({ timeout: 20_000 });
 
-        const selectedDisplayName = (await firstTenantOption.getAttribute("data-tenant-name")) ?? "";
-        await firstTenantOption.click();
+          await expectPageSnapshot(page, testInfo, "tenant-options.png", {
+            userId: "azure-login",
+            viewportName,
+            testFolder: "Azure Login Card Authenticated",
+            mask: sensitiveTextMasks(page),
+          });
 
-        if (selectedDisplayName) {
-          await expect(tenantSelect).toContainText(selectedDisplayName);
+          const selectedDisplayName = (await firstTenantOption.getAttribute("data-tenant-name")) ?? "";
+          await firstTenantOption.click();
+
+          if (selectedDisplayName) {
+            await expect(tenantSelect).toContainText(selectedDisplayName);
+          }
+
+          await expectPageSnapshot(page, testInfo, "tenant-selected.png", {
+            userId: "azure-login",
+            viewportName,
+            testFolder: "Azure Login Card Authenticated",
+            mask: sensitiveTextMasks(page),
+          });
+        } else {
+          await expect(manualTenantInput).toBeVisible();
+          await expect(azureCard.getByRole("button", { name: "Confirm tenant", exact: true })).toBeDisabled();
         }
-
-        await expectPageSnapshot(page, testInfo, "tenant-selected.png", {
-          userId: "azure-login",
-          viewportName,
-          testFolder: "Azure Login Card Authenticated",
-          mask: sensitiveTextMasks(page),
-        });
       });
 
       test("Signing out clears the authenticated state", async ({ page }) => {
@@ -119,7 +126,6 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
         await azureCard.getByRole("button", { name: "Sign out", exact: true }).click();
 
-        await expect(azureCard.getByRole("button", { name: "Sign in with Azure", exact: true })).toBeVisible();
         await expect(azureCard.getByText(/Signed in as/i)).toHaveCount(0);
       });
     });

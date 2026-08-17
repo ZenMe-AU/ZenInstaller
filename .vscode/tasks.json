@@ -1,0 +1,32 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "shell",
+      "label": "Install Node Dependencies",
+      "command": "pnpm install",
+      "options": {
+        "cwd": "${workspaceFolder:ROOT}"
+      }
+    },
+    {
+      "label": "Start azurite",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["exec", "azurite", "--silent", "--location", "${workspaceFolder:ROOT}/azurite", "--debug", "${workspaceFolder:ROOT}/azurite/debug.log"],
+      "isBackground": true,
+      "dependsOn": ["Install Node Dependencies"],
+      "problemMatcher": {
+        "owner": "custom",
+        "pattern": {
+          "regexp": "^.*[Ee]rror.*$"
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "Azurite Blob service is successfully listening"
+        }
+      }
+    }
+  ]
+}

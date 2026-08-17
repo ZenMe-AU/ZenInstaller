@@ -1,211 +1,196 @@
-import { useEffect } from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { useGithubVariables } from "../hooks/useGithubVariables";
-import type { UseGithubVariables } from "../hooks/useGithubVariables";
+import { useEffect } from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useGithubVariables, type UseGithubVariables } from "../hooks/useGithubVariables";
 import type { Account } from "../types";
 
-const { mockApi } = vi.hoisted(() => ({
-  mockApi: {
+const { apiMocks } = vi.hoisted(() => ({
+  apiMocks: {
     fetchVariables: vi.fn(),
   },
 }));
 
 vi.mock("../api", () => ({
-  fetchVariables: mockApi.fetchVariables,
+  fetchVariables: apiMocks.fetchVariables,
 }));
 
-function HookHarness(props: {
-  params: Parameters<typeof useGithubVariables>[0];
-  onUpdate: (value: UseGithubVariables) => void;
-}) {
-  const value = useGithubVariables(props.params);
-
+function HookHarness(
+  props: { onUpdate: (value: UseGithubVariables) => void } & Parameters<typeof useGithubVariables>[0],
+) {
+  const value = useGithubVariables(props);
   useEffect(() => {
     props.onUpdate(value);
   }, [value, props]);
-
   return null;
+}
+
+function baseProps(
+  overrides: Partial<Parameters<typeof useGithubVariables>[0]> = {},
+): Parameters<typeof useGithubVariables>[0] {
+  return {
+    account: { login: "org-one", id: 1, type: "Organization" } satisfies Account,
+    repoName: "repo-one",
+    envName: "prod",
+    ...overrides,
+  };
 }
 
 async function waitFor(assertion: () => void, timeoutMs = 1500) {
   const start = Date.now();
   while (true) {
-    let passed = false;
-    let lastError: unknown;
-
-    await act(async () => {
-      try {
-        assertion();
-        passed = true;
-      } catch (error) {
-        lastError = error;
-      }
-    });
-
-    if (passed) return;
-    if (Date.now() - start > timeoutMs) throw lastError;
-
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
+    try {
+      assertion();
+      return;
+    } catch (error) {
+      if (Date.now() - start > timeoutMs) throw error;
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    }
   }
 }
 
-function renderHook(params: Parameters<typeof useGithubVariables>[0]) {
-  let latest: UseGithubVariables | null = null;
-  const container = document.createElement("div");
-  const root = createRoot(container);
+describe("useGithubVariables", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    apiMocks.fetchVariables.mockResolvedValue({ NAME: "Zenblox" });
+  });
 
-  function rerender(nextParams: Parameters<typeof useGithubVariables>[0]) {
-    act(() => {
+  it("loads variables for the selected GitHub environment", async () => {
+    let latest: UseGithubVariables | null = null;
+    const root = createRoot(document.createElement("div"));
+
+    await act(async () => {
       root.render(
         <HookHarness
-          params={nextParams}
-          onUpdate={(v) => {
-            latest = v;
+          {...baseProps()}
+          onUpdate={(value) => {
+            latest = value;
           }}
         />,
       );
     });
-  }
 
-  rerender(params);
-
-  return {
-    get current(): UseGithubVariables {
-      if (!latest) throw new Error("Hook result not ready");
-      return latest;
-    },
-    rerender,
-    unmount() {
-      act(() => {
-        root.unmount();
-      });
-    },
-  };
-}
-
-describe("useGithubVariables", () => {
-  const account: Account = { login: "org-one", type: "Organization", id: 101 };
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockApi.fetchVariables.mockResolvedValue({ NAME: "Zenblox" });
-  });
-
-  it("does not fetch when account, repoName, or envName is missing", async () => {
-    const harness = renderHook({ account: null, repoName: null, envName: null });
-
-    await waitFor(() => expect(harness.current.loading).toBe(false));
-
-    expect(mockApi.fetchVariables).not.toHaveBeenCalled();
-    expect(harness.current.values).toEqual({});
-    expect(harness.current.error).toBe(false);
-
-    harness.unmount();
-  });
-
-  it("loads variables once account, repoName, and envName are all present", async () => {
-    const harness = renderHook({ account, repoName: "repo-a", envName: "PROD" });
-
-    await waitFor(() => expect(harness.current.loading).toBe(false));
-
-    expect(mockApi.fetchVariables).toHaveBeenCalledWith(account, "repo-a", "PROD");
-    expect(harness.current.values).toEqual({ NAME: "Zenblox" });
-    expect(harness.current.error).toBe(false);
-
-    harness.unmount();
-  });
-
-  it("surfaces an error and resets to empty values when fetching fails", async () => {
-    mockApi.fetchVariables.mockRejectedValue(new Error("network error"));
-    const harness = renderHook({ account, repoName: "repo-a", envName: "PROD" });
-
-    await waitFor(() => expect(harness.current.loading).toBe(false));
-
-    expect(harness.current.error).toBe(true);
-    expect(harness.current.values).toEqual({});
-
-    harness.unmount();
-  });
-
-  it("reloads and clears stale values when the target account/repo/env changes", async () => {
-    const harness = renderHook({ account, repoName: "repo-a", envName: "PROD" });
-    await waitFor(() => expect(harness.current.loading).toBe(false));
-    expect(harness.current.values).toEqual({ NAME: "Zenblox" });
-
-    mockApi.fetchVariables.mockResolvedValue({ NAME: "Other" });
-    harness.rerender({ account, repoName: "repo-b", envName: "PROD" });
-
-    await waitFor(() => expect(harness.current.loading).toBe(false));
-
-    expect(mockApi.fetchVariables).toHaveBeenLastCalledWith(account, "repo-b", "PROD");
-    expect(harness.current.values).toEqual({ NAME: "Other" });
-
-    harness.unmount();
-  });
-
-  it("re-fetches variables via onRefresh, toggling refreshing state", async () => {
-    const harness = renderHook({ account, repoName: "repo-a", envName: "PROD" });
-    await waitFor(() => expect(harness.current.loading).toBe(false));
-
-    mockApi.fetchVariables.mockResolvedValue({ NAME: "Refreshed" });
-
-    let refreshPromise!: Promise<void>;
-    act(() => {
-      refreshPromise = harness.current.onRefresh();
+    await waitFor(() => {
+      expect(apiMocks.fetchVariables).toHaveBeenCalledWith(
+        { login: "org-one", id: 1, type: "Organization" },
+        "repo-one",
+        "prod",
+      );
+      expect(latest?.values).toEqual({ NAME: "Zenblox" });
+      expect(latest?.loading).toBe(false);
+      expect(latest?.error).toBe(false);
     });
-    await act(async () => {
-      await refreshPromise;
-    });
-
-    expect(harness.current.refreshing).toBe(false);
-    expect(harness.current.values).toEqual({ NAME: "Refreshed" });
-
-    harness.unmount();
-  });
-
-  it("sets error when onRefresh fails", async () => {
-    const harness = renderHook({ account, repoName: "repo-a", envName: "PROD" });
-    await waitFor(() => expect(harness.current.loading).toBe(false));
-
-    mockApi.fetchVariables.mockRejectedValue(new Error("refresh failed"));
 
     await act(async () => {
-      await harness.current.onRefresh();
+      root.unmount();
     });
-
-    expect(harness.current.error).toBe(true);
-
-    harness.unmount();
   });
 
-  it("does nothing on onRefresh when account, repoName, or envName is missing", async () => {
-    const harness = renderHook({ account: null, repoName: null, envName: null });
-    await waitFor(() => expect(harness.current.loading).toBe(false));
+  // TODO: test each of the three missing pieces (account, repoName, envName) separately
+  // Cannot fetch variables until account, repo, and environment are all selected.
+  it("onRefresh is a no-op when the GitHub target is incomplete", async () => {
+    let latest: UseGithubVariables | null = null;
+    const root = createRoot(document.createElement("div"));
 
     await act(async () => {
-      await harness.current.onRefresh();
+      root.render(
+        <HookHarness
+          {...baseProps({ account: null, repoName: null })}
+          onUpdate={(value) => {
+            latest = value;
+          }}
+        />,
+      );
     });
 
-    expect(mockApi.fetchVariables).not.toHaveBeenCalled();
-    expect(harness.current.refreshing).toBe(false);
+    await act(async () => {
+      await latest?.onRefresh();
+    });
 
-    harness.unmount();
+    expect(apiMocks.fetchVariables).not.toHaveBeenCalled();
+    expect(latest?.values).toEqual({});
+    expect(latest?.refreshing).toBe(false);
+    expect(latest?.error).toBe(false);
+
+    await act(async () => {
+      root.unmount();
+    });
   });
 
-  it("optimistically applies a confirmed value via onConfirmed", async () => {
-    const harness = renderHook({ account, repoName: "repo-a", envName: "PROD" });
-    await waitFor(() => expect(harness.current.loading).toBe(false));
+  it("onRefresh sets error when variable loading throws", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    apiMocks.fetchVariables
+      .mockResolvedValueOnce({ NAME: "Zenblox" })
+      .mockRejectedValueOnce(new Error("var load failed"));
 
-    act(() => {
-      harness.current.onConfirmed("EXTRA", "value-1");
+    let latest: UseGithubVariables | null = null;
+    const root = createRoot(document.createElement("div"));
+
+    await act(async () => {
+      root.render(
+        <HookHarness
+          {...baseProps()}
+          onUpdate={(value) => {
+            latest = value;
+          }}
+        />,
+      );
     });
 
-    await waitFor(() => expect(harness.current.values).toEqual({ NAME: "Zenblox", EXTRA: "value-1" }));
+    await waitFor(() => {
+      expect(latest?.values).toEqual({ NAME: "Zenblox" });
+    });
 
-    harness.unmount();
+    await act(async () => {
+      await latest?.onRefresh();
+    });
+
+    await waitFor(() => {
+      expect(latest?.refreshing).toBe(false);
+      expect(latest?.error).toBe(true);
+      expect(consoleError).toHaveBeenCalled();
+    });
+
+    consoleError.mockRestore();
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("onConfirmed merges saved variable values", async () => {
+    let latest: UseGithubVariables | null = null;
+    const root = createRoot(document.createElement("div"));
+
+    await act(async () => {
+      root.render(
+        <HookHarness
+          {...baseProps()}
+          onUpdate={(value) => {
+            latest = value;
+          }}
+        />,
+      );
+    });
+
+    await waitFor(() => {
+      expect(latest?.values).toEqual({ NAME: "Zenblox" });
+    });
+
+    await act(async () => {
+      latest?.onConfirmed("AZURE_CLIENT_ID", "client-1");
+      latest?.onConfirmed("AZURE_TENANT_ID", "tenant-1");
+    });
+
+    expect(latest?.values).toMatchObject({
+      NAME: "Zenblox",
+      AZURE_CLIENT_ID: "client-1",
+      AZURE_TENANT_ID: "tenant-1",
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
   });
 });

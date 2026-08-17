@@ -42,6 +42,7 @@ export function useVariableEditor({
   const [localValues, setLocalValues] = useState<Record<string, string>>(savedValues);
   const [upsertStatuses, setUpsertStatuses] = useState<UpsertStatus[]>([]);
   const [updating, setUpdating] = useState(false);
+  const isDependenciesReady = account && repo && envName;
 
   // Resync the draft when `savedValues` actually changes at one of *this caller's own* keys —
   // scoped so an unrelated key changing elsewhere in a shared savedValues object doesn't wipe it.
@@ -60,7 +61,6 @@ export function useVariableEditor({
       for (const k of changedKeys) next[k] = savedValues[k] ?? "";
       return next;
     });
-    setUpsertStatuses((cur) => cur.filter((s) => !changedKeys.includes(s.key)));
   }
 
   const dirtyKeys = keys.filter((k) => (localValues[k] ?? "") !== (savedValues[k] ?? ""));
@@ -78,7 +78,7 @@ export function useVariableEditor({
   const onSave = async (overrideValues?: Record<string, string>): Promise<SaveResult> => {
     const vals = overrideValues ?? localValues;
     const newlySaved = { ...savedValues };
-    if (!account || !repo || !envName) return { result: "error", savedKeys: [], newlySaved };
+    if (!isDependenciesReady) return { result: "error", savedKeys: [], newlySaved };
     const dirty = keys.filter((k) => (vals[k] ?? "") !== (savedValues[k] ?? ""));
     if (dirty.length === 0) return { result: "no-changes", savedKeys: [], newlySaved };
 

@@ -8,13 +8,11 @@ import type { Account, Branch, GhEnv, RepoOption } from "../types";
 const { apiMocks } = vi.hoisted(() => ({
 	apiMocks: {
 		fetchEnvs: vi.fn(),
-		fetchVariables: vi.fn(),
 	},
 }));
 
 vi.mock("../api", () => ({
 	fetchEnvs: apiMocks.fetchEnvs,
-	fetchVariables: apiMocks.fetchVariables,
 }));
 
 function HookHarness(props: { onUpdate: (value: UseGithubEnvironment) => void } & Parameters<typeof useGithubEnvironment>[0]) {
@@ -60,7 +58,6 @@ describe("useGithubEnvironment", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		apiMocks.fetchEnvs.mockResolvedValue([env()]);
-		apiMocks.fetchVariables.mockResolvedValue({ NAME: "Zenblox" });
 	});
 
 	it("loads environments, matches the selected branch, and restores by name", async () => {

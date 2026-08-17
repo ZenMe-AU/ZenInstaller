@@ -1,22 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Box, Typography } from "@mui/material";
 
-import {
-  type Account,
-  type CardChrome,
-  type CardHook,
-  type CardId,
-  type CardRequirements,
-  type PendingRestore,
-  type RepoOption,
-  type Requirement,
-} from "./types";
-import { groupLabelSx, groupSx, EXPANDED_W } from "./config/cardLayout";
+import { type CardChrome, type CardHook, type CardId } from "./types";
+import { groupSx, EXPANDED_W } from "./config/cardLayout";
 import { createResultStorage } from "./logic/resultStorage";
+import { PIPELINE } from "./logic/pipeline";
 import { useGithubLoginCard } from "./hooks/useGithubLoginCard";
 import { useRepoCard } from "./hooks/useRepoCard";
 import { useGithubVariables } from "./hooks/useGithubVariables";
 import { useUrlRestore, useUrlSync } from "./hooks/useUrlStateManager";
+import { useDeploymentPlan } from "./hooks/useDeploymentPlan";
+import { useCorpStageCards } from "./hooks/useCorpStageCards";
 import { useAzureLoginCard } from "./hooks/useAzureLoginCard";
 import { useAzureAppRegistrationCard } from "./hooks/useAzureAppRegistrationCard";
 import { useAzureSubscriptionCard } from "./hooks/useAzureSubscriptionCard";
@@ -25,6 +19,8 @@ import { useCoreInfraCard } from "./hooks/useCoreInfraCard";
 import { useCompanyInfoCard } from "./hooks/useCompanyInfoCard";
 import { useAccessPassCard } from "./hooks/useAccessPassCard";
 import { useGlobalGroupsCard } from "./hooks/useGlobalGroupsCard";
+import { useAwsLoginCard } from "./hooks/useAwsLoginCard";
+import { useAwsSetupCard } from "./hooks/useAwsSetupCard";
 
 import NavBar from "./components/NavBar";
 import RestoreToast from "./components/RestoreToast";
@@ -39,6 +35,9 @@ import CoreInfraCard from "./cards/CoreInfraCard";
 import CreateDomainCard from "./cards/CreateDomainCard";
 import AccessPassCard from "./cards/AccessPassCard";
 import GlobalGroupsCard from "./cards/GlobalGroupsCard";
+import AwsLoginCard from "./cards/AwsLoginCard";
+import AwsSetupCard from "./cards/AwsSetupCard";
+import StageCard from "./cards/StageCard";
 
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
@@ -84,6 +83,8 @@ function AppDashboard() {
     }),
   );
 
+  const awsLogin = addCard(useAwsLoginCard());
+
   const azureAccessPass = addCard(
     useAccessPassCard({
       azureAccount: azureLogin.account,
@@ -120,6 +121,15 @@ function AppDashboard() {
     }),
   );
 
+  const awsSetup = addCard(
+    useAwsSetupCard({
+      githubAccount: githubRepoEnv.repo.selectedAccount?.login ?? "",
+      githubRepo: githubRepoEnv.repo.selectedRepo?.name ?? "",
+      variableValues: githubVariableValues,
+      awsReady: awsLogin.done,
+      awsAccount: awsLogin.account,
+    }),
+  );
   const infra = addCard(
     useCoreInfraCard({
       azureAccount: azureLogin.account,
@@ -139,6 +149,16 @@ function AppDashboard() {
       tenantId: azureAppSetup.tenantId,
     }),
   );
+
+  const plan = useDeploymentPlan({
+    account: githubRepoEnv.repo.selectedAccount,
+    repoName: githubRepoEnv.repo.selectedRepo?.name ?? null,
+    pipeline: PIPELINE,
+    selectedEnv: githubRepoEnv.env.selectedEnv,
+    branches: githubRepoEnv.repo.branchList,
+    branchMatchError: githubRepoEnv.env.branchMatchError,
+    envReady: githubRepoEnv.done,
+  });
 
   // ── URL restore + sync ───────────────────────────────────────────────────────
   const urlRestore = useUrlRestore([
@@ -218,15 +238,25 @@ function AppDashboard() {
       onRequirementClick: openCard,
     };
   };
+  const stageCards = useCorpStageCards({
+    pipeline: PIPELINE,
+    plan,
+    allCards,
+    repoDone: githubRepoEnv.done,
+    repoDependencyLabel: githubRepoEnv.cardDependencyLabel,
+    expandedIds,
+    account: githubRepoEnv.repo.selectedAccount,
+    repoName: githubRepoEnv.repo.selectedRepo?.name ?? "",
+    selectedEnv: githubRepoEnv.env.selectedEnv,
+    branches: githubRepoEnv.repo.branchList,
+    variableValues: githubVariableValues,
+    onVariableConfirmed: githubVariables.onConfirmed,
+    onToggle: toggle,
+    onRequirementClick: openCard,
+  });
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
-      <SessionOverlay
-        sessionExpired={githubLogin.sessionExpired}
-        redirecting={githubLogin.redirecting}
-        onLogin={githubLogin.login}
-      />
-
       <Box
         sx={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a", fontFamily: "'IBM Plex Sans', sans-serif" }}
       >
@@ -256,9 +286,12 @@ function AppDashboard() {
             }}
           >
             <Typography sx={{ fontSize: "0.85rem", color: "#475569", lineHeight: 1.7 }}>
-              The ZenInstaller is used to deploy Zenblox to your environment. It requires a Github repository in your
-              own account, an Azure, and AWS subscription in your name. Complete the cards below in any order — each
-              shows what it needs before it can run.
+              ZenInstaller is used to create your organisation configuration on a number of cloud hosting providers of
+              your choosing. Before starting, you will need the following: <br />
+              1. A personal email address, using Google, or any other email hosting provider. <br />
+              2. An organisation name and domain name. We recommend that you register the domain name with Godaddy
+              https://www.godaddy.com/ because we will have automations in place with them. <br />
+              Complete the cards below in any order — each shows what it needs before it can run.
             </Typography>
           </Box>
 
@@ -321,6 +354,22 @@ function AppDashboard() {
             />
 
             <GlobalGroupsCard card={cardProps("global_groups")} globalGroups={globalGroups} />
+
+            <AwsLoginCard card={cardProps("aws_login")} awsLogin={awsLogin} />
+
+            <AwsSetupCard
+              card={cardProps("aws_setup")}
+              awsSetup={awsSetup}
+              account={githubRepoEnv.repo.selectedAccount}
+              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+              repoFullName={githubRepoEnv.repo.repoFullName}
+              selectedEnv={githubRepoEnv.env.selectedEnv}
+              variables={githubVariables}
+            />
+
+            {stageCards.map(({ key, ...stageCard }) => (
+              <StageCard key={key} {...stageCard} />
+            ))}
           </Box>
         </Box>
       </Box>

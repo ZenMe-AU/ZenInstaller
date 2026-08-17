@@ -3,7 +3,7 @@ import type { CardHook, CardRequirements, CardStatus } from "../types";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type UseCompanyInfoCardParams = {
-  variableValues: Record<string, string>; // github.presentVariableValues — NAME + DNS are this card's own keys.
+  variableValues: Record<string, string>; // githubVariables.values — NAME + DNS are this card's own keys.
   envSelected: boolean; // !!github.selectedEnv — this card has no cardRequirements gating it, so it reads this directly.
 };
 
@@ -17,7 +17,7 @@ export interface UseCompanyInfoCard extends CardHook {
 }
 
 /*
- * The company-info card: a thin projection of useGithubEnvironment's shared variable
+ * The company-info card: a thin projection of GitHub environment variables
  * store onto the two keys (NAME, DNS) this card owns — mirrors useAzureLoginCard/
  * useAzureSubscriptionCard's relationship to useAzureAccount.
  */

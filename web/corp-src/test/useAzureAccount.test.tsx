@@ -2,8 +2,8 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AccountInfo } from "@azure/msal-browser";
 import { useAzureAccount, type UseAzureAccount } from "../hooks/useAzureAccount";
+import type { AzureAccount } from "../types";
 
 async function waitFor(assertion: () => void, timeoutMs = 1000) {
 	const start = Date.now();
@@ -69,7 +69,7 @@ describe("useAzureAccount", () => {
 			homeAccountId: "home",
 			environment: "login.microsoftonline.com",
 			localAccountId: "local",
-		} as AccountInfo;
+		} as AzureAccount;
 		const msal = {
 			handleRedirectPromise: vi.fn().mockResolvedValue(null),
 			getAllAccounts: vi.fn().mockReturnValue([account]),
@@ -127,8 +127,8 @@ describe("useAzureAccount", () => {
 			tenantProfiles: new Map([
 				["", {}],
 				["tenant-1", {}],
-			]) as AccountInfo["tenantProfiles"],
-		} as AccountInfo;
+			]) as AzureAccount["tenantProfiles"],
+		} as AzureAccount;
 
 		const msal = {
 			handleRedirectPromise: vi.fn().mockResolvedValue(null),
@@ -184,8 +184,8 @@ describe("useAzureAccount", () => {
 			tenantProfiles: new Map([
 				["tenant-1", {}],
 				["tenant-2", {}],
-			]) as AccountInfo["tenantProfiles"],
-		} as AccountInfo;
+			]) as AzureAccount["tenantProfiles"],
+		} as AzureAccount;
 
 		const msal = {
 			handleRedirectPromise: vi.fn().mockResolvedValue(null),
@@ -243,8 +243,8 @@ describe("useAzureAccount", () => {
 			tenantProfiles: new Map([
 				["tenant-1", {}],
 				["tenant-2", {}],
-			]) as AccountInfo["tenantProfiles"],
-		} as AccountInfo;
+			]) as AzureAccount["tenantProfiles"],
+		} as AzureAccount;
 
 		const msal = {
 			handleRedirectPromise: vi.fn().mockResolvedValue(null),
@@ -340,7 +340,7 @@ it("restores the account returned from the MSAL redirect", async () => {
 		homeAccountId: "home",
 		environment: "login.microsoftonline.com",
 		localAccountId: "local",
-	} as AccountInfo;
+	} as AzureAccount;
 
 	const msal = {
 		handleRedirectPromise: vi.fn().mockResolvedValue({account,}),
@@ -404,8 +404,8 @@ it("falls back to tenant profiles when the ARM tenant list cannot be loaded", as
 			["tenant-1", {},],
 			["tenant-2", {},],
 			["msa-tenant", {},],
-		]) as AccountInfo["tenantProfiles"],
-	} as AccountInfo;
+		]) as AzureAccount["tenantProfiles"],
+	} as AzureAccount;
 
 	const msal = {
 		handleRedirectPromise: vi.fn().mockResolvedValue(null),
@@ -463,8 +463,8 @@ it("automatically selects the first available tenant for an MSA account", async 
 			["msa-tenant", {},],
 			["tenant-1", {},],
 			["tenant-2", {},],
-		]) as AccountInfo["tenantProfiles"],
-	} as AccountInfo;
+		]) as AzureAccount["tenantProfiles"],
+	} as AzureAccount;
 
 	const msal = {
 		handleRedirectPromise: vi.fn().mockResolvedValue(null),
@@ -523,8 +523,8 @@ it("confirms a selected tenant using a silent ARM token", async () => {
 		tenantProfiles: new Map([
 			["tenant-1", {},],
 			["tenant-2", {},],
-		]) as AccountInfo["tenantProfiles"],
-	} as AccountInfo;
+		]) as AzureAccount["tenantProfiles"],
+	} as AzureAccount;
 
 	const msal = {
 		handleRedirectPromise: vi.fn().mockResolvedValue(null),
@@ -585,8 +585,8 @@ it("redirects immediately when selecting a tenant missing from tenantProfiles", 
 		localAccountId: "local",
 		tenantProfiles: new Map([
 			["tenant-1", {}],
-		]) as AccountInfo["tenantProfiles"],
-	} as AccountInfo;
+		]) as AzureAccount["tenantProfiles"],
+	} as AzureAccount;
 
 	const msal = {
 		handleRedirectPromise: vi.fn().mockResolvedValue(null),
@@ -648,8 +648,8 @@ it("does not call acquireTokenRedirect when selecting a missing tenant and MSAL 
 		localAccountId: "local",
 		tenantProfiles: new Map([
 			["tenant-1", {}],
-		]) as AccountInfo["tenantProfiles"],
-	} as AccountInfo;
+		]) as AzureAccount["tenantProfiles"],
+	} as AzureAccount;
 
 	const msal = {
 		handleRedirectPromise: vi.fn().mockResolvedValue(null),
@@ -708,8 +708,8 @@ it("redirects for tenant consent when silent ARM token requires interaction", as
 		tenantProfiles: new Map([
 			["tenant-1", {}],
 			["tenant-2", {}],
-		]) as AccountInfo["tenantProfiles"],
-	} as AccountInfo;
+		]) as AzureAccount["tenantProfiles"],
+	} as AzureAccount;
 
 	const msal = {
 		handleRedirectPromise: vi.fn().mockResolvedValue(null),
@@ -770,8 +770,8 @@ it("clears saved tenant and sets an error when consent redirect fails", async ()
 		tenantProfiles: new Map([
 			["tenant-1", {}],
 			["tenant-2", {}],
-		]) as AccountInfo["tenantProfiles"],
-	} as AccountInfo;
+		]) as AzureAccount["tenantProfiles"],
+	} as AzureAccount;
 
 	const msal = {
 		handleRedirectPromise: vi.fn().mockResolvedValue(null),
@@ -834,7 +834,7 @@ it("redirects for ARM consent when the saved tenant requires interaction", async
 		homeAccountId: "home",
 		environment: "login.microsoftonline.com",
 		localAccountId: "local",
-	} as AccountInfo;
+	} as AzureAccount;
 
 	const msal = {
 		handleRedirectPromise: vi.fn().mockResolvedValue(null),

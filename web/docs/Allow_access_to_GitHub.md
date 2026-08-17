@@ -1,20 +1,14 @@
-# How to Create a GitHub OAuth App for ZenInstaller
+# Allow Zeninstaller access to GitHub
 
 ZenInstaller uses a GitHub OAuth App so users can sign in with their GitHub account. This is separate from the AWS/Azure OIDC setup — this app is what lets people log **into ZenInstaller itself**; sign-in is handled by Azure App Service Authentication (Easy Auth), which needs its own Client ID and Client Secret.
 
-> Skip this if you only want to run ZenInstaller locally — set `GITHUB_TOKEN` in `backend/local.settings.json` to a personal access token instead, and the backend will authenticate as that user without needing an OAuth flow at all.
-
 ---
 
-## Step 1 — Decide the Function App name first
+## Step 1 — Add ZenInstaller app to your organisation
 
-The callback URL below depends on your Function App's hostname, which is derived from `TARGET_ENV` in `deploy/.env` (`function_app_name = "<TARGET_ENV>-app"`). Decide that value before creating the OAuth App so you can fill in the callback URL correctly.
+https://github.com/marketplace?query=zeninstaller
 
-For example, `TARGET_ENV=zen-installer` gives a Function App named `zen-installer-app`, reachable at `https://zen-installer-app.azurewebsites.net`.
-
----
-
-## Step 2 — Create the OAuth App
+## Step 1 — Create the OAuth App
 
 1. Go to [https://github.com/settings/developers](https://github.com/settings/developers) (or your GitHub organization's **Settings → Developer settings**, if the app should belong to an org).
 2. Click **OAuth Apps → New OAuth App**.
@@ -58,3 +52,13 @@ Go back to the OAuth App's settings on GitHub and update **Authorization callbac
 
 - **Hostname** — changes if you rename `TARGET_ENV` or move the backend behind a custom domain.
 - **Auth prefix** — changes if `http_route_api_prefix` in `deploy/env/main.tf` is edited (currently `/auth`).
+
+> Skip this if you only want to run ZenInstaller locally — set `GITHUB_TOKEN` in `backend/local.settings.json` to a personal access token instead, and the backend will authenticate as that user without needing an OAuth flow at all.
+
+## Step 1 — Decide the Function App name first
+
+The callback URL below depends on your Function App's hostname, which is derived from `TARGET_ENV` in `deploy/.env` (`function_app_name = "<TARGET_ENV>-app"`). Decide that value before creating the OAuth App so you can fill in the callback URL correctly.
+
+For example, `TARGET_ENV=zen-installer` gives a Function App named `zen-installer-app`, reachable at `https://zen-installer-app.azurewebsites.net`.
+
+---

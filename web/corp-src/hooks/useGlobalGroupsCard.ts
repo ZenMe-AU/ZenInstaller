@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { AccountInfo } from "@azure/msal-browser";
 import { getMsal } from "../api/msal";
 import { GROUPS_SCOPES, AZURE_CLIENT_ID } from "../config/azureConfig";
 import {
@@ -14,7 +13,7 @@ import {
   isGroupMember,
 } from "../api/azureGraph";
 import { isConsentError } from "../logic/consent";
-import type { CardHook, CardRequirements, CardStatus, SetupStep } from "../types";
+import type { CardHook, CardRequirements, CardStatus, SetupStep, AzureAccount } from "../types";
 
 export type GroupRow = {
   id: string; // Entra group id once created; a "new:<uuid>" placeholder before creation
@@ -102,7 +101,7 @@ export function wouldCreateCycle(rows: GroupRow[], childName: string, candidateP
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type UseGlobalGroupsCardParams = {
-  azureAccount: AccountInfo | null;
+  azureAccount: AzureAccount | null;
   confirmedTenantId: string | null;
 };
 

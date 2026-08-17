@@ -2,9 +2,9 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AccountInfo } from "@azure/msal-browser";
 import type { UseAzureAccount } from "../hooks/useAzureAccount";
 import { useAzureLoginCard, type UseAzureLoginCard } from "../hooks/useAzureLoginCard";
+import type { AzureAccount } from "../types";
 
 const { mockHooks } = vi.hoisted(() => ({
 	mockHooks: {
@@ -53,7 +53,7 @@ describe("useAzureLoginCard", () => {
 				homeAccountId: "home",
 				tenantId: "tenant-home",
 				tenantProfiles: new Map([["tenant-1", {}]]),
-			} as AccountInfo,
+			} as AzureAccount,
 			confirmedTenantId: "tenant-1",
 			manualTenantId: "tenant-1",
 			selectTenant: vi.fn(),
@@ -177,7 +177,7 @@ describe("useAzureLoginCard", () => {
 			homeAccountId: "home",
 			tenantId: "tenant-home",
 			tenantProfiles: new Map([["tenant-2", {}]]),
-		} as AccountInfo;
+		} as AzureAccount;
 		mockHooks.useAzureAccount.mockReturnValue(
 			createAzureState({ account: accountWithoutSavedTenant, selectTenant }),
 		);

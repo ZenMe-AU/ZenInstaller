@@ -6,13 +6,15 @@ This guide walks through the steps required to create a Microsoft Entra ID tenan
 
 1. Navigate to the Azure signup page: [https://azure.microsoft.com/en-gb/free/entra-id](https://azure.microsoft.com/en-gb/free/entra-id)
 
-2. Select **Pay as you go**.
+2. If you do not have a personal email account, create one at [https://www.microsoft.com/en-us/microsoft-365/outlook](https://www.microsoft.com/en-us/microsoft-365/outlook)
+
+3. Select **Pay as you go**.
 
    ![Azure signup page](images/azure-account/image1.png)
 
-3. You will be prompted to sign in with an existing Microsoft account or create a new one.
+4. You will be prompted to sign in with an existing Microsoft account or create a new one.
 
-4. After signing in, the system begins a three-step registration process.
+5. After signing in, the system begins a three-step registration process.
 
 ## Step 1 of 3 — Organisation & Contact Information
 

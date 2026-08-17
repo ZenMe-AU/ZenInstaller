@@ -10,8 +10,8 @@ export default defineConfig({
       {
         items: [
           {
-            text: "Create GitHub OAuth App",
-            link: "/Create_GitHub_OAuth_App",
+            text: "Allow Zeninstaller access to GitHub",
+            link: "/Allow_access_to_GitHub.md",
           },
           {
             text: "Creating AZURE account",
@@ -24,6 +24,10 @@ export default defineConfig({
           {
             text: "Creating AWS account",
             link: "/Creating_AWS_account",
+          },
+          {
+            text: "Create AWS bootstrap credentials",
+            link: "/Create_AWS_bootstrap_credentials",
           },
           {
             text: "Set up GitHub oidc for AWS",

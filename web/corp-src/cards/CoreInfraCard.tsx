@@ -3,18 +3,17 @@ import { Box, Button, CircularProgress, IconButton, MenuItem, Select, TextField,
 import EditIcon from "@mui/icons-material/Edit";
 import CheckIcon from "@mui/icons-material/Check";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import type { AccountInfo } from "@azure/msal-browser";
 import type { UseCoreInfraCard } from "../hooks/useCoreInfraCard";
 import StepRow from "./StepRow";
 import Card from "../components/Card";
 import { getVariableDisplayName } from "../logic/variables";
 import { MONO as mono, labelSx } from "../config/styles";
-import type { CardChrome } from "../types";
+import type { CardChrome, AzureAccount } from "../types";
 
 type Props = {
   card: CardChrome;
   infra: UseCoreInfraCard;
-  azureAccount: AccountInfo | null;
+  azureAccount: AzureAccount | null;
   corpName: string;
   subscriptionId: string;
   spClientId: string;

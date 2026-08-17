@@ -1,7 +1,7 @@
 import {expect, test, type Page,} from "@playwright/test";
 import {corpGithubAuthStateExists, restoreCorpSessionStorage, storageStateFile,} from "../authState";
 import {CORP_URL, viewports,} from "../../testInit";
-import {expectPageSnapshot, sensitiveTextMasks} from "../testHelper";
+import {expectCardSnapshot, sensitiveTextMasks} from "../testHelper";
 
 async function expandGithubLoginCard(page: Page,) {
 	const githubCard = page.locator("#card-github_login",);
@@ -39,8 +39,9 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expect(githubCard.getByRole("button", {name: "Sign out", exact: true,}),).toBeVisible();
 			await expect(githubCard.getByRole("button", {name: "Login with GitHub", exact: true,}),).toHaveCount(0);
 
-			await expectPageSnapshot(
+			await expectCardSnapshot(
 				page,
+				githubCard,
 				testInfo,
 				"pat-authenticated-state.png",
 				{userId: "github-pat", viewportName, testFolder: "GitHub Login Card Authenticated", mask: sensitiveTextMasks(page,),},

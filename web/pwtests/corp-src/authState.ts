@@ -2,9 +2,11 @@
 
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "node:url";
 import type { BrowserContext } from "@playwright/test";
 
-export const authDir = path.join(process.cwd(), "web/pwtests/corp-src/auth/.auth");
+const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
+export const authDir = path.join(currentDirectory, "auth/.auth");
 export const storageStateFile = path.join(authDir, "github-pat.storage.json");
 export const sessionStorageFile = path.join(authDir, "github-pat.session.json");
 export const azureStorageStateFile = path.join(authDir, "azure-login.storage.json");

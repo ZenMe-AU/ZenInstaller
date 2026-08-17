@@ -103,10 +103,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expect(page).toHaveURL(/http:\/\/localhost:5173\/?$/,);
 			await expect(page).toHaveTitle(/ZenInstaller Setup Central Corp Environment/i,);
 
-			await expect(
-				page.getByText(
-					/ZenInstaller is used to create your organisation configuration on a number of cloud hosting providers/i,
-				),
+			await expect(page.getByText(/ZenInstaller is used to create your organisation configuration on a number of cloud hosting providers/i,),
 			).toBeVisible();
 
 			if (viewportName === "Desktop") {
@@ -126,14 +123,10 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		test("Can expand all cards while unauthenticated", async ({page,}) => {
 			await expandAllCards(page,);
 
-			await expect(
-				page.locator("#card-github_login",).getByRole("button", {name: "Backend", exact: true,},),
-			).toBeVisible();
+			await expect(page.locator("#card-github_login",).getByRole("button", {name: "Backend", exact: true,},),).toBeVisible();
 
 			for (const {id,} of CARDS_UNAUTHENTICATED.filter(({id,},) => !UNLOCKED_CARD_IDS.has(id,),)) {
-				await expect(
-					page.locator(`#card-${id}`,).getByText(/Complete these first/i,),
-				).toBeVisible();
+				await expect(page.locator(`#card-${id}`,).getByText(/Complete these first/i,),).toBeVisible();
 			}
 
 			for (const {id,} of CARDS_UNAUTHENTICATED) {

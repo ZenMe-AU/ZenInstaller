@@ -9,11 +9,11 @@ type NavLinkCase = {
 };
 
 const navLinkCases: NavLinkCase[] = [
-	{label: "Access Pass", expectedPath: "/accessPass.html", snapshotName: "redirect-access-pass.png",},
-	{label: "Private Account", expectedPath: "/privAccount.html", snapshotName: "redirect-private-account.png",},
-	{label: "AWS Hosting", expectedPath: "/awsHosting.html", snapshotName: "redirect-aws-hosting.png",},
-	{label: "Cost Management", expectedPath: "/costManagement.html", snapshotName: "redirect-cost-management.png",},
-	{label: "User Access", expectedPath: "/userAccess.html", snapshotName: "redirect-user-access.png",},
+	{label: "Access Pass", expectedPath: "/accessPass.html", snapshotName: "access-pass.png",},
+	{label: "Private Account", expectedPath: "/privAccount.html", snapshotName: "private-account.png",},
+	{label: "AWS Hosting", expectedPath: "/awsHosting.html", snapshotName: "aws-hosting.png",},
+	{label: "Cost Management", expectedPath: "/costManagement.html", snapshotName: "cost-management.png",},
+	{label: "User Access", expectedPath: "/userAccess.html", snapshotName: "user-access.png",},
 ];
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
@@ -28,7 +28,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expectPageSnapshot(
 				page,
 				testInfo,
-				"initial-before-test.png",
+				"initial.png",
 				{userId: "signed-out", viewportName, testFolder: "Link Redirects",},
 			);
 		});

@@ -43,7 +43,7 @@ export function useGithubLoginCard(): UseGithubLoginCard {
   const [loggingIn, setLoggingIn] = useState(true);
   const [account, setAccount] = useState<User | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false); // TODO: check if this is still needed
-  const [redirecting, setRedirecting] = useState<"login" | "logout" | null>(null); // TODO: check if this is still needed
+  const [redirecting, setRedirecting] = useState<"login" | "logout" | null>(null);
   const [mode, setMode] = useState<GithubAuthRecord["mode"]>("backend");
   const [token, setToken] = useState<string | null>(null);
   const loginConfigRef = useRef<GithubAuthRecord>({ mode: "backend" });
@@ -123,11 +123,13 @@ export function useGithubLoginCard(): UseGithubLoginCard {
         switchToBackend();
     }
 
+    setRedirecting("login");
     try {
       writeGithubAuthRecord(config);
       setSessionExpired(false);
       const data = await verifyAuth();
       setAccount({ login: data.login });
+      setRedirecting(null);
     } catch {
       setAccount(null);
       if (config.mode === "backend") {
@@ -135,6 +137,7 @@ export function useGithubLoginCard(): UseGithubLoginCard {
       } else {
         console.error("Login failed");
         setSessionExpired(true);
+        setRedirecting(null);
       }
     } finally {
       setLoggingIn(false);

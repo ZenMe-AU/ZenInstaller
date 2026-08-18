@@ -45,7 +45,9 @@ export default function GithubLoginCard({ card, auth }: Props) {
     token: pat,
     setToken: setPat,
     refresh: onRefresh,
+    redirecting,
   } = auth;
+  const signingIn = redirecting === "login";
   const [patError, setPatError] = useState("");
   const [showPat, setShowPat] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -169,7 +171,8 @@ export default function GithubLoginCard({ card, auth }: Props) {
               <Button
                 variant="contained"
                 onClick={handlePatSubmit}
-                disabled={!pat?.trim()}
+                disabled={!pat?.trim() || signingIn}
+                startIcon={signingIn ? <CircularProgress size={14} sx={{ color: "#cbd5e1" }} /> : undefined}
                 sx={{
                   alignSelf: "flex-start",
                   background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
@@ -183,13 +186,15 @@ export default function GithubLoginCard({ card, auth }: Props) {
                   "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
                 }}
               >
-                Connect with PAT
+                {signingIn ? "Connecting..." : "Connect with PAT"}
               </Button>
             </Box>
           ) : (
             <Button
               variant="contained"
               onClick={onLogin}
+              disabled={signingIn}
+              startIcon={signingIn ? <CircularProgress size={14} sx={{ color: "#cbd5e1" }} /> : undefined}
               sx={{
                 background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
                 textTransform: "none",
@@ -203,9 +208,10 @@ export default function GithubLoginCard({ card, auth }: Props) {
                   background: "linear-gradient(135deg, #1d4ed8, #1e40af)",
                   boxShadow: "0 4px 12px #2563eb44",
                 },
+                "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1", boxShadow: "none" },
               }}
             >
-              Login with GitHub
+              {signingIn ? "Connecting..." : "Login with GitHub"}
             </Button>
           )
         ) : (

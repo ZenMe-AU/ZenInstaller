@@ -168,7 +168,7 @@ export function useGithubLoginCard(): UseGithubLoginCard {
     loggingIn,
     login,
     logout,
-    refresh: () => {},
+    refresh: login,
     // extra
     sessionExpired,
     redirecting,

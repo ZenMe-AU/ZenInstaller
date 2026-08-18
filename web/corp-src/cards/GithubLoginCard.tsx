@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Box,
   Button,
@@ -15,6 +15,8 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { MONO as monoSx } from "../config/styles";
 import Card from "../components/Card";
+import RefreshButton from "../components/RefreshButton";
+import { useRefreshIndicator } from "../hooks/util/useRefreshIndicator";
 import type { CardChrome } from "../types";
 import { type UseGithubLoginCard } from "../hooks/useGithubLoginCard";
 
@@ -42,9 +44,22 @@ export default function GithubLoginCard({ card, auth }: Props) {
     setMode,
     token: pat,
     setToken: setPat,
+    refresh: onRefresh,
   } = auth;
   const [patError, setPatError] = useState("");
   const [showPat, setShowPat] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const { refreshResult, markClicked } = useRefreshIndicator(refreshing);
+
+  const handleRefresh = async () => {
+    markClicked();
+    setRefreshing(true);
+    try {
+      await onRefresh();
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const handleModeChange = (_: unknown, next: "backend" | "direct" | null) => {
     if (!next) return;
@@ -208,22 +223,26 @@ export default function GithubLoginCard({ card, auth }: Props) {
               )}
               . You can sign out and connect a different account below.
             </Typography>
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={onLogout}
-              sx={{
-                borderColor: "#e2e8f0",
-                color: "#94a3b8",
-                fontSize: "0.72rem",
-                textTransform: "none",
-                ...monoSx,
-                py: 0.5,
-                "&:hover": { borderColor: "#fecaca", color: "#ef4444" },
-              }}
-            >
-              Sign out
-            </Button>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={onLogout}
+                sx={{
+                  borderColor: "#e2e8f0",
+                  color: "#94a3b8",
+                  fontSize: "0.72rem",
+                  textTransform: "none",
+                  ...monoSx,
+                  py: 0.5,
+                  "&:hover": { borderColor: "#fecaca", color: "#ef4444" },
+                }}
+              >
+                Sign out
+              </Button>
+              {/* PAT mode re-verifies the same token, so refreshing only means anything for a backend session. */}
+              {mode === "backend" && <RefreshButton busy={refreshing} result={refreshResult} onClick={handleRefresh} />}
+            </Box>
           </Box>
         )}
       </Box>

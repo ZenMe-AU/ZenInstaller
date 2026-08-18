@@ -34,7 +34,6 @@ import AzureSubscriptionCard from "./cards/AzureSubscriptionCard";
 import CoreInfraCard from "./cards/CoreInfraCard";
 import CreateDomainCard from "./cards/CreateDomainCard";
 import AccessPassCard from "./cards/AccessPassCard";
-import GlobalGroupsCard from "./cards/GlobalGroupsCard";
 import AwsLoginCard from "./cards/AwsLoginCard";
 import AwsSetupCard from "./cards/AwsSetupCard";
 import StageCard from "./cards/StageCard";
@@ -351,8 +350,6 @@ function AppDashboard() {
               corpName={companyInfo.corpName}
               dnsName={companyInfo.dnsName}
             />
-
-            <GlobalGroupsCard card={cardProps("global_groups")} globalGroups={globalGroups} />
 
             <AwsLoginCard card={cardProps("aws_login")} awsLogin={awsLogin} />
 

@@ -25,7 +25,7 @@ import type {
   SetupStep,
 } from "../types";
 import { PIPELINE } from "../logic/pipeline";
-import { getFederatedCredential } from "../logic/naming";
+import { getFederatedCredential, getImmutableRepoSegment } from "../logic/naming";
 import { setOidcImmutableSubject } from "../api";
 
 export type AzureAppRegistrationResult = { clientId: string; tenantId: string; subscriptionIds: string[] };
@@ -213,7 +213,7 @@ export function useAzureAppRegistrationCard({
       updateStep("oidc", "running");
       if (githubRepoId === null) throw new Error(`Create the repository ${githubRepo} on GitHub before running this`);
       await setOidcImmutableSubject(githubAccount, githubRepo);
-      updateStep("oidc", "done", `repo:${org}@${githubAccount.id}/${githubRepo}@${githubRepoId}`);
+      updateStep("oidc", "done", getImmutableRepoSegment(org, githubAccount.id, githubRepo, githubRepoId));
 
       currentStep = "creds";
       updateStep("creds", "running");

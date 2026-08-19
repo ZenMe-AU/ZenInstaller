@@ -34,7 +34,11 @@ export function getFederatedCredentialName(org: string, repo: string, environmen
   return full.slice(0, FIC_NAME_MAX - suffix.length) + suffix;
 }
 
-// GitHub's immutable OIDC subject; "@" is safe because it can't appear in an org or repo name.
+// The repo segment of GitHub's immutable OIDC subject; "@" can't appear in an org or repo name.
+export function getImmutableRepoSegment(org: string, orgId: number, repo: string, repoId: number): string {
+  return `repo:${org}@${orgId}/${repo}@${repoId}`;
+}
+
 export function getFederatedCredential(
   org: string,
   orgId: number,
@@ -45,6 +49,6 @@ export function getFederatedCredential(
   // The "-id" suffix keeps this from colliding with a legacy-format credential left by an earlier run.
   return {
     name: getFederatedCredentialName(org, repo, environment, "-id"),
-    subject: `repo:${org}@${orgId}/${repo}@${repoId}:environment:${environment}`,
+    subject: `${getImmutableRepoSegment(org, orgId, repo, repoId)}:environment:${environment}`,
   };
 }

@@ -47,6 +47,7 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
     selectTenant,
     tenantIdError,
     savedTenantId,
+    tenantsLoaded,
   } = azureLogin;
 
   // A tenant list was fetched, but the saved tenant doesn't appear in it — an error, not just a warning.
@@ -120,7 +121,12 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
                 Signed in as{" "}
-                <Box component="span" data-sensitive="true" data-id="txtAzureUsername" sx={{ fontWeight: 600, ...mono }}>
+                <Box
+                  component="span"
+                  data-sensitive="true"
+                  data-id="txtAzureUsername"
+                  sx={{ fontWeight: 600, ...mono }}
+                >
                   {azureAccount.username}
                 </Box>
               </Typography>
@@ -164,7 +170,12 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
                 </Box>
               </Typography>
 
-              {tenants.length > 0 ? (
+              {!tenantsLoaded ? (
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 1 }}>
+                  <CircularProgress size={16} sx={{ color: "#cbd5e1" }} />
+                  <Typography sx={{ fontSize: "0.78rem", color: "#94a3b8", ...mono }}>Loading tenants...</Typography>
+                </Box>
+              ) : tenants.length > 0 ? (
                 // Fetched (or MSA-fallback) list available — plain dropdown, picking loads that tenant immediately.
                 <Select
                   data-id="tenant-select"
@@ -193,9 +204,11 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
                       // data-sensitive="true"
                       data-tenant-name={t.displayName}
                     >
-                      <Box >
+                      <Box>
                         <Typography sx={{ fontSize: "0.8rem", ...mono }}>{t.displayName}</Typography>
-                        <Typography data-sensitive="true" sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono }}>{t.tenantId}</Typography>
+                        <Typography data-sensitive="true" sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono }}>
+                          {t.tenantId}
+                        </Typography>
                       </Box>
                     </MenuItem>
                   ))}

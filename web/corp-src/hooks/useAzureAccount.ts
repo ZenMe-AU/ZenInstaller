@@ -62,26 +62,40 @@ export function useAzureAccount(): UseAzureAccount {
     return Array.from(account.tenantProfiles.keys()).filter((id) => id !== MSA_TENANT);
   }, [account]);
 
-  // Fetch the tenant list via ARM (display names); fall back to the account's known tenant IDs for MSA.
-  const loadTenants = useCallback(async (acc: AzureAccount) => {
-    try {
-      try {
-        const list = await listTenants(acc);
-        if (list.length > 0) {
-          setTenants(list);
-          return;
-        }
-      } catch {
-        /* MSA / consent — fall through to the tenantProfiles fallback */
-      }
-      if (acc.tenantProfiles) {
-        const ids = Array.from(acc.tenantProfiles.keys()).filter((id) => id !== MSA_TENANT);
-        setTenants(ids.map((id) => ({ tenantId: id, displayName: id })));
-      }
-    } finally {
-      setTenantsLoaded(true);
-    }
+  const applyTenantList = useCallback((list: AzureTenant[]) => {
+    setTenants(list);
+    setManualTenantId((current) => {
+      if (!current) return current;
+      const match =
+        list.find((t) => t.tenantId.toLowerCase() === current.toLowerCase()) ??
+        list.find((t) => t.displayName.toLowerCase() === current.toLowerCase());
+      return match ? match.tenantId : current;
+    });
   }, []);
+
+  // Fetch the tenant list via ARM (display names); fall back to the account's known tenant IDs for MSA.
+  const loadTenants = useCallback(
+    async (acc: AzureAccount) => {
+      try {
+        try {
+          const list = await listTenants(acc);
+          if (list.length > 0) {
+            applyTenantList(list);
+            return;
+          }
+        } catch {
+          /* MSA / consent — fall through to the tenantProfiles fallback */
+        }
+        if (acc.tenantProfiles) {
+          const ids = Array.from(acc.tenantProfiles.keys()).filter((id) => id !== MSA_TENANT);
+          applyTenantList(ids.map((id) => ({ tenantId: id, displayName: id })));
+        }
+      } finally {
+        setTenantsLoaded(true);
+      }
+    },
+    [applyTenantList],
+  );
 
   // Load the tenant list once signed in.
   useEffect(() => {

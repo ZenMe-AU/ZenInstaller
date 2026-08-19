@@ -10,7 +10,6 @@ import {
 } from "../config/azureConfig";
 import { RBAC_ROLE_IDS } from "../config/azureConfig";
 import { deterministicUuid } from "../logic/crypto";
-import { getFederatedCredentialName } from "../logic/naming";
 import type { AzureAccount } from "../types";
 
 const GRAPH = "https://graph.microsoft.com/v1.0";
@@ -207,28 +206,27 @@ export async function createServicePrincipal(
 
 // ── Federated credentials ──────────────────────────────────────────────────────
 
+// Resolves to whether a credential was created; false means one with this subject already existed.
 export async function ensureFederatedCredential(
   account: AzureAccount,
   appObjectId: string,
-  org: string,
-  repo: string,
-  environment: string,
+  name: string,
+  subject: string,
   overrideTenantId?: string,
-): Promise<void> {
-  const subject = `repo:${org}/${repo}:environment:${environment}`;
-  const credName = getFederatedCredentialName(org, repo, environment);
+): Promise<boolean> {
   const token = await getToken(account, APP_SCOPES, overrideTenantId);
   const existing = await gFetch(token, GRAPH, `/applications/${appObjectId}/federatedIdentityCredentials`);
-  if (existing?.value?.some((c: { subject: string }) => c.subject === subject)) return;
+  if (existing?.value?.some((c: { subject: string }) => c.subject === subject)) return false;
   await gFetch(token, GRAPH, `/applications/${appObjectId}/federatedIdentityCredentials`, {
     method: "POST",
     body: JSON.stringify({
-      name: credName,
+      name,
       issuer: "https://token.actions.githubusercontent.com",
       subject,
       audiences: ["api://AzureADTokenExchange"],
     }),
   });
+  return true;
 }
 
 // ── RBAC roles (ARM) ──────────────────────────────────────────────────────────

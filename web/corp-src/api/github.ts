@@ -298,6 +298,22 @@ export function createGithubApi(token: string) {
 
   // ── Workflow dispatch ─────────────────────────────────────────────────────────
 
+  // Opts the repo into GitHub's immutable OIDC subject, so the sub claim carries owner/repo ids.
+  async function setOidcImmutableSubject(account: Account, repo: string): Promise<void> {
+    const res = await gh(`/repos/${account.login}/${repo}/actions/oidc/customization/sub`, {
+      method: "PUT",
+      body: JSON.stringify({
+        use_default: false,
+        include_claim_keys: ["repo", "environment"],
+        use_immutable_subject: true,
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`Failed to set OIDC subject: ${res.status} ${body}`);
+    }
+  }
+
   async function triggerWorkflow(
     account: Account, repo: string, workflowId: string, githubEnvName: string, ref: string,
   ): Promise<void> {
@@ -343,6 +359,7 @@ export function createGithubApi(token: string) {
     updateVariable,
     deleteVariable,
     fetchStatus,
+    setOidcImmutableSubject,
     fetchEnv,
     getPlanEnv,
     fetchDeployLog,

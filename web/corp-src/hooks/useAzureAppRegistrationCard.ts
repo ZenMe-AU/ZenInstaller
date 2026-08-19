@@ -25,6 +25,8 @@ import type {
   SetupStep,
 } from "../types";
 import { PIPELINE } from "../logic/pipeline";
+import { getFederatedCredential } from "../logic/naming";
+import { setOidcImmutableSubject } from "../api";
 
 export type AzureAppRegistrationResult = { clientId: string; tenantId: string; subscriptionIds: string[] };
 
@@ -33,6 +35,7 @@ export type AzureAppRegistrationResult = { clientId: string; tenantId: string; s
 export interface UseAzureAppRegistrationCardParams extends AzureTarget {
   githubAccount: Account | null;
   githubRepo: string;
+  githubRepoId: number | null; // GitHub's numeric repo id — needed for the immutable OIDC subject.
   variableValues: Record<string, string>; // githubVariables.values — reads AZURE_CLIENT_ID / AZURE_PLAN_CLIENT_ID.
   manualTenantId: string; // azure.manualTenantId — last-resort tenant fallback before any saved/result tenant exists.
   subscriptionLabel?: string; // Display name for the target subscription — shown on the RBAC step; falls back to the id.
@@ -79,6 +82,7 @@ export function useAzureAppRegistrationCard({
   azureAccount,
   githubAccount,
   githubRepo,
+  githubRepoId,
   subscriptionId,
   subscriptionLabel,
   tenantId,
@@ -166,6 +170,7 @@ export function useAzureAppRegistrationCard({
     const initialSteps: SetupStep[] = [
       { id: "app", label: "Create app registration", status: "pending" },
       { id: "sp", label: "Create service principal", status: "pending" },
+      { id: "oidc", label: "Switch GitHub OIDC to immutable subject", status: "pending" },
       { id: "creds", label: "Add federated credentials", status: "pending" },
       { id: "rbac", label: "Assign RBAC roles", status: "pending" },
     ];
@@ -204,12 +209,22 @@ export function useAzureAppRegistrationCard({
         updateStep("sp", "done", spObjectId);
       }
 
+      currentStep = "oidc";
+      updateStep("oidc", "running");
+      if (githubRepoId === null) throw new Error(`Create the repository ${githubRepo} on GitHub before running this`);
+      await setOidcImmutableSubject(githubAccount, githubRepo);
+      updateStep("oidc", "done", `repo:${org}@${githubAccount.id}/${githubRepo}@${githubRepoId}`);
+
       currentStep = "creds";
       updateStep("creds", "running");
+      let added = 0;
       for (const env of environments) {
-        await ensureFederatedCredential(azureAccount, appObjectId, org, githubRepo, env, effectiveTenantId);
+        const cred = getFederatedCredential(org, githubAccount.id, githubRepo, githubRepoId, env);
+        if (await ensureFederatedCredential(azureAccount, appObjectId, cred.name, cred.subject, effectiveTenantId)) {
+          added += 1;
+        }
       }
-      updateStep("creds", "done", environments.join(", "));
+      updateStep("creds", "done", `${environments.join(", ")} — ${added} added`);
 
       currentStep = "rbac";
       updateStep("rbac", "running");
@@ -240,6 +255,7 @@ export function useAzureAppRegistrationCard({
     effectiveTenantId,
     githubAccount,
     githubRepo,
+    githubRepoId,
     appName,
     environments,
     setSteps,

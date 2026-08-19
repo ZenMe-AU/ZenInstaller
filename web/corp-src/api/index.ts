@@ -87,6 +87,8 @@ export const fetchPlan: ApiProvider["fetchPlan"] = (...a) => _provider.fetchPlan
 
 // ─── Workflow dispatch ────────────────────────────────────────────────────────
 
+export const setOidcImmutableSubject: ApiProvider["setOidcImmutableSubject"] = (...a) =>
+  _provider.setOidcImmutableSubject(...a);
 export const triggerWorkflow: ApiProvider["triggerWorkflow"] = (...a) => _provider.triggerWorkflow(...a);
 export const triggerWorkflowFromPR: ApiProvider["triggerWorkflowFromPR"] = (...a) =>
   _provider.triggerWorkflowFromPR(...a);

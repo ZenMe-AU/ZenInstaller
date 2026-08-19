@@ -112,6 +112,7 @@ function AppDashboard() {
       azureAccount: azureLogin.account,
       githubAccount: githubRepoEnv.repo.selectedAccount,
       githubRepo: githubRepoEnv.repo.selectedRepo?.name ?? "",
+      githubRepoId: typeof githubRepoEnv.repo.selectedRepo?.id === "number" ? githubRepoEnv.repo.selectedRepo.id : null,
       subscriptionId: azureSubscription.selectedSubscriptionId,
       subscriptionLabel: azureSubscription.subscriptionLabel,
       tenantId: azureLogin.confirmedTenantId || undefined,

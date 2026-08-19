@@ -283,6 +283,17 @@ export async function ensureRbacRole(
 
 // ── Admin consent ──────────────────────────────────────────────────────────────
 
+// The Graph application-permission ids already assigned to this service principal.
+export async function listAppRoleAssignments(
+  account: AzureAccount,
+  spObjectId: string,
+  overrideTenantId?: string,
+): Promise<string[]> {
+  const token = await getToken(account, GRANT_CONSENT_SCOPES, overrideTenantId);
+  const data = await gFetch(token, GRAPH, `/servicePrincipals/${spObjectId}/appRoleAssignments?$select=appRoleId`);
+  return (data?.value ?? []).map((a: { appRoleId: string }) => a.appRoleId);
+}
+
 export async function grantAdminConsent(
   account: AzureAccount,
   spObjectId: string,

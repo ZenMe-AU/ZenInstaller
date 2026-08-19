@@ -27,7 +27,11 @@ import Card from "../components/Card";
 import VariablesCard from "../components/VariablesCard";
 import StagePlanDetail from "./StagePlanDetail";
 
-function checkPrerequisite(prereq: Prerequisite, cardStatus: Record<CardId, CardStatus>, variableValues: Record<string, string>): boolean {
+function checkPrerequisite(
+  prereq: Prerequisite,
+  cardStatus: Record<CardId, CardStatus>,
+  variableValues: Record<string, string>,
+): boolean {
   switch (prereq.type) {
     case "card":
       return cardStatus[prereq.cardId] === "complete";
@@ -52,7 +56,9 @@ function prereqLabel(prereq: Prerequisite, variableValues: Record<string, string
       return prereq.label;
     case "stageVar": {
       const setCount = prereq.keys.filter((k) => !!variableValues[k]?.trim()).length;
-      return setCount === prereq.keys.length ? `${prereq.label} configured` : `${prereq.label} (${setCount}/${prereq.keys.length} set)`;
+      return setCount === prereq.keys.length
+        ? `${prereq.label} configured`
+        : `${prereq.label} (${setCount}/${prereq.keys.length} set)`;
     }
   }
 }
@@ -75,7 +81,9 @@ function StageVarEditor({
   onVariableConfirmed: (key: string, value: string) => void;
 }) {
   const [localValues, setLocalValues] = useState<Record<string, string>>(savedValues);
-  const [upsertStatuses, setUpsertStatuses] = useState<{ key: string; status: "success" | "error"; error?: string }[]>([]);
+  const [upsertStatuses, setUpsertStatuses] = useState<{ key: string; status: "success" | "error"; error?: string }[]>(
+    [],
+  );
   const [updating, setUpdating] = useState(false);
   const [prevSaved, setPrevSaved] = useState(savedValues);
   if (prevSaved !== savedValues) {
@@ -142,7 +150,11 @@ function StageVarEditor({
             "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
           }}
         >
-          {updating ? "Updating..." : dirtyKeys.length > 0 ? `Update ${dirtyKeys.length} variable${dirtyKeys.length !== 1 ? "s" : ""}` : "Update variables"}
+          {updating
+            ? "Updating..."
+            : dirtyKeys.length > 0
+              ? `Update ${dirtyKeys.length} variable${dirtyKeys.length !== 1 ? "s" : ""}`
+              : "Update variables"}
         </Button>
       </Box>
     </Box>
@@ -221,6 +233,8 @@ type Props = {
   statusUpdateCountdown: number;
   statusUpdateDisabled: boolean;
   runError: string | null;
+  ensureAzurePermissions: () => Promise<void>;
+  azurePermissionsGranting: boolean;
 };
 
 export default function StageCard({
@@ -242,6 +256,8 @@ export default function StageCard({
   statusUpdateCountdown,
   statusUpdateDisabled,
   runError,
+  ensureAzurePermissions,
+  azurePermissionsGranting,
 }: Props) {
   const [expandedPrereqs, setExpandedPrereqs] = useState<Record<number, boolean>>({});
   const [planItems, setPlanItems] = useState<PlanItem[]>([]);
@@ -250,6 +266,7 @@ export default function StageCard({
   const [planError, setPlanError] = useState<string | null>(null);
   const [deployLog, setDeployLog] = useState<string | null>(null);
   const [deployLogFetched, setDeployLogFetched] = useState(false);
+  const [permissionError, setPermissionError] = useState<string | null>(null);
   const onPlanSummaryRef = useRef(onPlanSummary);
   useLayoutEffect(() => {
     onPlanSummaryRef.current = onPlanSummary;
@@ -298,6 +315,18 @@ export default function StageCard({
       .finally(() => setDeployLogFetched(true));
   }, [stage.deployLogId, stage.deployStatus, account, repoName]);
 
+  // Make sure the pipeline's service principal can do what the run needs before triggering it.
+  const handleRunStatusUpdate = async () => {
+    setPermissionError(null);
+    try {
+      await ensureAzurePermissions();
+    } catch (e) {
+      console.error("Failed to grant Graph permissions:", e);
+      setPermissionError(e instanceof Error ? e.message : "Failed to grant the pipeline's Graph permissions");
+      return;
+    }
+    await onRunStatusUpdate();
+  };
   const hasDetails = stage.status === "success" && !!stage.planJsonId && stage.planJsonUrl !== "";
 
   return (
@@ -305,17 +334,28 @@ export default function StageCard({
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
           <RunStatusUpdateButton
-            onRun={onRunStatusUpdate}
-            running={statusUpdateRunning}
+            onRun={handleRunStatusUpdate}
+            running={statusUpdateRunning || azurePermissionsGranting}
             countdown={statusUpdateCountdown}
-            disabled={statusUpdateDisabled}
+            disabled={statusUpdateDisabled || azurePermissionsGranting}
           />
-          {runError && <Typography sx={{ fontSize: "0.72rem", color: "#ef4444" }}>{runError}</Typography>}
+          {(permissionError ?? runError) && (
+            <Typography sx={{ fontSize: "0.72rem", color: "#ef4444" }}>{permissionError ?? runError}</Typography>
+          )}
         </Box>
 
         {stageDef.prerequisites.length > 0 && (
           <Box>
-            <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, letterSpacing: "0.08em", textTransform: "uppercase", mb: 1 }}>
+            <Typography
+              sx={{
+                fontSize: "0.68rem",
+                color: "#94a3b8",
+                ...mono,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                mb: 1,
+              }}
+            >
               Prerequisites
             </Typography>
             <Box sx={{ display: "flex", flexDirection: "column" }}>
@@ -332,7 +372,9 @@ export default function StageCard({
                 return (
                   <Box key={`${stageDef.key}-${i}`}>
                     <Box
-                      onClick={isExpandable ? () => setExpandedPrereqs((prev) => ({ ...prev, [i]: !prev[i] })) : undefined}
+                      onClick={
+                        isExpandable ? () => setExpandedPrereqs((prev) => ({ ...prev, [i]: !prev[i] })) : undefined
+                      }
                       sx={{
                         display: "flex",
                         alignItems: "center",
@@ -355,8 +397,15 @@ export default function StageCard({
                       ) : (
                         <RadioButtonUncheckedIcon sx={{ fontSize: 13, color: "#cbd5e1", flexShrink: 0 }} />
                       )}
-                      <Typography sx={{ fontSize: "0.72rem", color: met ? "#475569" : "#94a3b8", ...mono, flex: 1 }}>{label}</Typography>
-                      {isExpandable && (isOpen ? <ExpandLessIcon sx={{ fontSize: 14, color: "#cbd5e1" }} /> : <ExpandMoreIcon sx={{ fontSize: 14, color: "#cbd5e1" }} />)}
+                      <Typography sx={{ fontSize: "0.72rem", color: met ? "#475569" : "#94a3b8", ...mono, flex: 1 }}>
+                        {label}
+                      </Typography>
+                      {isExpandable &&
+                        (isOpen ? (
+                          <ExpandLessIcon sx={{ fontSize: 14, color: "#cbd5e1" }} />
+                        ) : (
+                          <ExpandMoreIcon sx={{ fontSize: 14, color: "#cbd5e1" }} />
+                        ))}
                     </Box>
 
                     {isExpandable && isOpen && (
@@ -376,8 +425,26 @@ export default function StageCard({
                                   background: ki % 2 === 0 ? "#ffffff" : "#fafafa",
                                 }}
                               >
-                                <Typography sx={{ fontSize: "0.72rem", color: "#64748b", minWidth: "11rem", flexShrink: 0, ...mono }}>{k}</Typography>
-                                <Typography sx={{ fontSize: "0.72rem", color: variableValues[k] ? "#0f172a" : "#cbd5e1", wordBreak: "break-all", flex: 1, ...mono }}>
+                                <Typography
+                                  sx={{
+                                    fontSize: "0.72rem",
+                                    color: "#64748b",
+                                    minWidth: "11rem",
+                                    flexShrink: 0,
+                                    ...mono,
+                                  }}
+                                >
+                                  {k}
+                                </Typography>
+                                <Typography
+                                  sx={{
+                                    fontSize: "0.72rem",
+                                    color: variableValues[k] ? "#0f172a" : "#cbd5e1",
+                                    wordBreak: "break-all",
+                                    flex: 1,
+                                    ...mono,
+                                  }}
+                                >
                                   {variableValues[k] || "not set"}
                                 </Typography>
                               </Box>
@@ -404,15 +471,35 @@ export default function StageCard({
           </Box>
         )}
 
-        {hasDetails && <StagePlanDetail items={planItems} summary={planSummary} loading={planLoading} error={planError} onDeploy={onDeploy} stagesStale={deployDisabled} />}
+        {hasDetails && (
+          <StagePlanDetail
+            items={planItems}
+            summary={planSummary}
+            loading={planLoading}
+            error={planError}
+            onDeploy={onDeploy}
+            stagesStale={deployDisabled}
+          />
+        )}
 
         {!hasDetails && stage.status !== "pending" && (
-          <Typography sx={{ fontSize: "0.72rem", color: stage.status === "failed" ? "#ef4444" : "#cbd5e1", ...mono }}>No plan available for this stage.</Typography>
+          <Typography sx={{ fontSize: "0.72rem", color: stage.status === "failed" ? "#ef4444" : "#cbd5e1", ...mono }}>
+            No plan available for this stage.
+          </Typography>
         )}
 
         {(stage.deployedAt || stage.deployStatus) && (
           <Box>
-            <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, letterSpacing: "0.08em", textTransform: "uppercase", mb: 0.75 }}>
+            <Typography
+              sx={{
+                fontSize: "0.68rem",
+                color: "#94a3b8",
+                ...mono,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                mb: 0.75,
+              }}
+            >
               Last Deploy
             </Typography>
             <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
@@ -422,14 +509,38 @@ export default function StageCard({
                 <WarningAmberIcon sx={{ fontSize: 13, color: "#ef4444", flexShrink: 0, mt: "1px" }} />
               ) : null}
               <Box>
-                {stage.deployedAt && <Typography sx={{ fontSize: "0.72rem", color: "#475569", ...mono }}>{relativeTime(stage.deployedAt)}</Typography>}
+                {stage.deployedAt && (
+                  <Typography sx={{ fontSize: "0.72rem", color: "#475569", ...mono }}>
+                    {relativeTime(stage.deployedAt)}
+                  </Typography>
+                )}
                 {stage.deployStatus === "failed" && (
                   <Box sx={{ mt: 0.5 }}>
                     {!deployLogFetched ? (
                       <Typography sx={{ fontSize: "0.72rem", color: "#94a3b8", ...mono }}>Loading log...</Typography>
                     ) : deployLog ? (
-                      <Box sx={{ mt: 0.5, p: 1.25, borderRadius: "6px", background: "#fef2f2", border: "1px solid #fecaca", maxHeight: "10rem", overflowY: "auto" }}>
-                        <Typography component="pre" sx={{ fontSize: "0.68rem", color: "#b91c1c", whiteSpace: "pre-wrap", wordBreak: "break-all", m: 0, ...mono }}>
+                      <Box
+                        sx={{
+                          mt: 0.5,
+                          p: 1.25,
+                          borderRadius: "6px",
+                          background: "#fef2f2",
+                          border: "1px solid #fecaca",
+                          maxHeight: "10rem",
+                          overflowY: "auto",
+                        }}
+                      >
+                        <Typography
+                          component="pre"
+                          sx={{
+                            fontSize: "0.68rem",
+                            color: "#b91c1c",
+                            whiteSpace: "pre-wrap",
+                            wordBreak: "break-all",
+                            m: 0,
+                            ...mono,
+                          }}
+                        >
                           {deployLog}
                         </Typography>
                       </Box>

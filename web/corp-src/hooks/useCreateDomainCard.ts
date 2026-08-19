@@ -170,6 +170,7 @@ export function useCreateDomainCard({
       { id: "domain", label: "Add custom domain to Entra ID", status: "pending" },
       { id: "txt", label: "Create domain-verification TXT record", status: "pending" },
       { id: "primary", label: "Set as primary domain", status: "pending" },
+      // TODO: remove this step
       { id: "grant", label: "Grant domain permission to the pipeline", status: "pending" },
     ];
     setSteps(initialSteps);

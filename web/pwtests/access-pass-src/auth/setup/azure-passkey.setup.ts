@@ -14,8 +14,8 @@
 
 import { expect, test as setup } from "@playwright/test";
 import fs from "fs";
-import { authDir, saveSessionStorage,} from "../authState";
-import {getAccessPassUserAuth, loadAccessPassUsers,} from "../testHelper";
+import { authDir, saveSessionStorage,} from "../../setupHelper";
+import {getAccessPassUserAuth, loadAccessPassUsers,} from "../../testHelper";
 
 const ACCESS_PASS_URL = "http://localhost:5173/accessPass.html";
 

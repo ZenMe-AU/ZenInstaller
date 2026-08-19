@@ -34,14 +34,6 @@ export function loadGithubPatFromLocalSettings(): string | null {
 	}
 }
 
-export async function saveCorpSessionStorage(context: BrowserContext,) {
-	await saveSessionStorageTo(context, sessionStorageFile,);
-}
-
-export async function saveCorpAzureSessionStorage(context: BrowserContext,) {
-	await saveSessionStorageTo(context, azureSessionStorageFile,);
-}
-
 async function saveSessionStorageTo(context: BrowserContext, targetFile: string,) {
 	const pages = context.pages();
 	const page = pages[0];
@@ -67,14 +59,6 @@ async function saveSessionStorageTo(context: BrowserContext, targetFile: string,
 	fs.writeFileSync(targetFile, JSON.stringify(sessionStorageData, null,2,),);
 }
 
-export async function restoreCorpSessionStorage(context: BrowserContext,) {
-	await restoreSessionStorageFrom(context, sessionStorageFile,);
-}
-
-export async function restoreCorpAzureSessionStorage(context: BrowserContext,) {
-	await restoreSessionStorageFrom(context, azureSessionStorageFile,);
-}
-
 async function restoreSessionStorageFrom(context: BrowserContext, sourceFile: string,) {
 	if (!fs.existsSync(sourceFile)) {
 		throw new Error(`Missing Corp session storage: ${sourceFile}`,);
@@ -89,4 +73,21 @@ async function restoreSessionStorageFrom(context: BrowserContext, sourceFile: st
 		},
 		{ storage:sessionStorageData,},
 	);
+}
+
+export async function saveCorpSessionStorage(context: BrowserContext,) {
+	await saveSessionStorageTo(context, sessionStorageFile,);
+}
+
+export async function saveCorpAzureSessionStorage(context: BrowserContext,) {
+	await saveSessionStorageTo(context, azureSessionStorageFile,);
+}
+
+
+export async function restoreCorpSessionStorage(context: BrowserContext,) {
+	await restoreSessionStorageFrom(context, sessionStorageFile,);
+}
+
+export async function restoreCorpAzureSessionStorage(context: BrowserContext,) {
+	await restoreSessionStorageFrom(context, azureSessionStorageFile,);
 }

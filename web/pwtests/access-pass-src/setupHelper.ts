@@ -22,7 +22,6 @@ export function safeAuthFileName(value: string) {
 // Returns per-user auth storage and session file paths.
 export function getUserAuthFiles(userId: string) {
   const safeId = safeAuthFileName(userId);
-
   return {
     storageStateFile: path.join(authDir, `${safeId}.storage.json`),
     sessionStorageFile: path.join(authDir, `${safeId}.session.json`),
@@ -32,11 +31,7 @@ export function getUserAuthFiles(userId: string) {
 // Checks whether both required auth files exist for a user.
 export function userAuthFilesExist(userId: string) {
   const files = getUserAuthFiles(userId);
-
-  return (
-    fs.existsSync(files.storageStateFile) &&
-    fs.existsSync(files.sessionStorageFile)
-  );
+  return (fs.existsSync(files.storageStateFile) &&fs.existsSync(files.sessionStorageFile));
 }
 
 // Saves current browser sessionStorage to disk for later authenticated test runs.
@@ -51,25 +46,17 @@ export async function saveSessionStorage(page: Page, targetSessionStorageFile = 
       }),
     );
   });
-
-  fs.writeFileSync(
-    targetSessionStorageFile,
-    JSON.stringify(sessionStorageData, null, 2),
-  );
+  fs.writeFileSync(targetSessionStorageFile,JSON.stringify(sessionStorageData, null, 2),);
 }
 
 // Restores previously saved sessionStorage values into a new page context.
 export async function restoreSessionStorage(page: Page, targetSessionStorageFile = sessionStorageFile,) {
   if (!fs.existsSync(targetSessionStorageFile)) {
-    throw new Error(
-      `Missing session storage file: ${targetSessionStorageFile}. Run pwtests/auth/azure-passkey.setup.ts first.`,
-    );
+    throw new Error(`Missing session storage file: ${targetSessionStorageFile}. Run pwtests/auth/azure-passkey.setup.ts first.`,);
   }
 
   const sessionStorageData = JSON.parse(
-    fs.readFileSync(targetSessionStorageFile, "utf-8"),
-  ) as Record<string, string>;
-
+    fs.readFileSync(targetSessionStorageFile, "utf-8"),) as Record<string, string>;
   await page.addInitScript((data) => {
     for (const [key, value] of Object.entries(data)) {
       window.sessionStorage.setItem(key, value);

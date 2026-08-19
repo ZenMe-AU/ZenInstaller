@@ -20,7 +20,6 @@ function safePathSegment(value: string,): string {
 		.trim()
 		.replace(/[^a-zA-Z0-9._-]+/g,"-",)
 		.replace(/^[-_.]+|[-_.]+$/g,"",);
-
 	return safeValue || "unnamed";
 }
 
@@ -31,44 +30,23 @@ export async function expectPageSnapshot(
 	snapshotName: string,
 	options: PageSnapshotOptions,
 ): Promise<void> {
-	await page
-		.waitForLoadState("domcontentloaded")
-		.catch(() => undefined);
-
-	await page
-		.waitForLoadState("networkidle")
-		.catch(() => undefined);
-
-	await page
-		.locator("body")
-		.evaluate(async () => {
-			await document.fonts?.ready;
-		})
-		.catch(() => undefined);
-
-	await page
-		.waitForTimeout(300)
-		.catch(() => undefined);
+	await page.waitForLoadState("domcontentloaded").catch(() => undefined);
+	await page.waitForLoadState("networkidle").catch(() => undefined);
+	await page.locator("body").evaluate(async () => {
+	await document.fonts?.ready;}).catch(() => undefined);
+	await page.waitForTimeout(300).catch(() => undefined);
 
 	const normalizedSnapshotName = snapshotName.endsWith(".png") ? snapshotName : `${snapshotName}.png`;
 	const testPathSegments = testInfo.file.split(/[\\/]/,);
 	const testDirectory = safePathSegment(testPathSegments.at(-2) ?? "unnamed",);
-	const testFile = safePathSegment(
-		testPathSegments.at(-1)?.replace(/\.spec\.tsx?$/, "") ?? "unnamed",
-	);
+	const testFile = safePathSegment(testPathSegments.at(-1)?.replace(/\.spec\.tsx?$/, "") ?? "unnamed",);
 	const viewportFolder = safePathSegment(options.viewportName,);
 	const relativeSnapshotPath = ["corp-src", "snapshots", testDirectory, testFile, viewportFolder, normalizedSnapshotName,];
-
 	const expectedSnapshotPath = testInfo.snapshotPath(...relativeSnapshotPath,);
 	const baselineExists = fs.existsSync(expectedSnapshotPath,);
 
 	if (!baselineExists && testInfo.config.updateSnapshots === "missing") {
-		console.info([
-			"",
-			"Generating missing baseline snapshot:",
-			expectedSnapshotPath,
-			"",
-		].join("\n"),);
+		console.info(["","Generating missing baseline snapshot:",expectedSnapshotPath,"",].join("\n"),);
 	}
 
 	await expect(page).toHaveScreenshot(
@@ -84,6 +62,7 @@ export async function expectPageSnapshot(
 	);
 }
 
+// takes snapshot of a specific card element, rather than the whole page
 export async function expectCardSnapshot(
 	page: Page,
 	card: Locator,

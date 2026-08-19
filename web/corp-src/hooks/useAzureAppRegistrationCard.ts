@@ -188,7 +188,7 @@ export function useAzureAppRegistrationCard({
       if (existing) {
         appId = existing.appId;
         appObjectId = existing.id;
-        updateStep("app", "done", `Existing: ${appId}`);
+        updateStep("app", "skipped", `Existing: ${appId}`);
       } else {
         // No pipeline-wide app permissions requested up front — cards that need one (e.g. domain) grant it themselves.
         const created = await createAppRegistration(azureAccount, appName, [], effectiveTenantId);
@@ -202,7 +202,7 @@ export function useAzureAppRegistrationCard({
       const existingSP = await getExistingSP(azureAccount, appId, effectiveTenantId);
       if (existingSP) {
         spObjectId = existingSP.id;
-        updateStep("sp", "done", "Already exists");
+        updateStep("sp", "skipped", "Already exists");
       } else {
         const sp = await createServicePrincipal(azureAccount, appId, effectiveTenantId);
         spObjectId = sp.id;
@@ -224,7 +224,11 @@ export function useAzureAppRegistrationCard({
           added += 1;
         }
       }
-      updateStep("creds", "done", `${environments.join(", ")} — ${added} added`);
+      if (added === 0) {
+        updateStep("creds", "skipped", `${environments.join(", ")} already exist`);
+      } else {
+        updateStep("creds", "done", `${environments.join(", ")} — ${added} added`);
+      }
 
       currentStep = "rbac";
       updateStep("rbac", "running");

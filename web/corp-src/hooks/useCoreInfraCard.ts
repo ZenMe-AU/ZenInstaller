@@ -15,6 +15,7 @@ import {
   type AzureLocation,
 } from "../api/azureArm";
 import { getExistingSP } from "../api/azureGraph";
+import { ensureScopeConsent } from "../api/msal";
 import {
   getRootResourceGroupName,
   getLogAnalyticsWorkspaceName,
@@ -26,7 +27,7 @@ import {
 } from "../logic/naming";
 import { createResultStorage } from "../logic/resultStorage";
 import { useStepRunner } from "./util/useStepRunner";
-import { AZURE_CLIENT_ID, CORE_INFRA_PROVIDERS } from "../config/azureConfig";
+import { APP_SCOPES, ARM_SCOPES, AZURE_CLIENT_ID, CORE_INFRA_PROVIDERS } from "../config/azureConfig";
 import { useProviderRegistration } from "./util/useProviderRegistration";
 import type { AzureConfigHook, AzureSpTarget, CardHook, CardRequirements, CardStatus, SetupStep } from "../types";
 
@@ -175,6 +176,7 @@ export function useCoreInfraCard({
     setRunning(true);
 
     const initialSteps: SetupStep[] = [
+      { id: "consent", label: "Confirm Microsoft permissions", status: "pending" },
       { id: "providers", label: "Register required Azure resource providers", status: "pending" },
       { id: "rg", label: `Create resource group ${resourceGroupName}`, status: "pending" },
       { id: "rg-rbac", label: "Grant GitHub Actions access to the resource group", status: "pending" },
@@ -187,9 +189,16 @@ export function useCoreInfraCard({
     ];
     setSteps(initialSteps);
 
-    let currentStep = "providers";
+    let currentStep = "consent";
     let sp: Awaited<ReturnType<typeof getExistingSP>> = null;
     try {
+      currentStep = "consent";
+      updateStep("consent", "running");
+      const promptedArm = await ensureScopeConsent(azureAccount, ARM_SCOPES, tenantId);
+      const promptedGraph = await ensureScopeConsent(azureAccount, [...APP_SCOPES], tenantId);
+      const prompted = promptedArm || promptedGraph;
+      updateStep("consent", prompted ? "done" : "skipped", prompted ? undefined : "Already granted");
+
       currentStep = "providers";
       updateStep("providers", "running");
       const providers = await ensureRegistered(CORE_INFRA_PROVIDERS);

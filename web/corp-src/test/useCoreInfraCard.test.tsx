@@ -37,6 +37,7 @@ const { apiMocks } = vi.hoisted(() => ({
 		hasRbacRoleAtScope: vi.fn(),
 		listLocations: vi.fn(),
 		getExistingSP: vi.fn(),
+		ensureScopeConsent: vi.fn(),
 		resourceGroupScope: vi.fn((subscriptionId: string, resourceGroupName: string) => `${subscriptionId}/${resourceGroupName}`),
 		storageAccountScope: vi.fn(
 			(subscriptionId: string, resourceGroupName: string, storageAccountName: string) =>
@@ -77,6 +78,12 @@ vi.mock("../config/azureConfig", () => ({
 		return configMocks.azureClientId;
 	},
 	CORE_INFRA_PROVIDERS: ["Microsoft.OperationalInsights", "Microsoft.Insights", "Microsoft.Storage"],
+	ARM_SCOPES: ["arm.scope"],
+	APP_SCOPES: ["app.scope"],
+}));
+
+vi.mock("../api/msal", () => ({
+	ensureScopeConsent: apiMocks.ensureScopeConsent,
 }));
 
 function HookHarness(
@@ -112,6 +119,7 @@ describe("useCoreInfraCard", () => {
 		configMocks.azureClientId = "client-id";
 
 		apiMocks.resourceGroupExists.mockResolvedValue(true);
+		apiMocks.ensureScopeConsent.mockResolvedValue(false);
 		apiMocks.getExistingSP.mockResolvedValue({ id: "sp-1" });
 		apiMocks.hasRbacRoleAtScope.mockResolvedValue(true);
 		apiMocks.listLocations.mockResolvedValue([{ name: "eastus", displayName: "East US" }]);
@@ -462,6 +470,42 @@ describe("useCoreInfraCard", () => {
 			expect(latest?.steps.find((s) => s.id === "rbac")?.detail).toBe("Already assigned");
 			expect(localStorage.getItem("zeninstaller_infra_result")).not.toBeNull();
 		});
+
+		await act(async () => {
+			root.unmount();
+		});
+	});
+
+	it("asks for every scope up front, one call per resource, before doing any work", async () => {
+		let latest: UseCoreInfraCard | null = null;
+		const root = createRoot(document.createElement("div"));
+
+		await act(async () => {
+			root.render(
+				<HookHarness
+					{...baseProps()}
+					onUpdate={(value) => {
+						latest = value;
+					}}
+				/>,
+			);
+		});
+
+		await act(async () => {
+			await latest?.run();
+		});
+
+		await waitFor(() => {
+			expect(apiMocks.ensureScopeConsent).toHaveBeenCalledTimes(2);
+		});
+		// ARM and Graph are separate resources, so they cannot share one token request.
+		expect(apiMocks.ensureScopeConsent.mock.calls[0][1]).toEqual(["arm.scope"]);
+		expect(apiMocks.ensureScopeConsent.mock.calls[1][1]).toEqual(["app.scope"]);
+		// Nothing may run before consent is settled — a redirect here must cost no progress.
+		expect(apiMocks.ensureScopeConsent.mock.invocationCallOrder[1]).toBeLessThan(
+			apiMocks.ensureResourceGroup.mock.invocationCallOrder[0],
+		);
+		expect(latest?.steps.find((s) => s.id === "consent")?.status).toBe("skipped");
 
 		await act(async () => {
 			root.unmount();

@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
-import { getMsal } from "../api/msal";
-import { AZURE_CLIENT_ID, APP_SCOPES } from "../config/azureConfig";
+import { ensureScopeConsent, getMsal } from "../api/msal";
+import { APP_SCOPES, ARM_SCOPES, AZURE_CLIENT_ID } from "../config/azureConfig";
 import {
   getExistingApp,
   getAppNameByAppId,
@@ -168,6 +168,7 @@ export function useAzureAppRegistrationCard({
     const resolvedTenantId = effectiveTenantId ?? azureAccount.tenantId;
 
     const initialSteps: SetupStep[] = [
+      { id: "consent", label: "Confirm Microsoft permissions", status: "pending" },
       { id: "app", label: "Create app registration", status: "pending" },
       { id: "sp", label: "Create service principal", status: "pending" },
       { id: "oidc", label: "Switch GitHub OIDC to immutable subject", status: "pending" },
@@ -179,9 +180,16 @@ export function useAzureAppRegistrationCard({
     let appId = "";
     let appObjectId = "";
     let spObjectId = "";
-    let currentStep = "app";
+    let currentStep = "consent";
 
     try {
+      currentStep = "consent";
+      updateStep("consent", "running");
+      const promptedGraph = await ensureScopeConsent(azureAccount, [...APP_SCOPES], effectiveTenantId);
+      const promptedArm = await ensureScopeConsent(azureAccount, [...ARM_SCOPES], effectiveTenantId);
+      const prompted = promptedGraph || promptedArm;
+      updateStep("consent", prompted ? "done" : "skipped", prompted ? undefined : "Already granted");
+
       currentStep = "app";
       updateStep("app", "running");
       const existing = await getExistingApp(azureAccount, appName, effectiveTenantId);

@@ -3,12 +3,12 @@ packages:
   - "backend"
 
 allowBuilds:
-  azure-functions-core-tools: set this to true or false
-  esbuild: set this to true or false
+  azure-functions-core-tools: true
+  esbuild: true
 
 minimumReleaseAgeExclude:
-  - '@aws-sdk/client-iam@3.1114.0'
-  - '@aws-sdk/client-sts@3.1114.0'
+  - "@aws-sdk/client-iam@3.1114.0"
+  - "@aws-sdk/client-sts@3.1114.0"
 
 onlyBuiltDependencies:
   - esbuild

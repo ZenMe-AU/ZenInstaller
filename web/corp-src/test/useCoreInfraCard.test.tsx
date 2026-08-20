@@ -496,13 +496,12 @@ describe("useCoreInfraCard", () => {
 		});
 
 		await waitFor(() => {
-			expect(apiMocks.ensureScopeConsent).toHaveBeenCalledTimes(2);
+			expect(apiMocks.ensureScopeConsent).toHaveBeenCalledTimes(1);
 		});
-		// ARM and Graph are separate resources, so they cannot share one token request.
-		expect(apiMocks.ensureScopeConsent.mock.calls[0][1]).toEqual(["arm.scope"]);
-		expect(apiMocks.ensureScopeConsent.mock.calls[1][1]).toEqual(["app.scope"]);
+		// ARM consent is already established by the Azure login card, so only Graph is asked for here.
+		expect(apiMocks.ensureScopeConsent.mock.calls[0][1]).toEqual(["app.scope"]);
 		// Nothing may run before consent is settled — a redirect here must cost no progress.
-		expect(apiMocks.ensureScopeConsent.mock.invocationCallOrder[1]).toBeLessThan(
+		expect(apiMocks.ensureScopeConsent.mock.invocationCallOrder[0]).toBeLessThan(
 			apiMocks.ensureResourceGroup.mock.invocationCallOrder[0],
 		);
 		expect(latest?.steps.find((s) => s.id === "consent")?.status).toBe("skipped");

@@ -194,10 +194,8 @@ export function useCoreInfraCard({
     try {
       currentStep = "consent";
       updateStep("consent", "running");
-      const promptedArm = await ensureScopeConsent(azureAccount, ARM_SCOPES, tenantId);
       const promptedGraph = await ensureScopeConsent(azureAccount, [...APP_SCOPES], tenantId);
-      const prompted = promptedArm || promptedGraph;
-      updateStep("consent", prompted ? "done" : "skipped", prompted ? undefined : "Already granted");
+      updateStep("consent", promptedGraph ? "done" : "skipped", promptedGraph ? undefined : "Already granted");
 
       currentStep = "providers";
       updateStep("providers", "running");

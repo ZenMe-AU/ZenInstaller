@@ -196,10 +196,8 @@ export function useCreateDomainCard({
       currentStep = "consent";
       updateStep("consent", "running");
       const graphScopes = [...new Set([...DOMAIN_SCOPES, ...GRANT_CONSENT_SCOPES, ...APP_SCOPES])];
-      const promptedArm = await ensureScopeConsent(azureAccount, ARM_SCOPES, tenantId);
       const promptedGraph = await ensureScopeConsent(azureAccount, graphScopes, tenantId);
-      const prompted = promptedArm || promptedGraph;
-      updateStep("consent", prompted ? "done" : "skipped", prompted ? undefined : "Already granted");
+      updateStep("consent", promptedGraph ? "done" : "skipped", promptedGraph ? undefined : "Already granted");
 
       currentStep = "providers";
       updateStep("providers", "running");

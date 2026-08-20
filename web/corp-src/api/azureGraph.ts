@@ -1,7 +1,6 @@
-import { getMsal } from "./msal";
+import { getMsal, MSA_TENANT } from "./msal";
 import {
   APP_SCOPES,
-  LOGIN_SCOPES,
   ARM_SCOPES,
   DOMAIN_SCOPES,
   GRANT_CONSENT_SCOPES,
@@ -16,8 +15,6 @@ const GRAPH = "https://graph.microsoft.com/v1.0";
 const ARM = "https://management.azure.com";
 
 // ── Token helpers ──────────────────────────────────────────────────────────────
-
-export const MSA_TENANT = "9188040d-6c67-4c5b-b112-36a304b66dad"; // Microsoft consumer tenant (MSA accounts)
 
 /*
  * overrideTenantId is used for MSA accounts to target a specific AAD tenant

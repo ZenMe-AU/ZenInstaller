@@ -1,6 +1,8 @@
-import { BrowserAuthError, InteractionRequiredAuthError, PublicClientApplication } from "@azure/msal-browser";
+import { InteractionRequiredAuthError, PublicClientApplication } from "@azure/msal-browser";
 import { AZURE_CLIENT_ID } from "../config/azureConfig";
 import type { AzureAccount } from "../types";
+
+export const MSA_TENANT = "9188040d-6c67-4c5b-b112-36a304b66dad"; // Microsoft consumer tenant (MSA accounts)
 
 let _msal: PublicClientApplication | null = null;
 let _initialized = false;
@@ -24,9 +26,6 @@ export async function getMsal(): Promise<PublicClientApplication | null> {
   return _msal;
 }
 
-// Popup blocked or unavailable — fall back to a redirect. A deliberate cancel is not a failure to retry.
-const POPUP_UNAVAILABLE = ["popup_window_error", "empty_window_error", "block_nested_popups"];
-
 export async function ensureScopeConsent(
   account: AzureAccount,
   scopes: string[],
@@ -34,10 +33,13 @@ export async function ensureScopeConsent(
 ): Promise<boolean> {
   const msal = await getMsal();
   if (!msal) return false;
+  const tenant = overrideTenantId || account.tenantId;
+  const authority = tenant !== MSA_TENANT ? `https://login.microsoftonline.com/${tenant}` : undefined;
   const request = {
     scopes,
     account,
-    authority: `https://login.microsoftonline.com/${overrideTenantId || account.tenantId}`,
+    ...(authority ? { authority } : {}),
+    loginHint: account.username,
   };
 
   try {
@@ -47,14 +49,7 @@ export async function ensureScopeConsent(
     if (!(err instanceof InteractionRequiredAuthError)) throw err;
   }
 
-  try {
-    await msal.acquireTokenPopup(request);
-    return true;
-  } catch (err) {
-    const code = err instanceof BrowserAuthError ? err.errorCode : "";
-    if (!POPUP_UNAVAILABLE.includes(code)) throw err;
-    // Navigates away; nothing after this runs.
-    await msal.acquireTokenRedirect(request);
-    return true;
-  }
+  // Navigates away; nothing after this runs. The user re-runs the card on their way back.
+  await msal.acquireTokenRedirect(request);
+  return true;
 }

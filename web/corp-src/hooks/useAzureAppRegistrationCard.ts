@@ -186,9 +186,7 @@ export function useAzureAppRegistrationCard({
       currentStep = "consent";
       updateStep("consent", "running");
       const promptedGraph = await ensureScopeConsent(azureAccount, [...APP_SCOPES], effectiveTenantId);
-      const promptedArm = await ensureScopeConsent(azureAccount, [...ARM_SCOPES], effectiveTenantId);
-      const prompted = promptedGraph || promptedArm;
-      updateStep("consent", prompted ? "done" : "skipped", prompted ? undefined : "Already granted");
+      updateStep("consent", promptedGraph ? "done" : "skipped", promptedGraph ? undefined : "Already granted");
 
       currentStep = "app";
       updateStep("app", "running");

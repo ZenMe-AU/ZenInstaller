@@ -17,10 +17,10 @@
     "deploy": "pnpm --filter . deploy --legacy --prod ${DEPLOY_OUT:-./dist} --config.node-linker=hoisted --config.symlink=false --config.package-import-method=copy"
   },
   "dependencies": {
-    "@azure/functions": "^4.0.0",
+    "@azure/functions": "^4.16.2",
     "octokit": "^5.0.5"
   },
   "devDependencies": {
-    "azure-functions-core-tools": "^4.x"
+    "azure-functions-core-tools": "^4.13.0"
   }
 }

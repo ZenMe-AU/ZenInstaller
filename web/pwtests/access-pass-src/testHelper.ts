@@ -11,7 +11,6 @@ export type LoadAccessPassUsersOptions = {softFail?: boolean;};
 export type PageSnapshotOptions = {
   userId: string;
   viewportName: string;
-  testFolder?: string;
   mask?: Locator[];
   stabilizeAuth?: boolean;
 };
@@ -143,12 +142,11 @@ export async function expectPageSnapshot(
 
   const userFolder = safePathSegment(options.userId,);
   const viewportFolder =safePathSegment(options.viewportName,);
-  const testFolder =safePathSegment(options.testFolder ??testInfo.title,);
-  const projectName =safePathSegment(testInfo.project.name || "default",);
+  const testPathSegments = testInfo.file.split(/[\\/]/,);
+  const testFile = safePathSegment(testPathSegments.at(-1)?.replace(/\.spec\.tsx?$/, "",) ?? "unnamed",);
 
   const normalisedSnapshotName =snapshotName.endsWith(".png") ? snapshotName : `${snapshotName}.png`;
-  const snapshotFileName =`${projectName}-${normalisedSnapshotName}`;
-  const relativeSnapshotPath = ["access-pass-src", "snapshots", userFolder, viewportFolder, testFolder, snapshotFileName];
+  const relativeSnapshotPath = ["access-pass-src", "snapshots", userFolder, testFile, viewportFolder, normalisedSnapshotName];
   const expectedSnapshotPath = testInfo.snapshotPath(...relativeSnapshotPath,);
   const baselineExists = fs.existsSync(expectedSnapshotPath,);
 

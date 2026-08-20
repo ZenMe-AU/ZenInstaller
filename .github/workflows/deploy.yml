@@ -1,60 +1,53 @@
 name: Deploy to GitHub Pages
 
 on:
-    # push:
-    #     branches:
-    #         - main
-    workflow_dispatch:
+  # push:
+  #     branches:
+  #         - main
+  workflow_dispatch:
 
 permissions:
-    contents: read
-    pages: write
-    id-token: write
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
-    deploy:
-        runs-on: ubuntu-latest
-        environment:
-            name: github-pages
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
 
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-            - name: Setup pnpm
-              uses: pnpm/action-setup@v4
-              with:
-                  version: 10
+      - name: Install node and pnpm
+        uses: pnpm/setup@v1
+        with:
+          version: 11.22.0
+          runtime: node@22
+          cache: true
 
-            - name: Setup Node
-              uses: actions/setup-node@v4
-              with:
-                  node-version: 22
-                  cache: pnpm
+      - name: Build React app
+        run: pnpm run build
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_AZURE_CLIENT_ID: ${{ vars.VITE_AZURE_CLIENT_ID }}
 
-            - name: Install dependencies
-              run: pnpm install --frozen-lockfile
+      - name: Build VitePress docs
+        run: pnpm run docs:build
 
-            - name: Build React app
-              run: pnpm run build
-              env:
-                  VITE_API_URL: ${{ vars.VITE_API_URL }}
-                  VITE_AZURE_CLIENT_ID: ${{ vars.VITE_AZURE_CLIENT_ID }}
+      - name: Merge docs into dist
+        run: cp -r web/docs/.vitepress/dist web/dist/docs
 
-            - name: Build VitePress docs
-              run: pnpm run docs:build
+      - name: Write CNAME
+        if: vars.CNAME != ''
+        run: echo "${{ vars.CNAME }}" > web/dist/CNAME
 
-            - name: Merge docs into dist
-              run: cp -r web/docs/.vitepress/dist web/dist/docs
+      - name: Upload build files
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./web/dist
 
-            - name: Write CNAME
-              if: vars.CNAME != ''
-              run: echo "${{ vars.CNAME }}" > web/dist/CNAME
-
-            - name: Upload build files
-              uses: actions/upload-pages-artifact@v3
-              with:
-                  path: ./web/dist
-
-            - name: Deploy to Pages
-              uses: actions/deploy-pages@v4
+      - name: Deploy to Pages
+        uses: actions/deploy-pages@v4

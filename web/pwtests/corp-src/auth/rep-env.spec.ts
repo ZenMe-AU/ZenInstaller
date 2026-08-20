@@ -1,3 +1,130 @@
 import {expect, test, type Page,} from "@playwright/test";
+import {corpGithubAuthStateExists, restoreCorpSessionStorage, storageStateFile,} from "../setupHelper";
 import {CORP_URL, viewports,} from "../../testInit";
 import {expectCardSnapshot, sensitiveTextMasks} from "../testHelper";
+
+async function expandRepoCard(page: Page,) {
+	const repoCard = page.locator("#card-repo",);
+	const repoInput = repoCard.getByRole("combobox", {name: "Select or type repo name...",},);
+
+	if (!(await repoInput.isVisible())) {
+		await repoCard.getByText(/^Repository & environment$/i,).click();
+	}
+
+	await expect(repoInput).toBeVisible();
+	return repoCard;
+}
+
+for (const [viewportName, viewport] of Object.entries(viewports)) {
+	test.describe(`Corp-${viewportName} - Repository & environment`, () => {
+		test.use({viewport, deviceScaleFactor: 1, storageState: storageStateFile,});
+		test.skip(!corpGithubAuthStateExists(),"Run pwtests/corp-src/setup/github-pat-login.setup.ts first.",);
+
+		test.beforeEach(async ({page, context,}) => {
+			await restoreCorpSessionStorage(context,);
+			const repositoriesLoaded = page.waitForResponse((response) => {const url = response.url();
+			return (response.ok() &&url.startsWith("https://api.github.com/") && (url.includes("/user/repos") ||/\/orgs\/[^/]+\/repos/.test(url)));},
+			{timeout: 30_000},);
+			await page.goto(CORP_URL);
+			await repositoriesLoaded;
+		});
+
+		test("Renders Repo & Env Card after Github Auth", async ({page,}, testInfo) => {
+			const repoCard = await expandRepoCard(page,);
+			await expect(repoCard.getByRole("combobox", {name: "Select or type repo name...",},)).toBeVisible();
+			await expect(repoCard.getByText(/^Repository & environment$/i,)).toBeVisible();
+			await expect(repoCard.getByText(/Select the GitHub location and type the name of the repository/i,)).toBeVisible();
+
+			await expectCardSnapshot(page, repoCard, testInfo,"card-rendered.png",
+				{
+					userId: "github-pat",
+					viewportName,
+					testFolder: "Repository and Environment Authenticated",
+					mask: sensitiveTextMasks(page,),
+				},
+			);
+		});
+
+	test("Typing new repo name in the textbox", async ({page,}, testInfo) => {
+		const repoCard = await expandRepoCard(page);
+		const repoInput = page.getByRole("combobox", {name: "Select or type repo name...",});
+		await repoInput.click();
+		await repoInput.fill("zeninstaller-playwright-test");
+		const cloneOption = page.getByRole("option", {name: "Clone as “zeninstaller-",});
+		await expect(cloneOption).toBeVisible();
+		await cloneOption.click();
+		// Confirm the option click changed the application's state.
+		await expect(cloneOption).toBeHidden();
+		await expect(repoInput).toHaveAttribute("aria-expanded", "false");
+		await expect(repoCard.getByText(/^Clone from template$/i),).toBeVisible();
+		await expect(repoCard.getByRole("button", {name: "Clone Repository"}),).toBeVisible();
+		await expect(repoCard.getByRole("switch", {name: "Private"}),).toBeChecked();
+		await expect(repoCard.getByRole("switch", {name: "Clone all branches"}),).not.toBeChecked();
+		await expect(repoCard.getByRole("switch", {name: "Create environments"}),).toBeChecked();
+		await expect(repoCard.getByText(/Pick the environment to configure/i),).toHaveCount(0);
+
+		await expectCardSnapshot(page, repoCard, testInfo,"created-repo.png",
+			{
+				userId: "github-pat",
+				viewportName,
+				testFolder: "Repository and Environment Authenticated",
+				mask: sensitiveTextMasks(page,),
+			});
+		});
+
+	test("Selecting repo not a clone of ZBReactArchitecture", async ({page,}, testInfo) => {
+		const invalidRepoName = "playwright-invalid-template-repo";
+		const invalidRepoId = 987654321;
+
+		// Mock the repository list for either a user or organisation account.
+		await page.route(/https:\/\/api\.github\.com\/(?:user\/repos|orgs\/[^/]+\/repos)(?:\?.*)?$/,
+			async (route) => {await route.fulfill({status: 200,contentType: "application/json",body: JSON.stringify([
+						{id: invalidRepoId,name: invalidRepoName,owner: {type: "User",},},]),});
+			},
+		);
+
+		// The repository exists, but it was not created from the required template.
+		await page.route(
+			new RegExp(`https://api\\.github\\.com/repos/[^/]+/${invalidRepoName}(?:\\?.*)?$`,),
+			async (route) => {await route.fulfill({status: 200,contentType: "application/json",body: JSON.stringify({
+						id: invalidRepoId,name: invalidRepoName,template_repository: null,}),});
+			},
+		);
+
+		// The invalid repository has no GitHub environments.
+		await page.route(new RegExp(`https://api\\.github\\.com/repos/[^/]+/${invalidRepoName}/environments(?:\\?.*)?$`,),
+			async (route) => {await route.fulfill({status: 200,contentType: "application/json",body: JSON.stringify({
+						total_count: 0,environments: [],}),});},
+		);
+
+		// Start waiting before reloading so the mocked response is not missed.
+		const mockedReposLoaded = page.waitForResponse((response) => {
+			return (response.ok() &&(response.url().includes("/user/repos") || /\/orgs\/[^/]+\/repos/.test(response.url())));
+		});
+
+		await page.reload();
+		await mockedReposLoaded;
+		const repoCard = await expandRepoCard(page);
+		const repoInput = repoCard.getByRole("combobox", {name: "Select or type repo name...",})
+		await repoInput.click();
+		const invalidRepoOption = page.getByRole("option", {name: invalidRepoName,});
+		await expect(invalidRepoOption).toBeVisible();
+		await invalidRepoOption.click();
+		await expect(repoInput).toHaveValue(invalidRepoName);
+		await expect(repoInput).toHaveAttribute("aria-expanded", "false");
+		await expect(repoCard.getByText("Not a clone", {exact: true})).toBeVisible();
+		await expect(repoCard.getByText("This repo is not a clone of the template. Only repos cloned from ZenMe-AU/ZBCorpArchitecture can be used.")).toBeVisible();
+		await expect(repoCard.getByText("No environment found.", {exact: true})).toBeVisible();
+
+		await expectCardSnapshot(page, repoCard, testInfo,"invalid-repo.png",
+			{
+				userId: "github-pat",
+				viewportName,
+				testFolder: "Repository and Environment Authenticated",
+				mask: sensitiveTextMasks(page,),
+			});
+	})
+		});
+
+}
+

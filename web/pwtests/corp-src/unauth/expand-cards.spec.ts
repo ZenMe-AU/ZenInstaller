@@ -11,15 +11,13 @@ const CARD_SNAPSHOT_DIR = path.resolve(
 
 const CARDS_UNAUTHENTICATED = [
 	{id: "github_login", title: /^GitHub login$/i,},
-	{id: "azure_login", title: /^Azure login$/i,},
 	{id: "repo", title: /^Repository & environment$/i,},
+	{id: "azure_login", title: /^Azure login$/i,},
 	{id: "azure_subscription", title: /^Choose Azure subscription$/i,},
-	{id: "access_pass", title: /^Access pass$/,},
+	{id: "azure_app_registration", title: /^Create an app registration in Azure$/i,},
 	{id: "company_info", title: /^Company info$/i,},
-	{id: "azure_app_registration", title: /^Register ZenInstaller in Azure$/i,},
-	{id: "core_infra", title: /^Core infrastructure$/i,},
+	{id: "core_infra", title: /^Terraform state backend$/i,},
 	{id: "create_domain", title: /^Corp domain$/i,},
-	{id: "global_groups", title: /^Global groups$/i,},
 	{id: "aws_login", title: /^AWS login$/i,},
 	{id: "aws_setup", title: /^AWS setup$/i,},
 	{id: "stage_c01", title: /^c01subscription$/i,},
@@ -28,6 +26,7 @@ const CARDS_UNAUTHENTICATED = [
 	{id: "stage_c20", title: /^c20awsentrasso$/i,},
 	{id: "stage_c21", title: /^c21awsentrassoP2$/i,},
 	{id: "stage_c25", title: /^c25cloudfront$/i,},
+	{id: "access_pass", title: /^Access pass$/,},
 ] as const;
 
 const UNLOCKED_CARD_IDS = new Set(["github_login", "azure_login", "aws_login",],);

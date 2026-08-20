@@ -125,7 +125,9 @@ function AppDashboard() {
   const awsSetup = addCard(
     useAwsSetupCard({
       githubAccount: githubRepoEnv.repo.selectedAccount?.login ?? "",
+      githubAccountId: githubRepoEnv.repo.selectedAccount?.id ?? 0,
       githubRepo: githubRepoEnv.repo.selectedRepo?.name ?? "",
+      githubRepoId: typeof githubRepoEnv.repo.selectedRepo?.id === "number" ? githubRepoEnv.repo.selectedRepo.id : null,
       variableValues: githubVariableValues,
       awsReady: awsLogin.done,
       awsAccount: awsLogin.account,

@@ -49,6 +49,17 @@ export function getFederatedCredential(
   // The "-id" suffix keeps this from colliding with a legacy-format credential left by an earlier run.
   return {
     name: getFederatedCredentialName(org, repo, environment, "-id"),
-    subject: `${getImmutableRepoSegment(org, orgId, repo, repoId)}:environment:${environment}`,
+    subject: getFederatedSubject(org, orgId, repo, repoId, environment),
   };
+}
+
+// The OIDC sub claim a GitHub Actions run emits — matched verbatim by Entra and by AWS IAM alike.
+export function getFederatedSubject(
+  org: string,
+  orgId: number,
+  repo: string,
+  repoId: number,
+  environment: string,
+): string {
+  return `${getImmutableRepoSegment(org, orgId, repo, repoId)}:environment:${environment}`;
 }

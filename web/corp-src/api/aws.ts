@@ -126,7 +126,7 @@ export type CreateAwsIamRoleParams = {
   accountId: string;
   org: string;
   repo: string;
-  environments: string[];
+  subjects: string[]; // OIDC sub claims to trust — built by the caller from logic/naming.
   roleName: string;
 };
 
@@ -134,13 +134,13 @@ export type CreateAwsIamRoleParams = {
 // via OIDC — no long-lived AWS secrets stored in GitHub. Idempotent: re-running with
 // additional environments merges them into the existing trust policy.
 export async function createOrUpdateGithubOidcRole(
-  { accountId, org, repo, environments, roleName }: CreateAwsIamRoleParams,
+  { accountId, org, repo, subjects, roleName }: CreateAwsIamRoleParams,
 ): Promise<{ roleArn: string; updated: boolean }> {
   const credentials = requireCurrentAwsSessionCredentials();
   const iam = new IAMClient({ region: "us-east-1", credentials });
 
   const oidcProviderArn = `arn:aws:iam::${accountId}:oidc-provider/token.actions.githubusercontent.com`;
-  const newSubs = environments.map((env) => `repo:${org}/${repo}:environment:${env}`);
+  const newSubs = subjects;
 
   const newStatement: TrustPolicyStatement = {
     Effect: "Allow",

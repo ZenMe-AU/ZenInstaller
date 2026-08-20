@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { createOrUpdateGithubOidcRole, ensureGithubOidcProvider } from "../api/aws";
+import { getFederatedSubject } from "../logic/naming";
 import type { AwsCallerIdentity } from "../api/aws";
 import { PIPELINE } from "../logic/pipeline";
 import { AWS_VARIABLE_KEYS } from "../logic/variables";
@@ -10,7 +11,9 @@ export type SetupStep = { id: string; label: string; status: StepStatus; detail?
 
 export type UseAwsSetupCardParams = {
   githubAccount: string;
+  githubAccountId: number;
   githubRepo: string;
+  githubRepoId: number | null;
   variableValues: Record<string, string>;
   awsReady: boolean;
   awsAccount: AwsCallerIdentity | null;
@@ -35,7 +38,9 @@ export type UseAwsSetupCard = CardHook & {
 
 export function useAwsSetupCard({
   githubAccount,
+  githubAccountId,
   githubRepo,
+  githubRepoId,
   variableValues,
   awsReady,
   awsAccount,
@@ -61,12 +66,7 @@ export function useAwsSetupCard({
   const savedRoleArn = variableValues[AWS_VARIABLE_KEYS[0]]?.trim() ?? "";
   const done = !!savedRoleArn;
   const canCreate =
-    awsReady &&
-    !!awsAccount &&
-    !!roleName.trim() &&
-    environments.length > 0 &&
-    !!githubAccount &&
-    !!githubRepo;
+    awsReady && !!awsAccount && !!roleName.trim() && environments.length > 0 && !!githubAccount && !!githubRepo;
 
   const resetRoleCreation = () => {
     setSteps([]);
@@ -97,11 +97,14 @@ export function useAwsSetupCard({
 
       currentStep = "role";
       updateStep("role", "running");
+      if (githubRepoId === null) throw new Error(`Create the repository ${githubRepo} on GitHub before running this`);
       const { roleArn: arn, updated } = await createOrUpdateGithubOidcRole({
         accountId: awsAccount.accountId,
         org: githubAccount,
         repo: githubRepo,
-        environments,
+        subjects: environments.map((env) =>
+          getFederatedSubject(githubAccount, githubAccountId, githubRepo, githubRepoId, env),
+        ),
         roleName,
       });
       updateStep("role", "done", updated ? `Existing role — merged ${environments.length} environment(s)` : "Created");

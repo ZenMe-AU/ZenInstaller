@@ -25,6 +25,7 @@ const authenticatedTests = [
 
 export default defineConfig({
   testDir: "./pwtests",
+  outputDir:"./pwtests/test-results",
   updateSnapshots: process.env.CI ? "none" : "missing",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
@@ -159,11 +160,11 @@ export default defineConfig({
    *
    * If you prefer to run `pnpm dev` yourself, leave this commented out.
    */
-  // webServer: {
-  //   command: "pnpm dev -- --host 127.0.0.1 --port 5173",
-  //   url: "http://127.0.0.1:5173",
-  //   reuseExistingServer: !process.env.CI,
-  //   timeout: 120_000,
-  // },
+  webServer: {
+    command: "pnpm run dev",
+    url: "http://localhost:5173",
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
+  },
 });
 

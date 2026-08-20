@@ -1,0 +1,42 @@
+{
+    "$schema": "https://unpkg.com/knip@latest/schema.json",
+    "workspaces": {
+        ".": {
+            "entry": [
+                "package.json"
+            ]
+        },
+        "web": {
+            "entry": [
+                "index.html",
+                "accessPass.html",
+                "awsHosting.html",
+                "costManagement.html",
+                "privAccount.html",
+                "userAccess.html",
+                "access-pass-src/accessPass.tsx",
+                "aws-hosting-src/awsHosting.tsx",
+                "cost-management-src/costManagement.tsx",
+                "priv-account-src/privAccount.tsx",
+                "user-access-src/userAccess.tsx",
+                "docs/.vitepress/config.ts",
+                "**/*.{test,spec}.{ts,tsx,js,jsx}",
+                "pwtests/**/*.{ts,tsx,js,jsx}"
+            ],
+            "project": [
+                "**/*.{ts,tsx,js,jsx}"
+            ],
+            "ignore": [
+                "deploy/**"
+            ]
+        },
+        "backend": {
+            "entry": [
+                "src/functions/*.js"
+            ],
+            "project": [
+                "src/**/*.js"
+            ]
+        }
+    }
+}

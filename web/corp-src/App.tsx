@@ -11,6 +11,7 @@ import { useGithubVariables } from "./hooks/useGithubVariables";
 import { useUrlRestore, useUrlSync } from "./hooks/useUrlStateManager";
 import { useDeploymentPlan } from "./hooks/useDeploymentPlan";
 import { useCorpStageCards } from "./hooks/useCorpStageCards";
+import { useAzurePermissions } from "./hooks/util/useAzurePermissions";
 import { useAzureLoginCard } from "./hooks/useAzureLoginCard";
 import { useAzureAppRegistrationCard } from "./hooks/useAzureAppRegistrationCard";
 import { useAzureSubscriptionCard } from "./hooks/useAzureSubscriptionCard";
@@ -34,7 +35,6 @@ import AzureSubscriptionCard from "./cards/AzureSubscriptionCard";
 import CoreInfraCard from "./cards/CoreInfraCard";
 import CreateDomainCard from "./cards/CreateDomainCard";
 import AccessPassCard from "./cards/AccessPassCard";
-import GlobalGroupsCard from "./cards/GlobalGroupsCard";
 import AwsLoginCard from "./cards/AwsLoginCard";
 import AwsSetupCard from "./cards/AwsSetupCard";
 import StageCard from "./cards/StageCard";
@@ -113,6 +113,7 @@ function AppDashboard() {
       azureAccount: azureLogin.account,
       githubAccount: githubRepoEnv.repo.selectedAccount,
       githubRepo: githubRepoEnv.repo.selectedRepo?.name ?? "",
+      githubRepoId: typeof githubRepoEnv.repo.selectedRepo?.id === "number" ? githubRepoEnv.repo.selectedRepo.id : null,
       subscriptionId: azureSubscription.selectedSubscriptionId,
       subscriptionLabel: azureSubscription.subscriptionLabel,
       tenantId: azureLogin.confirmedTenantId || undefined,
@@ -135,8 +136,8 @@ function AppDashboard() {
       azureAccount: azureLogin.account,
       subscriptionId: azureSubscription.selectedSubscriptionId,
       corpName: companyInfo.corpName,
-      spClientId: azureAppSetup.spClientId,
-      tenantId: azureAppSetup.tenantId,
+      spClientId: githubVariableValues.AZURE_CLIENT_ID ?? "",
+      tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
     }),
   );
   const createDomain = addCard(
@@ -145,8 +146,8 @@ function AppDashboard() {
       subscriptionId: azureSubscription.selectedSubscriptionId,
       corpName: companyInfo.corpName,
       dnsName: companyInfo.dnsName,
-      spClientId: azureAppSetup.spClientId,
-      tenantId: azureAppSetup.tenantId,
+      spClientId: githubVariableValues.AZURE_CLIENT_ID ?? "",
+      tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
     }),
   );
 
@@ -238,6 +239,14 @@ function AppDashboard() {
       onRequirementClick: openCard,
     };
   };
+
+  const azurePermissions = useAzurePermissions({
+    azureAccount: azureLogin.account,
+    spClientId: githubVariableValues.AZURE_CLIENT_ID ?? "",
+    tenantId: githubVariableValues.AZURE_TENANT_ID || undefined,
+    permissions: [...new Set(PIPELINE.stages.flatMap((stage) => stage.azurePermissions ?? []))],
+  });
+
   const stageCards = useCorpStageCards({
     pipeline: PIPELINE,
     plan,
@@ -352,8 +361,6 @@ function AppDashboard() {
               dnsName={companyInfo.dnsName}
             />
 
-            <GlobalGroupsCard card={cardProps("global_groups")} globalGroups={globalGroups} />
-
             <AwsLoginCard card={cardProps("aws_login")} awsLogin={awsLogin} />
 
             <AwsSetupCard
@@ -367,7 +374,12 @@ function AppDashboard() {
             />
 
             {stageCards.map(({ key, ...stageCard }) => (
-              <StageCard key={key} {...stageCard} />
+              <StageCard
+                key={key}
+                {...stageCard}
+                ensureAzurePermissions={azurePermissions.ensure}
+                azurePermissionsGranting={azurePermissions.granting}
+              />
             ))}
 
             <AccessPassCard card={cardProps("access_pass")} accessPass={azureAccessPass} />

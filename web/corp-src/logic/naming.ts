@@ -24,9 +24,27 @@ function slug(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]/g, "-");
 }
 
+const FIC_NAME_MAX = 120;
+
 // Our own naming scheme for a GitHub Actions federated-credential's display name in Entra
 // (unrelated to ZBCorpArchitecture — this one isn't dictated by an external contract).
-export function getFederatedCredentialName(org: string, repo: string, environment: string): string {
+export function getFederatedCredentialName(org: string, repo: string, environment: string, suffix = ""): string {
   const base = `${slug(org)}-${slug(repo)}-${slug(environment)}`;
-  return base.length <= 113 ? `github-${base}` : base.slice(0, 120);
+  const full = base.length <= 113 ? `github-${base}` : base;
+  return full.slice(0, FIC_NAME_MAX - suffix.length) + suffix;
+}
+
+// GitHub's immutable OIDC subject; "@" is safe because it can't appear in an org or repo name.
+export function getFederatedCredential(
+  org: string,
+  orgId: number,
+  repo: string,
+  repoId: number,
+  environment: string,
+): { name: string; subject: string } {
+  // The "-id" suffix keeps this from colliding with a legacy-format credential left by an earlier run.
+  return {
+    name: getFederatedCredentialName(org, repo, environment, "-id"),
+    subject: `repo:${org}@${orgId}/${repo}@${repoId}:environment:${environment}`,
+  };
 }

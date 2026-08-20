@@ -34,6 +34,7 @@ const { apiMocks } = vi.hoisted(() => ({
 		getExistingSP: vi.fn(),
 		createServicePrincipal: vi.fn(),
 		ensureFederatedCredential: vi.fn(),
+		setOidcImmutableSubject: vi.fn(),
 		ensureRbacRole: vi.fn(),
 		isConsentError: vi.fn(),
 		rbacStatus: "ready" as const,
@@ -43,6 +44,10 @@ const { apiMocks } = vi.hoisted(() => ({
 
 vi.mock("../api/msal", () => ({
 	getMsal: apiMocks.getMsal,
+}));
+
+vi.mock("../api", () => ({
+	setOidcImmutableSubject: apiMocks.setOidcImmutableSubject,
 }));
 
 vi.mock("../api/azureGraph", () => ({
@@ -93,6 +98,7 @@ function baseProps(
 		azureAccount: { tenantId: "tenant-home" } as AzureAccount,
 		githubAccount: { id: 1, login: "org-one", type: "User" },
 		githubRepo: "repo-one",
+		githubRepoId: 456789,
 		subscriptionId: "sub-1",
 		subscriptionLabel: "Main subscription",
 		tenantId: "tenant-1",
@@ -322,7 +328,16 @@ describe("useAzureAppRegistrationCard", () => {
 			expect(apiMocks.createAppRegistration).not.toHaveBeenCalled();
 			expect(apiMocks.getExistingSP).toHaveBeenCalled();
 			expect(apiMocks.createServicePrincipal).not.toHaveBeenCalled();
+			expect(apiMocks.setOidcImmutableSubject).toHaveBeenCalledWith(
+				expect.objectContaining({ login: "org-one" }),
+				"repo-one",
+			);
 			expect(apiMocks.ensureFederatedCredential).toHaveBeenCalledTimes(2);
+			const subjects = apiMocks.ensureFederatedCredential.mock.calls.map((c) => c[3]);
+			expect(subjects).toEqual([
+				"repo:org-one@1/repo-one@456789:environment:PROD",
+				"repo:org-one@1/repo-one@456789:environment:TEST",
+			]);
 			expect(apiMocks.ensureRbacRole).toHaveBeenNthCalledWith(
 				1,
 				expect.anything(),

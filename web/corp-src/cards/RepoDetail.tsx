@@ -1,3 +1,4 @@
+import { useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -162,6 +163,15 @@ export default function RepoDetail({
 }: Props) {
   const isNewRepo = selectedRepo?.isNew ?? false;
   const repoOptions: RepoOption[] = repos.map((r) => ({ id: r.id, name: r.name }));
+  const [repoOpen, setRepoOpen] = useState(false);
+  // Only set when the user aims at a row with arrows/mouse; MUI stays silent for its own auto-highlight.
+  const aimedOption = useRef<RepoOption | null>(null);
+
+  const commitTypedRepo = (typed: string) => {
+    const exact = repos.find((r) => r.name.toLowerCase() === typed.toLowerCase());
+    onRepoChange(exact ? { id: exact.id, name: exact.name } : { id: `new-${typed}`, name: typed, isNew: true });
+    setRepoOpen(false);
+  };
 
   const { refreshResult, markClicked } = useRefreshIndicator(repoLoading, repoRefreshFailed);
 
@@ -222,11 +232,24 @@ export default function RepoDetail({
               onRepoChange(newVal);
             }}
             filterOptions={(options, params) => {
+              const typed = params.inputValue.trim();
               const filtered = filterOptions(options, params);
-              if (params.inputValue && !options.find((o) => o.name === params.inputValue)) {
-                filtered.push({ id: `new-${params.inputValue}`, name: params.inputValue, isNew: true });
-              }
-              return filtered;
+              if (!typed) return filtered;
+              // Enter takes the first option: lead with the case-insensitive exact match, or "Clone as..." when there is none.
+              const exact = options.find((o) => o.name.toLowerCase() === typed.toLowerCase());
+              if (exact) return [exact, ...filtered.filter((o) => o.name !== exact.name)];
+              return [{ id: `new-${typed}`, name: typed, isNew: true }, ...filtered];
+            }}
+            autoHighlight
+            open={repoOpen}
+            onOpen={() => setRepoOpen(true)}
+            onClose={() => setRepoOpen(false)}
+            onHighlightChange={(_, option) => {
+              aimedOption.current = option;
+            }}
+            onInputChange={(_, __, reason) => {
+              // Typing invalidates an earlier arrow-key aim.
+              if (reason === "input") aimedOption.current = null;
             }}
             options={repoOptions}
             getOptionLabel={(o) => (typeof o === "string" ? o : o.name)}
@@ -252,7 +275,21 @@ export default function RepoDetail({
               </Box>
             )}
             renderInput={(params) => (
-              <TextField {...params} placeholder="Select or type repo name..." size="small" sx={inputSx} />
+              <TextField
+                {...params}
+                placeholder="Select or type repo name..."
+                size="small"
+                sx={inputSx}
+                onKeyDown={(e) => {
+                  // A row the user aimed at wins; otherwise Enter decides from the typed text.
+                  if (e.key !== "Enter" || aimedOption.current) return;
+                  const typed = (e.target as HTMLInputElement).value.trim();
+                  if (!typed) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  commitTypedRepo(typed);
+                }}
+              />
             )}
             size="small"
           />

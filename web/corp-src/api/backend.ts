@@ -325,6 +325,18 @@ export async function getPlanEnv(
   return parse(content);
 }
 
+// ─── OIDC ─────────────────────────────────────────────────────────────────────
+
+// Opts the repo into GitHub's immutable OIDC subject, so the sub claim carries owner/repo ids.
+export async function setOidcImmutableSubject(account: Account, repo: string): Promise<void> {
+  const res = await fetchWithAuth(`${url}/setOidcSubject`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ owner: account.login, repo }),
+  });
+  if (!res.ok) throw new Error(`Failed to set OIDC subject: ${res.status}`);
+}
+
 // ─── Workflow ─────────────────────────────────────────────────────────────────
 
 export async function triggerWorkflow(

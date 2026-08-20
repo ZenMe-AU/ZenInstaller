@@ -24,6 +24,7 @@ const { apiMocks } = vi.hoisted(() => ({
 		createAppRegistration: vi.fn(),
 		createServicePrincipal: vi.fn(),
 		ensureFederatedCredential: vi.fn(),
+		setOidcImmutableSubject: vi.fn(),
 		ensureRbacRole: vi.fn(),
 		grantAdminConsent: vi.fn(),
 		getEntraDomain: vi.fn(),
@@ -46,6 +47,10 @@ const { apiMocks } = vi.hoisted(() => ({
 
 vi.mock("../api/msal", () => ({
 	getMsal: apiMocks.getMsal,
+}));
+
+vi.mock("../api", () => ({
+	setOidcImmutableSubject: apiMocks.setOidcImmutableSubject,
 }));
 
 vi.mock("../api/azureGraph", () => ({
@@ -227,6 +232,7 @@ describe("azure workflow cards", () => {
 					azureAccount,
 					githubAccount,
 					githubRepo: "repo-one",
+					githubRepoId: 456789,
 					subscriptionId: "sub-1",
 					subscriptionLabel: "Main subscription",
 					tenantId: "tenant-1",

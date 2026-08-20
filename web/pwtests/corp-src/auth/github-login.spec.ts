@@ -1,5 +1,5 @@
 import {expect, test, type Page,} from "@playwright/test";
-import {corpGithubAuthStateExists, restoreCorpSessionStorage, storageStateFile,} from "../authState";
+import {corpGithubAuthStateExists, restoreCorpSessionStorage, storageStateFile,} from "../setupHelper";
 import {CORP_URL, viewports,} from "../../testInit";
 import {expectCardSnapshot, sensitiveTextMasks} from "../testHelper";
 

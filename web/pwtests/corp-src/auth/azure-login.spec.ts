@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
-import { corpAzureAuthStateExists, restoreCorpAzureSessionStorage, azureStorageStateFile } from "../authState";
+import { corpAzureAuthStateExists, restoreCorpAzureSessionStorage, azureStorageStateFile } from "../setupHelper";
 import { CORP_URL, viewports } from "../../testInit";
-import { expectCardSnapshot, sensitiveTextMasks } from "../testHelper";
+import { expectCardSnapshot, expectPageSnapshot, sensitiveTextMasks } from "../testHelper";
 
 async function expandAzureLoginCard(page: Page) {
   const azureCard = page.locator("#card-azure_login");
@@ -76,26 +76,34 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
         const tenantLabel = azureCard.getByText(/^Tenant/);
         await expect(tenantLabel).toBeVisible();
         const tenantSelect = azureCard.getByTestId("tenant-select");
+        const tenantCombobox = tenantSelect.getByRole("combobox");
         const manualTenantInput = azureCard.getByPlaceholder("Tenant name or ID");
         await expect(tenantSelect.or(manualTenantInput)).toBeVisible();
 
         if (await tenantSelect.isVisible()) {
-          await tenantSelect.click();
-          const firstTenantOption = page.getByTestId("tenant-option").first();
-          await expect(firstTenantOption).toBeVisible({ timeout: 20_000 });
+          await tenantCombobox.click();
+          if ((await tenantCombobox.getAttribute("aria-expanded")) !== "true") {
+            await tenantCombobox.press("ArrowDown");
+          }
+          await expect(tenantCombobox).toHaveAttribute("aria-expanded", "true");
 
-          await expectCardSnapshot(page, azureCard, testInfo, "tenant-options.png", {
+          const tenantOptions = page.getByTestId("tenant-option");
+          await expect(tenantOptions.first()).toBeVisible({ timeout: 20_000 });
+          const tenantOption = tenantOptions.first();
+
+          await expectPageSnapshot(page, testInfo, "tenant-options.png", {
             userId: "azure-login",
             viewportName,
             testFolder: "Azure Login Card Authenticated",
             mask: sensitiveTextMasks(page),
           });
 
-          const selectedDisplayName = (await firstTenantOption.getAttribute("data-tenant-name")) ?? "";
-          await firstTenantOption.click();
+          const selectedDisplayName = (await tenantOption.getAttribute("data-tenant-name")) ?? "";
+          await tenantOption.click();
 
+          await expect(tenantCombobox).toHaveAttribute("aria-expanded", "false");
           if (selectedDisplayName) {
-            await expect(tenantSelect).toContainText(selectedDisplayName);
+            await expect(tenantCombobox).toContainText(selectedDisplayName);
           }
 
           await expectCardSnapshot(page, azureCard, testInfo, "tenant-selected.png", {

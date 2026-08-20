@@ -4,9 +4,7 @@ import {expectCardSnapshot,} from "../testHelper";
 
 async function expandGithubLoginCard(page: Page,) {
 	const githubCard = page.locator("#card-github_login",);
-	const introText = githubCard.getByText(
-		/Connect your GitHub account so ZenInstaller can create the repository, environment, and secrets needed to deploy Zenblox\./i,
-	);
+	const introText = githubCard.getByText(/Connect your GitHub account so ZenInstaller can create the repository, environment, and secrets needed to deploy Zenblox\./i,);
 
 	if (!(await introText.isVisible())) {
 		await githubCard.getByText(/^GitHub login$/i,).click();

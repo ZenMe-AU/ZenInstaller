@@ -89,10 +89,10 @@ export async function expectCardSnapshot(
 			cardElement.style.position = "fixed";
 			cardElement.style.inset = "0";
 			cardElement.style.width = "100vw";
-			cardElement.style.height = "100vh";
+			cardElement.style.height = "auto";
 			cardElement.style.maxWidth = "100vw";
-			cardElement.style.maxHeight = "100vh";
-			cardElement.style.overflow = "auto";
+			cardElement.style.maxHeight = "none";
+			cardElement.style.overflow = "visible";
 			cardElement.style.zIndex = "2147483647";
 			cardElement.style.borderRadius = "0";
 		},);

@@ -12,7 +12,6 @@ import CloudVariableDetail from "./CloudVariableDetail";
 import Card from "../components/Card";
 import ViewLink from "../components/ViewLink";
 import { AZURE_SUBSCRIPTIONS_URL, getAzureSubscriptionUrl } from "../logic/consoleUrls";
-import ConfigErrorNotice from "../components/ConfigErrorNotice";
 import { MONO as mono, labelSx } from "../config/styles";
 
 type Props = {

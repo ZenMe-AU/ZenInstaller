@@ -21,14 +21,6 @@ import type { UseAwsLoginCard } from "../hooks/useAwsLoginCard";
 import type { CardChrome } from "../types";
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
-const labelSx = {
-  fontSize: "0.68rem",
-  color: "#94a3b8",
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.08em",
-  ...mono,
-};
-
 type Props = {
   card: CardChrome;
   awsLogin: UseAwsLoginCard;

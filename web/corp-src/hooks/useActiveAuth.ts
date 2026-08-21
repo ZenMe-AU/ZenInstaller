@@ -7,5 +7,4 @@ import { usePkceAuth } from "./usePkceAuth";
  * same return shape, so the rest of the app is unaware which strategy is active.
  */
 
-export const useActiveAuth =
-  import.meta.env.VITE_AUTH_PKCE === "true" ? usePkceAuth : useGithubLoginCard;
+export const useActiveAuth = import.meta.env.VITE_AUTH_PKCE === "true" ? usePkceAuth : useGithubLoginCard;

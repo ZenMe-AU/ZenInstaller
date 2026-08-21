@@ -12,13 +12,20 @@ import Card from "../components/Card";
 import RefreshButton from "../components/RefreshButton";
 import { useRefreshIndicator } from "../hooks/util/useRefreshIndicator";
 import type { CardChrome } from "../types";
-import { isRowDirty, wouldCreateCycle, type UseGlobalGroupsCard, type GroupRow, type GroupRowResult } from "../hooks/useGlobalGroupsCard";
+import {
+  isRowDirty,
+  wouldCreateCycle,
+  type UseGlobalGroupsCard,
+  type GroupRow,
+  type GroupRowResult,
+} from "../hooks/useGlobalGroupsCard";
 import { MONO as mono } from "../config/styles";
 
 function RowStatusIcon({ row, result, dirty }: { row: GroupRow; result: GroupRowResult | undefined; dirty: boolean }) {
   const status = result?.status;
   if (status === "running") return <CircularProgress size={13} sx={{ color: "#2563eb" }} />;
-  if (status === "done" || status === "skipped") return <CheckCircleOutlineIcon sx={{ fontSize: 15, color: "#22c55e" }} />;
+  if (status === "done" || status === "skipped")
+    return <CheckCircleOutlineIcon sx={{ fontSize: 15, color: "#22c55e" }} />;
   if (status === "error") return <ErrorOutlineIcon sx={{ fontSize: 15, color: "#ef4444" }} />;
   if (row.isNew && !row.groupName.trim()) return <RadioButtonUncheckedIcon sx={{ fontSize: 14, color: "#cbd5e1" }} />;
   if (dirty) return <RadioButtonCheckedIcon sx={{ fontSize: 14, color: "#d97706" }} />;
@@ -109,7 +116,12 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1 }}>
           <Intro />
-          <RefreshButton busy={refreshing} result={refreshResult} disabled={disabled || loading} onClick={handleRefresh} />
+          <RefreshButton
+            busy={refreshing}
+            result={refreshResult}
+            disabled={disabled || loading}
+            onClick={handleRefresh}
+          />
         </Box>
 
         {consentRequired && (
@@ -126,7 +138,9 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
               gap: 1,
             }}
           >
-            <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>Additional Microsoft Graph consent is required.</Typography>
+            <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>
+              Additional Microsoft Graph consent is required.
+            </Typography>
             <Button
               size="small"
               variant="outlined"
@@ -196,13 +210,23 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
                   {!memberOfExpanded && (
                     <Box
                       onClick={() => !disabled && setExpandedMemberOfId(row.id)}
-                      sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0, cursor: disabled ? "default" : "pointer" }}
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 0.5,
+                        flexShrink: 0,
+                        cursor: disabled ? "default" : "pointer",
+                      }}
                     >
                       {row.memberOfGroupNames.length === 0 ? (
                         <Typography sx={{ fontSize: "0.65rem", color: "#cbd5e1", ...mono }}>no memberships</Typography>
                       ) : (
                         <>
-                          <Chip label={row.memberOfGroupNames[0]} size="small" sx={{ height: 18, fontSize: "0.62rem", ...mono }} />
+                          <Chip
+                            label={row.memberOfGroupNames[0]}
+                            size="small"
+                            sx={{ height: 18, fontSize: "0.62rem", ...mono }}
+                          />
                           {row.memberOfGroupNames.length > 1 && (
                             <Chip
                               label={`+${row.memberOfGroupNames.length - 1}`}
@@ -263,7 +287,12 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
                         </Box>
                       )}
                       renderInput={(params) => (
-                        <TextField {...params} autoFocus placeholder="Member of..." sx={{ "& .MuiInputBase-input": { fontSize: "0.8rem", ...mono } }} />
+                        <TextField
+                          {...params}
+                          autoFocus
+                          placeholder="Member of..."
+                          sx={{ "& .MuiInputBase-input": { fontSize: "0.8rem", ...mono } }}
+                        />
                       )}
                     />
                     <Button
@@ -276,9 +305,13 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
                   </Box>
                 )}
 
-                {rowErrors[row.id] && <Typography sx={{ fontSize: "0.68rem", color: "#ef4444", pl: 3.25 }}>{rowErrors[row.id]}</Typography>}
+                {rowErrors[row.id] && (
+                  <Typography sx={{ fontSize: "0.68rem", color: "#ef4444", pl: 3.25 }}>{rowErrors[row.id]}</Typography>
+                )}
                 {rowResults[row.id]?.status === "error" && (
-                  <Typography sx={{ fontSize: "0.68rem", color: "#ef4444", pl: 3.25 }}>{rowResults[row.id]?.detail}</Typography>
+                  <Typography sx={{ fontSize: "0.68rem", color: "#ef4444", pl: 3.25 }}>
+                    {rowResults[row.id]?.detail}
+                  </Typography>
                 )}
                 {(rowResults[row.id]?.membershipIssues?.length ?? 0) > 0 && (
                   <Typography sx={{ fontSize: "0.68rem", color: "#d97706", pl: 3.25 }}>
@@ -353,7 +386,9 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
           </Box>
         </Box>
 
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5, flexWrap: "wrap" }}>
+        <Box
+          sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5, flexWrap: "wrap" }}
+        >
           <Button
             variant="contained"
             onClick={() => void sync()}
@@ -378,7 +413,13 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
             startIcon={<AddIcon sx={{ fontSize: 14 }} />}
             onClick={addDefaultGroups}
             disabled={disabled}
-            sx={{ textTransform: "none", ...mono, fontSize: "0.72rem", color: "#64748b", "&:hover": { color: "#2563eb" } }}
+            sx={{
+              textTransform: "none",
+              ...mono,
+              fontSize: "0.72rem",
+              color: "#64748b",
+              "&:hover": { color: "#2563eb" },
+            }}
           >
             Add default groups
           </Button>

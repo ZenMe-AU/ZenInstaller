@@ -52,33 +52,36 @@ export function usePR(opts: UsePRParams): UsePR {
   }, [opts.repo?.id]);
 
   // ── Loader ────────────────────────────────────────────────────────────────
-  const loadPRs = useCallback(async (account: Account, repo: RepoOption) => {
-    setPrLoading(true);
-    setPrRefreshFailed(false);
-    try {
-      const prs = await fetchPullRequests(account, repo.name);
-      setPullRequests(prs);
-      const targetPr = pendingRestore.current.pr;
-      pendingRestore.current.pr = null;
-      if (targetPr) {
-        const match = prs.find((p) => p.number === Number(targetPr));
-        if (match) {
-          pendingRestore.current.env = null; // PR auto-selects env
-          setSelectedPR(match);
-        } else {
-          addRestoreWarning(`Pull request #${targetPr} not found`);
-          pendingRestore.current.env = null;
+  const loadPRs = useCallback(
+    async (account: Account, repo: RepoOption) => {
+      setPrLoading(true);
+      setPrRefreshFailed(false);
+      try {
+        const prs = await fetchPullRequests(account, repo.name);
+        setPullRequests(prs);
+        const targetPr = pendingRestore.current.pr;
+        pendingRestore.current.pr = null;
+        if (targetPr) {
+          const match = prs.find((p) => p.number === Number(targetPr));
+          if (match) {
+            pendingRestore.current.env = null; // PR auto-selects env
+            setSelectedPR(match);
+          } else {
+            addRestoreWarning(`Pull request #${targetPr} not found`);
+            pendingRestore.current.env = null;
+          }
         }
+      } catch (e) {
+        console.error(e);
+        setPrRefreshFailed(true);
+        pendingRestore.current.pr = null;
+      } finally {
+        setPrLoading(false);
+        checkRestoreDone();
       }
-    } catch (e) {
-      console.error(e);
-      setPrRefreshFailed(true);
-      pendingRestore.current.pr = null;
-    } finally {
-      setPrLoading(false);
-      checkRestoreDone();
-    }
-  }, [addRestoreWarning, checkRestoreDone, pendingRestore]);
+    },
+    [addRestoreWarning, checkRestoreDone, pendingRestore],
+  );
 
   // Load when repo becomes a clone (template confirmed)
   useEffect(() => {

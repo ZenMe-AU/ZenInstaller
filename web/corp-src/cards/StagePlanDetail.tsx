@@ -6,7 +6,17 @@ import { MONO as mono } from "../config/styles";
 
 function SummaryPill({ label, count, color }: { label: string; count: number; color: string }) {
   return (
-    <Box sx={{ px: 0.875, py: 0.25, borderRadius: "4px", border: `1px solid ${color}33`, color, fontSize: "0.65rem", ...mono }}>
+    <Box
+      sx={{
+        px: 0.875,
+        py: 0.25,
+        borderRadius: "4px",
+        border: `1px solid ${color}33`,
+        color,
+        fontSize: "0.65rem",
+        ...mono,
+      }}
+    >
       {label} {count}
     </Box>
   );
@@ -65,10 +75,27 @@ export default function StagePlanDetail({
 
   return (
     <Box>
-      <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, letterSpacing: "0.08em", textTransform: "uppercase", mb: 1 }}>
+      <Typography
+        sx={{
+          fontSize: "0.68rem",
+          color: "#94a3b8",
+          ...mono,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          mb: 1,
+        }}
+      >
         Plan Changes
       </Typography>
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5, mb: hasChanges ? 1.5 : 0 }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 1.5,
+          mb: hasChanges ? 1.5 : 0,
+        }}
+      >
         <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap" }}>
           {hasChanges ? (
             <>
@@ -102,8 +129,12 @@ export default function StagePlanDetail({
                   background: idx % 2 === 0 ? "#ffffff" : "#fafafa",
                 }}
               >
-                <Box sx={{ width: 26, color: cfg.color, fontSize: "0.72rem", fontWeight: 700, ...mono, flexShrink: 0 }}>{cfg.symbol}</Box>
-                <Typography sx={{ fontSize: "0.75rem", color: "#334155", wordBreak: "break-all", ...mono }}>{item.address}</Typography>
+                <Box sx={{ width: 26, color: cfg.color, fontSize: "0.72rem", fontWeight: 700, ...mono, flexShrink: 0 }}>
+                  {cfg.symbol}
+                </Box>
+                <Typography sx={{ fontSize: "0.75rem", color: "#334155", wordBreak: "break-all", ...mono }}>
+                  {item.address}
+                </Typography>
               </Box>
             );
           })}

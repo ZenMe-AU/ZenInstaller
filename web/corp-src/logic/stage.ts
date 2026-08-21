@@ -40,7 +40,9 @@ export function computePlanSummary(items: PlanItem[]): PlanSummary {
 }
 
 export function isNoChanges(summary?: PlanSummary): boolean {
-  return summary != null && summary.create === 0 && summary.update === 0 && summary.delete === 0 && summary.replace === 0;
+  return (
+    summary != null && summary.create === 0 && summary.update === 0 && summary.delete === 0 && summary.replace === 0
+  );
 }
 
 export function getEffectiveStatus(stage: Stage, summary?: PlanSummary, isOptional?: boolean): StageStatus {
@@ -88,14 +90,22 @@ export function hasVariableDiff(
   deployedEnv: Record<string, string>,
 ): boolean {
   return prerequisites.some((p) => {
-    if (p.type === "var") return (currentVars[(p as PrerequisiteVar).key] ?? "") !== (deployedEnv[(p as PrerequisiteVar).key] ?? "");
+    if (p.type === "var")
+      return (currentVars[(p as PrerequisiteVar).key] ?? "") !== (deployedEnv[(p as PrerequisiteVar).key] ?? "");
     if (p.type === "varGroup" || p.type === "stageVar")
-      return (p as PrerequisiteVarGroup | PrerequisiteStageVar).keys.some((k) => (currentVars[k] ?? "") !== (deployedEnv[k] ?? ""));
+      return (p as PrerequisiteVarGroup | PrerequisiteStageVar).keys.some(
+        (k) => (currentVars[k] ?? "") !== (deployedEnv[k] ?? ""),
+      );
     return false;
   });
 }
 
-export function isPlanStale(triggerTime: number, fileUpdatedAt: number | null, fetchedRunId: string | null, prevRunId: string | null): boolean {
+export function isPlanStale(
+  triggerTime: number,
+  fileUpdatedAt: number | null,
+  fetchedRunId: string | null,
+  prevRunId: string | null,
+): boolean {
   const timeStale = fileUpdatedAt === null || triggerTime > fileUpdatedAt;
   const runIdStale = prevRunId !== null && fetchedRunId !== null && fetchedRunId === prevRunId;
   return timeStale || runIdStale;

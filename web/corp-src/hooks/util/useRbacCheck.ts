@@ -19,7 +19,12 @@ const IDLE: RbacCheckResult = { status: "unknown", missingRoles: [] };
  */
 export type UseRbacCheckParams = AzureSpTarget;
 
-export function useRbacCheck({ azureAccount, spClientId, subscriptionId, tenantId }: UseRbacCheckParams): RbacCheckResult {
+export function useRbacCheck({
+  azureAccount,
+  spClientId,
+  subscriptionId,
+  tenantId,
+}: UseRbacCheckParams): RbacCheckResult {
   const [result, setResult] = useState<RbacCheckResult>(IDLE);
 
   useEffect(() => {
@@ -41,10 +46,7 @@ export function useRbacCheck({ azureAccount, spClientId, subscriptionId, tenantI
           hasRbacRole(azureAccount, subscriptionId, sp.id, "Contributor", tenantId),
           hasRbacRole(azureAccount, subscriptionId, sp.id, "User Access Administrator", tenantId),
         ]);
-        const missingRoles = [
-          ...(contributor ? [] : ["Contributor"]),
-          ...(uaa ? [] : ["User Access Administrator"]),
-        ];
+        const missingRoles = [...(contributor ? [] : ["Contributor"]), ...(uaa ? [] : ["User Access Administrator"])];
         if (!cancelled) setResult({ status: missingRoles.length === 0 ? "ready" : "missing-role", missingRoles });
       } catch {
         // Consent/token errors (e.g. before ARM consent) — leave unknown rather than flag missing.

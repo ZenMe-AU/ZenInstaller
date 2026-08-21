@@ -197,7 +197,11 @@ function SecretKeyRow({
           >
             {showValue ? pending!.value : "•".repeat(Math.min(pending!.value.length, 12))}
           </Typography>
-          <IconButton size="small" onClick={() => setShowValue((v) => !v)} sx={{ color: "#94a3b8", p: 0.25, "&:hover": { color: "#475569" } }}>
+          <IconButton
+            size="small"
+            onClick={() => setShowValue((v) => !v)}
+            sx={{ color: "#94a3b8", p: 0.25, "&:hover": { color: "#475569" } }}
+          >
             {showValue ? <VisibilityOffIcon sx={{ fontSize: 13 }} /> : <VisibilityIcon sx={{ fontSize: 13 }} />}
           </IconButton>
           <Tooltip title="Discard change">
@@ -217,7 +221,9 @@ function SecretKeyRow({
 
       {/* Just updated */}
       {isSuccess && (
-        <Typography sx={{ fontSize: "0.62rem", color: "#16a34a", fontFamily: "'IBM Plex Mono', monospace", whiteSpace: "nowrap" }}>
+        <Typography
+          sx={{ fontSize: "0.62rem", color: "#16a34a", fontFamily: "'IBM Plex Mono', monospace", whiteSpace: "nowrap" }}
+        >
           just updated
         </Typography>
       )}
@@ -231,11 +237,17 @@ function SecretKeyRow({
 
       {/* Not set label */}
       {!isSet && !hasPending && !isError && (
-        <Typography sx={{ fontSize: "0.65rem", color: "#cbd5e1", fontFamily: "'IBM Plex Mono', monospace" }}>not set</Typography>
+        <Typography sx={{ fontSize: "0.65rem", color: "#cbd5e1", fontFamily: "'IBM Plex Mono', monospace" }}>
+          not set
+        </Typography>
       )}
 
       {/* Edit button */}
-      <IconButton size="small" onClick={() => onEdit(secretKey)} sx={{ color: "#cbd5e1", p: 0.5, "&:hover": { color: "#2563eb" } }}>
+      <IconButton
+        size="small"
+        onClick={() => onEdit(secretKey)}
+        sx={{ color: "#cbd5e1", p: 0.5, "&:hover": { color: "#2563eb" } }}
+      >
         <EditIcon sx={{ fontSize: 14 }} />
       </IconButton>
     </Box>
@@ -279,7 +291,9 @@ function SecretDialog({
     >
       <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pb: 1 }}>
         <Box>
-          <Typography sx={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: "0.9rem", color: "#0f172a" }}>
+          <Typography
+            sx={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: "0.9rem", color: "#0f172a" }}
+          >
             {secretKey}
           </Typography>
           <Typography sx={{ fontSize: "0.72rem", color: "#64748b", mt: 0.25 }}>Enter the secret value</Typography>
@@ -376,7 +390,12 @@ export default function SecretsCard({
         ))}
       </Box>
 
-      <SecretDialog open={!!dialogKey} secretKey={dialogKey ?? ""} onClose={() => setDialogKey(null)} onConfirm={onSetPending} />
+      <SecretDialog
+        open={!!dialogKey}
+        secretKey={dialogKey ?? ""}
+        onClose={() => setDialogKey(null)}
+        onConfirm={onSetPending}
+      />
     </Box>
   );
 }

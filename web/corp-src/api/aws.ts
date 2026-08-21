@@ -81,7 +81,12 @@ export async function getAwsSessionCredentials(
   if (!AccessKeyId || !SecretAccessKey || !SessionToken) {
     throw new Error("Failed to obtain temporary credentials from AWS STS");
   }
-  return { accessKeyId: AccessKeyId, secretAccessKey: SecretAccessKey, sessionToken: SessionToken, expiration: Expiration };
+  return {
+    accessKeyId: AccessKeyId,
+    secretAccessKey: SecretAccessKey,
+    sessionToken: SessionToken,
+    expiration: Expiration,
+  };
 }
 
 // ─── IAM role for GitHub Actions OIDC ───────────────────────────────────────────
@@ -133,9 +138,13 @@ export type CreateAwsIamRoleParams = {
 // Creates (or updates the trust policy of) an IAM role that GitHub Actions can assume
 // via OIDC — no long-lived AWS secrets stored in GitHub. Idempotent: re-running with
 // additional environments merges them into the existing trust policy.
-export async function createOrUpdateGithubOidcRole(
-  { accountId, org, repo, subjects, roleName }: CreateAwsIamRoleParams,
-): Promise<{ roleArn: string; updated: boolean }> {
+export async function createOrUpdateGithubOidcRole({
+  accountId,
+  org,
+  repo,
+  subjects,
+  roleName,
+}: CreateAwsIamRoleParams): Promise<{ roleArn: string; updated: boolean }> {
   const credentials = requireCurrentAwsSessionCredentials();
   const iam = new IAMClient({ region: "us-east-1", credentials });
 
@@ -201,12 +210,16 @@ export async function createOrUpdateGithubOidcRole(
       mergedPolicy = { Version: "2012-10-17", Statement: [newStatement] };
     }
 
-    await iam.send(new UpdateAssumeRolePolicyCommand({ RoleName: roleName, PolicyDocument: JSON.stringify(mergedPolicy) }));
+    await iam.send(
+      new UpdateAssumeRolePolicyCommand({ RoleName: roleName, PolicyDocument: JSON.stringify(mergedPolicy) }),
+    );
     updated = true;
   }
 
   // Idempotent — safe to call even if the policy is already attached.
-  await iam.send(new AttachRolePolicyCommand({ RoleName: roleName, PolicyArn: "arn:aws:iam::aws:policy/AdministratorAccess" }));
+  await iam.send(
+    new AttachRolePolicyCommand({ RoleName: roleName, PolicyArn: "arn:aws:iam::aws:policy/AdministratorAccess" }),
+  );
 
   return { roleArn, updated };
 }

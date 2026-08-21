@@ -1,4 +1,9 @@
-export const AZURE_VARIABLE_KEYS = ["AZURE_CLIENT_ID", "AZURE_PLAN_CLIENT_ID", "AZURE_SUBSCRIPTION_ID", "AZURE_TENANT_ID"] as const;
+export const AZURE_VARIABLE_KEYS = [
+  "AZURE_CLIENT_ID",
+  "AZURE_PLAN_CLIENT_ID",
+  "AZURE_SUBSCRIPTION_ID",
+  "AZURE_TENANT_ID",
+] as const;
 // Tenant + subscription — saved by the Azure subscription card.
 export const AZURE_TARGET_KEYS = ["AZURE_TENANT_ID", "AZURE_SUBSCRIPTION_ID"] as const;
 // App-registration client ids — saved by the Azure app registration card.

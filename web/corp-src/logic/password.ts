@@ -33,7 +33,12 @@ export function generateRandomPassword(length = 30): string {
   const all = `${lowercase}${uppercase}${digits}${symbols}`;
 
   const effectiveLength = Math.max(length, 4);
-  const chars: string[] = [pickRandomChar(lowercase), pickRandomChar(uppercase), pickRandomChar(digits), pickRandomChar(symbols)];
+  const chars: string[] = [
+    pickRandomChar(lowercase),
+    pickRandomChar(uppercase),
+    pickRandomChar(digits),
+    pickRandomChar(symbols),
+  ];
 
   for (let i = chars.length; i < effectiveLength; i += 1) {
     chars.push(pickRandomChar(all));

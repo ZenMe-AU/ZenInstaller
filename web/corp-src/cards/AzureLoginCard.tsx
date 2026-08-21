@@ -3,6 +3,8 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { CLOUD_DOCS } from "../config/docsConfig";
 import { MONO as mono, labelSx } from "../config/styles";
 import Card from "../components/Card";
+import ViewLink from "../components/ViewLink";
+import { getEntraOverviewUrl } from "../logic/consoleUrls";
 import ConfigErrorNotice from "../components/ConfigErrorNotice";
 import type { CardChrome } from "../types";
 import type { UseAzureLoginCard } from "../hooks/useAzureLoginCard";
@@ -26,6 +28,10 @@ function Intro() {
  * Azure sign-in on its own — independent of GitHub, not gated by environment.
  * App-registration, domain, and terraform cards all reuse the session it establishes.
  */
+function Action() {
+  return <ViewLink href={getEntraOverviewUrl()} />;
+}
+
 export default function AzureLoginCard({ card, azureLogin }: Props) {
   if (card.status === "unavailable") {
     return (
@@ -58,7 +64,7 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
     !tenants.some((t) => t.tenantId === savedTenantId);
 
   return (
-    <Card title="Azure login" lockedIntro={<Intro />} {...card}>
+    <Card title="Azure login" action={<Action />} lockedIntro={<Intro />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Intro />
 

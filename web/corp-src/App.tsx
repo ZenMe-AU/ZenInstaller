@@ -361,6 +361,7 @@ function AppDashboard() {
               azureAccount={azureLogin.account}
               corpName={companyInfo.corpName}
               dnsName={companyInfo.dnsName}
+              subscriptionId={azureSubscription.selectedSubscriptionId}
             />
 
             <AwsLoginCard card={cardProps("aws_login")} awsLogin={awsLogin} />

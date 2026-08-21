@@ -6,6 +6,8 @@ import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import Card from "../components/Card";
+import ViewLink from "../components/ViewLink";
+import { getIamRoleUrl } from "../logic/consoleUrls";
 import CloudVariableDetail from "./CloudVariableDetail";
 import { AWS_VARIABLE_KEYS } from "../logic/variables";
 import type { UseGithubVariables } from "../hooks/useGithubVariables";
@@ -39,6 +41,11 @@ function Intro() {
       so the deployment stages can use the same AWS target.
     </Typography>
   );
+}
+
+function Action({ roleName }: { roleName: string }) {
+  if (!roleName) return null;
+  return <ViewLink href={getIamRoleUrl(roleName)} />;
 }
 
 function StepRow({ step }: { step: SetupStep }) {
@@ -145,7 +152,7 @@ export default function AwsSetupCard({
   const populate = roleArn ? { [AWS_VARIABLE_KEYS[0]]: roleArn } : undefined;
 
   return (
-    <Card title="AWS setup" lockedIntro={<Intro />} {...card}>
+    <Card title="AWS setup" action={<Action roleName={roleName} />} lockedIntro={<Intro />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Intro />
 

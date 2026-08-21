@@ -14,6 +14,8 @@ import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import Card from "../components/Card";
+import ViewLink from "../components/ViewLink";
+import { getAwsConsoleUrl } from "../logic/consoleUrls";
 import { CLOUD_DOCS } from "../config/docsConfig";
 import type { UseAwsLoginCard } from "../hooks/useAwsLoginCard";
 import type { CardChrome } from "../types";
@@ -79,6 +81,10 @@ function Intro() {
   );
 }
 
+function Action() {
+  return <ViewLink href={getAwsConsoleUrl()} />;
+}
+
 export default function AwsLoginCard({ card, awsLogin }: Props) {
   const [showSecret, setShowSecret] = useState(false);
   const {
@@ -104,7 +110,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
   const usableDevices = mfaDevices.filter((d) => d.usable);
 
   return (
-    <Card title="AWS login" lockedIntro={<Intro />} {...card}>
+    <Card title="AWS login" action={<Action />} lockedIntro={<Intro />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Intro />
 

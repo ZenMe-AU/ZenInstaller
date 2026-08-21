@@ -4,6 +4,10 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { UseCreateDomainCard } from "../hooks/useCreateDomainCard";
 import StepRow from "./StepRow";
 import Card from "../components/Card";
+import ViewLink from "../components/ViewLink";
+import { AZURE_DNS_ZONES_URL, getAzureResourceUrl } from "../logic/consoleUrls";
+import { dnsZoneScope } from "../api/azureArm";
+import { getRootResourceGroupName } from "../logic/naming";
 import { getVariableDisplayName } from "../logic/variables";
 import { MONO as mono, labelSx } from "../config/styles";
 import type { CardChrome, AzureAccount } from "../types";
@@ -14,6 +18,7 @@ type Props = {
   azureAccount: AzureAccount | null;
   corpName: string;
   dnsName: string;
+  subscriptionId: string;
 };
 
 function Intro({ dnsName }: { dnsName: string }) {
@@ -25,7 +30,18 @@ function Intro({ dnsName }: { dnsName: string }) {
   );
 }
 
-export default function CreateDomainCard({ card, createDomain, azureAccount, corpName, dnsName }: Props) {
+function Action({ resourceId }: { resourceId: string | null }) {
+  return <ViewLink href={resourceId ? getAzureResourceUrl(undefined, resourceId) : AZURE_DNS_ZONES_URL} />;
+}
+
+export default function CreateDomainCard({
+  card,
+  createDomain,
+  azureAccount,
+  corpName,
+  dnsName,
+  subscriptionId,
+}: Props) {
   const {
     checkingStatus,
     checkStatusError,
@@ -48,9 +64,22 @@ export default function CreateDomainCard({ card, createDomain, azureAccount, cor
   const ready = !!azureAccount && missing.length === 0;
 
   return (
-    <Card title="Corp domain" lockedIntro={<Intro dnsName={dnsName} />} {...card}>
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      <Intro dnsName={dnsName} />
+    <Card
+      title="Corp domain"
+      action={
+        <Action
+          resourceId={
+            createDomain.resourcesDone && subscriptionId && dnsName && corpName
+              ? dnsZoneScope(subscriptionId, getRootResourceGroupName(corpName), dnsName)
+              : null
+          }
+        />
+      }
+      lockedIntro={<Intro dnsName={dnsName} />}
+      {...card}
+    >
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <Intro dnsName={dnsName} />
 
       {/* Gating hints */}
       {!azureAccount && (

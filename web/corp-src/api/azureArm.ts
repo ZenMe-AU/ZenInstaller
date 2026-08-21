@@ -361,6 +361,9 @@ export function storageAccountScope(subscriptionId: string, resourceGroup: strin
   return `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Storage/storageAccounts/${storageAccountName}`;
 }
 
+export function dnsZoneScope(subscriptionId: string, resourceGroup: string, dnsName: string): string {
+  return `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Network/dnsZones/${dnsName}`;
+}
 export function resourceGroupScope(subscriptionId: string, resourceGroup: string): string {
   return `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}`;
 }

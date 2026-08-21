@@ -6,6 +6,8 @@ import type { UseAccessPassCard } from "../hooks/useAccessPassCard";
 import StepRow from "./StepRow";
 import { logEvent } from "../monitor/telemetry";
 import Card from "../components/Card";
+import ViewLink from "../components/ViewLink";
+import { getEntraUsersUrl } from "../logic/consoleUrls";
 import { MONO as mono, labelSx } from "../config/styles";
 
 const COMPLETED_USERS_KEY = "zeninstaller_corp_access_pass_completed_users";
@@ -78,6 +80,10 @@ function Intro() {
       methods, randomizes their password, and issues a one-hour access pass.
     </Typography>
   );
+}
+
+function Action() {
+  return <ViewLink href={getEntraUsersUrl()} />;
 }
 
 /*
@@ -193,7 +199,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
   const statusUserId = creatingUserId ?? selectedManagerUserId;
 
   return (
-    <Card title="Access pass" lockedIntro={<Intro />} {...card}>
+    <Card title="Access pass" action={<Action />} lockedIntro={<Intro />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
         <Intro />
 

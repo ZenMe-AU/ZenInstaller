@@ -15,6 +15,8 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { MONO as monoSx } from "../config/styles";
 import Card from "../components/Card";
+import ViewLink from "../components/ViewLink";
+import { getGithubUserUrl, GITHUB_LOGIN_URL } from "../logic/github";
 import RefreshButton from "../components/RefreshButton";
 import { useRefreshIndicator } from "../hooks/util/useRefreshIndicator";
 import type { CardChrome } from "../types";
@@ -32,6 +34,10 @@ function Intro() {
       Zenblox.
     </Typography>
   );
+}
+
+function Action({ login }: { login?: string }) {
+  return <ViewLink href={login ? getGithubUserUrl(login) : GITHUB_LOGIN_URL} />;
 }
 
 export default function GithubLoginCard({ card, auth }: Props) {
@@ -80,7 +86,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
   };
 
   return (
-    <Card title="GitHub login" lockedIntro={<Intro />} {...card}>
+    <Card title="GitHub login" action={<Action login={user?.login} />} lockedIntro={<Intro />} {...card}>
       <Box>
         <Box sx={{ mb: 2 }}>
           <Intro />

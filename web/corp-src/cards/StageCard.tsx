@@ -22,6 +22,8 @@ import type {
 import { createVariable, fetchDeployLog, fetchPlan, updateVariable } from "../api";
 import { computePlanSummary } from "../logic/stage";
 import { getVariableDisplayName } from "../logic/variables";
+import ViewLink from "../components/ViewLink";
+import { getWorkflowRunUrl } from "../logic/github";
 import { MONO as mono } from "../config/styles";
 import Card from "../components/Card";
 import VariablesCard from "../components/VariablesCard";
@@ -237,6 +239,11 @@ type Props = {
   azurePermissionsGranting: boolean;
 };
 
+function Action({ repoFullName, runId }: { repoFullName: string | null; runId?: string }) {
+  if (!repoFullName || !runId) return null;
+  return <ViewLink href={getWorkflowRunUrl(repoFullName, runId)} />;
+}
+
 export default function StageCard({
   card,
   stageDef,
@@ -330,7 +337,11 @@ export default function StageCard({
   const hasDetails = stage.status === "success" && !!stage.planJsonId && stage.planJsonUrl !== "";
 
   return (
-    <Card title={stageDef.label} {...card}>
+    <Card
+      title={stageDef.label}
+      action={<Action repoFullName={account && repoName ? `${account.login}/${repoName}` : null} runId={stage.runId} />}
+      {...card}
+    >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
           <RunStatusUpdateButton

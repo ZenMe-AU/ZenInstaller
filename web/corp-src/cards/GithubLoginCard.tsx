@@ -128,10 +128,22 @@ export default function GithubLoginCard({ card, auth }: Props) {
           </Box>
         ) : !user ? (
           mode === "direct" ? (
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1, maxWidth: 400 }}>
+            <Box
+              component="form"
+              // Gives the browser's password manager a real submit to detect, so it can offer to save the token.
+              onSubmit={(e) => {
+                e.preventDefault();
+                handlePatSubmit();
+              }}
+              sx={{ display: "flex", flexDirection: "column", gap: 1, maxWidth: 400 }}
+            >
+              {/* Password managers key an entry on a username; the token alone gives them nothing to name it by. */}
+              <input type="text" name="username" autoComplete="username" value="github-pat" readOnly hidden />
               <TextField
                 size="small"
                 type={showPat ? "text" : "password"}
+                name="password"
+                autoComplete="current-password"
                 placeholder="ghp_… or github_pat_…"
                 value={pat}
                 onChange={(e) => {
@@ -176,7 +188,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
               />
               <Button
                 variant="contained"
-                onClick={handlePatSubmit}
+                type="submit"
                 disabled={!pat?.trim() || signingIn}
                 startIcon={signingIn ? <CircularProgress size={14} sx={{ color: "#cbd5e1" }} /> : undefined}
                 sx={{

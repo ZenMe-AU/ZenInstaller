@@ -103,7 +103,15 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
 
   return (
     <Card title="AWS login" action={<Action />} lockedIntro={<Intro />} {...card}>
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <Box
+        component="form"
+        // Gives the browser's password manager a real submit to detect, so it can offer to save the key pair.
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (canSignIn && !loggingIn) login();
+        }}
+        sx={{ display: "flex", flexDirection: "column", gap: 2 }}
+      >
         <Intro />
 
         {!done && (
@@ -117,6 +125,8 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
                 <TextField
                   size="small"
                   label="Access Key ID"
+                  name="username"
+                  autoComplete="username"
                   value={accessKeyId}
                   onChange={(e) => setAccessKeyId(e.target.value)}
                   placeholder="AKIA..."
@@ -128,6 +138,8 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
                   size="small"
                   label="Secret Access Key"
                   type={showSecret ? "text" : "password"}
+                  name="password"
+                  autoComplete="current-password"
                   value={secretAccessKey}
                   onChange={(e) => setSecretAccessKey(e.target.value)}
                   disabled={!!account || loggingIn || card.locked}
@@ -136,7 +148,13 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
                     style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" },
                     endAdornment: (
                       <InputAdornment position="end">
-                        <IconButton size="small" onClick={() => setShowSecret((v) => !v)} edge="end">
+                        <IconButton
+                          size="small"
+                          type="button"
+                          onClick={() => setShowSecret((v) => !v)}
+                          edge="end"
+                          tabIndex={-1}
+                        >
                           {showSecret ? <VisibilityOff sx={{ fontSize: 16 }} /> : <Visibility sx={{ fontSize: 16 }} />}
                         </IconButton>
                       </InputAdornment>
@@ -237,7 +255,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
           <Box>
             <Button
               variant="contained"
-              onClick={login}
+              type="submit"
               disabled={card.locked || !canSignIn || loggingIn}
               startIcon={loggingIn ? <CircularProgress size={14} sx={{ color: "inherit" }} /> : undefined}
               sx={{

@@ -1,10 +1,12 @@
 /// <reference types="node" />
 
 import { defineConfig, devices } from "@playwright/test";
-import dotenv from "dotenv";
+import * as dotenv from "dotenv";
 import path from "node:path";
 import { fileURLToPath,} from "node:url";
 
+process.env.NODE_ENV = process.env.NODE_ENV || 'dev'; 
+process.env.DEBUG = process.env.DEBUG || 'pw:api';
 const currentFilePath = fileURLToPath(import.meta.url,);
 const currentDirectory =path.dirname(currentFilePath,);
 dotenv.config({path:path.resolve(currentDirectory,".env",),});

@@ -1,7 +1,7 @@
 import { expect, test as setup,} from "@playwright/test";
 import fs from "fs";
 import {CORP_URL,} from "../../testInit";
-import {authDir, corpGithubAuthStateExists, storageStateFile,} from "../authState";
+import {authDir, corpGithubAuthStateExists, storageStateFile,} from "../setupHelper";
 
 setup("Manual GitHub OAuth login for corp auth tests", async ({page,}) => {
 	setup.skip(

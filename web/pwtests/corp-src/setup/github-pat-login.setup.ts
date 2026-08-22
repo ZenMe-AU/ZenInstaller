@@ -1,7 +1,7 @@
 import {expect, test as setup,} from "@playwright/test";
 import fs from "fs";
 import {CORP_URL,} from "../../testInit";
-import {authDir, corpGithubAuthStateExists, loadGithubPatFromLocalSettings, saveCorpSessionStorage, storageStateFile, sessionStorageFile} from "../authState";
+import {authDir, corpGithubAuthStateExists, loadGithubPatFromLocalSettings, saveCorpSessionStorage, storageStateFile, sessionStorageFile} from "../setupHelper";
 
 const pat = loadGithubPatFromLocalSettings();
 

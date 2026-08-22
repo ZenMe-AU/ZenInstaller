@@ -8,6 +8,7 @@ import path from "path";
 import { fileURLToPath,} from "node:url";
 
 export type LoadAccessPassUsersOptions = {softFail?: boolean;};
+
 export type PageSnapshotOptions = {
   userId: string;
   viewportName: string;
@@ -23,9 +24,11 @@ export type EntraTargetUser = {
   allowRealAccessPassCreation?: boolean;
 };
 
+export type AccessPassRoles = | "auth_adm" | "auth";
 export type AccessPassUser = {
   id: string;
   email: string;
+  role: AccessPassRoles;
   expectedPostLoginText: string;
   tenantId?: string;
   expectedEntraResult?: ExpectedEntraResult;
@@ -39,6 +42,11 @@ const currentFilePath = fileURLToPath(import.meta.url,);
 const currentDirectory =path.dirname(currentFilePath,);
 const localUsersPath =path.join(currentDirectory,"auth","data","access-pass-users.local.json",);
 
+const validScenarios: AccessPassRoles[] = [
+  "auth_adm",
+  "auth",
+];
+
 // Validates and normalizes Access Pass user test data.
 function validateAccessPassUsers(users: AccessPassUser[], filePath: string,) {
   if (!Array.isArray(users)) {throw new Error(`Access Pass user data must be an array: ${filePath}`,);}
@@ -47,6 +55,18 @@ function validateAccessPassUsers(users: AccessPassUser[], filePath: string,) {
     if (!user.id?.trim()) {throw new Error(`Every Access Pass user must have an id in ${filePath}.`,);}
     if (!user.email?.trim()) {throw new Error(`Access Pass user "${user.id}" must have an email.`,);}
     if (!["users", "empty", "forbidden"].includes(user.expectedEntraResult ?? "")) {throw new Error(`Invalid expectedEntraResult for "${user.id}".`,);}
+
+    if (!user.role?.trim()) {throw new Error(`Access Pass user "${user.id}" must have a role.`,);}
+    if (!validScenarios.includes(user.role)) {
+      throw new Error(`Invalid scenario "${user.role}" for "${user.id}".`,);
+    }
+
+    const usedScenarios = new Set<string>();
+    if (usedScenarios.has(user.role)) {
+      throw new Error(`Duplicate Access Pass scenario: "${user.role}".`,);
+    }
+
+    usedScenarios.add(user.role);
 
     // Normalize targetEntraUsers: treat null/undefined as empty array; reject other non-array values
     if (user.targetEntraUsers == null) {
@@ -66,6 +86,7 @@ function validateAccessPassUsers(users: AccessPassUser[], filePath: string,) {
     }
   }
 }
+
 
 // Loads Access Pass users from local or example data files.
 export function loadAccessPassUsers(options: LoadAccessPassUsersOptions = {}): AccessPassUser[] {

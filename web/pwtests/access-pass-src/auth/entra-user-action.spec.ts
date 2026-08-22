@@ -71,7 +71,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
               }
 
               // All configured target rows and buttons are ready.
-              await expectPageSnapshot(page, testInfo,"entra-users.png", {userId: user.id, viewportName, mask:sensitiveTextMasks(page),},);
+              await expectPageSnapshot(page, testInfo,"entra-users.png", {userId: user.role, viewportName, mask:sensitiveTextMasks(page),},);
             } finally {
               await context.close();
             }

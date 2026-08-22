@@ -72,18 +72,24 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			});
 		});
 
-	test("Selecting repo not a clone of ZBReactArchitecture", async ({page,}, testInfo) => {
+	test("Selecting repo not a clone of source repo", async ({page,}, testInfo) => {	
+		const isDebugEnabled = process.env.DEBUG?.includes('pw:api') || process.env.NODE_ENV === 'development';
+
 		const invalidRepoName = "playwright-invalid-template-repo";
 		const invalidRepoId = 987654321;
 
 		// Mock the repository list for either a user or organisation account.
 		await page.route(/https:\/\/api\.github\.com\/(?:user\/repos|orgs\/[^/]+\/repos)(?:\?.*)?$/,
-			async (route) => {await route.fulfill({status: 200,contentType: "application/json",body: JSON.stringify([
-						{id: invalidRepoId,name: invalidRepoName,owner: {type: "User",},},]),});
+			
+			async (route) => { 
+				const mockResponseData = JSON.stringify([{id: invalidRepoId,name: invalidRepoName,owner: {type: "User",},},]);
+				if (isDebugEnabled) {console.log(`Mock Route Method : ${route.request().method()} , URL : ${route.request().url()} | Fulfilled with 200 OK | Body: ${mockResponseData}`);}
+				await route.fulfill({status: 200,contentType: "application/json",body: mockResponseData,});
 			},
 		);
 
 		// The repository exists, but it was not created from the required template.
+		//TODO: helper function that logs API call
 		await page.route(
 			new RegExp(`https://api\\.github\\.com/repos/[^/]+/${invalidRepoName}(?:\\?.*)?$`,),
 			async (route) => {await route.fulfill({status: 200,contentType: "application/json",body: JSON.stringify({
@@ -96,6 +102,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			async (route) => {await route.fulfill({status: 200,contentType: "application/json",body: JSON.stringify({
 						total_count: 0,environments: [],}),});},
 		);
+
 
 		// Start waiting before reloading so the mocked response is not missed.
 		const mockedReposLoaded = page.waitForResponse((response) => {

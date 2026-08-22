@@ -274,7 +274,13 @@ export default function AzureAccessPassCard({
                                     ...(savedPass || showingInlineStepsForUser || showingConfirmationForUser ? { borderBottom: "none" } : {}),
                                   }}
                                 >
-                                  {user.displayName}
+                                  <Box
+                                    component="span"
+                                    data-sensitive="true"
+                                    sx={{ display: "inline-block" }}
+                                  >
+                                    {user.displayName}
+                                  </Box>
                                 </TableCell>
                                 <TableCell
                                   sx={{
@@ -284,7 +290,17 @@ export default function AzureAccessPassCard({
                                     ...(savedPass || showingInlineStepsForUser || showingConfirmationForUser ? { borderBottom: "none" } : {}),
                                   }}
                                 >
-                                  {user.userPrincipalName || "-"}
+                                  {user.userPrincipalName ? (
+                                  <Box
+                                    component="span"
+                                    data-sensitive="true"
+                                    sx={{ display: "inline-block" }}
+                                  >
+                                    {user.userPrincipalName}
+                                  </Box>
+                                ) : (
+                                  "-"
+                                )}
                                 </TableCell>
                                 <TableCell
                                   align="right"

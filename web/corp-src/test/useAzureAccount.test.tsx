@@ -32,10 +32,10 @@ const { apiMocks } = vi.hoisted(() => ({
 
 vi.mock("../api/msal", () => ({
   getMsal: apiMocks.getMsal,
+  MSA_TENANT: "msa-tenant",
 }));
 
 vi.mock("../api/azureGraph", () => ({
-  MSA_TENANT: "msa-tenant",
   listTenants: apiMocks.listTenants,
   getToken: apiMocks.getToken,
 }));

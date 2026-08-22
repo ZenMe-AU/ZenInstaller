@@ -25,6 +25,7 @@ async function waitFor(assertion: () => void, timeoutMs = 2000) {
 const { apiMocks } = vi.hoisted(() => ({
 	apiMocks: {
 		getMsal: vi.fn(),
+		ensureScopeConsent: vi.fn(),
 		getProviderRegistrationState: vi.fn(),
 		registerProvider: vi.fn(),
 		ensureDnsZone: vi.fn(),
@@ -48,6 +49,7 @@ const { configMocks } = vi.hoisted(() => ({
 
 vi.mock("../api/msal", () => ({
 	getMsal: apiMocks.getMsal,
+	ensureScopeConsent: apiMocks.ensureScopeConsent,
 }));
 
 vi.mock("../api/azureArm", () => ({
@@ -76,6 +78,8 @@ vi.mock("../config/azureConfig", () => ({
 		return configMocks.azureClientId;
 	},
 	DNS_PROVIDERS: ["Microsoft.Network"],
+	ARM_SCOPES: ["arm.scope"],
+	APP_SCOPES: ["app.scope"],
 	DOMAIN_SCOPES: ["domain.scope"],
 	GRANT_CONSENT_SCOPES: ["grant.scope"],
 	GRAPH_PERMISSIONS: {
@@ -119,6 +123,7 @@ describe("useCreateDomainCard", () => {
 		apiMocks.getMsal.mockResolvedValue({
 			acquireTokenRedirect: vi.fn().mockResolvedValue(undefined),
 		});
+		apiMocks.ensureScopeConsent.mockResolvedValue(false);
 		apiMocks.getProviderRegistrationState.mockResolvedValue("Registered");
 		apiMocks.ensureDnsZone.mockResolvedValue({ result: "created", nameServers: ["ns1", "ns2"] });
 		apiMocks.ensureDnsTxtRecord.mockResolvedValue("created");
@@ -385,6 +390,41 @@ describe("useCreateDomainCard", () => {
 			expect(latest?.steps.find((s) => s.id === "grant")?.detail).toBe("No app registration client id yet");
 			expect(apiMocks.grantAdminConsent).not.toHaveBeenCalled();
 		});
+
+		await act(async () => {
+			root.unmount();
+		});
+	});
+
+	it("asks for every scope up front, one call per resource, before doing any work", async () => {
+		let latest: UseCreateDomainCard | null = null;
+		const root = createRoot(document.createElement("div"));
+
+		await act(async () => {
+			root.render(
+				<HookHarness
+					{...baseProps()}
+					onUpdate={(value) => {
+						latest = value;
+					}}
+				/>,
+			);
+		});
+
+		await act(async () => {
+			await latest?.run();
+		});
+
+		await waitFor(() => {
+			expect(apiMocks.ensureScopeConsent).toHaveBeenCalledTimes(1);
+		});
+		// ARM consent is already established by the Azure login card, so only Graph is asked for here.
+		expect(apiMocks.ensureScopeConsent.mock.calls[0][1]).toEqual(["domain.scope", "grant.scope", "app.scope"]);
+		// Nothing may run before consent is settled — a redirect here must cost no progress.
+		expect(apiMocks.ensureScopeConsent.mock.invocationCallOrder[0]).toBeLessThan(
+			apiMocks.getProviderRegistrationState.mock.invocationCallOrder[0],
+		);
+		expect(latest?.steps.find((s) => s.id === "consent")?.status).toBe("skipped");
 
 		await act(async () => {
 			root.unmount();

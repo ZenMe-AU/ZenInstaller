@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import { getMsal } from "../api/msal";
-import { DNS_PROVIDERS, DOMAIN_SCOPES, GRANT_CONSENT_SCOPES, GRAPH_PERMISSIONS } from "../config/azureConfig";
+import { ensureScopeConsent, getMsal } from "../api/msal";
+import {
+  APP_SCOPES,
+  ARM_SCOPES,
+  DNS_PROVIDERS,
+  DOMAIN_SCOPES,
+  GRANT_CONSENT_SCOPES,
+  GRAPH_PERMISSIONS,
+} from "../config/azureConfig";
 import { ensureDnsZone, ensureDnsTxtRecord } from "../api/azureArm";
 import { useProviderRegistration } from "./util/useProviderRegistration";
 import {
@@ -80,7 +87,8 @@ export function useCreateDomainCard({
   const [verifyError, setVerifyError] = useState<string | null>(null);
 
   // A persisted result only counts if it matches the current NAME/DNS/subscription.
-  const resultMatches = !!result && result.corpName === corpName && result.dnsName === dnsName && result.subscriptionId === subscriptionId;
+  const resultMatches =
+    !!result && result.corpName === corpName && result.dnsName === dnsName && result.subscriptionId === subscriptionId;
   const resourcesDone = resultMatches;
 
   // Drop stale persisted state when the target changes.
@@ -113,7 +121,14 @@ export function useCreateDomainCard({
         setDomainVerified(domain.isVerified);
         setIsPrimary(domain.isDefault);
         if (domain.isVerified && domain.isDefault) {
-          const r: CreateDomainResult = { corpName, dnsName, subscriptionId, nameServers: [], domainVerified: true, isPrimary: true };
+          const r: CreateDomainResult = {
+            corpName,
+            dnsName,
+            subscriptionId,
+            nameServers: [],
+            domainVerified: true,
+            isPrimary: true,
+          };
           setResult(r);
           saveResult(r);
         }
@@ -165,17 +180,25 @@ export function useCreateDomainCard({
     setVerifyError(null);
 
     const initialSteps: SetupStep[] = [
+      { id: "consent", label: "Confirm Microsoft permissions", status: "pending" },
       { id: "providers", label: "Register required Azure resource providers", status: "pending" },
       { id: "dns", label: `Create DNS zone ${dnsName}`, status: "pending" },
       { id: "domain", label: "Add custom domain to Entra ID", status: "pending" },
       { id: "txt", label: "Create domain-verification TXT record", status: "pending" },
       { id: "primary", label: "Set as primary domain", status: "pending" },
+      // TODO: remove this step
       { id: "grant", label: "Grant domain permission to the pipeline", status: "pending" },
     ];
     setSteps(initialSteps);
 
-    let currentStep = "providers";
+    let currentStep = "consent";
     try {
+      currentStep = "consent";
+      updateStep("consent", "running");
+      const graphScopes = [...new Set([...DOMAIN_SCOPES, ...GRANT_CONSENT_SCOPES, ...APP_SCOPES])];
+      const promptedGraph = await ensureScopeConsent(azureAccount, graphScopes, tenantId);
+      updateStep("consent", promptedGraph ? "done" : "skipped", promptedGraph ? undefined : "Already granted");
+
       currentStep = "providers";
       updateStep("providers", "running");
       const providers = await ensureRegistered(DNS_PROVIDERS);
@@ -195,7 +218,11 @@ export function useCreateDomainCard({
       updateStep("domain", "running");
       let domain = await getEntraDomain(azureAccount, dnsName, tenantId);
       if (domain) {
-        updateStep("domain", "skipped", domain.isVerified ? "Already added and verified" : "Already added — not yet verified");
+        updateStep(
+          "domain",
+          "skipped",
+          domain.isVerified ? "Already added and verified" : "Already added — not yet verified",
+        );
       } else {
         domain = await createEntraDomain(azureAccount, dnsName, tenantId);
         updateStep("domain", "done");
@@ -209,7 +236,14 @@ export function useCreateDomainCard({
         updateStep("txt", "running");
         const txtToken = await getDomainVerificationTxt(azureAccount, dnsName, tenantId);
         if (!txtToken) throw new Error("No TXT verification record returned by Microsoft Graph");
-        const txt = await ensureDnsTxtRecord(azureAccount, subscriptionId, resourceGroupName, dnsName, txtToken, tenantId);
+        const txt = await ensureDnsTxtRecord(
+          azureAccount,
+          subscriptionId,
+          resourceGroupName,
+          dnsName,
+          txtToken,
+          tenantId,
+        );
         updateStep("txt", txt === "exists" ? "skipped" : "done", txtToken);
       }
 
@@ -234,7 +268,8 @@ export function useCreateDomainCard({
       } else {
         updateStep("grant", "running");
         const sp = await getExistingSP(azureAccount, spClientId, tenantId);
-        if (!sp) throw new Error(`Service principal for app ${spClientId} not found — run the app registration card first`);
+        if (!sp)
+          throw new Error(`Service principal for app ${spClientId} not found — run the app registration card first`);
         await grantAdminConsent(azureAccount, sp.id, [GRAPH_PERMISSIONS.DomainReadWriteAll], tenantId);
         updateStep("grant", "done");
       }
@@ -262,8 +297,19 @@ export function useCreateDomainCard({
       setRunning(false);
     }
   }, [
-    azureAccount, subscriptionId, corpName, dnsName, spClientId, tenantId, resourceGroupName,
-    setSteps, setRunning, updateStep, requestDomainConsent, requestGrantConsent, ensureRegistered,
+    azureAccount,
+    subscriptionId,
+    corpName,
+    dnsName,
+    spClientId,
+    tenantId,
+    resourceGroupName,
+    setSteps,
+    setRunning,
+    updateStep,
+    requestDomainConsent,
+    requestGrantConsent,
+    ensureRegistered,
   ]);
 
   // Verifies the domain (if needed) and promotes it to primary — one button drives both.
@@ -286,7 +332,9 @@ export function useCreateDomainCard({
           await setPrimaryEntraDomain(azureAccount, dnsName, tenantId);
           primary = true;
         } catch (err) {
-          setVerifyError(`Domain verified, but setting it as primary failed: ${err instanceof Error ? err.message : "unknown error"}`);
+          setVerifyError(
+            `Domain verified, but setting it as primary failed: ${err instanceof Error ? err.message : "unknown error"}`,
+          );
         }
       }
       setIsPrimary(primary);

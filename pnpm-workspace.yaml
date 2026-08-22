@@ -2,6 +2,14 @@ packages:
   - "web"
   - "backend"
 
+allowBuilds:
+  azure-functions-core-tools: true
+  esbuild: true
+
+minimumReleaseAgeExclude:
+  - "@aws-sdk/client-iam@3.1114.0"
+  - "@aws-sdk/client-sts@3.1114.0"
+
 onlyBuiltDependencies:
   - esbuild
   - azure-functions-core-tools

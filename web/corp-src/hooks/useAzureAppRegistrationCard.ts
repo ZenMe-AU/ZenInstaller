@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
-import { getMsal } from "../api/msal";
-import { AZURE_CLIENT_ID, APP_SCOPES } from "../config/azureConfig";
+import { ensureScopeConsent, getMsal } from "../api/msal";
+import { APP_SCOPES, ARM_SCOPES, AZURE_CLIENT_ID } from "../config/azureConfig";
 import {
   getExistingApp,
   getAppNameByAppId,
@@ -25,7 +25,7 @@ import type {
   SetupStep,
 } from "../types";
 import { PIPELINE } from "../logic/pipeline";
-import { getFederatedCredential } from "../logic/naming";
+import { getFederatedCredential, getImmutableRepoSegment } from "../logic/naming";
 import { setOidcImmutableSubject } from "../api";
 
 export type AzureAppRegistrationResult = { clientId: string; tenantId: string; subscriptionIds: string[] };
@@ -168,6 +168,7 @@ export function useAzureAppRegistrationCard({
     const resolvedTenantId = effectiveTenantId ?? azureAccount.tenantId;
 
     const initialSteps: SetupStep[] = [
+      { id: "consent", label: "Confirm Microsoft permissions", status: "pending" },
       { id: "app", label: "Create app registration", status: "pending" },
       { id: "sp", label: "Create service principal", status: "pending" },
       { id: "oidc", label: "Switch GitHub OIDC to immutable subject", status: "pending" },
@@ -179,16 +180,21 @@ export function useAzureAppRegistrationCard({
     let appId = "";
     let appObjectId = "";
     let spObjectId = "";
-    let currentStep = "app";
+    let currentStep = "consent";
 
     try {
+      currentStep = "consent";
+      updateStep("consent", "running");
+      const promptedGraph = await ensureScopeConsent(azureAccount, [...APP_SCOPES], effectiveTenantId);
+      updateStep("consent", promptedGraph ? "done" : "skipped", promptedGraph ? undefined : "Already granted");
+
       currentStep = "app";
       updateStep("app", "running");
       const existing = await getExistingApp(azureAccount, appName, effectiveTenantId);
       if (existing) {
         appId = existing.appId;
         appObjectId = existing.id;
-        updateStep("app", "done", `Existing: ${appId}`);
+        updateStep("app", "skipped", `Existing: ${appId}`);
       } else {
         // No pipeline-wide app permissions requested up front — cards that need one (e.g. domain) grant it themselves.
         const created = await createAppRegistration(azureAccount, appName, [], effectiveTenantId);
@@ -202,7 +208,7 @@ export function useAzureAppRegistrationCard({
       const existingSP = await getExistingSP(azureAccount, appId, effectiveTenantId);
       if (existingSP) {
         spObjectId = existingSP.id;
-        updateStep("sp", "done", "Already exists");
+        updateStep("sp", "skipped", "Already exists");
       } else {
         const sp = await createServicePrincipal(azureAccount, appId, effectiveTenantId);
         spObjectId = sp.id;
@@ -213,7 +219,7 @@ export function useAzureAppRegistrationCard({
       updateStep("oidc", "running");
       if (githubRepoId === null) throw new Error(`Create the repository ${githubRepo} on GitHub before running this`);
       await setOidcImmutableSubject(githubAccount, githubRepo);
-      updateStep("oidc", "done", `repo:${org}@${githubAccount.id}/${githubRepo}@${githubRepoId}`);
+      updateStep("oidc", "done", getImmutableRepoSegment(org, githubAccount.id, githubRepo, githubRepoId));
 
       currentStep = "creds";
       updateStep("creds", "running");
@@ -224,7 +230,11 @@ export function useAzureAppRegistrationCard({
           added += 1;
         }
       }
-      updateStep("creds", "done", `${environments.join(", ")} — ${added} added`);
+      if (added === 0) {
+        updateStep("creds", "skipped", `${environments.join(", ")} already exist`);
+      } else {
+        updateStep("creds", "done", `${environments.join(", ")} — ${added} added`);
+      }
 
       currentStep = "rbac";
       updateStep("rbac", "running");

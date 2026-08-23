@@ -18,13 +18,9 @@ async function expandGithubLoginCard(page: Page,) {
 }
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
-	test.describe(`Corp-${viewportName} - GitHub PAT Authenticated`, () => {
+	test.describe(`GitHub PAT Auth - ${viewportName}`, () => {
 		test.use({viewport, deviceScaleFactor: 1, storageState: storageStateFile,});
-
-		test.skip(
-			!corpGithubAuthStateExists(),
-			"Run pwtests/corp-src/setup/github-pat-login.setup.ts first.",
-		);
+		test.skip(!corpGithubAuthStateExists(),"Run pwtests/corp-src/setup/github-pat-login.setup.ts first.",);
 
 		test.beforeEach(async ({page, context}) => {
 			await restoreCorpSessionStorage(context,);
@@ -33,7 +29,6 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
 		test("Shows authenticated GitHub card state after PAT login", async ({page,}, testInfo) => {
 			const githubCard = await expandGithubLoginCard(page,);
-
 			await expect(githubCard.getByText(/Authenticated as/i,),).toBeVisible();
 			await expect(githubCard.getByText(/· PAT mode/i,),).toBeVisible();
 			await expect(githubCard.getByRole("button", {name: "Sign out", exact: true,}),).toBeVisible();

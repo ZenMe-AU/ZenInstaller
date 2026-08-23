@@ -17,7 +17,7 @@ const navLinkCases: NavLinkCase[] = [
 ];
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
-	test.describe(`Corp-${viewportName} - Navbar Link Redirects`, () => {
+	test.describe(`Navbar Link Redirects - ${viewportName}`, () => {
 		test.use({viewport, deviceScaleFactor: 1,});
 
 		test.beforeEach(async ({page,}, testInfo) => {

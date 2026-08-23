@@ -91,7 +91,7 @@ async function snapshotCard(page: Page, viewportName: string, id: string,) {
 }
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
-	test.describe(`Corp-${viewportName} - Render`, () => {
+	test.describe(`Expand Cards - ${viewportName}`, () => {
 		test.use({viewport, deviceScaleFactor: 1,});
 
 		test.beforeEach(async ({page,}) => {

@@ -15,7 +15,7 @@ async function expandGithubLoginCard(page: Page,) {
 }
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
-	test.describe(`Corp-${viewportName} - GitHub Login Card`, () => {
+	test.describe(`GitHub Login Card - ${viewportName}`, () => {
 		test.use({viewport, deviceScaleFactor: 1,});
 
 		test.beforeEach(async ({page,}) => {

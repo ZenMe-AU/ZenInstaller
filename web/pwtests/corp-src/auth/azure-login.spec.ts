@@ -16,10 +16,10 @@ async function expandAzureLoginCard(page: Page) {
 }
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
-  test.describe(`Corp-${viewportName} - Azure Login Card`, () => {
+  test.describe(`Azure Login Card - ${viewportName}`, () => {
     test.use({ viewport, deviceScaleFactor: 1 });
 
-    test.describe("Signed out", () => {
+    test.describe("Unauth", () => {
       test.beforeEach(async ({ page }) => {
         await page.goto(CORP_URL);
       });
@@ -56,7 +56,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
       });
     });
 
-    test.describe("Signed in", () => {
+    test.describe("Auth", () => {
       test.use({ viewport, deviceScaleFactor: 1, storageState: azureStorageStateFile });
       test.skip(!corpAzureAuthStateExists(), "Run pwtests/corp-src/setup/azure-login.setup.ts first.");
 

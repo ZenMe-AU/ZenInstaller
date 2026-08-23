@@ -22,18 +22,23 @@ async function logMockAPI(page: Page, route: Route, status: number, body: unknow
 	if (isDebugEnabled) {console.log(message)}
 }
 
+//TODO: ensure other APIs are blocked
+//TODO: testing valid repo but no environment variables
+//TODO: testing creating branch with non-existant and existing branches
+//TODO: testing case-sensitivity 
+//TODO: testing different API status codes (e.g. scenario for login expire)
+//TODO: test if repo already exists
+
 for (const [viewportName, viewport] of Object.entries(viewports)) {
-	test.describe(`Rep-env Card - ${viewportName}`, () => {
+	test.describe(`Live Tests - ${viewportName}`, () => {
 		test.use({viewport, deviceScaleFactor: 1, storageState: storageStateFile,});
 		test.skip(!corpGithubAuthStateExists(),"Run pwtests/corp-src/setup/github-pat-login.setup.ts first.",);
+		test.skip(process.env.TEST_MODE !== "live","Set TEST_MODE=true to run live tests.",);
+
 
 		test.beforeEach(async ({page, context,}) => {
 			await restoreCorpSessionStorage(context,);
-			const repositoriesLoaded = page.waitForResponse((response) => {const url = response.url();
-			return (response.ok() &&url.startsWith("https://api.github.com/") && (url.includes("/user/repos") ||/\/orgs\/[^/]+\/repos/.test(url)));},
-			{timeout: 30_000},);
 			await page.goto(CORP_URL);
-			await repositoriesLoaded;
 		});
 
 		test("Renders Repo-env Card after Github Auth", async ({page,}, testInfo) => {
@@ -47,14 +52,12 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 					userId: "github-pat",
 					viewportName,
 					testFolder: "Repository and Environment Authenticated",
-					mask: sensitiveTextMasks(page,),
+					mask: sensitiveTextMasks(repoCard,),
 				},
 			);
 		});
 
 		test("LIVE TEST - Typing new repo name in the textbox", async ({page,}, testInfo) => {
-			test.skip(process.env.TEST_MODE !== "live","Set TEST_MODE=true to run live tests.",);
-
 			const repoCard = await expandRepoCard(page);
 			const repoInput = repoCard.getByRole("combobox", {name: "Select or type repo name...",});
 			await repoInput.click();
@@ -65,7 +68,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			// Confirm the option click changed the application's state.
 			await expect(cloneOption).toBeHidden();
 			await expect(repoInput).toHaveAttribute("aria-expanded", "false");
-			await expect(repoCard.getByText(/^Clone from template$/i),).toBeVisible();
+			await expect(repoCard.getByText("Clone from template"),).toBeVisible();
 			await expect(repoCard.getByRole("button", {name: "Clone Repository"}),).toBeVisible();
 			await expect(repoCard.getByRole("switch", {name: "Private"}),).toBeChecked();
 			await expect(repoCard.getByRole("switch", {name: "Clone all branches"}),).not.toBeChecked();
@@ -77,14 +80,12 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 					userId: "github-pat",
 					viewportName,
 					testFolder: "Repository and Environment Authenticated",
-					mask: sensitiveTextMasks(page,),
+					mask: sensitiveTextMasks(repoCard,),
 				}
 			);
 		});
 		
 		test("LIVE TEST - Cloning a new repo for both PROD and TEST", async({page, }, testInfo) => {
-			test.skip(process.env.TEST_MODE !== "live","Set TEST_MODE=true to run live tests.",);
-
 			const repoCard = await expandRepoCard(page);
 			const repoInput = repoCard.getByRole("combobox", {name: "Select or type repo name...",});
 			await repoInput.click();
@@ -117,7 +118,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 					userId: "github-pat",
 					viewportName,
 					testFolder: "Repository and Environment Authenticated",
-					mask: sensitiveTextMasks(page,),
+					mask: sensitiveTextMasks(repoCard,),
 			});
 
 			await PROD.click();
@@ -128,7 +129,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 					userId: "github-pat",
 					viewportName,
 					testFolder: "Repository and Environment Authenticated",
-					mask: sensitiveTextMasks(page,),
+					mask: sensitiveTextMasks(repoCard,),
 			});
 
 			await TEST.click();
@@ -141,14 +142,27 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 					userId: "github-pat",
 					viewportName,
 					testFolder: "Repository and Environment Authenticated",
-					mask: sensitiveTextMasks(page,),
+					mask: sensitiveTextMasks(repoCard,),
 			});
 
 		});
+	
+	});
 
+}
+
+for (const [viewportName, viewport] of Object.entries(viewports)) {
+	test.describe(`Mock Tests - ${viewportName}`, () => {
+		test.use({viewport, deviceScaleFactor: 1, storageState: storageStateFile,});
+		test.skip(!corpGithubAuthStateExists(),"Run pwtests/corp-src/setup/github-pat-login.setup.ts first.",);
+		test.skip(process.env.TEST_MODE !== "mock","Set TEST_MODE=mock to run mock tests.",);
+
+		test.beforeEach(async ({page, context,}) => {
+			await restoreCorpSessionStorage(context,);
+			await page.goto(CORP_URL);
+		});
+		
 		test("MOCK TEST - Cloning a new repo for both PROD and TEST", async ({page,}, testInfo) => {
-			test.skip(process.env.TEST_MODE !== "mock", "Set TEST_MODE=mock to run mock tests.",);
-
 			const newRepoName = "mock-clone-test";
 			const newRepoId = 987654322;
 			const environments = [
@@ -156,11 +170,11 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				{name: "TEST", id: 1002, url: `https://api.github.com/repos/mock-owner/${newRepoName}/environments/TEST`,},
 			];
 
-			await page.route(/https:\/\/api\.github\.com\/(?:user\/repos|orgs\/[^/]+\/repos)(?:\?.*)?$/,
+			await page.route(new RegExp("https://api\\.github\\.com/(?:user/repos|orgs/[^/]+/repos)(?:\\?.*)?$",),
 				async (route) => {await route.fulfill({status: 200, contentType: "application/json", body: "[]",});},
 			);
 
-			await page.route(/https:\/\/api\.github\.com\/repos\/ZenMe-AU\/ZBCorpArchitecture\/generate(?:\?.*)?$/,
+			await page.route(new RegExp("https://api\\.github\\.com/repos/ZenMe-AU/ZBCorpArchitecture/generate(?:\\?.*)?$",),
 				async (route) => {
 					expect(route.request().postDataJSON()).toMatchObject({
 						name: newRepoName,
@@ -205,7 +219,8 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				},
 			);
 
-			const mockedReposLoaded = page.waitForResponse((response) => response.ok() && (response.url().includes("/user/repos") || /\/orgs\/[^/]+\/repos/.test(response.url())),);
+			const mockedReposLoaded = page.waitForResponse((response) => response.ok()
+				&& new RegExp("https://api\\.github\\.com/(?:user/repos|orgs/[^/]+/repos)(?:\\?.*)?$",).test(response.url()),);
 			await page.reload();
 			await mockedReposLoaded;
 
@@ -230,7 +245,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				userId: "github-pat",
 				viewportName,
 				testFolder: "Repository and Environment Authenticated",
-				mask: sensitiveTextMasks(page,),
+				mask: sensitiveTextMasks(repoCard,),
 			});
 
 			await prod.click();
@@ -240,7 +255,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				userId: "github-pat",
 				viewportName,
 				testFolder: "Repository and Environment Authenticated",
-				mask: sensitiveTextMasks(page,),
+				mask: sensitiveTextMasks(repoCard,),
 			});
 
 			await testEnv.click();
@@ -250,18 +265,17 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				userId: "github-pat",
 				viewportName,
 				testFolder: "Repository and Environment Authenticated",
-				mask: sensitiveTextMasks(page,),
+				mask: sensitiveTextMasks(repoCard,),
 			});
 		});
 
 		test("MOCK TEST - Typing new repo name in the textbox", async ({page,}, testInfo) => {
-			test.skip(process.env.TEST_MODE !== "mock","Set TEST_MODE=mock to run mock tests.",)
-
 			const newRepoName = "mock-test";
-			await page.route(/https:\/\/api\.github\.com\/(?:user\/repos|orgs\/[^/]+\/repos)(?:\?.*)?$/,
+			await page.route(new RegExp("https://api\\.github\\.com/(?:user/repos|orgs/[^/]+/repos)(?:\\?.*)?$",),
 				async (route) => {await route.fulfill({status: 200, contentType: "application/json", body: "[]",});},);
 
-			const mockedReposLoaded = page.waitForResponse((response) =>response.ok() &&(response.url().includes("/user/repos") || /\/orgs\/[^/]+\/repos/.test(response.url())),);
+			const mockedReposLoaded = page.waitForResponse((response) => response.ok()
+				&& new RegExp("https://api\\.github\\.com/(?:user/repos|orgs/[^/]+/repos)(?:\\?.*)?$",).test(response.url()),);
 			await page.reload();
 			await mockedReposLoaded;
 
@@ -288,18 +302,16 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 					userId: "github-pat",
 					viewportName,
 					testFolder: "Repository and Environment Authenticated",
-					mask: sensitiveTextMasks(page,),
+					mask: sensitiveTextMasks(repoCard,),
 				});
 			});
 
 		test("MOCK TEST - Selecting repo not a clone of source repo", async ({page,}, testInfo) => {	
-			test.skip(process.env.TEST_MODE !== "mock","Set TEST_MODE=mock to run mock tests.",)
-
 			const invalidRepoName = "playwright-invalid-template-repo";
 			const invalidRepoId = 987654321;
 
 			// Mock the repository list for either a user or organisation account.
-			await page.route(/https:\/\/api\.github\.com\/(?:user\/repos|orgs\/[^/]+\/repos)(?:\?.*)?$/,
+			await page.route(new RegExp("https://api\\.github\\.com/(?:user/repos|orgs/[^/]+/repos)(?:\\?.*)?$",),
 				async (route) => { 
 					const ownerType = route.request().url().includes("/orgs/") ? "Organization" : "User";
 					const mockResponseData = JSON.stringify([{id: invalidRepoId,name: invalidRepoName,owner: {type: ownerType,},},]);
@@ -318,7 +330,8 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			);
 
 			// Start waiting before reloading so the mocked response is not missed.
-			const mockedReposLoaded = page.waitForResponse((response) => {return (response.ok() &&(response.url().includes("/user/repos") || /\/orgs\/[^/]+\/repos/.test(response.url())));});
+			const mockedReposLoaded = page.waitForResponse((response) => response.ok()
+				&& new RegExp("https://api\\.github\\.com/(?:user/repos|orgs/[^/]+/repos)(?:\\?.*)?$",).test(response.url()),);
 			await page.reload();
 			await mockedReposLoaded;
 			const repoCard = await expandRepoCard(page);
@@ -338,11 +351,11 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 					userId: "github-pat",
 					viewportName,
 					testFolder: "Repository and Environment Authenticated",
-					mask: sensitiveTextMasks(page,),
+					mask: sensitiveTextMasks(repoCard,),
 			});
-		})
-	
+		});
 	});
-
 }
+
+
 

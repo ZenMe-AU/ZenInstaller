@@ -32,6 +32,22 @@ async function expectVisibleWithin(locator: Locator, label: string, timeoutMs = 
 	}
 }
 
+async function waitForLocatorContentLoaded(locator: Locator, emptyPlaceholder = "No options", label: string, timeoutMs = 500,) {
+	await expect.poll(async () => {
+		const texts = (await locator.allTextContents()).map((value,) => value.trim()).filter(Boolean,);
+		if (!texts.length) {
+			return false;
+		}
+		if (texts.length === 1 && texts[0] === emptyPlaceholder) {
+			return false;
+		}
+		return true;
+	}, {
+		timeout: timeoutMs,
+		message: `${label} content did not load`,
+	}).toBeTruthy();
+}
+
 //TODO: ensure other APIs are blocked
 //TODO: testing valid repo but no environment variables
 //TODO: testing creating branch with non-existant and existing branches
@@ -96,12 +112,18 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		});
 
 		test("LIVE TEST - Cloning a new repo for both PROD and TEST", async ({ page, }, testInfo) => {
+			const reponame = "live-test";
 			const repoCard = await expandRepoCard(page);
 			const repoInput = repoCard.getByRole("combobox", { name: "Select or type repo name...", });
 			await repoInput.click();
-			await repoInput.fill("live-test");
-			const cloneOption = page.getByRole("option", { name: `Clone as “live-test”`, });
-			await expectVisibleWithin(cloneOption, "Clone as “live-test” option");
+			await waitForLocatorContentLoaded(page.getByRole("option",), "No options", "Repo list", 5000000);
+			await repoInput.fill(reponame);
+			const alreadyClonedOption = page.getByRole("option", { name: reponame, });
+			if (await alreadyClonedOption.isVisible()) {
+				throw new Error(`The repo "${reponame}" already exists. Please delete it from your GitHub account before running this test.`);
+			}
+			const cloneOption = page.getByRole("option", { name: `Clone as “${reponame}”`, });
+			await expectVisibleWithin(cloneOption, `Clone as “${reponame}” option`);
 			await cloneOption.click();
 			// Confirm the option click changed the application's state.
 			await expect(cloneOption).toBeHidden();
@@ -116,11 +138,11 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			const cloneRepoButton = repoCard.getByRole('button', { name: 'Clone Repository' })
 			await expect(cloneRepoButton).toBeVisible();
 			await cloneRepoButton.click();
-			await expect(repoCard.getByText('Pick the environment to configure.')).toBeVisible();
+			await expectVisibleWithin(repoCard.getByText('Pick the environment to configure.'), "Text: Pick the environment to configure");
 			const PROD = repoCard.getByText("PROD", { exact: true });
 			const TEST = repoCard.getByText("TEST", { exact: true });
 			await expect(repoCard.getByText("Loading environments...", { exact: true })).toBeHidden();
-			await expectVisibleWithin(PROD, "Prod Env button");
+			await expect(PROD).toBeVisible();
 			await expect(TEST).toBeVisible();
 
 			await expectCardSnapshot(page, repoCard, testInfo, "clone-env-live.png",

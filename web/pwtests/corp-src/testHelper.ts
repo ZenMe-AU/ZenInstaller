@@ -102,7 +102,7 @@ export async function expectCardSnapshot(
 
 		await expect(card).toHaveScreenshot(relativeSnapshotPath, {
 			animations: "disabled",
-			caret: "hide",
+			caret: "hide", 
 			maxDiffPixelRatio: 0.02,
 			mask: options.mask ?? [],
 			maskColor: "rgb(0, 0, 0)",

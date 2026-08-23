@@ -39,7 +39,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				githubCard,
 				testInfo,
 				"pat-authenticated-state.png",
-				{userId: "github-pat", viewportName, testFolder: "GitHub Login Card Authenticated", mask: sensitiveTextMasks(page,),},
+				{userId: "github-pat", viewportName, testFolder: "GitHub Login Card Authenticated", mask: sensitiveTextMasks(githubCard,),},
 			);
 		});
 	});

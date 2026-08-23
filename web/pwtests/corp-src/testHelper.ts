@@ -9,9 +9,9 @@ export type PageSnapshotOptions = {
   	stabilizeAuth?: boolean;
 };
 
-// Returns locators that mask sensitive identity fields in screenshots.
-export function sensitiveTextMasks(page: Page,): Locator[] {
-  return [page.locator('[data-sensitive="true"]'),];
+// Returns sensitive identity fields contained by the supplied page or locator.
+export function sensitiveTextMasks(root: Page | Locator,): Locator[] {
+	return [root.locator('[data-sensitive="true"]'),];
 }
 
 // Normalizes arbitrary strings into stable snapshot path segments.
@@ -82,6 +82,9 @@ export async function expectCardSnapshot(
 	const viewportFolder = safePathSegment(options.viewportName,);
 	const relativeSnapshotPath = ["corp-src", "snapshots", testDirectory, testFile, viewportFolder, normalizedSnapshotName,];
 	const originalStyle = await card.evaluate((element,) => element.getAttribute("style"),);
+	const screenshotStyle = await page.addStyleTag({
+		content: "html { scrollbar-width: none !important; } html::-webkit-scrollbar { display: none !important; }",
+	},);
 
 	try {
 		await card.evaluate((element,) => {
@@ -105,6 +108,7 @@ export async function expectCardSnapshot(
 			maskColor: "rgb(0, 0, 0)",
 		},);
 	} finally {
+		await screenshotStyle.evaluate((element,) => element.parentNode?.removeChild(element),);
 		await card.evaluate((element, style,) => {
 			if (style === null) {
 				element.removeAttribute("style");

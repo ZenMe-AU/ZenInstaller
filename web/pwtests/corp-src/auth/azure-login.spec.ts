@@ -110,7 +110,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
             userId: "azure-login",
             viewportName,
             testFolder: "Azure Login Card Authenticated",
-            mask: sensitiveTextMasks(page),
+            mask: sensitiveTextMasks(azureCard),
           });
         } else {
           await expect(manualTenantInput).toBeVisible();
@@ -118,7 +118,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
             userId: "azure-login",
             viewportName,
             testFolder: "Azure Login Card Authenticated",
-            mask: sensitiveTextMasks(page),
+            mask: sensitiveTextMasks(azureCard),
           });
         }
       });

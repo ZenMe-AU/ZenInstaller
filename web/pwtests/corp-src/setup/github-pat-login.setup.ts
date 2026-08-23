@@ -3,17 +3,14 @@ import fs from "fs";
 import {CORP_URL,} from "../../testInit";
 import {authDir, corpGithubAuthStateExists, loadGithubPatFromLocalSettings, saveCorpSessionStorage, storageStateFile, sessionStorageFile} from "../setupHelper";
 
-const pat = loadGithubPatFromLocalSettings();
+const pat = process.env.GITHUB_TOKEN;
 
 setup("GitHub PAT login for corp auth tests", async ({page, context}) => {
-	setup.skip(
-		!pat,
-		"No GITHUB_TOKEN found in backend/local.settings.json. Add a valid PAT to use this setup.",
-	);
+	setup.skip(!pat,"No GITHUB_TOKEN found in backend/local.settings.json. Add a valid PAT to use this setup.",);
 
 	fs.mkdirSync(authDir, {recursive: true,});
 
-	if (corpGithubAuthStateExists() && process.env.FORCE_GITHUB_PAT_SETUP !== "true") {
+	if (corpGithubAuthStateExists()) {
 		console.log("GitHub PAT auth storage state already exists. Skipping PAT setup.");
 		console.log(`Storage state: ${storageStateFile}`);
         console.log(`Session storage: ${sessionStorageFile}`);

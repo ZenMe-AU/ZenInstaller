@@ -52,14 +52,14 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		});
 
 		test("LIVE TEST - Cloning a new repo for both PROD and TEST", async ({ page, }, testInfo) => {
-			const reponame = "live-test";
+			const reponame = "live-test7";
 			const repoCard = await expandRepoCard(page);
 			await chooseRepoOption(page, repoCard, reponame);
 
 			const cloneRepoButton = repoCard.getByRole('button', { name: 'Clone Repository' })
 			await expect(cloneRepoButton).toBeVisible();
 			await cloneRepoButton.click();
-			await expectVisibleWithin(repoCard.getByText('Pick the environment to configure.'), "Text: Pick the environment to configure");
+			await expectVisibleWithin(repoCard.getByText('Pick the environment to configure.'), "Text: Pick the environment to configure", 3000);
 			const PROD = repoCard.getByText("PROD", { exact: true });
 			const TEST = repoCard.getByText("TEST", { exact: true });
 			await expect(repoCard.getByText("Loading environments...", { exact: true })).toBeHidden();

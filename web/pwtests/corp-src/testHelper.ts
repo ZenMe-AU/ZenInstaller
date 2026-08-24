@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page, type TestInfo } from "@playwright/test";
+import { expect, type Locator, type Page, type Route, type TestInfo } from "@playwright/test";
 import fs from "fs";
 
 export type PageSnapshotOptions = {
@@ -128,4 +128,72 @@ export async function expandAzureLoginCard(page: Page) {
 	if (!(await introText.isVisible())) {await azureCard.getByText(/^Azure login$/i).click();}
 	await expect(introText).toBeVisible();
 	return azureCard;
+}
+
+/* ---------------------------------------------- REP ENV CARD ------------------------------------------------------------------*/
+
+const isDebugEnabled = process.env.DEBUG?.includes('pw:api') || process.env.NODE_ENV === 'development';
+
+export async function expandRepoCard(page: Page,) {
+	const repoCard = page.locator("#card-repo",);
+	const repoInput = repoCard.getByRole("combobox", { name: "Select or type repo name...", },);
+	if (!(await repoInput.isVisible())) {await repoCard.getByText(/^Repository & environment$/i,).click();}
+	await expect(repoInput).toBeVisible();
+	return repoCard;
+}
+
+export async function chooseRepoOption(page: Page, card: Locator, reponame: string) {
+	const repoInput = card.getByRole("combobox", { name: "Select or type repo name...", });
+	await repoInput.click();
+	await waitForLocatorContentLoaded(page.getByRole("option",), "No options", "Repo list", 5000000);
+	await repoInput.fill(reponame);
+	const alreadyClonedOption = page.getByRole("option", { name: reponame, exact: true });
+	if (await alreadyClonedOption.isVisible()) {
+		throw new Error(`The repo "${reponame}" already exists. Please delete it from your GitHub account before running this test.`);
+	}
+			
+	const cloneOption = page.getByRole("option", { name: `▪ Clone as "${reponame}"`, exact: true});
+	await expectVisibleWithin(card.getByText(`Clone from "${reponame}"`,), `Clone from ${reponame}`, 500,);
+	await expect(cloneOption).toBeVisible();
+	await cloneOption.click();
+	// Confirm the option click changed the application's state.
+	await expect(cloneOption).toBeHidden();
+	await expect(repoInput).toHaveAttribute("aria-expanded", "false");
+	await expectVisibleWithin(card.getByText("Clone from template",), "Clone from template", 500,);
+	await expect(card.getByRole("button", { name: "Clone Repository" }),).toBeVisible();
+	await expect(card.getByRole("switch", { name: "Private" }),).toBeChecked();
+	await expect(card.getByRole("switch", { name: "Clone all branches" }),).not.toBeChecked();
+	await expect(card.getByRole("switch", { name: "Create environments" }),).toBeChecked();
+	await expect(card.getByText(/Pick the environment to configure/i),).toHaveCount(0);
+}
+
+export async function logMockAPI(page: Page, route: Route, status: number, body: unknown) {
+	const message = `Mock Route Method : ${route.request().method()} , URL : ${route.request().url()} | Fulfilled with ${status} | Body: ${body}`;
+	if (isDebugEnabled) { console.log(message) }
+}
+
+export async function expectVisibleWithin(locator: Locator, label: string, timeoutMs = 500,) {
+	const start = performance.now();
+	try {
+		await expect(locator,).toBeVisible({ timeout: timeoutMs, });
+	} finally {
+		const elapsedMs = performance.now() - start;
+		console.log(`${label} visible in ${elapsedMs.toFixed(1)}ms (timeout ${timeoutMs}ms)`,);
+	}
+}
+
+export async function waitForLocatorContentLoaded(locator: Locator, emptyPlaceholder = "No options", label: string, timeoutMs = 500,) {
+	await expect.poll(async () => {
+		const texts = (await locator.allTextContents()).map((value,) => value.trim()).filter(Boolean,);
+		if (!texts.length) {
+			return false;
+		}
+		if (texts.length === 1 && texts[0] === emptyPlaceholder) {
+			return false;
+		}
+		return true;
+	}, {
+		timeout: timeoutMs,
+		message: `${label} content did not load`,
+	}).toBeTruthy();
 }

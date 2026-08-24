@@ -84,10 +84,16 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		});
 
 		test("LIVE TEST - Typing new repo name in the textbox", async ({ page, }, testInfo) => {
+			const reponame = "live-test";
 			const repoCard = await expandRepoCard(page);
 			const repoInput = repoCard.getByRole("combobox", { name: "Select or type repo name...", });
 			await repoInput.click();
-			await repoInput.fill("live-test");
+			await repoInput.fill(reponame);
+			const alreadyClonedOption = page.getByRole("option", { name: reponame, });
+			if (await alreadyClonedOption.isVisible()) {
+				throw new Error(`The repo "${reponame}" already exists. Please delete it from your GitHub account before running this test.`);
+			}
+			
 			const cloneOption = page.getByRole("option", { name: `Clone as “live-test”`, });
 			await expect(cloneOption).toBeVisible();
 			await cloneOption.click();

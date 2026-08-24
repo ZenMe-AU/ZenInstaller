@@ -9,6 +9,8 @@ export type PageSnapshotOptions = {
   	stabilizeAuth?: boolean;
 };
 
+/* -------------------------------------- SHARED HELPER FUNCTIONS ------------------------------------------------------------------*/
+
 // Returns sensitive identity fields contained by the supplied page or locator.
 export function sensitiveTextMasks(root: Page | Locator,): Locator[] {
 	return [root.locator('[data-sensitive="true"]'),];
@@ -24,12 +26,7 @@ function safePathSegment(value: string,): string {
 }
 
 // Waits for visual stability and compares against a stored screenshot baseline.
-export async function expectPageSnapshot(
-	page: Page,
-	testInfo: TestInfo,
-	snapshotName: string,
-	options: PageSnapshotOptions,
-): Promise<void> {
+export async function expectPageSnapshot(page: Page, testInfo: TestInfo, snapshotName: string, options: PageSnapshotOptions,): Promise<void> {
 	await page.waitForLoadState("domcontentloaded").catch(() => undefined);
 	await page.waitForLoadState("networkidle").catch(() => undefined);
 	await page.locator("body").evaluate(async () => {
@@ -63,13 +60,7 @@ export async function expectPageSnapshot(
 }
 
 // takes snapshot of a specific card element, rather than the whole page
-export async function expectCardSnapshot(
-	page: Page,
-	card: Locator,
-	testInfo: TestInfo,
-	snapshotName: string,
-	options: PageSnapshotOptions,
-): Promise<void> {
+export async function expectCardSnapshot(page: Page, card: Locator, testInfo: TestInfo, snapshotName: string, options: PageSnapshotOptions,): Promise<void> {
 	await page.waitForLoadState("domcontentloaded").catch(() => undefined);
 	await page.waitForLoadState("networkidle").catch(() => undefined);
 	await page.locator("body").evaluate(async () => document.fonts?.ready).catch(() => undefined);
@@ -117,4 +108,24 @@ export async function expectCardSnapshot(
 			}
 		}, originalStyle,);
 	}
+}
+
+/* ---------------------------------------------- GITHUB LOGIN CARD ------------------------------------------------------------------*/
+
+export async function expandGithubLoginCard(page: Page,) {
+	const githubCard = page.locator("#card-github_login",);
+	const introText = githubCard.getByText(/Connect your GitHub account so ZenInstaller can create the repository, environment, and secrets needed to deploy Zenblox\./i,);
+	if (!(await introText.isVisible())) {await githubCard.getByText(/^GitHub login$/i,).click();}
+	await expect(introText).toBeVisible();
+	return githubCard;
+}
+
+/* ---------------------------------------------- AZURE LOGIN CARD ------------------------------------------------------------------*/
+
+export async function expandAzureLoginCard(page: Page) {
+	const azureCard = page.locator("#card-azure_login");
+	const introText = azureCard.getByText(/Sign in with Azure so we can create the app registration and cloud resources for you\./i);
+	if (!(await introText.isVisible())) {await azureCard.getByText(/^Azure login$/i).click();}
+	await expect(introText).toBeVisible();
+	return azureCard;
 }

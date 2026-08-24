@@ -1,19 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 import { corpAzureAuthStateExists, restoreCorpAzureSessionStorage, azureStorageStateFile } from "../setupHelper";
 import { CORP_URL, viewports } from "../../testInit";
-import { expectCardSnapshot, expectPageSnapshot, sensitiveTextMasks } from "../testHelper";
+import { expandAzureLoginCard, expectCardSnapshot, expectPageSnapshot, sensitiveTextMasks } from "../testHelper";
 
-async function expandAzureLoginCard(page: Page) {
-  const azureCard = page.locator("#card-azure_login");
-  const introText = azureCard.getByText(/Sign in with Azure so we can create the app registration and cloud resources for you\./i);
-
-  if (!(await introText.isVisible())) {
-    await azureCard.getByText(/^Azure login$/i).click();
-  }
-
-  await expect(introText).toBeVisible();
-  return azureCard;
-}
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
   test.describe(`Azure Login Card - ${viewportName}`, () => {

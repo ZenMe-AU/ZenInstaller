@@ -27,14 +27,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expect(githubCard.getByRole("button", {name: "Backend", exact: true,}),).toBeVisible();
 			await expect(githubCard.getByRole("button", {name: "Direct (PAT)", exact: true,}),).toBeVisible();
 			await expect(githubCard.getByRole("button", {name: "Login with GitHub", exact: true,}),).toBeVisible();
-
-			await expectCardSnapshot(
-				page,
-				githubCard,
-				testInfo,
-				"backend-mode.png",
-				{userId: "signed-out", viewportName, testFolder: "GitHub Login Card",},
-			);
+			await expectCardSnapshot(page, githubCard, testInfo, "backend-mode.png", {userId: "signed-out", viewportName, testFolder: "GitHub Login Card",},);
 		});
 
 		test("Switches to Direct mode and validates PAT format", async ({page,}, testInfo) => {
@@ -48,14 +41,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expect(connectWithPat,).toBeEnabled();
 			await connectWithPat.click();
 			await expect(githubCard.getByText(/Must be a GitHub PAT \(ghp_… or github_pat_…\)/i,),).toBeVisible();
-
-			await expectCardSnapshot(
-				page,
-				githubCard,
-				testInfo,
-				"invalid-pat.png",
-				{userId: "signed-out", viewportName, testFolder: "GitHub Login Card",},
-			);
+			await expectCardSnapshot(page,githubCard,testInfo,"invalid-pat.png",{userId: "signed-out", viewportName, testFolder: "GitHub Login Card",},);
 		});
 
 		test("Can switch from Direct mode back to Backend mode", async ({page,}, testInfo) => {

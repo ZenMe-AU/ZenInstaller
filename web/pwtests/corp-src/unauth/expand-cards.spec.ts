@@ -1,13 +1,6 @@
-import path from "node:path";
-import {mkdir,} from "node:fs/promises";
-import {fileURLToPath,} from "node:url";
 import {expect, test, type Page,} from "@playwright/test";
 import {CORP_URL, viewports,} from "../../testInit";
-
-const CARD_SNAPSHOT_DIR = path.resolve(
-	path.dirname(fileURLToPath(import.meta.url),),
-	"../snapshots/unauth/expand-cards",
-);
+import {expectCardSnapshot,} from "../testHelper";
 
 const CARDS_UNAUTHENTICATED = [
 	{id: "github_login", title: /^GitHub login$/i,},
@@ -56,40 +49,6 @@ async function expandAllCards(page: Page,) {
 	}
 }
 
-async function snapshotCard(page: Page, viewportName: string, id: string,) {
-	const card = page.locator(`#card-${id}`,);
-	const viewportSnapshotDir = path.join(CARD_SNAPSHOT_DIR, viewportName,);
-	await mkdir(viewportSnapshotDir, {recursive: true,},);
-	const originalStyle = await card.evaluate((element,) => element.getAttribute("style"),);
-
-	try {
-		await card.evaluate((element,) => {
-			const cardElement = element as HTMLElement;
-			cardElement.style.position = "fixed";
-			cardElement.style.inset = "0";
-			cardElement.style.width = "100vw";
-			cardElement.style.height = "100vh";
-			cardElement.style.maxWidth = "100vw";
-			cardElement.style.maxHeight = "100vh";
-			cardElement.style.overflow = "auto";
-			cardElement.style.zIndex = "2147483647";
-			cardElement.style.borderRadius = "0";
-		},);
-		await card.screenshot({
-			path: path.join(viewportSnapshotDir, `${id}.png`),
-			animations: "disabled",
-		});
-	} finally {
-		await card.evaluate((element, style,) => {
-			if (style === null) {
-				element.removeAttribute("style");
-			} else {
-				element.setAttribute("style", style);
-			}
-		}, originalStyle,);
-	}
-}
-
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Expand Cards - ${viewportName}`, () => {
 		test.use({viewport, deviceScaleFactor: 1,});
@@ -101,7 +60,6 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		test("Renders unauthenticated corp dashboard", async ({page,}) => {
 			await expect(page).toHaveURL(/http:\/\/localhost:5173\/?$/,);
 			await expect(page).toHaveTitle(/ZenInstaller Setup Central Corp Environment/i,);
-
 			await expect(page.getByText(/ZenInstaller is used to create your organisation configuration on a number of cloud hosting providers/i,),
 			).toBeVisible();
 
@@ -119,9 +77,8 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expect(page.getByText(/^Connect your GitHub account$/),).toBeVisible();
 		});
 
-		test("Can expand all cards while unauthenticated", async ({page,}) => {
+		test("Can expand all cards while unauthenticated", async ({page,}, testInfo) => {
 			await expandAllCards(page,);
-
 			await expect(page.locator("#card-github_login",).getByRole("button", {name: "Backend", exact: true,},),).toBeVisible();
 
 			for (const {id,} of CARDS_UNAUTHENTICATED.filter(({id,},) => !UNLOCKED_CARD_IDS.has(id,),)) {
@@ -129,7 +86,8 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			}
 
 			for (const {id,} of CARDS_UNAUTHENTICATED) {
-				await snapshotCard(page, viewportName, id,);
+				const card = page.locator(`#card-${id}`,);
+				await expectCardSnapshot(page, card, testInfo, `${id}.png`, {userId: "signed-out", viewportName, testFolder: "Expand Cards",},);
 			}
 		});
 	});

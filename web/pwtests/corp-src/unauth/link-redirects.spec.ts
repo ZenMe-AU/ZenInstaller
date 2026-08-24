@@ -20,17 +20,12 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Navbar Link Redirects - ${viewportName}`, () => {
 		test.use({viewport, deviceScaleFactor: 1,});
 
-		test.beforeEach(async ({page,}, testInfo) => {
+		test.beforeEach(async ({page,}) => {
 			await page.goto(CORP_URL);
 		});
 
 		test(`Initial page render`, async ({page,}, testInfo) => {
-			await expectPageSnapshot(
-				page,
-				testInfo,
-				"initial.png",
-				{userId: "signed-out", viewportName, testFolder: "Link Redirects",},
-			);
+			await expectPageSnapshot(page, testInfo, "initial.png", {userId: "signed-out", viewportName, testFolder: "Link Redirects",},);
 		});
 
 		for (const navLink of navLinkCases) {
@@ -48,13 +43,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				]);
 
 				await expect(page).toHaveURL(new RegExp(`${navLink.expectedPath.replace("/", "\\/")}$`),);
-
-				await expectPageSnapshot(
-					page,
-					testInfo,
-					navLink.snapshotName,
-					{userId: "signed-out", viewportName, testFolder: "Link Redirects",},
-				);
+				await expectPageSnapshot(page,testInfo, navLink.snapshotName, {userId: "signed-out", viewportName, testFolder: "Link Redirects",},);
 			});
 		}
 	});

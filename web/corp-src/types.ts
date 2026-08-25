@@ -207,6 +207,9 @@ export type Stage = {
   // "failed" alone says nothing, so the plan publishes its output the way the deploy does.
   planLogId?: number;
   planLogUrl?: string;
+  // The merged corp.env artifact from the run that produced this plan.
+  envId?: number;
+  envUrl?: string;
   runId?: string;
   deployPlanRunId?: string;
   deployStatus?: string;
@@ -214,6 +217,13 @@ export type Stage = {
   deployedAt?: number;
   deployLogId?: number;
   deployLogUrl?: string;
+};
+
+// One stage's latest plan result as the workflow recorded it, plus when it was recorded — the
+// timestamp is what tells a poll whether the run it triggered has reported yet.
+export type StageReport = {
+  stage: Stage;
+  createdAt: number;
 };
 
 // ─── Secrets ──────────────────────────────────────────────────────────────────

@@ -8,6 +8,7 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import type {
   Account,
+  AzureAccount,
   CardChrome,
   CardId,
   CardStatus,
@@ -20,6 +21,7 @@ import type {
   StageDefinition,
 } from "../types";
 import { createVariable, fetchLogArtifact, fetchPlan, updateVariable } from "../api";
+import { useAzurePermissions } from "../hooks/util/useAzurePermissions";
 import { computePlanSummary } from "../logic/stage";
 import { getVariableDisplayName } from "../logic/variables";
 import ViewLink from "../components/ViewLink";
@@ -261,8 +263,7 @@ type Props = {
   statusUpdateCountdown: number;
   statusUpdateDisabled: boolean;
   runError: string | null;
-  ensureAzurePermissions: () => Promise<void>;
-  azurePermissionsGranting: boolean;
+  azureAccount: AzureAccount | null;
 };
 
 function Action({ repoFullName, runId }: { repoFullName: string | null; runId?: string }) {
@@ -289,8 +290,7 @@ export default function StageCard({
   statusUpdateCountdown,
   statusUpdateDisabled,
   runError,
-  ensureAzurePermissions,
-  azurePermissionsGranting,
+  azureAccount,
 }: Props) {
   const [expandedPrereqs, setExpandedPrereqs] = useState<Record<number, boolean>>({});
   const [planItems, setPlanItems] = useState<PlanItem[]>([]);
@@ -300,6 +300,15 @@ export default function StageCard({
   const [deployLog, setDeployLog] = useState<{ id: number; text: string | null } | null>(null);
   const [planLog, setPlanLog] = useState<{ id: number; text: string | null } | null>(null);
   const [permissionError, setPermissionError] = useState<string | null>(null);
+
+  // One instance per card. The permissions come straight from this stage's definition, so there
+  // is no shared pending flag to leak and no union of every stage's permissions to over-grant.
+  const azurePermissions = useAzurePermissions({
+    azureAccount,
+    spClientId: variableValues.AZURE_CLIENT_ID ?? "",
+    tenantId: variableValues.AZURE_TENANT_ID || undefined,
+    permissions: stageDef.azurePermissions,
+  });
   const onPlanSummaryRef = useRef(onPlanSummary);
   useLayoutEffect(() => {
     onPlanSummaryRef.current = onPlanSummary;
@@ -358,7 +367,7 @@ export default function StageCard({
   const handleRunStatusUpdate = async () => {
     setPermissionError(null);
     try {
-      await ensureAzurePermissions();
+      await azurePermissions.ensure();
     } catch (e) {
       console.error("Failed to grant Graph permissions:", e);
       setPermissionError(e instanceof Error ? e.message : "Failed to grant the pipeline's Graph permissions");
@@ -378,9 +387,9 @@ export default function StageCard({
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
           <RunStatusUpdateButton
             onRun={handleRunStatusUpdate}
-            running={statusUpdateRunning || azurePermissionsGranting}
+            running={statusUpdateRunning || azurePermissions.granting}
             countdown={statusUpdateCountdown}
-            disabled={statusUpdateDisabled || azurePermissionsGranting}
+            disabled={statusUpdateDisabled || azurePermissions.granting}
           />
           {(permissionError ?? runError) && (
             <Typography sx={{ fontSize: "0.72rem", color: "#ef4444" }}>{permissionError ?? runError}</Typography>

@@ -1,6 +1,7 @@
 import { parse } from "dotenv";
 import JSZip from "jszip";
-import type { Account, Branch, GhEnv, PullRequest, Repo, WorkflowRun, UpsertSecretResult } from "../types";
+import type { Account, Branch, GhEnv, PullRequest, Repo, StageReport, WorkflowRun, UpsertSecretResult } from "../types";
+import { toStageReport } from "../logic/stage";
 
 const url = import.meta.env.VITE_API_URL;
 
@@ -283,19 +284,28 @@ export async function deleteVariable(account: Account, repo: string, name: strin
 
 // ─── Status file ──────────────────────────────────────────────────────────────
 
-export async function fetchStatus(account: Account, repo: string, ref: string): Promise<object | null> {
+// A stage's own latest plan result, recorded by the workflow as a Deployment. Queried by task
+// rather than fetched in bulk: every run that declares an environment also creates a deployment of
+// GitHub's own, so a stage's latest can fall off the first page of an unfiltered list.
+export async function fetchStageReport(
+  account: Account,
+  repo: string,
+  envName: string,
+  dir: string,
+  kind: "plan" | "deploy",
+): Promise<StageReport | null> {
   const params = new URLSearchParams({
-    path: "corpSetup/deploymentChangeset.json",
     owner: account.login,
     repo,
-    type: account.type,
-    ref,
+    environment: envName,
+    task: `${kind}:${dir}`,
+    per_page: "1",
   });
-  const res = await fetchWithAuth(`${url}/getContents?${params}`);
-  if (res.status === 404) return null; // file doesn't exist yet — pipeline hasn't run before
-  if (!res.ok) throw new Error(`Failed to fetch status: ${res.status}`);
-  const data = await res.json();
-  return JSON.parse(data.content);
+  const res = await fetchWithAuth(`${url}/getDeployments?${params}`);
+  if (!res.ok) throw new Error(`Failed to fetch the report for "${dir}": ${res.status}`);
+  const { deployments } = await res.json();
+  const latest = deployments?.[0];
+  return latest ? toStageReport(latest.payload, latest.created_at) : null;
 }
 
 // ─── Env ──────────────────────────────────────────────────────────────────────

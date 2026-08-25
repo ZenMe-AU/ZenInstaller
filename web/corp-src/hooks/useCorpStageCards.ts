@@ -84,7 +84,10 @@ export function useCorpStageCards({
     const effectiveStatus = getEffectiveStatus(stage, summary, stageDef.optional);
     const varsMismatch =
       plan.deployedEnv != null && hasVariableDiff(stageDef.prerequisites, variableValues, plan.deployedEnv);
-    const deployDisabled = plan.isStale || varsMismatch;
+    // This stage's own run, if it has one — a run on another card must not grey this one out.
+    const run = plan.runs[stageDef.key];
+    const isStale = run != null;
+    const deployDisabled = isStale || varsMismatch;
     const cardId = getStageCardId(stageDef.key);
     const requirements = repoDone
       ? []
@@ -97,10 +100,8 @@ export function useCorpStageCards({
     const locked = requirements.length > 0;
     const card: CardChrome = {
       cardId,
-      status: locked ? "idle" : stageToCardStatus(effectiveStatus, plan.isStale, plan.stagesLoading),
-      summary: locked
-        ? undefined
-        : getStageSummaryText(stage, summary, plan.stagesLoading, plan.isStale, stageDef.optional),
+      status: locked ? "idle" : stageToCardStatus(effectiveStatus, isStale, plan.stagesLoading),
+      summary: locked ? undefined : getStageSummaryText(stage, summary, plan.stagesLoading, isStale, stageDef.optional),
       locked,
       requirements,
       unavailable: false,
@@ -131,10 +132,10 @@ export function useCorpStageCards({
       onDeploy,
       onPlanSummary: (s) => plan.setStageSummary(stageDef.key, s),
       onRunStatusUpdate: () => plan.onRun(stageDef.key),
-      statusUpdateRunning: plan.running,
-      statusUpdateCountdown: plan.countdown,
-      statusUpdateDisabled: !repoDone || plan.running || plan.retryCount > 0,
-      runError: plan.runError,
+      statusUpdateRunning: run != null && run.error == null,
+      statusUpdateCountdown: run?.countdown ?? 0,
+      statusUpdateDisabled: !repoDone || run != null,
+      runError: run?.error ?? null,
     };
   });
 }

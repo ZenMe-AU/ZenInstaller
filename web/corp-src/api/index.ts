@@ -76,7 +76,7 @@ export const deleteVariable: ApiProvider["deleteVariable"] = (...a) => _provider
 
 // ─── Status & Env files ───────────────────────────────────────────────────────
 
-export const fetchStatus: ApiProvider["fetchStatus"] = (...a) => _provider.fetchStatus(...a);
+export const fetchStageReport: ApiProvider["fetchStageReport"] = (...a) => _provider.fetchStageReport(...a);
 export const fetchEnv: ApiProvider["fetchEnv"] = (...a) => _provider.fetchEnv(...a);
 
 // ─── Artifacts ────────────────────────────────────────────────────────────────

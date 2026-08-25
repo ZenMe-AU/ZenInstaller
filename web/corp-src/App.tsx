@@ -11,7 +11,6 @@ import { useGithubVariables } from "./hooks/useGithubVariables";
 import { useUrlRestore, useUrlSync } from "./hooks/useUrlStateManager";
 import { useDeploymentPlan } from "./hooks/useDeploymentPlan";
 import { useCorpStageCards } from "./hooks/useCorpStageCards";
-import { useAzurePermissions } from "./hooks/util/useAzurePermissions";
 import { useAzureLoginCard } from "./hooks/useAzureLoginCard";
 import { useAzureAppRegistrationCard } from "./hooks/useAzureAppRegistrationCard";
 import { useAzureSubscriptionCard } from "./hooks/useAzureSubscriptionCard";
@@ -233,13 +232,6 @@ function AppDashboard() {
     };
   };
 
-  const azurePermissions = useAzurePermissions({
-    azureAccount: azureLogin.account,
-    spClientId: githubVariableValues.AZURE_CLIENT_ID ?? "",
-    tenantId: githubVariableValues.AZURE_TENANT_ID || undefined,
-    permissions: [...new Set(PIPELINE.stages.flatMap((stage) => stage.azurePermissions ?? []))],
-  });
-
   const stageCards = useCorpStageCards({
     pipeline: PIPELINE,
     plan,
@@ -367,12 +359,7 @@ function AppDashboard() {
             />
 
             {stageCards.map(({ key, ...stageCard }) => (
-              <StageCard
-                key={key}
-                {...stageCard}
-                ensureAzurePermissions={azurePermissions.ensure}
-                azurePermissionsGranting={azurePermissions.granting}
-              />
+              <StageCard key={key} {...stageCard} azureAccount={azureLogin.account} />
             ))}
 
             <AccessPassCard card={cardProps("access_pass")} accessPass={azureAccessPass} />

@@ -1,19 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { deployChangeset, fetchStatus, getPlanEnv, triggerWorkflow } from "../api";
 import { isPlanStale } from "../logic/stage";
-import type { Account, Branch, CardStatus, GhEnv, PipelineConfig, PlanSummary, Stage, StageDefinition } from "../types";
+import type { Account, Branch, CardStatus, GhEnv, PipelineConfig, PlanSummary, Stage } from "../types";
 
 interface PollContext {
   attempt: number;
   triggerTime: number;
   prevRunId: string | null;
-}
-
-export interface DeployStageParams {
-  stageDef: StageDefinition;
-  stage: Stage;
-  envName: string;
-  branches: Branch[];
 }
 
 export interface UseDeploymentPlan {
@@ -30,8 +23,10 @@ export interface UseDeploymentPlan {
   isStale: boolean;
   statusUpdateStatus: CardStatus;
   statusFileRunId: string | null;
-  onRun: () => Promise<void>;
-  deployStage: (params: DeployStageParams) => Promise<void>;
+  // Both take just the stage key: the hook already holds the pipeline, the stages, the selected
+  // env and the branches, so handing them back in would be a second source for the same value.
+  onRun: (stageKey: string) => Promise<void>; // One card, one stage — never the whole pipeline.
+  deployStage: (stageKey: string) => Promise<void>;
   setStageSummary: (key: string, summary: PlanSummary) => void;
 }
 
@@ -192,12 +187,12 @@ export function useDeploymentPlan(opts: {
     if (branch) implRef.current.loadPlanImpl(branch.name);
   }, [opts.selectedEnv?.id, opts.branchMatchError]);
 
-  const onRun = useCallback(async () => {
+  const onRun = useCallback(async (stageKey: string) => {
     const acc = accountRef.current;
     const repo = repoNameRef.current;
     const env = selectedEnvRef.current;
-    if (!acc || !repo || !envReadyRef.current || !env) return;
-
+    const stage = pipelineRef.current.stages.find((s) => s.key === stageKey);
+    if (!acc || !repo || !envReadyRef.current || !env || !stage) return;
     setRunError(null);
     setStatusUpdateStatus("loading");
     const triggerTime = Date.now();
@@ -206,7 +201,7 @@ export function useDeploymentPlan(opts: {
     setRetryCount(0);
 
     try {
-      await triggerWorkflow(acc, repo, pipelineRef.current.workflowId, env.name, env.name);
+      await triggerWorkflow(acc, repo, stage.workflowId, env.name, env.name);
     } catch (e) {
       console.error("Failed to trigger workflow:", e);
       setStatusUpdateStatus("error");
@@ -223,13 +218,24 @@ export function useDeploymentPlan(opts: {
     implRef.current.startPollingImpl(matchedBranch.name, 0, triggerTime, prevRunId);
   }, []);
 
-  const deployStage = useCallback(async (params: DeployStageParams) => {
+  const deployStage = useCallback(async (stageKey: string) => {
     const acc = accountRef.current;
     const repo = repoNameRef.current;
-    if (!acc || !repo || !params.stage.runId) return;
+    const env = selectedEnvRef.current;
+    const stageDef = pipelineRef.current.stages.find((s) => s.key === stageKey);
+    const stage = stagesRef.current.find((s) => s.stage === stageKey);
+    if (!acc || !repo || !env || !stageDef || !stage?.runId) return;
 
     try {
-      await deployChangeset(acc, repo, params.stage.runId, params.stageDef.label, params.envName, params.envName);
+      await deployChangeset(
+        acc,
+        repo,
+        stage.runId,
+        pipelineRef.current.deployWorkflowId,
+        stageDef.label,
+        env.name,
+        env.name,
+      );
     } catch (e) {
       console.error("Failed to trigger deploy:", e);
       return;
@@ -239,8 +245,9 @@ export function useDeploymentPlan(opts: {
     const prevRunId = stagesRef.current[0]?.runId ?? null;
     setLastTriggeredAt(triggerTime);
     setRetryCount(0);
-    const ref =
-      params.branches.find((b) => b.name.toLowerCase() === params.envName.toLowerCase())?.name ?? params.envName;
+    // Same branch lookup onRun does, from the same ref. onRun treats no match as an error while
+    // this falls back to the env name — left as it was rather than changed in passing.
+    const ref = branchesRef.current.find((b) => b.name.toLowerCase() === env.name.toLowerCase())?.name ?? env.name;
     implRef.current.startPollingImpl(ref, 0, triggerTime, prevRunId);
   }, []);
 

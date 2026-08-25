@@ -1,6 +1,5 @@
 import type {
   Account,
-  Branch,
   CardChrome,
   CardHook,
   CardId,
@@ -52,7 +51,6 @@ export function useCorpStageCards({
   account,
   repoName,
   selectedEnv,
-  branches,
   variableValues,
   onVariableConfirmed,
   onToggle,
@@ -67,7 +65,6 @@ export function useCorpStageCards({
   account: Account | null;
   repoName: string;
   selectedEnv: GhEnv | null;
-  branches: Branch[];
   variableValues: Record<string, string>;
   onVariableConfirmed: (key: string, value: string) => void;
   onToggle: (id: CardId) => void;
@@ -114,12 +111,7 @@ export function useCorpStageCards({
     const onDeploy =
       effectiveStatus === "success" && stage.runId && selectedEnv
         ? async () => {
-            await plan.deployStage({
-              stageDef,
-              stage,
-              envName: selectedEnv.name,
-              branches,
-            });
+            await plan.deployStage(stageDef.key);
           }
         : undefined;
 
@@ -138,7 +130,7 @@ export function useCorpStageCards({
       onVariableConfirmed,
       onDeploy,
       onPlanSummary: (s) => plan.setStageSummary(stageDef.key, s),
-      onRunStatusUpdate: plan.onRun,
+      onRunStatusUpdate: () => plan.onRun(stageDef.key),
       statusUpdateRunning: plan.running,
       statusUpdateCountdown: plan.countdown,
       statusUpdateDisabled: !repoDone || plan.running || plan.retryCount > 0,

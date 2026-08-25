@@ -250,7 +250,6 @@ function AppDashboard() {
     account: githubRepoEnv.repo.selectedAccount,
     repoName: githubRepoEnv.repo.selectedRepo?.name ?? "",
     selectedEnv: githubRepoEnv.env.selectedEnv,
-    branches: githubRepoEnv.repo.branchList,
     variableValues: githubVariableValues,
     onVariableConfirmed: githubVariables.onConfirmed,
     onToggle: toggle,

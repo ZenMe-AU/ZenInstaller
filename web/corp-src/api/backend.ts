@@ -387,6 +387,7 @@ export async function deployChangeset(
   account: Account,
   repo: string,
   runId: string,
+  workflowId: string,
   dir: string,
   githubEnvName: string,
   ref: string,
@@ -397,10 +398,10 @@ export async function deployChangeset(
       repo,
       owner: account.login,
       type: account.type,
-      workflow_id: "deployChangeset.yml",
+      workflow_id: workflowId,
       ref,
       github_env_name: githubEnvName,
-      run_id: runId,
+      plan_run_id: runId,
       dir,
     }),
   });
@@ -410,7 +411,7 @@ export async function deployChangeset(
 
 // ─── Deploy error (from artifact log) ────────────────────────────────────────
 
-export async function fetchDeployLog(account: Account, repo: string, logId: number): Promise<string | null> {
+export async function fetchLogArtifact(account: Account, repo: string, logId: number): Promise<string | null> {
   const params = new URLSearchParams({ artifacts_id: String(logId), owner: account.login, type: account.type, repo });
   const res = await fetchWithAuth(`${url}/downloadArtifacts?${params}`);
   if (!res.ok) return null;

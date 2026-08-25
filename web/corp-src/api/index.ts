@@ -82,7 +82,7 @@ export const fetchEnv: ApiProvider["fetchEnv"] = (...a) => _provider.fetchEnv(..
 // ─── Artifacts ────────────────────────────────────────────────────────────────
 
 export const getPlanEnv: ApiProvider["getPlanEnv"] = (...a) => _provider.getPlanEnv(...a);
-export const fetchDeployLog: ApiProvider["fetchDeployLog"] = (...a) => _provider.fetchDeployLog(...a);
+export const fetchLogArtifact: ApiProvider["fetchLogArtifact"] = (...a) => _provider.fetchLogArtifact(...a);
 export const fetchPlan: ApiProvider["fetchPlan"] = (...a) => _provider.fetchPlan(...a);
 
 // ─── Workflow dispatch ────────────────────────────────────────────────────────

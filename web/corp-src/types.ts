@@ -179,6 +179,7 @@ export type Prerequisite = PrerequisiteCard | PrerequisiteVar | PrerequisiteVarG
 export type StageDefinition = {
   key: string;
   label: string;
+  workflowId: string;
   prerequisites: Prerequisite[];
   optional?: boolean; // When true, a pending stage is treated as skipped rather than waiting.
   azurePermissions?: readonly string[]; // Microsoft Graph application permission IDs required by this stage.
@@ -186,6 +187,7 @@ export type StageDefinition = {
 
 export type PipelineConfig = {
   workflowId: string;
+  deployWorkflowId: string;
   label: string;
   templateRepo: string;
   validEnvs: readonly string[];
@@ -202,6 +204,9 @@ export type Stage = {
   planPath?: string;
   planJsonId?: string;
   planJsonUrl?: string;
+  // "failed" alone says nothing, so the plan publishes its output the way the deploy does.
+  planLogId?: number;
+  planLogUrl?: string;
   runId?: string;
   deployPlanRunId?: string;
   deployStatus?: string;

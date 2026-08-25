@@ -341,7 +341,8 @@ export function createGithubApi(token: string) {
     }
   }
 
-  async function fetchDeployLog(account: Account, repo: string, logId: number): Promise<string | null> {
+  // Any single-file log artifact — the plan and deploy paths both publish one.
+  async function fetchLogArtifact(account: Account, repo: string, logId: number): Promise<string | null> {
     try {
       const zip = await downloadZip(account, repo, logId);
       const file = Object.values(zip.files).find((f) => !f.dir);
@@ -404,13 +405,14 @@ export function createGithubApi(token: string) {
     account: Account,
     repo: string,
     runId: string,
+    workflowId: string,
     dir: string,
     githubEnvName: string,
     ref: string,
   ): Promise<void> {
-    const res = await gh(`/repos/${account.login}/${repo}/actions/workflows/deployChangeset.yml/dispatches`, {
+    const res = await gh(`/repos/${account.login}/${repo}/actions/workflows/${workflowId}/dispatches`, {
       method: "POST",
-      body: JSON.stringify({ ref, inputs: { github_env_name: githubEnvName, run_id: runId, dir } }),
+      body: JSON.stringify({ ref, inputs: { github_env_name: githubEnvName, plan_run_id: runId, dir } }),
     });
     if (!res.ok) throw new Error(`Failed to trigger deploy: ${res.status}`);
   }
@@ -437,7 +439,7 @@ export function createGithubApi(token: string) {
     setOidcImmutableSubject,
     fetchEnv,
     getPlanEnv,
-    fetchDeployLog,
+    fetchLogArtifact,
     fetchPlan,
     triggerWorkflow,
     triggerWorkflowFromPR,

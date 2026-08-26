@@ -85,7 +85,7 @@ export default function StagePlanDetail({
           mb: 1,
         }}
       >
-        Plan Changes
+        Planned Changes for Deployment
       </Typography>
       <Box
         sx={{

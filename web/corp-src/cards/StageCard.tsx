@@ -238,7 +238,7 @@ function RunStatusUpdateButton({
           Running... {countdown >= 60 ? `${Math.ceil(countdown / 60)}m` : `${countdown}s`}
         </>
       ) : (
-        "Run Status Update"
+        "Get Updated Plan"
       )}
     </Button>
   );

@@ -238,7 +238,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
 			await expect(repoInput).toHaveValue(validRepoName);
 			await expect(repoCard.getByText("Valid", { exact: true, })).toBeVisible();
-			await expect(repoCard.getByText("No environment found.", { exact: true, })).toBeVisible();
+			await expect(repoCard.getByText("No environment found", { exact: true, })).toBeVisible();
 			await expect(repoCard.getByRole("button", { name: "Clone Repository", })).toHaveCount(0);
 
 			await expectCardSnapshot(page, repoCard, testInfo, "valid-repo-no-env-mock.png",

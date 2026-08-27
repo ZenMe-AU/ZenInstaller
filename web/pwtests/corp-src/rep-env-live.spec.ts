@@ -1,7 +1,7 @@
-import { expect, test} from "@playwright/test";
-import { corpGithubAuthStateExists, restoreCorpSessionStorage, storageStateFile, } from "../setupHelper";
-import { CORP_URL, viewports, } from "../../testInit";
-import { expandRepoCard, chooseRepoOption, expectVisibleWithin, expectCardSnapshot, sensitiveTextMasks } from "../testHelper";
+import { expect, test } from "@playwright/test";
+import { corpGithubAuthStateExists, restoreCorpSessionStorage, storageStateFile, } from "./setupHelper";
+import { CORP_URL, viewports, } from "../testInit";
+import { expandRepoCard, chooseRepoOption, expectVisibleWithin, expectCardSnapshot, sensitiveTextMasks } from "./testHelper";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Live Tests - ${viewportName}`, () => {

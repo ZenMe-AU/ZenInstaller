@@ -3,31 +3,17 @@
 import { defineConfig, devices } from "@playwright/test";
 import * as dotenv from "dotenv";
 import path from "node:path";
-import { fileURLToPath,} from "node:url";
+import { fileURLToPath, } from "node:url";
 
-process.env.NODE_ENV = process.env.NODE_ENV || 'dev'; 
+process.env.NODE_ENV = process.env.NODE_ENV || 'dev';
 process.env.DEBUG = process.env.DEBUG || 'pw:api';
 const currentFilePath = fileURLToPath(import.meta.url,);
-const currentDirectory =path.dirname(currentFilePath,);
-dotenv.config({path:path.resolve(currentDirectory,".env",),});
-
-const signedOutTests = [
-  /access-pass-render\.spec\.ts/,
-  /azure-help-link\.spec\.ts/,
-  /zeninstaller-link\.spec\.ts/,
-];
-
-const authenticatedTests = [
-  /authenticated-page-load\.spec\.ts/,
-  /azure-connection\.spec\.ts/,
-  /entra-user-action\.spec\.ts/,
-  /tenant-outcome\.spec\.ts/,
-  /access-pass-creation\.spec\.ts/,
-];
+const currentDirectory = path.dirname(currentFilePath,);
+dotenv.config({ path: path.resolve(currentDirectory, ".env",), });
 
 export default defineConfig({
   testDir: "./pwtests",
-  outputDir:"./pwtests/test-results",
+  outputDir: "./pwtests/test-results",
   updateSnapshots: process.env.CI ? "none" : "missing",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
@@ -38,12 +24,12 @@ export default defineConfig({
   expect: {
     timeout: 10_000,
 
-      toHaveScreenshot: {
-        animations: "disabled",
-        caret: "hide",
-        scale: "css",
-        maxDiffPixelRatio: 0.02,
-        pathTemplate: "{testDir}/{arg}{ext}"
+    toHaveScreenshot: {
+      animations: "disabled",
+      caret: "hide",
+      scale: "css",
+      maxDiffPixelRatio: 0.02,
+      pathTemplate: "{testDir}/{arg}{ext}"
     },
   },
 
@@ -51,69 +37,17 @@ export default defineConfig({
     baseURL: "http://localhost:5173",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
-    testIdAttribute:"data-id",
+    testIdAttribute: "data-id",
   },
 
   projects: [
     /**
-     * Manual setup project.
-     *
-     * This is the only project that runs azure-passkey.setup.ts.
-     * It opens the browser, lets you complete Microsoft passkey login manually,
+     * Manual Authentication test setup.
+     * This opens the browser, lets you complete Microsoft passkey login manually,
      * then saves the authenticated browser state.
      */
     {
-      name: "access-pass-setup",
-      testMatch: /azure-passkey\.setup\.ts/,
-      fullyParallel: false,
-      use: {
-        ...devices["Desktop Chrome"],
-      },
-    },
-
-    /**
-     * Normal signed-out Access Pass tests in Chromium.
-     *
-     * This ignores authenticated tests and setup tests.
-     */
-    {
-      name: "access-pass",
-      testMatch: signedOutTests,
-      fullyParallel: true,
-      use: {
-        ...devices["Desktop Chrome"],
-      },
-    },
-
-    /**
-     * Normal signed-out Access Pass tests in Chromium.
-     *
-     * This ignores authenticated tests and setup tests.
-     */
-    {
-      name: "access-pass-auth",
-      testMatch: authenticatedTests,
-      // no parallel tests to avoid MSAL timeout when two test using same account
-      fullyParallel: false,
-      workers: 1,
-      retries: 1,
-      use: {
-        ...devices["Desktop Chrome"],
-      },
-      dependencies: ["access-pass-setup"],
-    },
-
-    {
-      name: "corp-src",
-      testMatch: /corp-src\/unauth\/.*\.spec\.ts/,
-      fullyParallel: true,
-      use: {
-        ...devices["Desktop Chrome"],
-      },
-    },
-
-    {
-      name: "corp-github-setup",
+      name: "Setup Corp Github Auth",
       testMatch: /github-login\.setup\.ts/,
       fullyParallel: false,
       retries: 0,
@@ -123,7 +57,7 @@ export default defineConfig({
     },
 
     {
-      name: "corp-github-pat-setup",
+      name: "Setup Corp Github PAT Auth",
       testMatch: /github-pat-login\.setup\.ts/,
       fullyParallel: false,
       retries: 0,
@@ -133,7 +67,7 @@ export default defineConfig({
     },
 
     {
-      name: "azure-login-setup",
+      name: "Setup Corp Azure Login",
       testMatch: /corp-src\/setup\/azure-login\.setup\.ts/,
       fullyParallel: false,
       retries: 0,
@@ -143,28 +77,25 @@ export default defineConfig({
     },
 
     {
-      name: "corp-src-auth",
-      testMatch: /corp-src\/auth\/.*\.spec\.ts/,
+      name: "Test Corp",
+      testMatch: /corp-src\/.*\.spec\.ts/,
       fullyParallel: false,
       workers: 1,
       retries: 1,
       use: {
         ...devices["Desktop Chrome"],
       },
-      dependencies: ["corp-github-pat-setup", "azure-login-setup"],
+      dependencies: ["Setup Corp Github PAT Auth", "Setup Corp Azure Login"],
     },
 
   ],
 
   /**
-   * Optional:
-   * Uncomment this if you want Playwright to start Vite automatically.
-   *
-   * If you prefer to run `pnpm dev` yourself, leave this commented out.
+   * Start the server automatically
    */
   webServer: {
     command: "pnpm run dev",
-    url: "http://localhost:5173",
+    url: process.env.BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },

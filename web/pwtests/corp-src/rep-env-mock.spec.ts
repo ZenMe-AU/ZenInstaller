@@ -1,7 +1,7 @@
-import { expect, test} from "@playwright/test";
-import { corpGithubAuthStateExists, restoreCorpSessionStorage, storageStateFile, } from "../setupHelper";
-import { CORP_URL, viewports, } from "../../testInit";
-import { expandRepoCard, logMockAPI, expectCardSnapshot, sensitiveTextMasks } from "../testHelper";
+import { expect, test } from "@playwright/test";
+import { corpGithubAuthStateExists, restoreCorpSessionStorage, storageStateFile, } from "./setupHelper";
+import { CORP_URL, viewports, } from "../testInit";
+import { expandRepoCard, logMockAPI, expectCardSnapshot, sensitiveTextMasks } from "./testHelper";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Mock Tests - ${viewportName}`, () => {
@@ -32,10 +32,10 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
 		test("SAFETY CHECK - permits GitHub reads", async ({ page }) => {
 			await page.route("https://api.github.com/rate_limit", (route) => route.fulfill({
-					status: 200,
-					contentType: "application/json",
-					body: JSON.stringify({ resources: {} }),
-				}),
+				status: 200,
+				contentType: "application/json",
+				body: JSON.stringify({ resources: {} }),
+			}),
 			);
 			const response = await page.evaluate(() => fetch("https://api.github.com/rate_limit").then((result) => result.status),);
 			expect(response).toBe(200);

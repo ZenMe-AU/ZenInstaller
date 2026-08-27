@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { FitAddon } from "@xterm/addon-fit";
+import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 import type { UseRemoteTerminal } from "../hooks/useRemoteTerminal";
-import type { TerminalStatus } from "../logic/remoteTerminal";
+import type { Cloud, TerminalStatus } from "../logic/remoteTerminal";
 import { stageLabel } from "../logic/remoteTerminal";
 import { MONO as mono } from "../config/styles";
 
@@ -106,9 +107,12 @@ function StatusBar({ session }: { session: UseRemoteTerminal }) {
   );
 }
 
-function DeviceCodePanel({ url, code }: { url: string; code: string }) {
+const CLOUD_NAME: Record<Cloud, string> = { azure: "Azure", aws: "AWS" };
+
+function DeviceCodePanel({ cloud, url, code }: { cloud: Cloud; url: string; code?: string }) {
   const [copied, setCopied] = useState(false);
   const handleCopy = () => {
+    if (!code) return;
     navigator.clipboard
       ?.writeText(code)
       .then(() => {
@@ -121,27 +125,31 @@ function DeviceCodePanel({ url, code }: { url: string; code: string }) {
   return (
     <Box sx={{ px: 1.5, py: 1.25, background: HEADER, borderBottom: `1px solid ${BORDER}`, textAlign: "center" }}>
       <Typography sx={{ fontSize: "0.72rem", color: ACCENT, fontWeight: 600, mb: 1, ...mono }}>
-        Azure Device Code Login
+        {cloud === "aws" ? "AWS Console Sign-In" : "Azure Device Code Login"}
       </Typography>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1, flexWrap: "wrap" }}>
-        <Typography
-          sx={{
-            fontSize: "1.1rem",
-            fontWeight: 700,
-            letterSpacing: "0.2rem",
-            color: YELLOW,
-            background: BORDER,
-            px: 1.5,
-            py: 0.5,
-            borderRadius: "6px",
-            ...mono,
-          }}
-        >
-          {code}
-        </Typography>
-        <Button onClick={handleCopy} size="small" sx={darkBtnSx}>
-          {copied ? "Copied!" : "Copy"}
-        </Button>
+        {code && (
+          <>
+            <Typography
+              sx={{
+                fontSize: "1.1rem",
+                fontWeight: 700,
+                letterSpacing: "0.2rem",
+                color: YELLOW,
+                background: BORDER,
+                px: 1.5,
+                py: 0.5,
+                borderRadius: "6px",
+                ...mono,
+              }}
+            >
+              {code}
+            </Typography>
+            <Button onClick={handleCopy} size="small" sx={darkBtnSx}>
+              {copied ? "Copied!" : "Copy"}
+            </Button>
+          </>
+        )}
         <Button
           href={url}
           target="_blank"
@@ -156,11 +164,13 @@ function DeviceCodePanel({ url, code }: { url: string; code: string }) {
             "&:hover": { background: "#74a0fc" },
           }}
         >
-          Open Microsoft Device Login
+          {cloud === "aws" ? "Open AWS Sign-In" : "Open Microsoft Device Login"}
         </Button>
       </Box>
       <Typography sx={{ fontSize: "0.65rem", color: MUTED, mt: 1, ...mono }}>
-        Enter the code on the Microsoft page — it cannot be pre-filled from the link.
+        {cloud === "aws"
+          ? "Sign in, then paste the authorization code it gives you into the terminal below."
+          : "Enter the code on the Microsoft page — it cannot be pre-filled from the link."}
       </Typography>
     </Box>
   );
@@ -175,6 +185,7 @@ export default function RemoteTerminal({ session }: { session: UseRemoteTerminal
     if (!el || !terminal) return;
     const fit = new FitAddon();
     terminal.loadAddon(fit);
+    terminal.loadAddon(new WebLinksAddon());
     terminal.open(el);
     const refit = () => {
       fit.fit();
@@ -190,8 +201,10 @@ export default function RemoteTerminal({ session }: { session: UseRemoteTerminal
   return (
     <Box sx={{ borderRadius: "8px", overflow: "hidden", border: `1px solid ${BORDER}`, background: PANEL }}>
       <StatusBar session={session} />
-      {session.deviceCode && <DeviceCodePanel url={session.deviceCode.url} code={session.deviceCode.code} />}
-      {session.loginCompleted && (
+      {session.deviceCode && (
+        <DeviceCodePanel cloud={session.deviceCode.cloud} url={session.deviceCode.url} code={session.deviceCode.code} />
+      )}
+      {session.loggedIn.length > 0 && (
         <Typography
           sx={{
             fontSize: "0.72rem",
@@ -204,7 +217,7 @@ export default function RemoteTerminal({ session }: { session: UseRemoteTerminal
             ...mono,
           }}
         >
-          Azure login completed.
+          {session.loggedIn.map((c) => CLOUD_NAME[c]).join(" and ")} sign-in completed.
         </Typography>
       )}
       {session.error && (

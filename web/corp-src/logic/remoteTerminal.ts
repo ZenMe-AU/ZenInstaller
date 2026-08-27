@@ -1,9 +1,12 @@
 // What the remote-login runner sends into the session group.
+export type Cloud = "azure" | "aws";
+
 export type RunnerMessage =
   | { type: "terminal"; data: string }
-  | { type: "deviceCode"; url: string; code: string }
-  | { type: "loginCompleted" }
-  | { type: "loginFailed"; exitCode: number }
+  // AWS hands the code back through the console, so only Azure carries one up front.
+  | { type: "deviceCode"; cloud: Cloud; url: string; code?: string }
+  | { type: "loginCompleted"; cloud: Cloud }
+  | { type: "loginFailed"; cloud: Cloud; exitCode: number }
   | { type: "stage"; stage: string }
   | { type: "terraformCompleted" }
   | { type: "terraformFailed"; exitCode: number };
@@ -15,7 +18,8 @@ export type TerminalStatus = "idle" | "starting" | "connecting" | "connected" | 
 
 const STAGE_LABELS: Record<string, string> = {
   connecting: "Connecting...",
-  login: "Azure Login",
+  "azure-login": "Azure Login",
+  "aws-login": "AWS Login",
   "terraform-init": "Terraform Init",
   "terraform-plan": "Terraform Plan",
   done: "Complete",

@@ -5,7 +5,7 @@ import { createSessionCredentials, deleteSession, negotiateSession, registerSess
 import type { SessionCredentials } from "../api/remoteTerminal";
 import { TERMINAL_COLS, TERMINAL_ROWS } from "../config/remoteTerminal";
 import { parseSocketEvent } from "../logic/remoteTerminal";
-import type { RunnerMessage, TerminalStatus } from "../logic/remoteTerminal";
+import type { Cloud, RunnerMessage, TerminalStatus } from "../logic/remoteTerminal";
 import type { Account, GhEnv } from "../types";
 
 const MAX_RECONNECT_ATTEMPTS = 10;
@@ -19,7 +19,7 @@ const TERMINAL_THEME = {
   selectionBackground: "#45475a",
 };
 
-export type DeviceCode = { url: string; code: string };
+export type DeviceCode = { cloud: Cloud; url: string; code?: string };
 
 export interface UseRemoteTerminal {
   terminal: Terminal | null;
@@ -27,7 +27,7 @@ export interface UseRemoteTerminal {
   sessionId: string | null;
   stage: string | null;
   deviceCode: DeviceCode | null;
-  loginCompleted: boolean;
+  loggedIn: Cloud[];
   runnerJoined: boolean;
   error: string | null;
   start: () => Promise<void>;
@@ -52,7 +52,7 @@ export function useRemoteTerminal(opts: {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [stage, setStage] = useState<string | null>(null);
   const [deviceCode, setDeviceCode] = useState<DeviceCode | null>(null);
-  const [loginCompleted, setLoginCompleted] = useState(false);
+  const [loggedIn, setLoggedIn] = useState<Cloud[]>([]);
   const [runnerJoined, setRunnerJoined] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -113,7 +113,7 @@ export function useRemoteTerminal(opts: {
     setSessionId(null);
     setStage(null);
     setDeviceCode(null);
-    setLoginCompleted(false);
+    setLoggedIn([]);
     setRunnerJoined(false);
     setError(null);
   }, []);
@@ -125,14 +125,14 @@ export function useRemoteTerminal(opts: {
         termRef.current?.write(message.data);
         break;
       case "deviceCode":
-        setDeviceCode({ url: message.url, code: message.code });
+        setDeviceCode({ cloud: message.cloud, url: message.url, code: message.code });
         break;
       case "loginCompleted":
-        setLoginCompleted(true);
+        setLoggedIn((prev) => (prev.includes(message.cloud) ? prev : [...prev, message.cloud]));
         setDeviceCode(null);
         break;
       case "loginFailed":
-        setError(`Azure login failed (exit ${message.exitCode})`);
+        setError(`${message.cloud === "aws" ? "AWS" : "Azure"} login failed (exit ${message.exitCode})`);
         setStage("error");
         break;
       case "stage":
@@ -255,5 +255,5 @@ export function useRemoteTerminal(opts: {
 
   useEffect(() => stop, [stop]);
 
-  return { terminal, status, sessionId, stage, deviceCode, loginCompleted, runnerJoined, error, start, stop, resize };
+  return { terminal, status, sessionId, stage, deviceCode, loggedIn, runnerJoined, error, start, stop, resize };
 }

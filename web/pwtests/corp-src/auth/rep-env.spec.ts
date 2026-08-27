@@ -3,7 +3,6 @@ import { corpGithubAuthStateExists, restoreCorpSessionStorage, storageStateFile,
 import { CORP_URL, viewports, } from "../../testInit";
 import { expandRepoCard, chooseRepoOption, logMockAPI, expectVisibleWithin, expectCardSnapshot, sensitiveTextMasks } from "../testHelper";
 
-//TODO: ensure other APIs are blocked
 //TODO: testing valid repo but no environment variables
 //TODO: testing creating branch with non-existant and existing branches
 //TODO: testing case-sensitivity 
@@ -108,8 +107,35 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		test.skip(process.env.TEST_MODE !== "mock", "Set TEST_MODE=mock to run mock tests.",);
 
 		test.beforeEach(async ({ page, context, }) => {
+			// blocks unexpected POST requests (supposed to be mocked)
+			await page.route("https://api.github.com/**", async (route) => {
+				const request = route.request();
+				if (["GET", "HEAD", "OPTIONS"].includes(request.method())) {
+					await route.continue();
+					return;
+				}
+				console.info(`Blocked unexpected GitHub write: ${request.method()} ${request.url()}`,);
+				await route.abort("blockedbyclient");
+			});
 			await restoreCorpSessionStorage(context,);
 			await page.goto(CORP_URL);
+		});
+
+		test("SAFETY CHECK - blocks unexpected GitHub writes", async ({ page }) => {
+			await expect(page.evaluate(async () => {
+				await fetch("https://api.github.com/repos/nonexistant-repo/nonexistant", { method: "DELETE" },);
+			}),).rejects.toThrow("Failed to fetch");
+		});
+
+		test("SAFETY CHECK - permits GitHub reads", async ({ page }) => {
+			await page.route("https://api.github.com/rate_limit", (route) => route.fulfill({
+					status: 200,
+					contentType: "application/json",
+					body: JSON.stringify({ resources: {} }),
+				}),
+			);
+			const response = await page.evaluate(() => fetch("https://api.github.com/rate_limit").then((result) => result.status),);
+			expect(response).toBe(200);
 		});
 
 		test("MOCK TEST - Cloning a new repo for both PROD and TEST", async ({ page, }, testInfo) => {

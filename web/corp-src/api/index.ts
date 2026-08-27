@@ -93,3 +93,4 @@ export const triggerWorkflow: ApiProvider["triggerWorkflow"] = (...a) => _provid
 export const triggerWorkflowFromPR: ApiProvider["triggerWorkflowFromPR"] = (...a) =>
   _provider.triggerWorkflowFromPR(...a);
 export const deployChangeset: ApiProvider["deployChangeset"] = (...a) => _provider.deployChangeset(...a);
+export const triggerRemoteLogin: ApiProvider["triggerRemoteLogin"] = (...a) => _provider.triggerRemoteLogin(...a);

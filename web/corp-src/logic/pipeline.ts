@@ -7,7 +7,7 @@ type PipelineSource = Omit<PipelineConfig, "stages"> & { stages: StageSource[] }
 const DEFINITIONS: Record<string, PipelineSource> = {
   corpSetup: {
     workflowId: "planChanges.yml",
-    deployWorkflowId: "deployPlan.yml",
+    deployWorkflowId: "remoteLogin.yml",
     label: "ZenInstaller Setup Central Corp Environment",
     templateRepo: "ZenMe-AU/ZBCorpArchitecture",
     validEnvs: ["PROD", "TEST"] as const,

@@ -3,11 +3,9 @@ import { corpGithubAuthStateExists, restoreCorpSessionStorage, storageStateFile,
 import { CORP_URL, viewports, } from "../../testInit";
 import { expandRepoCard, chooseRepoOption, logMockAPI, expectVisibleWithin, expectCardSnapshot, sensitiveTextMasks } from "../testHelper";
 
-//TODO: testing valid repo but no environment variables
 //TODO: testing creating branch with non-existant and existing branches
 //TODO: testing case-sensitivity 
 //TODO: testing different API status codes (e.g. scenario for login expire)
-//TODO: test if repo already exists
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Live Tests - ${viewportName}`, () => {
@@ -273,6 +271,72 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expect(repoCard.getByText(/Pick the environment to configure/i),).toHaveCount(0);
 
 			await expectCardSnapshot(page, repoCard, testInfo, "typed-repo-mock.png",
+				{
+					userId: "github-pat",
+					viewportName,
+					testFolder: "Repository and Environment Authenticated",
+					mask: sensitiveTextMasks(repoCard,),
+				});
+		});
+
+		test("MOCK TEST - Selecting valid repo with no environments", async ({ page, }, testInfo) => {
+			const validRepoName = "valid-repo-no-env";
+			const validRepoId = 987654323;
+			const repoListPattern = new RegExp("https://api\\.github\\.com/(?:user/repos|orgs/[^/]+/repos)(?:\\?.*)?$",);
+
+			await page.route(repoListPattern, async (route) => {
+				const ownerType = route.request().url().includes("/orgs/") ? "Organization" : "User";
+				await route.fulfill({
+					status: 200,
+					contentType: "application/json",
+					body: JSON.stringify([{ id: validRepoId, name: validRepoName, owner: { type: ownerType, }, },]),
+				});
+			});
+
+			await page.route(new RegExp(`https://api\\.github\\.com/repos/[^/]+/${validRepoName}(?:\\?.*)?$`,),
+				async (route) => {
+					await route.fulfill({
+						status: 200,
+						contentType: "application/json",
+						body: JSON.stringify({
+							id: validRepoId,
+							name: validRepoName,
+							template_repository: { full_name: "ZenMe-AU/ZBCorpArchitecture", },
+						}),
+					});
+				},
+			);
+
+			await page.route(new RegExp(`https://api\\.github\\.com/repos/[^/]+/${validRepoName}/branches(?:\\?.*)?$`,),
+				async (route) => { await route.fulfill({ status: 200, contentType: "application/json", body: "[]", }); },
+			);
+
+			// mock valid repo but no environment 
+			await page.route(new RegExp(`https://api\\.github\\.com/repos/[^/]+/${validRepoName}/environments(?:\\?.*)?$`,),
+				async (route) => {
+					await route.fulfill({
+						status: 200,
+						contentType: "application/json",
+						body: JSON.stringify({ total_count: 0, environments: [], }),
+					});
+				},
+			);
+
+			const mockedReposLoaded = page.waitForResponse((response) => response.ok() && repoListPattern.test(response.url()),);
+			await page.reload();
+			await mockedReposLoaded;
+
+			const repoCard = await expandRepoCard(page,);
+			const repoInput = repoCard.getByRole("combobox", { name: "Select or type repo name...", });
+			await repoInput.click();
+			await page.getByRole("option", { name: validRepoName, }).click();
+
+			await expect(repoInput).toHaveValue(validRepoName);
+			await expect(repoCard.getByText("Valid", { exact: true, })).toBeVisible();
+			await expect(repoCard.getByText("No environment found.", { exact: true, })).toBeVisible();
+			await expect(repoCard.getByRole("button", { name: "Clone Repository", })).toHaveCount(0);
+
+			await expectCardSnapshot(page, repoCard, testInfo, "valid-repo-no-env-mock.png",
 				{
 					userId: "github-pat",
 					viewportName,

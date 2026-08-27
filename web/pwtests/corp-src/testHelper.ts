@@ -25,6 +25,17 @@ function safePathSegment(value: string,): string {
 	return safeValue || "unnamed";
 }
 
+function snapshotTestFolders(testInfo: TestInfo,): string[] {
+	const testPathSegments = testInfo.file.split(/[\\/]/,);
+	const testDirectory = safePathSegment(testPathSegments.at(-2) ?? "unnamed",);
+	const testFile = safePathSegment(testPathSegments.at(-1)?.replace(/\.spec\.tsx?$/, "",) ?? "unnamed",);
+	const repEnvMode = testFile.match(/^rep-env-(live|mock)$/i,)?.[1];
+
+	return repEnvMode
+		? ["rep-env", repEnvMode[0].toUpperCase() + repEnvMode.slice(1).toLowerCase(),]
+		: [testDirectory, testFile,];
+}
+
 // Waits for visual stability and compares against a stored screenshot baseline.
 export async function expectPageSnapshot(page: Page, testInfo: TestInfo, snapshotName: string, options: PageSnapshotOptions,): Promise<void> {
 	await page.waitForLoadState("domcontentloaded").catch(() => undefined);
@@ -34,11 +45,8 @@ export async function expectPageSnapshot(page: Page, testInfo: TestInfo, snapsho
 	await page.waitForTimeout(300).catch(() => undefined);
 
 	const normalizedSnapshotName = snapshotName.endsWith(".png") ? snapshotName : `${snapshotName}.png`;
-	const testPathSegments = testInfo.file.split(/[\\/]/,);
-	const testDirectory = safePathSegment(testPathSegments.at(-2) ?? "unnamed",);
-	const testFile = safePathSegment(testPathSegments.at(-1)?.replace(/\.spec\.tsx?$/, "") ?? "unnamed",);
 	const viewportFolder = safePathSegment(options.viewportName,);
-	const relativeSnapshotPath = ["corp-src", "snapshots", testDirectory, testFile, viewportFolder, normalizedSnapshotName,];
+	const relativeSnapshotPath = ["corp-src", "snapshots", ...snapshotTestFolders(testInfo,), viewportFolder, normalizedSnapshotName,];
 	const expectedSnapshotPath = testInfo.snapshotPath(...relativeSnapshotPath,);
 	const baselineExists = fs.existsSync(expectedSnapshotPath,);
 
@@ -67,11 +75,8 @@ export async function expectCardSnapshot(page: Page, card: Locator, testInfo: Te
 	await page.waitForTimeout(300).catch(() => undefined);
 
 	const normalizedSnapshotName = snapshotName.endsWith(".png") ? snapshotName : `${snapshotName}.png`;
-	const testPathSegments = testInfo.file.split(/[\\/]/,);
-	const testDirectory = safePathSegment(testPathSegments.at(-2) ?? "unnamed",);
-	const testFile = safePathSegment(testPathSegments.at(-1)?.replace(/\.spec\.tsx?$/, "",) ?? "unnamed",);
 	const viewportFolder = safePathSegment(options.viewportName,);
-	const relativeSnapshotPath = ["corp-src", "snapshots", testDirectory, testFile, viewportFolder, normalizedSnapshotName,];
+	const relativeSnapshotPath = ["corp-src", "snapshots", ...snapshotTestFolders(testInfo,), viewportFolder, normalizedSnapshotName,];
 	const originalStyle = await card.evaluate((element,) => element.getAttribute("style"),);
 	const screenshotStyle = await page.addStyleTag({
 		content: "html { scrollbar-width: none !important; } html::-webkit-scrollbar { display: none !important; }",

@@ -79,10 +79,14 @@ export function useCorpStageCards({
   >;
 
   return pipeline.stages.map((stageDef: StageDefinition) => {
-    const stage = plan.stages.find((s) => s.stage === stageDef.key) ?? { stage: stageDef.key, status: "pending" as const };
+    const stage = plan.stages.find((s) => s.stage === stageDef.key) ?? {
+      stage: stageDef.key,
+      status: "pending" as const,
+    };
     const summary = plan.stageSummaries[stageDef.key];
     const effectiveStatus = getEffectiveStatus(stage, summary, stageDef.optional);
-    const varsMismatch = plan.deployedEnv != null && hasVariableDiff(stageDef.prerequisites, variableValues, plan.deployedEnv);
+    const varsMismatch =
+      plan.deployedEnv != null && hasVariableDiff(stageDef.prerequisites, variableValues, plan.deployedEnv);
     const deployDisabled = plan.isStale || varsMismatch;
     const cardId = getStageCardId(stageDef.key);
     const requirements = repoDone
@@ -97,7 +101,9 @@ export function useCorpStageCards({
     const card: CardChrome = {
       cardId,
       status: locked ? "idle" : stageToCardStatus(effectiveStatus, plan.isStale, plan.stagesLoading),
-      summary: locked ? undefined : getStageSummaryText(stage, summary, plan.stagesLoading, plan.isStale, stageDef.optional),
+      summary: locked
+        ? undefined
+        : getStageSummaryText(stage, summary, plan.stagesLoading, plan.isStale, stageDef.optional),
       locked,
       requirements,
       unavailable: false,

@@ -17,7 +17,13 @@ export const refreshBtnSx = {
 };
 
 // Small uppercase field label used by the Azure / domain / terraform setup cards.
-export const labelSx = { fontSize: "0.68rem", color: "#94a3b8", textTransform: "uppercase" as const, letterSpacing: "0.08em", ...MONO };
+export const labelSx = {
+  fontSize: "0.68rem",
+  color: "#94a3b8",
+  textTransform: "uppercase" as const,
+  letterSpacing: "0.08em",
+  ...MONO,
+};
 
 /*
  * Uppercase section heading. Defaults to the dark (#0f172a) variant;

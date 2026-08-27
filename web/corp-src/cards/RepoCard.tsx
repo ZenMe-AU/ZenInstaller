@@ -1,11 +1,10 @@
-import { Box, Button } from "@mui/material";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import { Box } from "@mui/material";
 import Card from "../components/Card";
+import ViewLink from "../components/ViewLink";
 import RepoDetail, { Intro as RepoDetailIntro } from "./RepoDetail";
 import EnvDetail from "./EnvDetail";
 import { getRepoUrl } from "../logic/github";
 import { PIPELINE } from "../logic/pipeline";
-import { MONO as mono } from "../config/styles";
 import type { CardChrome } from "../types";
 import type { UseRepoCard } from "../hooks/useRepoCard";
 
@@ -23,32 +22,20 @@ function Intro() {
  * The repo card actually spans two concerns — which repo, and which environment in
  * it — so unlike the other cards its content is two Detail components, not one.
  */
+function Action({ repoFullName }: { repoFullName: string | null }) {
+  if (!repoFullName) return null;
+  return <ViewLink href={getRepoUrl(repoFullName)} />;
+}
+
 export default function RepoCard({ card, githubRepo, lockedByPR }: Props) {
   const { repo, env } = githubRepo;
-  const viewRepoAction = repo.repoFullName ? (
-    <Button
-      size="small"
-      variant="outlined"
-      aria-label="View on GitHub"
-      endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />}
-      onClick={() => window.open(getRepoUrl(repo.repoFullName!), "_blank")}
-      sx={{
-        borderColor: "#e2e8f0",
-        color: "#475569",
-        fontSize: "0.72rem",
-        textTransform: "none",
-        ...mono,
-        "&:hover": { borderColor: "#cbd5e1", color: "#0f172a", background: "#f8fafc" },
-      }}
-    >
-      <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
-        View on GitHub
-      </Box>
-    </Button>
-  ) : undefined;
-
   return (
-    <Card title="Repository & environment" action={viewRepoAction} lockedIntro={<Intro />} {...card}>
+    <Card
+      title="Repository & environment"
+      action={<Action repoFullName={repo.repoFullName} />}
+      lockedIntro={<Intro />}
+      {...card}
+    >
       <RepoDetail
         accounts={repo.accountList}
         selectedAccount={repo.selectedAccount}

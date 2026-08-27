@@ -1,4 +1,15 @@
-import { Box, Button, CircularProgress, Dialog, IconButton, Menu, MenuItem, Typography, useMediaQuery, useTheme } from "@mui/material";
+import {
+  Box,
+  Button,
+  CircularProgress,
+  Dialog,
+  IconButton,
+  Menu,
+  MenuItem,
+  Typography,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
@@ -20,7 +31,13 @@ function pageHref(page: SiblingPage): string {
   return page.carryQuery ? `${page.href}${window.location.search}` : page.href;
 }
 
-export default function NavBar({ authLoading = false, user = null, selectedRepo = null, title, siblingPages = [] }: Props) {
+export default function NavBar({
+  authLoading = false,
+  user = null,
+  selectedRepo = null,
+  title,
+  siblingPages = [],
+}: Props) {
   const [copied, setCopied] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const theme = useTheme();
@@ -66,7 +83,9 @@ export default function NavBar({ authLoading = false, user = null, selectedRepo 
         >
           ZB
         </Box>
-        <Typography sx={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a", letterSpacing: "-0.01em" }}>{title ?? document.title}</Typography>
+        <Typography sx={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a", letterSpacing: "-0.01em" }}>
+          {title ?? document.title}
+        </Typography>
       </Box>
 
       <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -141,7 +160,14 @@ export default function NavBar({ authLoading = false, user = null, selectedRepo 
                     borderBottom: "1px solid #e2e8f0",
                   }}
                 >
-                  <Typography sx={{ fontWeight: 700, fontSize: "0.85rem", color: "#0f172a", fontFamily: "'IBM Plex Mono', monospace" }}>
+                  <Typography
+                    sx={{
+                      fontWeight: 700,
+                      fontSize: "0.85rem",
+                      color: "#0f172a",
+                      fontFamily: "'IBM Plex Mono', monospace",
+                    }}
+                  >
                     Pages
                   </Typography>
                   <IconButton onClick={closeMenu} aria-label="Close menu">

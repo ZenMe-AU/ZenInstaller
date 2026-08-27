@@ -122,7 +122,8 @@ export function useDeploymentPlan(opts: {
 
         const statusData = data as Record<string, unknown>;
         const fileUpdatedAt = typeof statusData.updatedAt === "number" ? statusData.updatedAt * 1000 : null;
-        const fetchedRunId = (statusData.runId as string | undefined) ?? (statusData.stages as Stage[] | undefined)?.[0]?.runId ?? null;
+        const fetchedRunId =
+          (statusData.runId as string | undefined) ?? (statusData.stages as Stage[] | undefined)?.[0]?.runId ?? null;
         const envId = typeof statusData.envId === "number" ? statusData.envId : null;
         if (fetchedRunId) setStatusFileRunId(fetchedRunId);
 
@@ -238,7 +239,8 @@ export function useDeploymentPlan(opts: {
     const prevRunId = stagesRef.current[0]?.runId ?? null;
     setLastTriggeredAt(triggerTime);
     setRetryCount(0);
-    const ref = params.branches.find((b) => b.name.toLowerCase() === params.envName.toLowerCase())?.name ?? params.envName;
+    const ref =
+      params.branches.find((b) => b.name.toLowerCase() === params.envName.toLowerCase())?.name ?? params.envName;
     implRef.current.startPollingImpl(ref, 0, triggerTime, prevRunId);
   }, []);
 

@@ -4,7 +4,7 @@ export const CLOUD_DOCS = {
   azure: {
     createAccount: `${DOCS_BASE}/Creating_AZURE_account`,
     setupOidc: `${DOCS_BASE}/Set_up_GitHub_oidc_for_AZURE`,
-    urlGetTenantId: 'https://portal.azure.com/#view/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/~/Overview',
+    urlGetTenantId: "https://portal.azure.com/#view/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/~/Overview",
   },
   aws: {
     createAccount: `${DOCS_BASE}/Creating_AWS_account`,

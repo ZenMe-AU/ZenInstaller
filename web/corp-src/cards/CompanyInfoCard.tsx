@@ -7,6 +7,8 @@ import VariablesCard from "../components/VariablesCard";
 import RefreshButton from "../components/RefreshButton";
 import SaveButton from "../components/SaveButton";
 import Card from "../components/Card";
+import ViewLink from "../components/ViewLink";
+import { getVariablesUrl } from "../logic/github";
 import { useRefreshIndicator } from "../hooks/util/useRefreshIndicator";
 import { useVariableEditor } from "../hooks/util/useVariableEditor";
 import { sectionLabelSx } from "../config/styles";
@@ -33,6 +35,11 @@ function Intro() {
       Variables used by GitHub Actions when building and deploying this environment.
     </Typography>
   );
+}
+
+function Action({ repoFullName }: { repoFullName: string | null }) {
+  if (!repoFullName) return null;
+  return <ViewLink href={getVariablesUrl(repoFullName)} />;
 }
 
 /*
@@ -160,7 +167,12 @@ type Props = {
 
 export default function CompanyInfoCard({ card, selectedEnv, variables, githubAccount, repoName, githubUrl }: Props) {
   return (
-    <Card title="Company info" lockedIntro={<Intro />} {...card}>
+    <Card
+      title="Company info"
+      action={<Action repoFullName={githubAccount && repoName ? `${githubAccount.login}/${repoName}` : null} />}
+      lockedIntro={<Intro />}
+      {...card}
+    >
       {selectedEnv && (
         <CompanyInfoDetailBody
           account={githubAccount}

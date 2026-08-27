@@ -11,26 +11,26 @@ import type { CardStatus, User } from "../types";
 
 const CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID as string;
 
-const SESSION_TOKEN    = "access_token";
+const SESSION_TOKEN = "access_token";
 const SESSION_VERIFIER = "pkce_verifier";
-const PAT_SESSION      = "pat_token";
+const PAT_SESSION = "pat_token";
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
 async function initiateLogin(): Promise<void> {
-  const verifier  = generateRandomString();
+  const verifier = generateRandomString();
   const challenge = await generateCodeChallenge(verifier);
   sessionStorage.setItem(SESSION_VERIFIER, verifier);
 
   const params = new URLSearchParams({
-    client_id:             CLIENT_ID,
-    redirect_uri:          window.location.origin,
-    scope:                 "read:user user:email repo",
-    response_type:         "code",
-    code_challenge:        challenge,
+    client_id: CLIENT_ID,
+    redirect_uri: window.location.origin,
+    scope: "read:user user:email repo",
+    response_type: "code",
+    code_challenge: challenge,
     code_challenge_method: "S256",
     // Carry the current URL through OAuth so restore params survive the redirect
-    state:                 window.location.href,
+    state: window.location.href,
   });
 
   window.location.href = `https://github.com/login/oauth/authorize?${params}`;
@@ -56,17 +56,17 @@ export interface UsePkceAuth {
 }
 
 export function usePkceAuth(): UsePkceAuth {
-  const [authLoading, setAuthLoading]       = useState(true);
-  const [user, setUser]                     = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
-  const [redirecting, setRedirecting]       = useState<"login" | "logout" | null>(null);
+  const [redirecting, setRedirecting] = useState<"login" | "logout" | null>(null);
 
   useEffect(() => {
     async function init() {
       // ── OAuth callback: GitHub redirected back with ?code ──
       const params = new URLSearchParams(window.location.search);
-      const code   = params.get("code");
-      const state  = params.get("state");
+      const code = params.get("code");
+      const state = params.get("state");
       if (code) {
         window.history.replaceState({}, "", window.location.pathname);
         try {
@@ -107,7 +107,10 @@ export function usePkceAuth(): UsePkceAuth {
 
       // ── PKCE token restore ──
       const token = sessionStorage.getItem(SESSION_TOKEN);
-      if (!token) { setAuthLoading(false); return; }
+      if (!token) {
+        setAuthLoading(false);
+        return;
+      }
       try {
         const data = await fetchGithubUser(token);
         setUser({ login: data.login });
@@ -138,7 +141,10 @@ export function usePkceAuth(): UsePkceAuth {
   const onPatLogin = useCallback((_token: string) => {
     setAuthLoading(true);
     fetchGithubUser(_token)
-      .then((data) => { sessionStorage.setItem(PAT_SESSION, _token); setUser({ login: data.login }); })
+      .then((data) => {
+        sessionStorage.setItem(PAT_SESSION, _token);
+        setUser({ login: data.login });
+      })
       .catch(() => setUser(null))
       .finally(() => setAuthLoading(false));
   }, []);

@@ -27,7 +27,7 @@ import {
 } from "../logic/naming";
 import { createResultStorage } from "../logic/resultStorage";
 import { useStepRunner } from "./util/useStepRunner";
-import { APP_SCOPES, ARM_SCOPES, AZURE_CLIENT_ID, CORE_INFRA_PROVIDERS } from "../config/azureConfig";
+import { APP_SCOPES, AZURE_CLIENT_ID, CORE_INFRA_PROVIDERS } from "../config/azureConfig";
 import { useProviderRegistration } from "./util/useProviderRegistration";
 import type { AzureConfigHook, AzureSpTarget, CardHook, CardRequirements, CardStatus, SetupStep } from "../types";
 

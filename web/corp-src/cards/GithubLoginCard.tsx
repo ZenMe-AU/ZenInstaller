@@ -15,6 +15,8 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { MONO as monoSx } from "../config/styles";
 import Card from "../components/Card";
+import ViewLink from "../components/ViewLink";
+import { getGithubUserUrl, GITHUB_LOGIN_URL } from "../logic/github";
 import RefreshButton from "../components/RefreshButton";
 import { useRefreshIndicator } from "../hooks/util/useRefreshIndicator";
 import type { CardChrome } from "../types";
@@ -32,6 +34,10 @@ function Intro() {
       Zenblox.
     </Typography>
   );
+}
+
+function Action({ login }: { login?: string }) {
+  return <ViewLink href={login ? getGithubUserUrl(login) : GITHUB_LOGIN_URL} />;
 }
 
 export default function GithubLoginCard({ card, auth }: Props) {
@@ -80,7 +86,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
   };
 
   return (
-    <Card title="GitHub login" lockedIntro={<Intro />} {...card}>
+    <Card title="GitHub login" action={<Action login={user?.login} />} lockedIntro={<Intro />} {...card}>
       <Box>
         <Box sx={{ mb: 2 }}>
           <Intro />
@@ -122,10 +128,22 @@ export default function GithubLoginCard({ card, auth }: Props) {
           </Box>
         ) : !user ? (
           mode === "direct" ? (
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1, maxWidth: 400 }}>
+            <Box
+              component="form"
+              // Gives the browser's password manager a real submit to detect, so it can offer to save the token.
+              onSubmit={(e) => {
+                e.preventDefault();
+                handlePatSubmit();
+              }}
+              sx={{ display: "flex", flexDirection: "column", gap: 1, maxWidth: 400 }}
+            >
+              {/* Password managers key an entry on a username; the token alone gives them nothing to name it by. */}
+              <input type="text" name="username" autoComplete="username" value="github-pat" readOnly hidden />
               <TextField
                 size="small"
                 type={showPat ? "text" : "password"}
+                name="password"
+                autoComplete="current-password"
                 placeholder="ghp_… or github_pat_…"
                 value={pat}
                 onChange={(e) => {
@@ -170,7 +188,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
               />
               <Button
                 variant="contained"
-                onClick={handlePatSubmit}
+                type="submit"
                 disabled={!pat?.trim() || signingIn}
                 startIcon={signingIn ? <CircularProgress size={14} sx={{ color: "#cbd5e1" }} /> : undefined}
                 sx={{

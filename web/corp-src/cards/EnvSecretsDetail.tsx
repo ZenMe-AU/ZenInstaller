@@ -86,7 +86,9 @@ export default function EnvSecretsDetail({
       keyId = result.keyId;
     } catch (e) {
       console.error("Failed to fetch public key:", e);
-      setUpsertStatuses(pendingSecrets.map((p) => ({ key: p.key, status: "error" as const, error: "Failed to fetch key" })));
+      setUpsertStatuses(
+        pendingSecrets.map((p) => ({ key: p.key, status: "error" as const, error: "Failed to fetch key" })),
+      );
       setUpserting(false);
       return;
     }
@@ -117,7 +119,9 @@ export default function EnvSecretsDetail({
       <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", mb: 1 }}>
         <Box>
           <Typography sx={{ ...sectionLabelSx, mb: 0.75 }}>Secrets</Typography>
-          <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>The following GitHub Actions secrets must be configured.</Typography>
+          <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
+            The following GitHub Actions secrets must be configured.
+          </Typography>
         </Box>
         <RefreshButton
           busy={rechecking}
@@ -182,7 +186,13 @@ export default function EnvSecretsDetail({
 
       {/* Update button */}
       <Box sx={{ mt: 2 }}>
-        <SaveButton verb="Update" noun="secret" count={totalPending} loading={upserting} onClick={handleUpsertSecrets} />
+        <SaveButton
+          verb="Update"
+          noun="secret"
+          count={totalPending}
+          loading={upserting}
+          onClick={handleUpsertSecrets}
+        />
       </Box>
     </Box>
   );

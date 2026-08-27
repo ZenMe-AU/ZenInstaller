@@ -147,14 +147,16 @@ export async function chooseRepoOption(page: Page, card: Locator, reponame: stri
 	await repoInput.click();
 	await waitForLocatorContentLoaded(page.getByRole("option",), "No options", "Repo list", 5000000);
 	await repoInput.fill(reponame);
-	const alreadyClonedOption = page.getByRole("option", { name: reponame, exact: true });
+	const escapedRepoName = reponame.replace(/[.*+?^${}()|[\]\\]/g, "\\$&",);
+	const alreadyClonedOption = page.getByRole("option", { name: new RegExp(`^(?:▪\\s*)?${escapedRepoName}$`, "i",), });
+	const cloneOption = page.getByRole("option", { name: new RegExp(`^Clone as [\"'“‘]${escapedRepoName}[\"'”’]$`,), });
+
+	await expect(alreadyClonedOption.or(cloneOption),).toBeVisible();
 	if (await alreadyClonedOption.isVisible()) {
 		throw new Error(`The repo "${reponame}" already exists. Please delete it from your GitHub account before running this test.`);
 	}
-			
-	const cloneOption = page.getByRole("option", { name: `▪ Clone as "${reponame}"`, exact: true});
-	await expectVisibleWithin(card.getByText(`Clone from "${reponame}"`,), `Clone from ${reponame}`, 500,);
-	await expect(cloneOption).toBeVisible();
+
+	await expectVisibleWithin(cloneOption, `Clone as ${reponame}`, 500,);
 	await cloneOption.click();
 	// Confirm the option click changed the application's state.
 	await expect(cloneOption).toBeHidden();

@@ -3,7 +3,6 @@ import { corpGithubAuthStateExists, restoreCorpSessionStorage, storageStateFile,
 import { CORP_URL, viewports, } from "../../testInit";
 import { expandRepoCard, chooseRepoOption, logMockAPI, expectVisibleWithin, expectCardSnapshot, sensitiveTextMasks } from "../testHelper";
 
-//TODO: testing creating branch with non-existant and existing branches
 //TODO: testing case-sensitivity 
 //TODO: testing different API status codes (e.g. scenario for login expire)
 
@@ -94,6 +93,65 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 					testFolder: "Repository and Environment Authenticated",
 					mask: sensitiveTextMasks(repoCard,),
 				});
+		});
+
+		test("LIVE TEST - Creates PROD branch, then creates TEST from PROD", async ({ page, }, testInfo) => {
+			const reponame = `live-test7-${viewportName}`;
+			const repoCard = await expandRepoCard(page,);
+			const repoInput = repoCard.getByRole("combobox", { name: "Select or type repo name...", });
+
+			await repoInput.click();
+			const existingRepoOption = page.getByRole("option", { name: reponame, });
+			await expect(existingRepoOption).toBeVisible();
+			await existingRepoOption.click();
+			await expect(repoInput).toHaveValue(reponame);
+			await expect(repoCard.getByText("Valid", { exact: true, })).toBeVisible();
+
+			const PROD = repoCard.getByText("PROD", { exact: true, });
+			const TEST = repoCard.getByText("TEST", { exact: true, });
+			await expect(repoCard.getByText("Loading environments...", { exact: true, })).toBeHidden();
+			await expect(PROD).toBeVisible();
+			await expect(TEST).toBeVisible();
+
+			await PROD.click();
+			const createProdButton = repoCard.getByRole("button", { name: "Create New Branch: PROD", });
+			await expect(createProdButton).toBeVisible();
+			await createProdButton.click();
+			await expect(createProdButton).toBeHidden({ timeout: 30_000, });
+			await expect(repoCard.getByText(/^No branch found matching environment "PROD"\.$/),).toHaveCount(0);
+
+			await expectCardSnapshot(page, repoCard, testInfo, "prod-branch-created-live.png", {
+				userId: "github-pat",
+				viewportName,
+				testFolder: "Repository and Environment Authenticated",
+				mask: sensitiveTextMasks(repoCard,),
+			});
+
+			await TEST.click();
+			const createTestButton = repoCard.getByRole("button", { name: "Create New Branch: TEST", });
+			await expect(createTestButton).toBeVisible();
+			const sourceBranchSelect = createTestButton.locator("..").getByRole("combobox",);
+			await sourceBranchSelect.click();
+			await page.getByRole("option", { name: "PROD", exact: true, }).click();
+			await expect(sourceBranchSelect).toHaveText(/PROD/);
+
+			await expectCardSnapshot(page, repoCard, testInfo, "prod-branch-selected-live.png", {
+				userId: "github-pat",
+				viewportName,
+				testFolder: "Repository and Environment Authenticated",
+				mask: sensitiveTextMasks(repoCard,),
+			});
+
+			await createTestButton.click();
+			await expect(createTestButton).toBeHidden({ timeout: 30_000, });
+			await expect(repoCard.getByText(/^No branch found matching environment "TEST"\.$/),).toHaveCount(0);
+
+			await expectCardSnapshot(page, repoCard, testInfo, "test-branch-created-live.png", {
+				userId: "github-pat",
+				viewportName,
+				testFolder: "Repository and Environment Authenticated",
+				mask: sensitiveTextMasks(repoCard,),
+			});
 		});
 	});
 }
@@ -337,6 +395,140 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expect(repoCard.getByRole("button", { name: "Clone Repository", })).toHaveCount(0);
 
 			await expectCardSnapshot(page, repoCard, testInfo, "valid-repo-no-env-mock.png",
+				{
+					userId: "github-pat",
+					viewportName,
+					testFolder: "Repository and Environment Authenticated",
+					mask: sensitiveTextMasks(repoCard,),
+				});
+		});
+
+		test("MOCK TEST - Creates PROD branch, then creates TEST from PROD", async ({ page, }, testInfo) => {
+			const repoName = "mock-branch-test";
+			const repoId = 987654324;
+			const mainSha = "main-commit-sha";
+			const prodSha = "prod-commit-sha";
+			const repoListPattern = new RegExp("https://api\\.github\\.com/(?:user/repos|orgs/[^/]+/repos)(?:\\?.*)?$",);
+			const createdBranches: Array<{ ref: string; sha: string }> = [];
+
+			await page.route(repoListPattern, async (route) => {
+				const ownerType = route.request().url().includes("/orgs/") ? "Organization" : "User";
+				await route.fulfill({
+					status: 200,
+					contentType: "application/json",
+					body: JSON.stringify([{ id: repoId, name: repoName, owner: { type: ownerType, }, },]),
+				});
+			});
+
+			await page.route(new RegExp(`https://api\\.github\\.com/repos/[^/]+/${repoName}(?:\\?.*)?$`,),
+				async (route) => {
+					await route.fulfill({
+						status: 200,
+						contentType: "application/json",
+						body: JSON.stringify({
+							id: repoId,
+							name: repoName,
+							template_repository: { full_name: "ZenMe-AU/ZBCorpArchitecture", },
+						}),
+					});
+				},
+			);
+
+			await page.route(new RegExp(`https://api\\.github\\.com/repos/[^/]+/${repoName}/branches(?:\\?.*)?$`,),
+				async (route) => {
+					await route.fulfill({
+						status: 200,
+						contentType: "application/json",
+						body: JSON.stringify([{ name: "main", commit: { sha: mainSha, }, protected: true, },]),
+					});
+				},
+			);
+
+			await page.route(new RegExp(`https://api\\.github\\.com/repos/[^/]+/${repoName}/environments(?:\\?.*)?$`,),
+				async (route) => {
+					await route.fulfill({
+						status: 200,
+						contentType: "application/json",
+						body: JSON.stringify({
+							total_count: 2,
+							environments: [
+								{ name: "PROD", id: 1001, url: `https://api.github.com/repos/mock-owner/${repoName}/environments/PROD`, },
+								{ name: "TEST", id: 1002, url: `https://api.github.com/repos/mock-owner/${repoName}/environments/TEST`, },
+							],
+						}),
+					});
+				},
+			);
+
+			await page.route(new RegExp(`https://api\\.github\\.com/repos/[^/]+/${repoName}/git/ref/heads/(?:main|PROD)(?:\\?.*)?$`,),
+				async (route) => {
+					const sourceSha = route.request().url().includes("/heads/PROD") ? prodSha : mainSha;
+					await route.fulfill({
+						status: 200,
+						contentType: "application/json",
+						body: JSON.stringify({ object: { sha: sourceSha, }, }),
+					});
+				},
+			);
+
+			await page.route(new RegExp(`https://api\\.github\\.com/repos/[^/]+/${repoName}/git/refs(?:\\?.*)?$`,),
+				async (route) => {
+					createdBranches.push(route.request().postDataJSON() as { ref: string; sha: string });
+					await route.fulfill({ status: 201, contentType: "application/json", body: "{}", });
+				},
+			);
+
+			const mockedReposLoaded = page.waitForResponse((response) => response.ok() && repoListPattern.test(response.url()),);
+			await page.reload();
+			await mockedReposLoaded;
+
+			const repoCard = await expandRepoCard(page,);
+			const repoInput = repoCard.getByRole("combobox", { name: "Select or type repo name...", });
+			await repoInput.click();
+			await page.getByRole("option", { name: repoName, }).click();
+			await expect(repoCard.getByText("Valid", { exact: true, })).toBeVisible();
+
+			await repoCard.getByText("PROD", { exact: true, }).click();
+			const createProdButton = repoCard.getByRole("button", { name: "Create New Branch: PROD", });
+			await expect(createProdButton).toBeVisible();
+			await createProdButton.click();
+			await expect.poll(() => createdBranches,).toEqual([{ ref: "refs/heads/PROD", sha: mainSha, },]);
+			await expect(createProdButton).toBeHidden();
+
+			await expectCardSnapshot(page, repoCard, testInfo, "prod-branch-created-mock.png",
+				{
+					userId: "github-pat",
+					viewportName,
+					testFolder: "Repository and Environment Authenticated",
+					mask: sensitiveTextMasks(repoCard,),
+				});
+
+			await repoCard.getByText("TEST", { exact: true, }).click();
+			const createTestButton = repoCard.getByRole("button", { name: "Create New Branch: TEST", });
+			await expect(createTestButton).toBeVisible();
+			const sourceBranchSelect = createTestButton.locator("..").getByRole("combobox",);
+			await sourceBranchSelect.click();
+			await page.getByRole("option", { name: "PROD", exact: true, }).click();
+			await expect(sourceBranchSelect).toHaveText(/PROD/);
+
+			await expectCardSnapshot(page, repoCard, testInfo, "prod-branch-visible-mock.png",
+				{
+					userId: "github-pat",
+					viewportName,
+					testFolder: "Repository and Environment Authenticated",
+					mask: sensitiveTextMasks(repoCard,),
+				});
+
+			await createTestButton.click();
+
+			await expect.poll(() => createdBranches,).toEqual([
+				{ ref: "refs/heads/PROD", sha: mainSha, },
+				{ ref: "refs/heads/TEST", sha: prodSha, },
+			]);
+			await expect(createTestButton).toBeHidden();
+			await expect(repoCard.getByText(/^No branch found matching environment "TEST"\.$/),).toHaveCount(0);
+
+			await expectCardSnapshot(page, repoCard, testInfo, "test-branch-created-mock.png",
 				{
 					userId: "github-pat",
 					viewportName,

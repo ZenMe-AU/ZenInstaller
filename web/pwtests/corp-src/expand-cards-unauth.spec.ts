@@ -1,6 +1,6 @@
 import { expect, test, type Page, } from "@playwright/test";
 import { CORP_URL, viewports, } from "../testInit";
-import { expectCardSnapshot, } from "./testHelper";
+import { expectCardSnapshot, } from "./util/testHelper";
 
 const CARDS_UNAUTHENTICATED = [
 	{ id: "github_login", title: /^GitHub login$/i, },

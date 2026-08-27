@@ -1,13 +1,13 @@
 import { expect, test } from "@playwright/test";
-import { corpGithubAuthStateExists, restoreCorpSessionStorage, storageStateFile, } from "./setupHelper";
-import { CORP_URL, viewports, } from "../testInit";
-import { expandRepoCard, logMockAPI, expectCardSnapshot, sensitiveTextMasks } from "./testHelper";
+import { corpGithubAuthStateExists, restoreCorpSessionStorage, storageStateFile, } from "../util/setupHelper";
+import { CORP_URL, viewports, } from "../../testInit";
+import { expandRepoCard, logMockAPI, expectCardSnapshot, sensitiveTextMasks } from "../util/testHelper";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Mock Tests - ${viewportName}`, () => {
 		test.use({ viewport, deviceScaleFactor: 1, storageState: storageStateFile, });
-		test.skip(!corpGithubAuthStateExists(), "Run pwtests/corp-src/setup/github-pat-login.setup.ts first.",);
-		test.skip(process.env.TEST_MODE !== "mock", "Set TEST_MODE=mock to run mock tests.",);
+		test.skip(!corpGithubAuthStateExists(), "Run github-pat-login.setup.ts first.",);
+		//test.skip(process.env.TEST_MODE !== "mock", "Set TEST_MODE=mock to run mock tests.",);
 
 		test.beforeEach(async ({ page, context, }) => {
 			// blocks unexpected POST requests (supposed to be mocked)

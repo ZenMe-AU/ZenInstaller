@@ -1,7 +1,7 @@
 import { expect, test, type Page, } from "@playwright/test";
-import { corpGithubAuthStateExists, restoreCorpSessionStorage, storageStateFile, } from "./setupHelper";
-import { CORP_URL, viewports, } from "../testInit";
-import { expandGithubLoginCard, expectCardSnapshot, sensitiveTextMasks } from "./testHelper";
+import { corpGithubAuthStateExists, restoreCorpSessionStorage, storageStateFile, } from "../util/setupHelper";
+import { CORP_URL, viewports, } from "../../testInit";
+import { expandGithubLoginCard, expectCardSnapshot, sensitiveTextMasks } from "../util/testHelper";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`GitHub Login Card - ${viewportName}`, () => {

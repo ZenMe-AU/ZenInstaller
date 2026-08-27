@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
-import { corpAzureAuthStateExists, restoreCorpAzureSessionStorage, azureStorageStateFile } from "./setupHelper";
-import { CORP_URL, viewports } from "../testInit";
-import { expandAzureLoginCard, expectCardSnapshot, expectPageSnapshot, sensitiveTextMasks } from "./testHelper";
+import { corpAzureAuthStateExists, restoreCorpAzureSessionStorage, azureStorageStateFile } from "../util/setupHelper";
+import { CORP_URL, viewports } from "../../testInit";
+import { expandAzureLoginCard, expectCardSnapshot, expectPageSnapshot, sensitiveTextMasks } from "../util/testHelper";
 
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {

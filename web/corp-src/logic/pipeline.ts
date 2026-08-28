@@ -13,8 +13,8 @@ const DEFINITIONS: Record<string, PipelineSource> = {
     validEnvs: ["PROD", "TEST"] as const,
     stages: [
       {
-        key: "c01",
-        label: "c01subscription",
+        dir: "c01subscription",
+        label: "Subscription Budget",
         azurePermissions: [],
         prerequisites: [
           { type: "var", key: "NAME" },
@@ -30,8 +30,8 @@ const DEFINITIONS: Record<string, PipelineSource> = {
         ],
       },
       {
-        key: "c02",
-        label: "c02globalGroups",
+        dir: "c02globalGroups",
+        label: "Global groups",
         azurePermissions: [
           GRAPH_PERMISSIONS.GroupReadWriteAll,
           GRAPH_PERMISSIONS.GroupMemberReadWriteAll,
@@ -48,8 +48,8 @@ const DEFINITIONS: Record<string, PipelineSource> = {
        * which create the same resources directly via ARM/Graph from the browser.
        */
       {
-        key: "c07",
-        label: "c07userAccounts",
+        dir: "c07userAccounts",
+        label: "User accounts",
         azurePermissions: [
           GRAPH_PERMISSIONS.GroupReadWriteAll,
           GRAPH_PERMISSIONS.GroupMemberReadWriteAll,
@@ -66,8 +66,8 @@ const DEFINITIONS: Record<string, PipelineSource> = {
         ],
       },
       {
-        key: "c20",
-        label: "c20awsentrasso",
+        dir: "c20awsentrasso",
+        label: "AWS Entra SSO",
         azurePermissions: [GRAPH_PERMISSIONS.ApplicationReadWriteAll],
         prerequisites: [
           { type: "var", key: "NAME" },
@@ -76,8 +76,8 @@ const DEFINITIONS: Record<string, PipelineSource> = {
         ],
       },
       {
-        key: "c21",
-        label: "c21awsentrassoP2",
+        dir: "c21awsentrassoP2",
+        label: "AWS Entra SSO P2",
         azurePermissions: [
           GRAPH_PERMISSIONS.AppRoleAssignmentReadWriteAll,
           GRAPH_PERMISSIONS.PolicyReadWriteApplicationConfiguration,
@@ -90,8 +90,8 @@ const DEFINITIONS: Record<string, PipelineSource> = {
         ],
       },
       {
-        key: "c25",
-        label: "c25cloudfront",
+        dir: "c25cloudfront",
+        label: "CloudFront",
         azurePermissions: [GRAPH_PERMISSIONS.ApplicationReadWriteAll],
         prerequisites: [
           { type: "var", key: "NAME" },
@@ -108,7 +108,7 @@ const DEFINITIONS: Record<string, PipelineSource> = {
 function withStageWorkflows(config: PipelineSource): PipelineConfig {
   return {
     ...config,
-    stages: config.stages.map((stage) => ({ ...stage, workflowId: `plan-${stage.label}.yml` })),
+    stages: config.stages.map((stage) => ({ ...stage, workflowId: `plan-${stage.dir}.yml` })),
   };
 }
 

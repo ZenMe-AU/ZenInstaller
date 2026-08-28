@@ -422,7 +422,7 @@ export default function StageCard({
                     prereq.keys.some((k) => (variableValues[k] ?? "") !== (deployedEnv[k] ?? ""))) ||
                     (prereq.type === "var" && (variableValues[prereq.key] ?? "") !== (deployedEnv[prereq.key] ?? "")));
                 return (
-                  <Box key={`${stageDef.key}-${i}`}>
+                  <Box key={`${stageDef.dir}-${i}`}>
                     <Box
                       onClick={
                         isExpandable ? () => setExpandedPrereqs((prev) => ({ ...prev, [i]: !prev[i] })) : undefined

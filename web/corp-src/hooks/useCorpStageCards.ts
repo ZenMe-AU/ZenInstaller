@@ -76,19 +76,19 @@ export function useCorpStageCards({
   >;
 
   return pipeline.stages.map((stageDef: StageDefinition) => {
-    const stage = plan.stages.find((s) => s.stage === stageDef.key) ?? {
-      stage: stageDef.key,
+    const stage = plan.stages.find((s) => s.stage === stageDef.dir) ?? {
+      stage: stageDef.dir,
       status: "pending" as const,
     };
-    const summary = plan.stageSummaries[stageDef.key];
+    const summary = plan.stageSummaries[stageDef.dir];
     const effectiveStatus = getEffectiveStatus(stage, summary, stageDef.optional);
     const varsMismatch =
       plan.deployedEnv != null && hasVariableDiff(stageDef.prerequisites, variableValues, plan.deployedEnv);
     // This stage's own run, if it has one — a run on another card must not grey this one out.
-    const run = plan.runs[stageDef.key];
+    const run = plan.runs[stageDef.dir];
     const isStale = run != null;
     const deployDisabled = isStale || varsMismatch;
-    const cardId = getStageCardId(stageDef.key);
+    const cardId = getStageCardId(stageDef.dir);
     const requirements = repoDone
       ? []
       : [
@@ -112,12 +112,12 @@ export function useCorpStageCards({
     const onDeploy =
       effectiveStatus === "success" && stage.runId && selectedEnv
         ? async () => {
-            await plan.deployStage(stageDef.key);
+            await plan.deployStage(stageDef.dir);
           }
         : undefined;
 
     return {
-      key: stageDef.key,
+      key: stageDef.dir,
       card,
       stageDef,
       stage,
@@ -130,8 +130,8 @@ export function useCorpStageCards({
       selectedEnv,
       onVariableConfirmed,
       onDeploy,
-      onPlanSummary: (s) => plan.setStageSummary(stageDef.key, s),
-      onRunStatusUpdate: () => plan.onRun(stageDef.key),
+      onPlanSummary: (s) => plan.setStageSummary(stageDef.dir, s),
+      onRunStatusUpdate: () => plan.onRun(stageDef.dir),
       statusUpdateRunning: run != null && run.error == null,
       statusUpdateCountdown: run?.countdown ?? 0,
       statusUpdateDisabled: !repoDone || run != null,

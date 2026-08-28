@@ -177,8 +177,8 @@ export type PrerequisiteStageVar = {
 export type Prerequisite = PrerequisiteCard | PrerequisiteVar | PrerequisiteVarGroup | PrerequisiteStageVar;
 
 export type StageDefinition = {
-  key: string;
-  label: string;
+  dir: string;
+  label: string; // Shown on the card
   workflowId: string;
   prerequisites: Prerequisite[];
   optional?: boolean; // When true, a pending stage is treated as skipped rather than waiting.
@@ -201,7 +201,6 @@ export type StageStatus = "deployed" | "success" | "failed" | "pending" | "skipp
 export type Stage = {
   stage: string;
   status: StageStatus;
-  planPath?: string;
   planJsonId?: string;
   planJsonUrl?: string;
   // "failed" alone says nothing, so the plan publishes its output the way the deploy does.

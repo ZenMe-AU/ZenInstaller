@@ -136,8 +136,8 @@ export function useDeploymentPlan(opts: {
 
     Promise.all(
       pipe.stages.map(async (stageDef) => {
-        const [plan, deploy] = await Promise.all([load(stageDef.label, "plan"), load(stageDef.label, "deploy")]);
-        return [stageDef.key, { plan, deploy }] as const;
+        const [plan, deploy] = await Promise.all([load(stageDef.dir, "plan"), load(stageDef.dir, "deploy")]);
+        return [stageDef.dir, { plan, deploy }] as const;
       }),
     )
       .then((entries) => {
@@ -166,7 +166,7 @@ export function useDeploymentPlan(opts: {
         }
 
         if (nothingReported) {
-          setStages(pipe.stages.map(({ key }) => ({ stage: key, status: "pending" as const })));
+          setStages(pipe.stages.map(({ dir }) => ({ stage: dir, status: "pending" as const })));
           setHasPlan(false);
           return;
         }
@@ -183,11 +183,11 @@ export function useDeploymentPlan(opts: {
         }
 
         setStages(
-          pipe.stages.map(({ key }) => {
-            const { plan, deploy } = byKey.get(key) ?? { plan: null, deploy: null };
-            if (!plan && !deploy) return { stage: key, status: "pending" as const };
+          pipe.stages.map(({ dir }) => {
+            const { plan, deploy } = byKey.get(dir) ?? { plan: null, deploy: null };
+            if (!plan && !deploy) return { stage: dir, status: "pending" as const };
             // The plan deployment owns the plan fields, the deploy one owns the deploy fields.
-            return { ...plan?.stage, ...deploy?.stage, stage: key } as Stage;
+            return { ...plan?.stage, ...deploy?.stage, stage: dir } as Stage;
           }),
         );
         setHasPlan(true);
@@ -196,7 +196,7 @@ export function useDeploymentPlan(opts: {
         console.error("Failed to load the stage reports:", e);
         if (!poll) setStagesLoading(false);
         if (poll) patchRun(poll.stageKey, { countdown: 0, error: "Could not read the stage reports" });
-        setStages(pipe.stages.map(({ key }) => ({ stage: key, status: "pending" as const })));
+        setStages(pipe.stages.map(({ dir }) => ({ stage: dir, status: "pending" as const })));
         setHasPlan(false);
       });
   };
@@ -227,7 +227,7 @@ export function useDeploymentPlan(opts: {
     const acc = accountRef.current;
     const repo = repoNameRef.current;
     const env = selectedEnvRef.current;
-    const stage = pipelineRef.current.stages.find((s) => s.key === stageKey);
+    const stage = pipelineRef.current.stages.find((s) => s.dir === stageKey);
     if (!acc || !repo || !envReadyRef.current || !env || !stage) return;
     const triggerTime = Date.now();
     patchRun(stageKey, { kind: "plan", countdown: 0, retryCount: 0, error: null });
@@ -252,7 +252,7 @@ export function useDeploymentPlan(opts: {
     const acc = accountRef.current;
     const repo = repoNameRef.current;
     const env = selectedEnvRef.current;
-    const stageDef = pipelineRef.current.stages.find((s) => s.key === stageKey);
+    const stageDef = pipelineRef.current.stages.find((s) => s.dir === stageKey);
     const stage = stagesRef.current.find((s) => s.stage === stageKey);
     if (!acc || !repo || !env || !stageDef || !stage?.runId) return;
 
@@ -264,7 +264,7 @@ export function useDeploymentPlan(opts: {
         repo,
         stage.runId,
         pipelineRef.current.deployWorkflowId,
-        stageDef.label,
+        stageDef.dir,
         env.name,
         env.name,
       );

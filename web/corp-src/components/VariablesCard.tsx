@@ -1,11 +1,4 @@
-import {
-  Box,
-  IconButton,
-  InputAdornment,
-  TextField,
-  Tooltip,
-  Typography,
-} from "@mui/material";
+import { Box, IconButton, InputAdornment, TextField, Tooltip, Typography } from "@mui/material";
 import ClearIcon from "@mui/icons-material/Clear";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
@@ -80,7 +73,6 @@ function VariableRow({
         transition: "background 0.2s",
       }}
     >
-
       {/* Key label + optional info tooltip */}
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minWidth: "10.5rem", flexShrink: 0 }}>
         <Typography
@@ -95,7 +87,9 @@ function VariableRow({
         </Typography>
         {description && (
           <Tooltip title={description} placement="top" arrow>
-            <InfoOutlinedIcon sx={{ fontSize: 13, color: "#cbd5e1", cursor: "help", "&:hover": { color: "#94a3b8" } }} />
+            <InfoOutlinedIcon
+              sx={{ fontSize: 13, color: "#cbd5e1", cursor: "help", "&:hover": { color: "#94a3b8" } }}
+            />
           </Tooltip>
         )}
       </Box>
@@ -112,30 +106,31 @@ function VariableRow({
           ...(isError ? { "& .MuiOutlinedInput-notchedOutline": { borderColor: "#ef4444" } } : {}),
         }}
         InputProps={{
-          endAdornment: (localValue || isDirty) ? (
-            <InputAdornment position="end" sx={{ gap: 0 }}>
-              {localValue && (
-                <IconButton
-                  size="small"
-                  onClick={() => onChange(varKey, "")}
-                  sx={{ color: "#94a3b8", p: 0.25, "&:hover": { color: "#475569" } }}
-                >
-                  <ClearIcon sx={{ fontSize: 13 }} />
-                </IconButton>
-              )}
-              {isDirty && (
-                <Tooltip title="Revert to saved value">
+          endAdornment:
+            localValue || isDirty ? (
+              <InputAdornment position="end" sx={{ gap: 0 }}>
+                {localValue && (
                   <IconButton
                     size="small"
-                    onClick={() => onRevert(varKey)}
-                    sx={{ color: "#94a3b8", p: 0.25, "&:hover": { color: "#d97706" } }}
+                    onClick={() => onChange(varKey, "")}
+                    sx={{ color: "#94a3b8", p: 0.25, "&:hover": { color: "#475569" } }}
                   >
-                    <UndoIcon sx={{ fontSize: 13 }} />
+                    <ClearIcon sx={{ fontSize: 13 }} />
                   </IconButton>
-                </Tooltip>
-              )}
-            </InputAdornment>
-          ) : undefined,
+                )}
+                {isDirty && (
+                  <Tooltip title="Revert to saved value">
+                    <IconButton
+                      size="small"
+                      onClick={() => onRevert(varKey)}
+                      sx={{ color: "#94a3b8", p: 0.25, "&:hover": { color: "#d97706" } }}
+                    >
+                      <UndoIcon sx={{ fontSize: 13 }} />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              </InputAdornment>
+            ) : undefined,
         }}
       />
 
@@ -147,7 +142,23 @@ function VariableRow({
 
       {willOverwrite && !isError && (
         <Tooltip title={`Replaces saved value: ${savedValue}`} placement="top" arrow>
-          <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.4, px: 0.875, py: 0.2, borderRadius: "4px", background: "#fffbeb", border: "1px solid #fde68a", fontSize: "0.62rem", fontFamily: "'IBM Plex Mono', monospace", color: "#b45309", flexShrink: 0, cursor: "help" }}>
+          <Box
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 0.4,
+              px: 0.875,
+              py: 0.2,
+              borderRadius: "4px",
+              background: "#fffbeb",
+              border: "1px solid #fde68a",
+              fontSize: "0.62rem",
+              fontFamily: "'IBM Plex Mono', monospace",
+              color: "#b45309",
+              flexShrink: 0,
+              cursor: "help",
+            }}
+          >
             <WarningAmberIcon sx={{ fontSize: 10 }} />
             overwrites
           </Box>
@@ -161,20 +172,52 @@ function VariableRow({
       )}
 
       {isSuccess && (
-        <Typography sx={{ fontSize: "0.62rem", color: "#16a34a", fontFamily: "'IBM Plex Mono', monospace", whiteSpace: "nowrap" }}>
+        <Typography
+          sx={{ fontSize: "0.62rem", color: "#16a34a", fontFamily: "'IBM Plex Mono', monospace", whiteSpace: "nowrap" }}
+        >
           just updated
         </Typography>
       )}
 
       {!isDirty && !isSuccess && !isError && validStatus === true && (
-        <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.4, px: 0.875, py: 0.2, borderRadius: "4px", background: "#f0fdf4", border: "1px solid #bbf7d0", fontSize: "0.62rem", fontFamily: "'IBM Plex Mono', monospace", color: "#16a34a", flexShrink: 0 }}>
+        <Box
+          sx={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 0.4,
+            px: 0.875,
+            py: 0.2,
+            borderRadius: "4px",
+            background: "#f0fdf4",
+            border: "1px solid #bbf7d0",
+            fontSize: "0.62rem",
+            fontFamily: "'IBM Plex Mono', monospace",
+            color: "#16a34a",
+            flexShrink: 0,
+          }}
+        >
           <CheckCircleIcon sx={{ fontSize: 10 }} />
           valid
         </Box>
       )}
 
       {!isDirty && !isSuccess && !isError && validStatus === false && (
-        <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.4, px: 0.875, py: 0.2, borderRadius: "4px", background: "#fef2f2", border: "1px solid #fecaca", fontSize: "0.62rem", fontFamily: "'IBM Plex Mono', monospace", color: "#ef4444", flexShrink: 0 }}>
+        <Box
+          sx={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 0.4,
+            px: 0.875,
+            py: 0.2,
+            borderRadius: "4px",
+            background: "#fef2f2",
+            border: "1px solid #fecaca",
+            fontSize: "0.62rem",
+            fontFamily: "'IBM Plex Mono', monospace",
+            color: "#ef4444",
+            flexShrink: 0,
+          }}
+        >
           <ErrorOutlineIcon sx={{ fontSize: 10 }} />
           invalid
         </Box>

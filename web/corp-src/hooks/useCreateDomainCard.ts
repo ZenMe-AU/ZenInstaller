@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from "react";
 import { ensureScopeConsent, getMsal } from "../api/msal";
 import {
   APP_SCOPES,
-  ARM_SCOPES,
   DNS_PROVIDERS,
   DOMAIN_SCOPES,
   GRANT_CONSENT_SCOPES,

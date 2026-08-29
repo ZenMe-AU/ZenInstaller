@@ -10,7 +10,8 @@ import { tenantDisplayName } from "../logic/tenant";
 import { AZURE_TARGET_KEYS } from "../logic/variables";
 import CloudVariableDetail from "./CloudVariableDetail";
 import Card from "../components/Card";
-import ConfigErrorNotice from "../components/ConfigErrorNotice";
+import ViewLink from "../components/ViewLink";
+import { AZURE_SUBSCRIPTIONS_URL, getAzureSubscriptionUrl } from "../logic/consoleUrls";
 import { MONO as mono, labelSx } from "../config/styles";
 
 type Props = {
@@ -45,6 +46,12 @@ function Intro() {
  * it's locked behind "azure_login" until a tenant is confirmed. Lives in the Target
  * group; the selection is fed to the infra, domain, and app-registration cards.
  */
+function Action({ subscriptionId, tenantId }: { subscriptionId: string; tenantId?: string }) {
+  return (
+    <ViewLink href={subscriptionId ? getAzureSubscriptionUrl(tenantId, subscriptionId) : AZURE_SUBSCRIPTIONS_URL} />
+  );
+}
+
 export default function AzureSubscriptionCard({
   card,
   azure,
@@ -88,7 +95,12 @@ export default function AzureSubscriptionCard({
   const subscriptionOptions = subscriptions.filter((s) => s.tenantId === manualTenantId);
 
   return (
-    <Card title="Choose Azure subscription" lockedIntro={<Intro />} {...card}>
+    <Card
+      title="Choose Azure subscription"
+      action={<Action subscriptionId={selectedSubscriptionId} tenantId={azure.confirmedTenantId ?? undefined} />}
+      lockedIntro={<Intro />}
+      {...card}
+    >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Intro />
 

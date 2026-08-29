@@ -1,8 +1,10 @@
-import { Autocomplete, Box, Button, CircularProgress, MenuItem, Select, TextField, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, MenuItem, Select, TextField, Typography } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { CLOUD_DOCS } from "../config/docsConfig";
 import { MONO as mono, labelSx } from "../config/styles";
 import Card from "../components/Card";
+import ViewLink from "../components/ViewLink";
+import { getEntraOverviewUrl } from "../logic/consoleUrls";
 import ConfigErrorNotice from "../components/ConfigErrorNotice";
 import type { CardChrome } from "../types";
 import type { UseAzureLoginCard } from "../hooks/useAzureLoginCard";
@@ -26,6 +28,10 @@ function Intro() {
  * Azure sign-in on its own — independent of GitHub, not gated by environment.
  * App-registration, domain, and terraform cards all reuse the session it establishes.
  */
+function Action() {
+  return <ViewLink href={getEntraOverviewUrl()} />;
+}
+
 export default function AzureLoginCard({ card, azureLogin }: Props) {
   if (card.status === "unavailable") {
     return (
@@ -58,7 +64,7 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
     !tenants.some((t) => t.tenantId === savedTenantId);
 
   return (
-    <Card title="Azure login" lockedIntro={<Intro />} {...card}>
+    <Card title="Azure login" action={<Action />} lockedIntro={<Intro />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Intro />
 
@@ -157,15 +163,21 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
                   target="_blank"
                   rel="noopener noreferrer"
                   sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 0.25,
-                    color: "#64748b",
+                    ml: 1,
+                    display: "inline-flex",
+                    color: "#2563eb",
                     textDecoration: "none",
-                    "&:hover": { color: "#2563eb" },
+                    alignItems: "center",
                   }}
                 >
-                  <Typography sx={{ fontSize: "0.7rem" }}>Show page to get Tenant ID</Typography>
+                  <Typography
+                    sx={{
+                      fontSize: "0.7rem",
+                      "&:hover": { textDecoration: "underline" },
+                    }}
+                  >
+                    Show page to get Tenant ID
+                  </Typography>
                   <OpenInNewIcon sx={{ fontSize: 11 }} />
                 </Box>
               </Typography>
@@ -215,30 +227,29 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
                 </Select>
               ) : (
                 // Nothing fetched yet (e.g. personal account with no cached tenant) — type one in directly.
-                <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
-                  <Autocomplete
-                    freeSolo
-                    options={[]}
-                    inputValue={manualTenantId}
-                    onInputChange={(_, v) => setManualTenantId(v)}
+                <Box
+                  component="form"
+                  // A real submit lets the browser record the value, so it offers it back next time.
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    selectTenant(manualTenantId);
+                  }}
+                  sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}
+                >
+                  <TextField
+                    size="small"
+                    name="azure-tenant"
+                    autoComplete="on"
+                    placeholder="Tenant ID"
+                    value={manualTenantId}
+                    onChange={(e) => setManualTenantId(e.target.value)}
                     sx={{ minWidth: { xs: 0, sm: 320 }, width: "100%" }}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        size="small"
-                        placeholder="Tenant name or ID"
-                        onKeyDown={(e) => e.key === "Enter" && selectTenant(manualTenantId)}
-                        inputProps={{
-                          ...params.inputProps,
-                          style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" },
-                        }}
-                      />
-                    )}
+                    inputProps={{ style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" } }}
                   />
                   <Button
                     variant="contained"
                     size="small"
-                    onClick={() => selectTenant(manualTenantId)}
+                    type="submit"
                     disabled={!manualTenantId.trim()}
                     sx={{
                       background: "#2563eb",

@@ -19,13 +19,11 @@ import { useCreateDomainCard } from "./hooks/useCreateDomainCard";
 import { useCoreInfraCard } from "./hooks/useCoreInfraCard";
 import { useCompanyInfoCard } from "./hooks/useCompanyInfoCard";
 import { useAccessPassCard } from "./hooks/useAccessPassCard";
-import { useGlobalGroupsCard } from "./hooks/useGlobalGroupsCard";
 import { useAwsLoginCard } from "./hooks/useAwsLoginCard";
 import { useAwsSetupCard } from "./hooks/useAwsSetupCard";
 
 import NavBar from "./components/NavBar";
 import RestoreToast from "./components/RestoreToast";
-import SessionOverlay from "./components/SessionOverlay";
 import GithubLoginCard from "./cards/GithubLoginCard";
 import RepoCard from "./cards/RepoCard";
 import CompanyInfoCard from "./cards/CompanyInfoCard";
@@ -98,13 +96,6 @@ function AppDashboard() {
       confirmedTenantId: azureLogin.confirmedTenantId,
       manualTenantId: azureLogin.manualTenantId,
       savedSubscriptionId: githubVariableValues.AZURE_SUBSCRIPTION_ID ?? "",
-    }),
-  );
-
-  const globalGroups = addCard(
-    useGlobalGroupsCard({
-      azureAccount: azureLogin.account,
-      confirmedTenantId: azureLogin.confirmedTenantId,
     }),
   );
 
@@ -361,6 +352,7 @@ function AppDashboard() {
               azureAccount={azureLogin.account}
               corpName={companyInfo.corpName}
               dnsName={companyInfo.dnsName}
+              subscriptionId={azureSubscription.selectedSubscriptionId}
             />
 
             <AwsLoginCard card={cardProps("aws_login")} awsLogin={awsLogin} />

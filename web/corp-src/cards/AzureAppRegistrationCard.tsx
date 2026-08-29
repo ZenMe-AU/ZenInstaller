@@ -8,6 +8,8 @@ import type { UseAzureAppRegistrationCard } from "../hooks/useAzureAppRegistrati
 import type { UseGithubVariables } from "../hooks/useGithubVariables";
 import StepRow from "./StepRow";
 import Card from "../components/Card";
+import ViewLink from "../components/ViewLink";
+import { AZURE_APP_REGISTRATIONS_URL, getAppRegistrationUrl } from "../logic/consoleUrls";
 import { AZURE_APP_KEYS } from "../logic/variables";
 import CloudVariableDetail from "./CloudVariableDetail";
 import { MONO as mono, labelSx } from "../config/styles";
@@ -30,6 +32,10 @@ function Intro() {
       create it — the AZURE_CLIENT_ID connection variables are written to GitHub automatically.
     </Typography>
   );
+}
+
+function Action({ clientId }: { clientId: string }) {
+  return <ViewLink href={clientId ? getAppRegistrationUrl(clientId) : AZURE_APP_REGISTRATIONS_URL} />;
 }
 
 export default function AzureAppRegistrationCard({
@@ -131,7 +137,12 @@ export default function AzureAppRegistrationCard({
     : undefined;
 
   return (
-    <Card title="Create an app registration in Azure" lockedIntro={<Intro />} {...card}>
+    <Card
+      title="Create an app registration in Azure"
+      action={<Action clientId={appReg.spClientId} />}
+      lockedIntro={<Intro />}
+      {...card}
+    >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {/* ── Result banner (shown after create+auto-save completes) ── */}
         {bannerState !== "none" && (

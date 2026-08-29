@@ -6,6 +6,9 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { UseCoreInfraCard } from "../hooks/useCoreInfraCard";
 import StepRow from "./StepRow";
 import Card from "../components/Card";
+import ViewLink from "../components/ViewLink";
+import { AZURE_RESOURCE_GROUPS_URL, getAzureResourceUrl } from "../logic/consoleUrls";
+import { resourceGroupScope } from "../api/azureArm";
 import { getVariableDisplayName } from "../logic/variables";
 import { MONO as mono, labelSx } from "../config/styles";
 import type { CardChrome, AzureAccount } from "../types";
@@ -30,6 +33,10 @@ function Intro({ containerName }: { containerName: string }) {
       container Terraform uses for state, granting GitHub Actions access to it.
     </Typography>
   );
+}
+
+function Action({ resourceId }: { resourceId: string | null }) {
+  return <ViewLink href={resourceId ? getAzureResourceUrl(undefined, resourceId) : AZURE_RESOURCE_GROUPS_URL} />;
 }
 
 export default function CoreInfraCard({ card, infra, azureAccount, corpName, subscriptionId, spClientId }: Props) {
@@ -67,8 +74,18 @@ export default function CoreInfraCard({ card, infra, azureAccount, corpName, sub
 
   const locationDisplayName = locations.find((l) => l.name === location)?.displayName ?? location;
 
+  const rgExists =
+    !!subscriptionId &&
+    !!infra.resourceGroupName &&
+    (infra.infraRbacStatus === "ready" || infra.infraRbacStatus === "missing-role");
+
   return (
-    <Card title="Terraform state backend" lockedIntro={<Intro containerName={containerName} />} {...card}>
+    <Card
+      title="Terraform state backend"
+      action={<Action resourceId={rgExists ? resourceGroupScope(subscriptionId, infra.resourceGroupName) : null} />}
+      lockedIntro={<Intro containerName={containerName} />}
+      {...card}
+    >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Intro containerName={containerName} />
 

@@ -1,4 +1,4 @@
-import type { CardHook, CardStatus, PendingRestore, User } from "../types";
+import type { CardHook, CardStatus, User } from "../types";
 import { useGithubRepo, type UseGithubRepo } from "./useGithubRepo";
 import { useGithubEnvironment, type UseGithubEnvironment } from "./useGithubEnvironment";
 import { getEnvSettingsUrl } from "../logic/github";

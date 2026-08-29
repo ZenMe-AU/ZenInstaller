@@ -14,19 +14,13 @@ import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import Card from "../components/Card";
+import ViewLink from "../components/ViewLink";
+import { getAwsConsoleUrl } from "../logic/consoleUrls";
 import { CLOUD_DOCS } from "../config/docsConfig";
 import type { UseAwsLoginCard } from "../hooks/useAwsLoginCard";
 import type { CardChrome } from "../types";
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
-const labelSx = {
-  fontSize: "0.68rem",
-  color: "#94a3b8",
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.08em",
-  ...mono,
-};
-
 type Props = {
   card: CardChrome;
   awsLogin: UseAwsLoginCard;
@@ -79,6 +73,10 @@ function Intro() {
   );
 }
 
+function Action() {
+  return <ViewLink href={getAwsConsoleUrl()} />;
+}
+
 export default function AwsLoginCard({ card, awsLogin }: Props) {
   const [showSecret, setShowSecret] = useState(false);
   const {
@@ -104,8 +102,16 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
   const usableDevices = mfaDevices.filter((d) => d.usable);
 
   return (
-    <Card title="AWS login" lockedIntro={<Intro />} {...card}>
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+    <Card title="AWS login" action={<Action />} lockedIntro={<Intro />} {...card}>
+      <Box
+        component="form"
+        // Gives the browser's password manager a real submit to detect, so it can offer to save the key pair.
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (canSignIn && !loggingIn) login();
+        }}
+        sx={{ display: "flex", flexDirection: "column", gap: 2 }}
+      >
         <Intro />
 
         {!done && (
@@ -119,6 +125,8 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
                 <TextField
                   size="small"
                   label="Access Key ID"
+                  name="username"
+                  autoComplete="username"
                   value={accessKeyId}
                   onChange={(e) => setAccessKeyId(e.target.value)}
                   placeholder="AKIA..."
@@ -130,6 +138,8 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
                   size="small"
                   label="Secret Access Key"
                   type={showSecret ? "text" : "password"}
+                  name="password"
+                  autoComplete="current-password"
                   value={secretAccessKey}
                   onChange={(e) => setSecretAccessKey(e.target.value)}
                   disabled={!!account || loggingIn || card.locked}
@@ -138,7 +148,13 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
                     style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" },
                     endAdornment: (
                       <InputAdornment position="end">
-                        <IconButton size="small" onClick={() => setShowSecret((v) => !v)} edge="end">
+                        <IconButton
+                          size="small"
+                          type="button"
+                          onClick={() => setShowSecret((v) => !v)}
+                          edge="end"
+                          tabIndex={-1}
+                        >
                           {showSecret ? <VisibilityOff sx={{ fontSize: 16 }} /> : <Visibility sx={{ fontSize: 16 }} />}
                         </IconButton>
                       </InputAdornment>
@@ -239,7 +255,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
           <Box>
             <Button
               variant="contained"
-              onClick={login}
+              type="submit"
               disabled={card.locked || !canSignIn || loggingIn}
               startIcon={loggingIn ? <CircularProgress size={14} sx={{ color: "inherit" }} /> : undefined}
               sx={{

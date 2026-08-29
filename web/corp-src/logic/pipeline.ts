@@ -75,7 +75,10 @@ export const PIPELINES: Record<string, PipelineConfig> = {
       {
         key: "c21",
         label: "c21awsentrassoP2",
-        azurePermissions: [GRAPH_PERMISSIONS.AppRoleAssignmentReadWriteAll, GRAPH_PERMISSIONS.PolicyReadWriteApplicationConfiguration],
+        azurePermissions: [
+          GRAPH_PERMISSIONS.AppRoleAssignmentReadWriteAll,
+          GRAPH_PERMISSIONS.PolicyReadWriteApplicationConfiguration,
+        ],
         prerequisites: [
           { type: "var", key: "NAME" },
           { type: "var", key: "DNS" },

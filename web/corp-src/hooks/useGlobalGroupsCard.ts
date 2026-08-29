@@ -140,7 +140,10 @@ export interface UseGlobalGroupsCard extends CardHook {
  * edits/creates/deletes not yet synced. "Add default groups" offers c02globalGroups's 5-group
  * template as a starting point — nothing is auto-seeded, an empty tenant just shows an empty list.
  */
-export function useGlobalGroupsCard({ azureAccount, confirmedTenantId }: UseGlobalGroupsCardParams): UseGlobalGroupsCard {
+export function useGlobalGroupsCard({
+  azureAccount,
+  confirmedTenantId,
+}: UseGlobalGroupsCardParams): UseGlobalGroupsCard {
   const [rows, setRows] = useState<GroupRow[]>([]);
   const [savedById, setSavedById] = useState<Record<string, SavedGroup>>({});
   const [loading, setLoading] = useState(false);
@@ -178,11 +181,21 @@ export function useGlobalGroupsCard({ azureAccount, confirmedTenantId }: UseGlob
           const prevById = new Map(prevRows.map((r) => [r.id, r]));
           const seenIds = new Set<string>();
           const merged: GroupRow[] = withParents.map((g) => {
-            nextSaved[g.id] = { displayName: g.displayName, description: g.description, memberOfGroupNames: g.memberOfGroupNames };
+            nextSaved[g.id] = {
+              displayName: g.displayName,
+              description: g.description,
+              memberOfGroupNames: g.memberOfGroupNames,
+            };
             seenIds.add(g.id);
             const prev = prevById.get(g.id);
             if (prev && isRowDirty(prev, savedById)) return prev;
-            return { id: g.id, groupName: g.displayName, description: g.description, memberOfGroupNames: g.memberOfGroupNames, isNew: false };
+            return {
+              id: g.id,
+              groupName: g.displayName,
+              description: g.description,
+              memberOfGroupNames: g.memberOfGroupNames,
+              isNew: false,
+            };
           });
           // Carry over rows the fresh fetch doesn't know about — un-created drafts, or a dirty
           // row for a group that's vanished from Entra since the last load.
@@ -241,8 +254,7 @@ export function useGlobalGroupsCard({ azureAccount, confirmedTenantId }: UseGlob
     return errors;
   }, [rows]);
 
-  const canSync =
-    rows.length > 0 && Object.keys(rowErrors).length === 0 && rows.some((r) => isRowDirty(r, savedById));
+  const canSync = rows.length > 0 && Object.keys(rowErrors).length === 0 && rows.some((r) => isRowDirty(r, savedById));
 
   // ── CRUD (local draft) ───────────────────────────────────────────────────
   const addRow = useCallback(() => {
@@ -292,7 +304,12 @@ export function useGlobalGroupsCard({ azureAccount, confirmedTenantId }: UseGlob
       setRows((prev) =>
         prev.map((r) =>
           r.id === id
-            ? { ...r, groupName: saved.displayName, description: saved.description, memberOfGroupNames: [...saved.memberOfGroupNames] }
+            ? {
+                ...r,
+                groupName: saved.displayName,
+                description: saved.description,
+                memberOfGroupNames: [...saved.memberOfGroupNames],
+              }
             : r,
         ),
       );

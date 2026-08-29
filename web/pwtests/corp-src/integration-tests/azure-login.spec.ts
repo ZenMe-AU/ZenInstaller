@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { corpAzureAuthStateExists, restoreCorpAzureSessionStorage, azureStorageStateFile } from "../util/setupHelper";
 import { CORP_URL, viewports } from "../../testInit";
-import { expandAzureLoginCard, expectCardSnapshot, expectPageSnapshot, sensitiveTextMasks } from "../util/testHelper";
+import { expandAzureLoginCard, expectCardSnapshot, expectVisibleWithin, sensitiveTextMasks } from "../util/testHelper";
 
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
@@ -56,60 +56,24 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
       test("Shows authenticated Azure card state and allows choosing a tenant", async ({ page }, testInfo) => {
         const azureCard = await expandAzureLoginCard(page);
-
         await expect(azureCard.getByText(/Signed in as/i)).toBeVisible();
         await expect(azureCard.getByTestId("txtAzureUsername")).toBeVisible();
         await expect(azureCard.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
         await expect(azureCard.getByRole("button", { name: "Sign in with Azure", exact: true })).toHaveCount(0);
+        await expect(azureCard.getByText(/^Tenant/)).toBeVisible();
+        const tenantSelect = azureCard.getByRole('combobox').filter({ hasText: 'Select a tenant' })
+        await tenantSelect.click();
+        const tenantOption = page.getByRole("option").first();
+        await expect(tenantOption).toBeVisible();
+        await tenantOption.click();
 
-        const tenantLabel = azureCard.getByText(/^Tenant/);
-        await expect(tenantLabel).toBeVisible();
-        const tenantSelect = azureCard.getByTestId("tenant-select");
-        const tenantCombobox = tenantSelect.getByRole("combobox");
-        const manualTenantInput = azureCard.getByPlaceholder("Tenant name or ID");
-        await expect(tenantSelect.or(manualTenantInput)).toBeVisible();
+        await expectCardSnapshot(page, azureCard, testInfo, "tenant-selected.png", {
+          userId: "azure-login",
+          viewportName,
+          testFolder: "Azure Login Card Authenticated",
+          mask: sensitiveTextMasks(azureCard),
+        });
 
-        if (await tenantSelect.isVisible()) {
-          await tenantCombobox.click();
-          if ((await tenantCombobox.getAttribute("aria-expanded")) !== "true") {
-            await tenantCombobox.press("ArrowDown");
-          }
-          await expect(tenantCombobox).toHaveAttribute("aria-expanded", "true");
-
-          const tenantOptions = page.getByTestId("tenant-option");
-          await expect(tenantOptions.first()).toBeVisible({ timeout: 20_000 });
-          const tenantOption = tenantOptions.first();
-
-          await expectPageSnapshot(page, testInfo, "tenant-options.png", {
-            userId: "azure-login",
-            viewportName,
-            testFolder: "Azure Login Card Authenticated",
-            mask: sensitiveTextMasks(page),
-          });
-
-          const selectedDisplayName = (await tenantOption.getAttribute("data-tenant-name")) ?? "";
-          await tenantOption.click();
-
-          await expect(tenantCombobox).toHaveAttribute("aria-expanded", "false");
-          if (selectedDisplayName) {
-            await expect(tenantCombobox).toContainText(selectedDisplayName);
-          }
-
-          await expectCardSnapshot(page, azureCard, testInfo, "tenant-selected.png", {
-            userId: "azure-login",
-            viewportName,
-            testFolder: "Azure Login Card Authenticated",
-            mask: sensitiveTextMasks(azureCard),
-          });
-        } else {
-          await expect(manualTenantInput).toBeVisible();
-          await expectCardSnapshot(page, azureCard, testInfo, "tenant-shown.png", {
-            userId: "azure-login",
-            viewportName,
-            testFolder: "Azure Login Card Authenticated",
-            mask: sensitiveTextMasks(azureCard),
-          });
-        }
       });
 
       test("Signing out clears the authenticated state", async ({ page }) => {

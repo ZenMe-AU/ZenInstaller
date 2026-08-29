@@ -27,13 +27,13 @@ function safePathSegment(value: string,): string {
 
 function snapshotTestFolders(testInfo: TestInfo,): string[] {
 	const testPathSegments = testInfo.file.split(/[\\/]/,);
-	const testDirectory = safePathSegment(testPathSegments.at(-2) ?? "unnamed",);
+	const corpSourceIndex = testPathSegments.lastIndexOf("corp-src",);
+	const testDirectories = testPathSegments
+		.slice(corpSourceIndex + 1, -1,)
+		.map((segment,) => safePathSegment(segment,),);
 	const testFile = safePathSegment(testPathSegments.at(-1)?.replace(/\.spec\.tsx?$/, "",) ?? "unnamed",);
-	const repEnvMode = testFile.match(/^rep-env-(live|mock)$/i,)?.[1];
 
-	return repEnvMode
-		? ["rep-env", repEnvMode[0].toUpperCase() + repEnvMode.slice(1).toLowerCase(),]
-		: [testDirectory, testFile,];
+	return [...testDirectories, testFile,];
 }
 
 // Waits for visual stability and compares against a stored screenshot baseline.

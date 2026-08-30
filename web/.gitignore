@@ -37,8 +37,9 @@ deploy/.env
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+/pwtests/test-results
 /pwtests/access-pass-src/auth/.auth/
 /pwtests/access-pass-src/auth/data/access-pass-users.local.json
 /pwtests/corp-src/auth/.auth/
 /pwtests/corp-src/auth/data/access-pass-users.local.json
-# /pwtests/**/snapshots/
+

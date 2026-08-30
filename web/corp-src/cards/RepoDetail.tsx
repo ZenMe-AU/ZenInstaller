@@ -211,7 +211,7 @@ export default function RepoDetail({
               value={String(acc.id)}
               sx={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.82rem", color: "#0f172a" }}
             >
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Box data-sensitive="true" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 {acc.type === "User" ? (
                   <PersonIcon sx={{ fontSize: 16, color: "#64748b" }} />
                 ) : (

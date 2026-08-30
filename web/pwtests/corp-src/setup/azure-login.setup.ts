@@ -1,7 +1,7 @@
 import { expect, test as setup } from "@playwright/test";
 import fs from "fs";
 import { CORP_URL } from "../../testInit";
-import { authDir, azureSessionStorageFile, azureStorageStateFile, corpAzureAuthStateExists, saveCorpAzureSessionStorage } from "../authState";
+import { authDir, azureSessionStorageFile, azureStorageStateFile, corpAzureAuthStateExists, saveCorpAzureSessionStorage } from "../util/setupHelper";
 
 setup("Manual Microsoft passkey login for corp Azure auth tests", async ({ page, context }) => {
   fs.mkdirSync(authDir, { recursive: true });

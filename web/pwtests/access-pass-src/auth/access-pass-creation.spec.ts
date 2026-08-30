@@ -89,7 +89,7 @@ test.describe("AP-Desktop - Temporary Access Pass Creation", () => {
               await expect(copyAccessPassButton,).toBeVisible();
               await expect(copyAccessPassButton,).toBeEnabled();
 
-              await expectPageSnapshot(page,testInfo,`${target.id}-TAP-created.png`, {userId: user.id, viewportName:"Desktop", mask:sensitiveTextMasks(page,),},);
+              await expectPageSnapshot(page,testInfo,`${user.role}-TAP-created.png`, {userId: user.role, viewportName:"Desktop", mask:sensitiveTextMasks(page,),},);
              } finally {
                await context.close();
              }

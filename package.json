@@ -21,6 +21,7 @@
     "docs:build": "pnpm --filter web docs:build",
     "docs:preview": "pnpm --filter web docs:preview",
     "install-all": "pnpm install -r",
+    "prepare": "husky",
     "knip": "knip"
   },
   "engines": {

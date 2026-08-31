@@ -3,7 +3,7 @@ import { Terminal } from "@xterm/xterm";
 import { triggerRemoteLogin } from "../api";
 import { createSessionCredentials, deleteSession, negotiateSession, registerSession } from "../api/remoteTerminal";
 import type { SessionCredentials } from "../api/remoteTerminal";
-import { TERMINAL_COLS, TERMINAL_ROWS } from "../config/remoteTerminal";
+import { TERMINAL_COLS, TERMINAL_ROWS, TERMINAL_THEME } from "../config/remoteTerminal";
 import { parseSocketEvent } from "../logic/remoteTerminal";
 import type { Cloud, RunnerMessage, TerminalStatus } from "../logic/remoteTerminal";
 import type { Account, GhEnv } from "../types";
@@ -11,13 +11,6 @@ import type { Account, GhEnv } from "../types";
 const MAX_RECONNECT_ATTEMPTS = 10;
 const RECONNECT_BASE_MS = 1000;
 const RECONNECT_MAX_MS = 10000;
-
-const TERMINAL_THEME = {
-  background: "#1e1e2e",
-  foreground: "#cdd6f4",
-  cursor: "#89b4fa",
-  selectionBackground: "#45475a",
-};
 
 export type DeviceCode = { cloud: Cloud; url: string; code?: string };
 
@@ -85,29 +78,51 @@ export function useRemoteTerminal(opts: {
     [sendToGroup],
   );
 
-  // Detach the handlers first, so a close from the old socket cannot reconnect the next session.
-  const closeSocket = () => {
+  const closeSocket = useCallback((delayMs = 0) => {
     const ws = wsRef.current;
     wsRef.current = null;
     if (!ws) return;
     ws.onmessage = null;
     ws.onerror = null;
     ws.onclose = null;
-    ws.close();
+    if (delayMs > 0) setTimeout(() => ws.close(), delayMs);
+    else ws.close();
+  }, []);
+
+  // Shared by both exits: stop reconnecting, drop the socket, and forget the session server-side.
+  const disconnect = useCallback(
+    (closeDelayMs: number) => {
+      stoppedRef.current = true;
+      joinedRef.current = false;
+      attemptsRef.current = 0;
+      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+      reconnectTimer.current = null;
+      closeSocket(closeDelayMs);
+      const creds = credsRef.current;
+      credsRef.current = null;
+      if (creds) void deleteSession(creds.sessionId);
+    },
+    [closeSocket],
+  );
+
+  // A closed session's terminal is a transcript, not a prompt. Leaving the cursor blinking invites
+  // typing that has nowhere to go, since sendToGroup is a no-op once the socket is down.
+  const freezeTerminal = () => {
+    const term = termRef.current;
+    if (!term) return;
+    term.options.cursorBlink = false;
+    term.options.disableStdin = true;
   };
 
-  const stop = useCallback(() => {
-    stoppedRef.current = true;
-    joinedRef.current = false;
-    attemptsRef.current = 0;
-    if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-    reconnectTimer.current = null;
-    closeSocket();
+  /*
+   * Full teardown, including the xterm instance. Only for the two cases where this session is
+   * genuinely being replaced or thrown away — a new start(), or the card unmounting — since
+   * leaving a Terminal behind either way would leak it.
+   */
+  const teardown = useCallback(() => {
+    disconnect(0);
     termRef.current?.dispose();
     termRef.current = null;
-    const creds = credsRef.current;
-    credsRef.current = null;
-    if (creds) void deleteSession(creds.sessionId);
     setTerminal(null);
     setStatus("idle");
     setSessionId(null);
@@ -116,7 +131,22 @@ export function useRemoteTerminal(opts: {
     setLoggedIn([]);
     setRunnerJoined(false);
     setError(null);
-  }, []);
+  }, [disconnect]);
+
+  /*
+   * The End session button. Hangs up but leaves the transcript on screen — the output is the record
+   * of what happened. The terminal stays mounted and effectively read-only: sendToGroup checks
+   * joinedRef, so keystrokes have nowhere to go once the socket is down.
+   */
+  const stop = useCallback(() => {
+    if (stoppedRef.current) return;
+    sendToGroup({ type: "endSession" });
+    // Delayed so the frame above leaves before the socket does.
+    disconnect(250);
+    freezeTerminal();
+    setStatus("closed");
+    setDeviceCode(null);
+  }, [disconnect, sendToGroup]);
 
   const handleRunnerMessage = (message: RunnerMessage) => {
     setRunnerJoined(true);
@@ -137,6 +167,13 @@ export function useRemoteTerminal(opts: {
         break;
       case "stage":
         setStage(message.stage);
+        break;
+      case "sessionClosed":
+        stoppedRef.current = true;
+        if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+        freezeTerminal();
+        setStatus(message.ok ? "closed" : "error");
+        setDeviceCode(null);
         break;
       case "terraformCompleted":
         setStage("done");
@@ -165,6 +202,7 @@ export function useRemoteTerminal(opts: {
     const creds = credsRef.current;
     if (!creds || stoppedRef.current) return;
 
+    setStatus("negotiating");
     let clientUrl: string;
     try {
       clientUrl = await negotiateSession(creds);
@@ -219,8 +257,8 @@ export function useRemoteTerminal(opts: {
     const { account, repoName, workflowId, dir, selectedEnv } = optsRef.current;
     if (!account || !repoName || !selectedEnv) return;
 
-    stop();
-    setStatus("starting");
+    teardown();
+    setStatus("registering");
 
     const term = new Terminal({
       cols: TERMINAL_COLS,
@@ -242,6 +280,7 @@ export function useRemoteTerminal(opts: {
 
     try {
       await registerSession(creds);
+      setStatus("dispatching");
       await triggerRemoteLogin(account, repoName, workflowId, selectedEnv.name, selectedEnv.name, creds.sessionId, dir);
     } catch (e) {
       console.error("Failed to start the remote login session:", e);
@@ -251,9 +290,9 @@ export function useRemoteTerminal(opts: {
     }
 
     await connectRef.current();
-  }, [sendToGroup, stop]);
+  }, [sendToGroup, teardown]);
 
-  useEffect(() => stop, [stop]);
+  useEffect(() => teardown, [teardown]);
 
   return { terminal, status, sessionId, stage, deviceCode, loggedIn, runnerJoined, error, start, stop, resize };
 }

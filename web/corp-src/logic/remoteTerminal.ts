@@ -8,13 +8,29 @@ export type RunnerMessage =
   | { type: "loginCompleted"; cloud: Cloud }
   | { type: "loginFailed"; cloud: Cloud; exitCode: number }
   | { type: "stage"; stage: string }
+  // The runner is about to hang up on purpose — not a dropout to reconnect through.
+  | { type: "sessionClosed"; ok: boolean }
   | { type: "terraformCompleted" }
   | { type: "terraformFailed"; exitCode: number };
 
 export type SocketEvent =
   { kind: "connected" } | { kind: "ack"; success: boolean } | { kind: "runner"; message: RunnerMessage };
 
-export type TerminalStatus = "idle" | "starting" | "connecting" | "connected" | "reconnecting" | "error";
+/*
+ * The four in-progress states are separate because each fails for a different reason: CORS on the
+ * backend, GitHub permissions on the dispatch, a backend 500 on the token, and the relay itself.
+ * One combined "starting" made all four look identical while you waited.
+ */
+export type TerminalStatus =
+  | "idle"
+  | "registering"
+  | "dispatching"
+  | "negotiating"
+  | "connecting"
+  | "connected"
+  | "reconnecting"
+  | "closed"
+  | "error";
 
 const STAGE_LABELS: Record<string, string> = {
   connecting: "Connecting...",
@@ -39,6 +55,7 @@ function asRunnerMessage(payload: unknown): RunnerMessage | null {
     case "loginCompleted":
     case "loginFailed":
     case "stage":
+    case "sessionClosed":
     case "terraformCompleted":
     case "terraformFailed":
       return payload as RunnerMessage;

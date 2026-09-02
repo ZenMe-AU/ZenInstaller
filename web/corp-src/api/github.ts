@@ -21,6 +21,16 @@ export async function fetchGithubUser(token: string): Promise<{ login: string; i
 
 // ─── Provider factory — token injected once, all calls use it via closure ─────
 
+export type RemoteLoginDispatch = {
+  workflowId: string;
+  githubEnvName: string;
+  ref: string;
+  sessionId: string;
+  dir: string;
+  // The plan run whose tfplan the workflow applies once the sign-in completes.
+  planRunId: string;
+};
+
 export function createGithubApi(token: string) {
   function hdr(extra: Record<string, string> = {}): Record<string, string> {
     return {
@@ -323,9 +333,9 @@ export function createGithubApi(token: string) {
     const params = new URLSearchParams({ environment: envName, task: `${kind}:${dir}`, per_page: perPage.toString() });
     const res = await gh(`/repos/${account.login}/${repo}/deployments?${params}`);
     if (!res.ok) throw new Error(`Failed to fetch the report for "${dir}": ${res.status}`);
-    const [latest] = (await res.json()) as { payload: unknown; created_at: string }[];
+    const [latest] = (await res.json()) as { payload: unknown; created_at: string; sha?: string }[];
     console.log(`🚧Fetched stage report for "${dir}" in env "${envName}":`, latest);
-    return latest ? toStageReport(latest.payload, latest.created_at) : null;
+    return latest ? toStageReport(latest.payload, latest.created_at, latest.sha) : null;
   }
 
   async function fetchEnv(account: Account, repo: string): Promise<Record<string, string> | null> {
@@ -425,18 +435,18 @@ export function createGithubApi(token: string) {
   }
 
   // Hands the workflow the session the browser already registered, never the access token.
-  async function triggerRemoteLogin(
-    account: Account,
-    repo: string,
-    workflowId: string,
-    githubEnvName: string,
-    ref: string,
-    sessionId: string,
-    dir: string,
-  ): Promise<void> {
-    const res = await gh(`/repos/${account.login}/${repo}/actions/workflows/${workflowId}/dispatches`, {
+  async function triggerRemoteLogin(account: Account, repo: string, opts: RemoteLoginDispatch): Promise<void> {
+    const res = await gh(`/repos/${account.login}/${repo}/actions/workflows/${opts.workflowId}/dispatches`, {
       method: "POST",
-      body: JSON.stringify({ ref, inputs: { github_env_name: githubEnvName, session_id: sessionId, dir } }),
+      body: JSON.stringify({
+        ref: opts.ref,
+        inputs: {
+          github_env_name: opts.githubEnvName,
+          session_id: opts.sessionId,
+          dir: opts.dir,
+          plan_run_id: opts.planRunId,
+        },
+      }),
     });
     if (!res.ok) throw new Error(`Failed to start the remote login workflow: ${res.status}`);
   }

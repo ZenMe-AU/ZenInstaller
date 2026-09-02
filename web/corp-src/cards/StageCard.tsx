@@ -6,6 +6,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import BlockIcon from "@mui/icons-material/Block";
 import type {
   Account,
   AzureAccount,
@@ -24,7 +25,7 @@ import { createVariable, fetchLogArtifact, fetchPlan, updateVariable } from "../
 import { useAzurePermissions } from "../hooks/util/useAzurePermissions";
 import { useRemoteTerminal } from "../hooks/useRemoteTerminal";
 import { PIPELINE } from "../logic/pipeline";
-import { computePlanSummary } from "../logic/stage";
+import { computePlanSummary, isPlanBehind } from "../logic/stage";
 import { getVariableDisplayName } from "../logic/variables";
 import ViewLink from "../components/ViewLink";
 import { getWorkflowRunUrl } from "../logic/github";
@@ -251,6 +252,7 @@ type Props = {
   card: CardChrome;
   stageDef: StageDefinition;
   stage: Stage;
+  latestSha?: string;
   deployDisabled: boolean;
   deployedEnv: Record<string, string> | null;
   variableValues: Record<string, string>;
@@ -278,6 +280,7 @@ export default function StageCard({
   card,
   stageDef,
   stage,
+  latestSha,
   deployDisabled,
   deployedEnv,
   variableValues,
@@ -316,7 +319,8 @@ export default function StageCard({
     account,
     repoName,
     workflowId: PIPELINE.deployWorkflowId,
-    dir: stageDef.label,
+    dir: stageDef.dir,
+    planRunId: stage.runId,
     selectedEnv,
   });
   // Deploy opens the remote `az login` terminal; onDeploy is only the "this plan is deployable" gate.
@@ -390,12 +394,10 @@ export default function StageCard({
   };
   const hasDetails = stage.status === "success" && !!stage.planJsonId && stage.planJsonUrl !== "";
 
+  const repoFullName = account && repoName ? `${account.login}/${repoName}` : null;
+
   return (
-    <Card
-      title={stageDef.label}
-      action={<Action repoFullName={account && repoName ? `${account.login}/${repoName}` : null} runId={stage.runId} />}
-      {...card}
-    >
+    <Card title={stageDef.label} action={<Action repoFullName={repoFullName} runId={stage.runId} />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
           <RunStatusUpdateButton
@@ -544,6 +546,9 @@ export default function StageCard({
             error={planError}
             onDeploy={handleDeploy}
             stagesStale={deployDisabled}
+            behind={isPlanBehind(stage, latestSha)}
+            planSha={stage.planSha}
+            latestSha={latestSha}
           />
         )}
 
@@ -573,22 +578,34 @@ export default function StageCard({
             >
               Last Deploy
             </Typography>
-            <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
+            {/* The ViewLink button is far taller than the timestamp, so the icon centres on this
+                row and everything below indents past it rather than sharing a column with it. */}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               {stage.deployStatus === "success" ? (
-                <CheckCircleIcon sx={{ fontSize: 13, color: "#22c55e", flexShrink: 0, mt: "1px" }} />
+                <CheckCircleIcon sx={{ fontSize: 13, color: "#22c55e", flexShrink: 0 }} />
+              ) : stage.deployStatus === "cancelled" ? (
+                <BlockIcon sx={{ fontSize: 13, color: "#94a3b8", flexShrink: 0 }} />
               ) : stage.deployStatus === "failed" ? (
-                <WarningAmberIcon sx={{ fontSize: 13, color: "#ef4444", flexShrink: 0, mt: "1px" }} />
+                <WarningAmberIcon sx={{ fontSize: 13, color: "#ef4444", flexShrink: 0 }} />
               ) : null}
-              <Box>
-                {stage.deployedAt && (
-                  <Typography sx={{ fontSize: "0.72rem", color: "#475569", ...mono }}>
-                    {relativeTime(stage.deployedAt)}
-                  </Typography>
-                )}
-                {stage.deployStatus === "failed" && (
-                  <FailureLog fetched={deployLogFetched} text={deployLog?.text ?? null} />
-                )}
-              </Box>
+              {stage.deployedAt && (
+                <Typography sx={{ fontSize: "0.72rem", color: "#475569", ...mono }}>
+                  {relativeTime(stage.deployedAt)}
+                </Typography>
+              )}
+              {/* The apply's own run, not the plan's — the header link points at the plan. */}
+              {repoFullName && stage.deployRunId && (
+                <ViewLink href={getWorkflowRunUrl(repoFullName, stage.deployRunId)} />
+              )}
+            </Box>
+            {/* 13px icon + the 8px gap above. */}
+            <Box sx={{ pl: "21px" }}>
+              {stage.deployStatus === "cancelled" && (
+                <Typography sx={{ fontSize: "0.72rem", color: "#94a3b8", ...mono }}>Cancelled</Typography>
+              )}
+              {stage.deployStatus === "failed" && (
+                <FailureLog fetched={deployLogFetched} text={deployLog?.text ?? null} />
+              )}
             </Box>
           </Box>
         )}

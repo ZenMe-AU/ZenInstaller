@@ -121,6 +121,7 @@ export function useCorpStageCards({
       card,
       stageDef,
       stage,
+      latestSha: plan.latestSha,
       deployDisabled,
       deployedEnv: plan.deployedEnv,
       variableValues,

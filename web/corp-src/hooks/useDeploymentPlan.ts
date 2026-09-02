@@ -17,6 +17,7 @@ export interface StageRun {
 }
 
 export interface UseDeploymentPlan {
+  latestSha?: string;
   stages: Stage[];
   stageSummaries: Record<string, PlanSummary>;
   hasPlan: boolean;
@@ -187,7 +188,8 @@ export function useDeploymentPlan(opts: {
             const { plan, deploy } = byKey.get(dir) ?? { plan: null, deploy: null };
             if (!plan && !deploy) return { stage: dir, status: "pending" as const };
             // The plan deployment owns the plan fields, the deploy one owns the deploy fields.
-            return { ...plan?.stage, ...deploy?.stage, stage: dir } as Stage;
+            // planSha is named explicitly so the deploy report's own sha cannot overwrite it.
+            return { ...plan?.stage, ...deploy?.stage, stage: dir, planSha: plan?.sha } as Stage;
           }),
         );
         setHasPlan(true);
@@ -285,7 +287,10 @@ export function useDeploymentPlan(opts: {
     setStageSummariesState((prev) => ({ ...prev, [key]: summary }));
   }, []);
 
+  const latestSha = opts.branches.find((b) => b.name.toLowerCase() === opts.selectedEnv?.name.toLowerCase())?.commit;
+
   return {
+    latestSha,
     stages,
     stageSummaries,
     hasPlan,

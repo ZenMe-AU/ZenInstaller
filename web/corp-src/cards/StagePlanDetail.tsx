@@ -1,4 +1,4 @@
-import { Box, Button, CircularProgress, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, Tooltip, Typography } from "@mui/material";
 import { ACTION_CONFIG } from "../config/stageConfig";
 import { getActionType } from "../logic/stage";
 import type { PlanItem, PlanSummary } from "../types";
@@ -19,6 +19,34 @@ function SummaryPill({ label, count, color }: { label: string; count: number; co
     >
       {label} {count}
     </Box>
+  );
+}
+
+function BehindPill({ planSha, latestSha }: { planSha?: string; latestSha?: string }) {
+  const detail =
+    planSha && latestSha
+      ? `Planned at ${planSha.slice(0, 7)} \u00b7 the branch is now at ${latestSha.slice(0, 7)}`
+      : "";
+  return (
+    <Tooltip title={detail} placement="top">
+      <Box
+        sx={{
+          px: 0.875,
+          py: 0.25,
+          borderRadius: "4px",
+          border: "1px solid #d9770633",
+          background: "#d977060d",
+          color: "#d97706",
+          fontSize: "0.65rem",
+          ...mono,
+          textTransform: "none",
+          letterSpacing: 0,
+          cursor: "default",
+        }}
+      >
+        not latest
+      </Box>
+    </Tooltip>
   );
 }
 
@@ -52,6 +80,9 @@ export default function StagePlanDetail({
   error,
   onDeploy,
   stagesStale,
+  behind,
+  planSha,
+  latestSha,
 }: {
   items: PlanItem[];
   summary: PlanSummary;
@@ -59,6 +90,9 @@ export default function StagePlanDetail({
   error: string | null;
   onDeploy?: () => void;
   stagesStale?: boolean;
+  behind?: boolean;
+  planSha?: string;
+  latestSha?: string;
 }) {
   if (loading) {
     return (
@@ -75,18 +109,20 @@ export default function StagePlanDetail({
 
   return (
     <Box>
-      <Typography
-        sx={{
-          fontSize: "0.68rem",
-          color: "#94a3b8",
-          ...mono,
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          mb: 1,
-        }}
-      >
-        Planned Changes for Deployment
-      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+        <Typography
+          sx={{
+            fontSize: "0.68rem",
+            color: "#94a3b8",
+            ...mono,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+          }}
+        >
+          Planned Changes for Deployment
+        </Typography>
+        {behind && <BehindPill planSha={planSha} latestSha={latestSha} />}
+      </Box>
       <Box
         sx={{
           display: "flex",

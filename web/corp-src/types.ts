@@ -197,6 +197,7 @@ export type PipelineConfig = {
 // ─── Stage ────────────────────────────────────────────────────────────────────
 
 export type StageStatus = "deployed" | "success" | "failed" | "pending" | "skipped";
+export type DeployStatus = "success" | "failed" | "cancelled";
 
 export type Stage = {
   stage: string;
@@ -210,8 +211,9 @@ export type Stage = {
   envId?: number;
   envUrl?: string;
   runId?: string;
+  planSha?: string;
   deployPlanRunId?: string;
-  deployStatus?: string;
+  deployStatus?: DeployStatus;
   deployRunId?: string;
   deployedAt?: number;
   deployLogId?: number;
@@ -223,6 +225,8 @@ export type Stage = {
 export type StageReport = {
   stage: Stage;
   createdAt: number;
+  // GitHub resolves the deployment's branch ref to a commit; the payload itself carries no sha.
+  sha?: string;
 };
 
 // ─── Secrets ──────────────────────────────────────────────────────────────────

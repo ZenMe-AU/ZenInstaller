@@ -33,6 +33,7 @@ export function useRemoteTerminal(opts: {
   repoName: string;
   workflowId: string;
   dir: string;
+  planRunId: string | undefined;
   selectedEnv: GhEnv | null;
 }): UseRemoteTerminal {
   const optsRef = useRef(opts);
@@ -254,8 +255,8 @@ export function useRemoteTerminal(opts: {
   });
 
   const start = useCallback(async () => {
-    const { account, repoName, workflowId, dir, selectedEnv } = optsRef.current;
-    if (!account || !repoName || !selectedEnv) return;
+    const { account, repoName, workflowId, dir, planRunId, selectedEnv } = optsRef.current;
+    if (!account || !repoName || !selectedEnv || !planRunId) return;
 
     teardown();
     setStatus("registering");
@@ -281,7 +282,14 @@ export function useRemoteTerminal(opts: {
     try {
       await registerSession(creds);
       setStatus("dispatching");
-      await triggerRemoteLogin(account, repoName, workflowId, selectedEnv.name, selectedEnv.name, creds.sessionId, dir);
+      await triggerRemoteLogin(account, repoName, {
+        workflowId,
+        githubEnvName: selectedEnv.name,
+        ref: selectedEnv.name,
+        sessionId: creds.sessionId,
+        dir,
+        planRunId,
+      });
     } catch (e) {
       console.error("Failed to start the remote login session:", e);
       setStatus("error");

@@ -2,6 +2,7 @@ import { parse } from "dotenv";
 import JSZip from "jszip";
 import type { Account, Branch, GhEnv, PullRequest, Repo, StageReport, WorkflowRun, UpsertSecretResult } from "../types";
 import { toStageReport } from "../logic/stage";
+import type { RemoteLoginDispatch } from "./github";
 
 const url = import.meta.env.VITE_API_URL;
 
@@ -305,7 +306,7 @@ export async function fetchStageReport(
   if (!res.ok) throw new Error(`Failed to fetch the report for "${dir}": ${res.status}`);
   const { deployments } = await res.json();
   const latest = deployments?.[0];
-  return latest ? toStageReport(latest.payload, latest.created_at) : null;
+  return latest ? toStageReport(latest.payload, latest.created_at, latest.sha) : null;
 }
 
 // ─── Env ──────────────────────────────────────────────────────────────────────
@@ -420,26 +421,19 @@ export async function deployChangeset(
 }
 
 // Hands the workflow the session the browser already registered, never the access token.
-export async function triggerRemoteLogin(
-  account: Account,
-  repo: string,
-  workflowId: string,
-  githubEnvName: string,
-  ref: string,
-  sessionId: string,
-  dir: string,
-) {
+export async function triggerRemoteLogin(account: Account, repo: string, opts: RemoteLoginDispatch) {
   const res = await fetchWithAuth(`${url}/triggerActions`, {
     method: "POST",
     body: JSON.stringify({
       repo,
       owner: account.login,
       type: account.type,
-      workflow_id: workflowId,
-      ref,
-      github_env_name: githubEnvName,
-      session_id: sessionId,
-      dir,
+      workflow_id: opts.workflowId,
+      ref: opts.ref,
+      github_env_name: opts.githubEnvName,
+      session_id: opts.sessionId,
+      dir: opts.dir,
+      plan_run_id: opts.planRunId,
     }),
   });
   if (!res.ok) throw new Error(`Failed to start the remote login workflow: ${res.status}`);

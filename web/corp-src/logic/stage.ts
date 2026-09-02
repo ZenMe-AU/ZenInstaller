@@ -14,7 +14,7 @@ import type {
 } from "../types";
 
 // The Deployments API types payload as object-or-string, so both shapes have to parse.
-export function toStageReport(payload: unknown, createdAt: string): StageReport | null {
+export function toStageReport(payload: unknown, createdAt: string, sha?: string): StageReport | null {
   let data: unknown = payload;
   if (typeof data === "string") {
     try {
@@ -25,7 +25,7 @@ export function toStageReport(payload: unknown, createdAt: string): StageReport 
   }
   if (!data || typeof data !== "object" || Array.isArray(data)) return null;
   const at = new Date(createdAt).getTime();
-  return { stage: data as Stage, createdAt: Number.isNaN(at) ? 0 : at };
+  return { stage: data as Stage, createdAt: Number.isNaN(at) ? 0 : at, sha };
 }
 
 export function getStageCardId(stageKey: string): CardId {
@@ -62,10 +62,18 @@ export function isNoChanges(summary?: PlanSummary): boolean {
 }
 
 export function getEffectiveStatus(stage: Stage, summary?: PlanSummary, isOptional?: boolean): StageStatus {
-  if (stage.deployPlanRunId && stage.runId && stage.deployPlanRunId === stage.runId) return "deployed";
+  // The deploy records its plan run whatever the outcome, so the status has to be checked too —
+  // a failed or cancelled apply must stay "success" and keep offering Deploy.
+  if (stage.deployStatus === "success" && stage.deployPlanRunId && stage.runId && stage.deployPlanRunId === stage.runId)
+    return "deployed";
   if (isNoChanges(summary)) return "deployed";
   if (isOptional && stage.status === "pending") return "skipped";
   return stage.status;
+}
+
+// A plan produced from an older commit may not reflect what is on the branch now.
+export function isPlanBehind(stage: Stage, latestSha?: string): boolean {
+  return !!stage.planSha && !!latestSha && stage.planSha !== latestSha;
 }
 
 export function getStageSummaryText(

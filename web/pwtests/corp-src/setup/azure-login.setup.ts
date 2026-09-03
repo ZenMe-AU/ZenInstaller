@@ -1,7 +1,7 @@
 import { expect, test as setup } from "@playwright/test";
 import fs from "fs";
 import { CORP_URL } from "../../testInit";
-import { authDir, azureSessionStorageFile, azureStorageStateFile, corpAzureAuthStateExists, saveCorpAzureSessionStorage } from "../util/setupHelper";
+import { authDir, azureSessionStorageFile, azureStorageStateFile, corpAzureAuthStateExists, saveAzureSessionStorage } from "../util/setupHelper";
 
 setup("Manual Microsoft passkey login for corp Azure auth tests", async ({ page, context }) => {
   fs.mkdirSync(authDir, { recursive: true });
@@ -44,7 +44,7 @@ setup("Manual Microsoft passkey login for corp Azure auth tests", async ({ page,
   await expect(page.locator("#card-azure_login").getByText(/Signed in as/i)).toBeVisible({ timeout: 120_000 });
 
   await page.context().storageState({ path: azureStorageStateFile });
-  await saveCorpAzureSessionStorage(context);
+  await saveAzureSessionStorage(context);
 
   console.log(`Saved Azure auth storage state: ${azureStorageStateFile}`);
   console.log(`Saved Azure auth session storage: ${azureSessionStorageFile}`);

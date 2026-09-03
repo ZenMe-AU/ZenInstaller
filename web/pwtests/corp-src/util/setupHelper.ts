@@ -6,14 +6,34 @@ import { fileURLToPath } from "node:url";
 import type { BrowserContext } from "@playwright/test";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
+const githubPatSetupFile = path.join(currentDirectory, "/pwtests/corp-src/setup/github-pat-login.setup.ts");
+const githubBackendSetupFile = path.join(currentDirectory, "/pwtests/corp-src/setup/github-backend-login.setup.ts");
+const azureSetupFile = path.join(currentDirectory, "/pwtests/corp-src/setup/azure-login.setup.ts");
 export const authDir = path.join(currentDirectory, "../.auth");
-export const storageStateFile = path.join(authDir, "github-pat.storage.json");
-export const sessionStorageFile = path.join(authDir, "github-pat.session.json");
+export const githubStorageStateFile = path.join(authDir, "github-login.storage.json");
+export const githubSessionStorageFile = path.join(authDir, "github-login.session.json");
 export const azureStorageStateFile = path.join(authDir, "azure-login.storage.json");
 export const azureSessionStorageFile = path.join(authDir, "azure-login.session.json");
 
-export function corpGithubAuthStateExists() {
-	return (fs.existsSync(storageStateFile) && fs.existsSync(sessionStorageFile));
+
+export type CorpGithubAuthMode = "backend" | "direct";
+
+export function getCorpGithubAuthMode(): CorpGithubAuthMode | null {
+	if (!fs.existsSync(githubSessionStorageFile)) { return null; }
+
+	try {
+		const sessionStorage = JSON.parse(fs.readFileSync(githubSessionStorageFile, "utf-8",),) as Record<string, string>;
+		const auth = JSON.parse(sessionStorage.zeninstaller_github_auth ?? "null",) as { mode?: string } | null;
+		return auth?.mode === "backend" || auth?.mode === "direct" ? auth.mode : null;
+	} catch {
+		return null;
+	}
+}
+
+export function corpGithubAuthStateExists(expectedMode?: CorpGithubAuthMode,) {
+	if (!fs.existsSync(githubStorageStateFile) || !fs.existsSync(githubSessionStorageFile)) { return false; }
+	const mode = getCorpGithubAuthMode();
+	return mode !== null && (expectedMode === undefined || mode === expectedMode);
 }
 
 export function corpAzureAuthStateExists() {
@@ -38,8 +58,8 @@ async function saveSessionStorageTo(context: BrowserContext, targetFile: string,
 	fs.writeFileSync(targetFile, JSON.stringify(sessionStorageData, null, 2,),);
 }
 
-async function restoreSessionStorageFrom(context: BrowserContext, sourceFile: string,) {
-	if (!fs.existsSync(sourceFile)) { throw new Error(`Missing Corp session storage: ${sourceFile}`,); }
+async function restoreSessionStorageFrom(context: BrowserContext, sourceFile: string, error: string) {
+	if (!fs.existsSync(sourceFile)) { throw new Error(`${error}`); }
 
 	const sessionStorageData = JSON.parse(fs.readFileSync(sourceFile, "utf-8",),) as Record<string, string>;
 	await context.addInitScript(({ storage }) => {
@@ -49,18 +69,20 @@ async function restoreSessionStorageFrom(context: BrowserContext, sourceFile: st
 	);
 }
 
-export async function saveCorpSessionStorage(context: BrowserContext,) {
-	await saveSessionStorageTo(context, sessionStorageFile,);
+export async function saveGithubSessionStorage(context: BrowserContext,) {
+	await saveSessionStorageTo(context, githubSessionStorageFile,);
 }
 
-export async function restoreCorpSessionStorage(context: BrowserContext,) {
-	await restoreSessionStorageFrom(context, sessionStorageFile,);
+export async function restoreGithubSessionStorage(context: BrowserContext,) {
+	const error = `Github auth state does not exist. Please run the setup script to create it: ${githubPatSetupFile} or ${githubBackendSetupFile}.`
+	await restoreSessionStorageFrom(context, githubSessionStorageFile, error);
 }
 
-export async function saveCorpAzureSessionStorage(context: BrowserContext,) {
+export async function saveAzureSessionStorage(context: BrowserContext,) {
 	await saveSessionStorageTo(context, azureSessionStorageFile,);
 }
 
-export async function restoreCorpAzureSessionStorage(context: BrowserContext,) {
-	await restoreSessionStorageFrom(context, azureSessionStorageFile,);
+export async function restoreAzureSessionStorage(context: BrowserContext,) {
+	const error = `Azure auth state does not exist. Please run the setup script to create it: ${azureSetupFile}.`
+	await restoreSessionStorageFrom(context, azureSessionStorageFile, error);
 }

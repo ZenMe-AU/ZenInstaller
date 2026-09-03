@@ -1,17 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
-import { corpAzureAuthStateExists, restoreCorpAzureSessionStorage, azureStorageStateFile } from "../util/setupHelper";
+import { corpAzureAuthStateExists, restoreAzureSessionStorage, azureStorageStateFile } from "../util/setupHelper";
 import { CORP_URL, viewports } from "../../testInit";
 import { expandAzureLoginCard, expectCardSnapshot, expectVisibleWithin, sensitiveTextMasks } from "../util/testHelper";
-
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
   test.describe(`Azure Login Card - ${viewportName}`, () => {
     test.use({ viewport, deviceScaleFactor: 1 });
 
     test.describe("Unauth", () => {
-      test.beforeEach(async ({ page }) => {
-        await page.goto(CORP_URL);
-      });
+      test.beforeEach(async ({ page }) => { await page.goto(CORP_URL); });
 
       test("Renders the sign-in prompt with a link to create an Azure account", async ({ page }, testInfo) => {
         const azureCard = await expandAzureLoginCard(page);
@@ -28,8 +25,6 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
       });
 
       test("Clicking Sign in with Azure starts Microsoft authentication", async ({ page, browserName }) => {
-        test.skip(browserName !== "chromium", "Microsoft authentication journey is only tested in Chromium.");
-
         const azureCard = await expandAzureLoginCard(page);
         const popupPromise = page.waitForEvent("popup", { timeout: 10_000 }).catch(() => null);
         await azureCard.getByRole("button", { name: "Sign in with Azure", exact: true }).click();
@@ -46,11 +41,8 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test.describe("Auth", () => {
-      test.use({ viewport, deviceScaleFactor: 1, storageState: azureStorageStateFile });
-      test.skip(!corpAzureAuthStateExists(), "Run pwtests/corp-src/setup/azure-login.setup.ts first.");
-
       test.beforeEach(async ({ page, context }) => {
-        await restoreCorpAzureSessionStorage(context);
+        await restoreAzureSessionStorage(context);
         await page.goto(CORP_URL);
       });
 

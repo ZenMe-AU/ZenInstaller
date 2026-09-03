@@ -1,7 +1,7 @@
 import { expect, test as setup, } from "@playwright/test";
 import fs from "fs";
 import { CORP_URL, } from "../../testInit";
-import { authDir, corpGithubAuthStateExists, saveCorpSessionStorage, storageStateFile, sessionStorageFile } from "../util/setupHelper";
+import { authDir, corpGithubAuthStateExists, saveGithubSessionStorage, githubStorageStateFile, githubSessionStorageFile } from "../util/setupHelper";
 
 const pat = process.env.GITHUB_TOKEN;
 
@@ -9,10 +9,10 @@ setup("GitHub PAT login for corp auth tests", async ({ page, context }) => {
 	setup.skip(!pat, "No GITHUB_TOKEN found in web/.env file. Add a valid PAT to use this setup.",);
 	fs.mkdirSync(authDir, { recursive: true, });
 
-	if (corpGithubAuthStateExists()) {
+	if (corpGithubAuthStateExists("direct",)) {
 		console.log("GitHub PAT auth storage state already exists. Skipping PAT setup.");
-		console.log(`Storage state: ${storageStateFile}`);
-		console.log(`Session storage: ${sessionStorageFile}`);
+		console.log(`Storage state: ${githubStorageStateFile}`);
+		console.log(`Session storage: ${githubSessionStorageFile}`);
 		return;
 	}
 
@@ -30,9 +30,8 @@ setup("GitHub PAT login for corp auth tests", async ({ page, context }) => {
 	await expect(githubCard.getByText(/Authenticated as/i,),).toBeVisible({ timeout: 30_000, });
 
 	// Need to save sessionStorage because Playwright storageState only saves cookies + localStorage
-	await page.context().storageState({ path: storageStateFile, });
-	await saveCorpSessionStorage(context,);
-	console.log(`Saved PAT auth storage state: ${storageStateFile}`);
-	console.log(`Saved PAT auth session storage: ${sessionStorageFile}`);
-
+	await page.context().storageState({ path: githubStorageStateFile, });
+	await saveGithubSessionStorage(context,);
+	console.log(`Saved PAT auth storage state: ${githubStorageStateFile}`);
+	console.log(`Saved PAT auth session storage: ${githubSessionStorageFile}`);
 });

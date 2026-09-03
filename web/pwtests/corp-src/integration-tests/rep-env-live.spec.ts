@@ -1,16 +1,14 @@
 import { expect, test } from "@playwright/test";
-import { corpGithubAuthStateExists, restoreCorpSessionStorage, storageStateFile, } from "../util/setupHelper";
+import { corpGithubAuthStateExists, restoreGithubSessionStorage } from "../util/setupHelper";
 import { CORP_URL, viewports, } from "../../testInit";
 import { expandRepoCard, chooseRepoOption, expectVisibleWithin, expectCardSnapshot, sensitiveTextMasks } from "../util/testHelper";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Live Tests - ${viewportName}`, () => {
-		test.use({ viewport, deviceScaleFactor: 1, storageState: storageStateFile, });
-		test.skip(!corpGithubAuthStateExists(), "Run pwtests/corp-src/setup/github-pat-login.setup.ts first.",);
-		//test.skip(process.env.TEST_MODE !== "live", "Set TEST_MODE=true to run live tests.",);
+		test.use({ viewport, deviceScaleFactor: 1});
 
 		test.beforeEach(async ({ page, context, }) => {
-			await restoreCorpSessionStorage(context,);
+			await restoreGithubSessionStorage(context,);
 			await page.goto(CORP_URL);
 		});
 

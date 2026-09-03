@@ -47,8 +47,8 @@ export default defineConfig({
      * then saves the authenticated browser state.
      */
     {
-      name: "Setup Corp Github Auth",
-      testMatch: /github-login\.setup\.ts/,
+      name: "Setup Corp Github Backend Auth",
+      testMatch: /github-backend-login\.setup\.ts/,
       fullyParallel: false,
       retries: 0,
       use: {

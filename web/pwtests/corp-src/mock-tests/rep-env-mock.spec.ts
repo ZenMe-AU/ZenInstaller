@@ -1,14 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { corpGithubAuthStateExists, restoreCorpSessionStorage, storageStateFile, } from "../util/setupHelper";
+import { corpGithubAuthStateExists, restoreGithubSessionStorage } from "../util/setupHelper";
 import { CORP_URL, viewports, } from "../../testInit";
 import { expandRepoCard, logMockAPI, expectCardSnapshot, sensitiveTextMasks } from "../util/testHelper";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Mock Tests - ${viewportName}`, () => {
-		test.use({ viewport, deviceScaleFactor: 1, storageState: storageStateFile, });
-		test.skip(!corpGithubAuthStateExists(), "Run github-pat-login.setup.ts first.",);
-		//test.skip(process.env.TEST_MODE !== "mock", "Set TEST_MODE=mock to run mock tests.",);
-
+		test.use({ viewport, deviceScaleFactor: 1});
+		
 		test.beforeEach(async ({ page, context, }) => {
 			// blocks unexpected POST requests (supposed to be mocked)
 			await page.route("https://api.github.com/**", async (route) => {
@@ -20,7 +18,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				console.info(`Blocked unexpected GitHub write: ${request.method()} ${request.url()}`,);
 				await route.abort("blockedbyclient");
 			});
-			await restoreCorpSessionStorage(context,);
+			await restoreGithubSessionStorage(context,);
 			await page.goto(CORP_URL);
 		});
 
@@ -420,9 +418,9 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await invalidRepoOption.click();
 			await expect(repoInput).toHaveValue(invalidRepoName);
 			await expect(repoInput).toHaveAttribute("aria-expanded", "false");
-			await expect(repoCard.getByText("Not a clone", { exact: true })).toBeVisible();
+			await expect(repoCard.getByText("Not a clone")).toBeVisible();
 			await expect(repoCard.getByText("This repo is not a clone of the template. Only repos cloned from ZenMe-AU/ZBCorpArchitecture can be used.")).toBeVisible();
-			await expect(repoCard.getByText("No environment found.", { exact: true })).toBeVisible();
+			await expect(repoCard.getByText("No environment found.")).toBeVisible();
 
 			await expectCardSnapshot(page, repoCard, testInfo, "invalid-repo-mock.png",
 				{

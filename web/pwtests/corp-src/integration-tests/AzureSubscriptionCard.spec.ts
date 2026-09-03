@@ -28,12 +28,21 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
 		test.describe("Too few prerequisites fulfilled", () => {
 
-			test.beforeEach(async ({ page, context, }) => {
+			test("Azure signed in and GitHub not signed in", async ({ page, context, }) => {
 				await restoreAzureSessionStorage(context);
 				await page.goto(CORP_URL);
-			});
+				const subscriptionCard = await expandAzureSubscriptionCard(page);
+				await subscriptionCard.getByText("Select a repository & environment", { exact: true, },).click();
+				const repoCard = page.locator("#card-repo");
+				await expect(repoCard.getByText(/^Repository & environment$/i,),).toBeVisible();
+				await expect(repoCard.getByText(/Sign in to GitHub/i,),).toBeVisible();
+			},
+			);
 
-			test("Azure signed in and repo env not selected", async ({ page, }, testInfo) => {
+			test("Azure & GitHub signed in, repo env not selected", async ({ page, context, }, testInfo) => {
+				await restoreGithubSessionStorage(context);
+				await restoreAzureSessionStorage(context);
+				await page.goto(CORP_URL);
 				const subscriptionCard = await expandAzureSubscriptionCard(page);
 				await expect(subscriptionCard.getByText("Complete these first", { exact: true, },),).toBeVisible();
 				await expect(subscriptionCard.getByText("Select a repository & environment", { exact: true, },),).toBeVisible();
@@ -47,15 +56,6 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 						mask: sensitiveTextMasks(subscriptionCard),
 					},
 				);
-			},
-			);
-
-			test("Azure signed in and GitHub not signed in", async ({ page, }) => {
-				const subscriptionCard = await expandAzureSubscriptionCard(page);
-				await subscriptionCard.getByText("Select a repository & environment", { exact: true, },).click();
-				const repoCard = page.locator("#card-repo");
-				await expect(repoCard.getByText(/^Repository & environment$/i,),).toBeVisible();
-				await expect(repoCard.getByText(/Select the GitHub location and type the name of the repository/i,),).toBeVisible();
 			},
 			);
 

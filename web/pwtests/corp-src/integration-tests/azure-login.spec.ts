@@ -3,6 +3,8 @@ import { corpAzureAuthStateExists, restoreAzureSessionStorage, azureStorageState
 import { CORP_URL, viewports } from "../../testInit";
 import { expandAzureLoginCard, expectCardSnapshot, expectVisibleWithin, sensitiveTextMasks } from "../util/testHelper";
 
+const azureTenantName = "Default Directory";
+
 for (const [viewportName, viewport] of Object.entries(viewports)) {
   test.describe(`Azure Login Card - ${viewportName}`, () => {
     test.use({ viewport, deviceScaleFactor: 1 });
@@ -53,11 +55,17 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
         await expect(azureCard.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
         await expect(azureCard.getByRole("button", { name: "Sign in with Azure", exact: true })).toHaveCount(0);
         await expect(azureCard.getByText(/^Tenant/)).toBeVisible();
-        const tenantSelect = azureCard.getByRole('combobox').filter({ hasText: 'Select a tenant' })
-        await tenantSelect.click();
-        const tenantOption = page.getByRole("option").first();
-        await expect(tenantOption).toBeVisible();
-        await tenantOption.click();
+        const tenantSelect = azureCard.getByRole("combobox");
+        await expect(tenantSelect).toBeVisible();
+
+        if ((await tenantSelect.textContent())?.includes("Select a tenant")) {
+          await tenantSelect.click();
+          const tenantOption = page.getByRole("option", { name: azureTenantName, exact: true }).first();
+          await expect(tenantOption).toBeVisible();
+          await tenantOption.click();
+        } else {
+          await expect(tenantSelect).toContainText(azureTenantName);
+        }
 
         await expectCardSnapshot(page, azureCard, testInfo, "tenant-selected.png", {
           userId: "azure-login",

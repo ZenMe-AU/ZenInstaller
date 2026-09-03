@@ -37,3 +37,5 @@ Run the following test while showing the browser and letting the user authentica
 2. Keep testing patterns in alignment, if it's not clear ask a human which pattern should be standard accross the test files.
 3. When modifying tests, run Playwright with a headed browser and live terminal output (use `--reporter=line`) so that the human can follow the process. Do not open the HTML report during the run. Once the tests are confirmed working, headed mode is no longer needed.
 4. If an of the integration tests for a card fails, ask the product owner if it's ok to continue with updating the mock test. By default only update mock tests that match integration tests that passed. For integration tests that fail, only check for glaring differences and recommend the product owner to request an update to them if needed.
+5. When starting a new integration test, list the cards that are missing integration tests for the product owner to select which one to proceed with.
+6. When creating a new integration test, use the RepoDetail.spec.ts integration test as example, but also check for standards from the other integration tests.

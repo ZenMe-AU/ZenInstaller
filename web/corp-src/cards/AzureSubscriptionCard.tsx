@@ -150,15 +150,15 @@ export default function AzureSubscriptionCard({
                     </Typography>
                   );
                 const name = subscriptionOptions.find((s) => s.id === v)?.displayName ?? v;
-                return <Typography sx={{ fontSize: "0.8rem", ...mono }}>{name}</Typography>;
+                return <Typography data-sensitive="true" sx={{ fontSize: "0.8rem", ...mono }}>{name}</Typography>;
               }}
               sx={{ minWidth: { xs: 0, sm: 380 }, width: "100%", fontSize: "0.8rem", ...mono }}
             >
               {subscriptionOptions.map((s) => (
                 <MenuItem key={s.id} value={s.id} sx={{ py: 0.75 }}>
                   <Box>
-                    <Typography sx={{ fontSize: "0.8rem", ...mono }}>{s.displayName}</Typography>
-                    <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono }}>{s.id}</Typography>
+                    <Typography data-sensitive="true" sx={{ fontSize: "0.8rem", ...mono }}>{s.displayName}</Typography>
+                    <Typography data-sensitive="true" sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono }}>{s.id}</Typography>
                   </Box>
                 </MenuItem>
               ))}

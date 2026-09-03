@@ -3,6 +3,8 @@ import fs from "fs";
 import { CORP_URL } from "../../testInit";
 import { authDir, azureSessionStorageFile, azureStorageStateFile, corpAzureAuthStateExists, saveAzureSessionStorage } from "../util/setupHelper";
 
+const azureTenantName = "Default Directory";
+
 setup("Manual Microsoft passkey login for corp Azure auth tests", async ({ page, context }) => {
   fs.mkdirSync(authDir, { recursive: true });
 
@@ -42,6 +44,28 @@ setup("Manual Microsoft passkey login for corp Azure auth tests", async ({ page,
   }
 
   await expect(page.locator("#card-azure_login").getByText(/Signed in as/i)).toBeVisible({ timeout: 120_000 });
+
+  const authenticatedAzureCard = page.locator("#card-azure_login");
+  const tenantSelect = authenticatedAzureCard.getByRole("combobox");
+  await tenantSelect.click();
+  const tenantOption = page.getByRole("option", { name: azureTenantName}).first();
+  await expect(tenantOption).toBeVisible({ timeout: 30_000 });
+  const azureTenantId = await tenantOption.getAttribute("data-value");
+  if (!azureTenantId) throw new Error(`Tenant option "${azureTenantName}" does not expose a tenant ID.`);
+  await tenantOption.click();
+
+  const microsoftConsent = page.waitForURL(/login\.microsoftonline\.com|login\.live\.com/i, { timeout: 15_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (await microsoftConsent) {
+    await page.pause();
+    await page.waitForURL(/localhost:5173\/?(?:[/?#].*)?$/i, { timeout: 180_000 });
+  }
+
+  const restoredAzureCard = page.locator("#card-azure_login");
+  await expect(restoredAzureCard.getByText(/Signed in as/i)).toBeVisible({ timeout: 120_000 });
+  // await expect(restoredAzureCard.getByRole("combobox")).toContainText(azureTenantName, { timeout: 120_000 });
+  await page.evaluate((tenantId) => sessionStorage.setItem("zeninstaller_arm_tenant", tenantId), azureTenantId);
 
   await page.context().storageState({ path: azureStorageStateFile });
   await saveAzureSessionStorage(context);

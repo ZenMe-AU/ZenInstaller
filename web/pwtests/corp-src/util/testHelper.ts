@@ -204,3 +204,14 @@ export async function waitForLocatorContentLoaded(locator: Locator, emptyPlaceho
 		message: `${label} content did not load`,
 	}).toBeTruthy();
 }
+
+
+export async function expandAzureSubscriptionCard(page: Page) {
+	const subscriptionCard = page.locator("#card-azure_subscription",);
+	const introText = subscriptionCard.getByText(/Pick the subscription to deploy into\./i,);
+	if (!(await introText.isVisible())) {
+		await subscriptionCard.getByText(/^Choose Azure subscription$/i).click();
+	}
+	await expect(introText).toBeVisible();
+	return subscriptionCard;
+}

@@ -41,23 +41,8 @@ export default defineConfig({
   },
 
   projects: [
-    /**
-     * Manual Authentication test setup.
-     * This opens the browser, lets you complete Microsoft passkey login manually,
-     * then saves the authenticated browser state.
-     */
     {
-      name: "Setup Corp Github Backend Auth",
-      testMatch: /github-backend-login\.setup\.ts/,
-      fullyParallel: false,
-      retries: 0,
-      use: {
-        ...devices["Desktop Chrome"],
-      },
-    },
-
-    {
-      name: "Setup Corp Github PAT Auth",
+      name: "Setup Corp Github Auth",
       testMatch: /github-pat-login\.setup\.ts/,
       fullyParallel: false,
       retries: 0,

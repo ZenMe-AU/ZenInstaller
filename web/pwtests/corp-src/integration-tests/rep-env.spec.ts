@@ -28,7 +28,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			);
 		});
 
-		test("LIVE TEST - Typing new repo name in the textbox", async ({ page, }, testInfo) => {
+		test("INTEGRATION TEST - Typing new repo name in the textbox", async ({ page, }, testInfo) => {
 			const reponame = "live-test";
 			const repoCard = await expandRepoCard(page);
 			await chooseRepoOption(page, repoCard, reponame);
@@ -42,7 +42,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			);
 		});
 
-		test("LIVE TEST - Cloning a new repo for both PROD and TEST", async ({ page, }, testInfo) => {
+		test("INTEGRATION TEST - Cloning a new repo for both PROD and TEST", async ({ page, }, testInfo) => {
 			const reponame = `live-test7-${viewportName}`;
 			const repoCard = await expandRepoCard(page);
 			await chooseRepoOption(page, repoCard, reponame);
@@ -90,7 +90,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				});
 		});
 
-		test("LIVE TEST - Creates valid repo with no environments", async ({ page, }, testInfo) => {
+		test("INTEGRATION TEST - Creates valid repo with no environments", async ({ page, }, testInfo) => {
 			const reponame = `live-no-env-${viewportName}`;
 			const repoCard = await expandRepoCard(page,);
 			await chooseRepoOption(page, repoCard, reponame);
@@ -116,7 +116,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			});
 		});
 
-		test("LIVE TEST - Creates PROD branch, then creates TEST from PROD", async ({ page, }, testInfo) => {
+		test("INTEGRATION TEST - Creates PROD branch, then creates TEST from PROD", async ({ page, }, testInfo) => {
 			const reponame = `live-test7-${viewportName}`;
 			const repoCard = await expandRepoCard(page,);
 			const repoInput = repoCard.getByRole("combobox", { name: "Select or type repo name...", });

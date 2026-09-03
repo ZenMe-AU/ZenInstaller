@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { corpGithubAuthStateExists, restoreGithubSessionStorage } from "../util/setupHelper";
 import { CORP_URL, viewports, } from "../../testInit";
-import { expandRepoCard, logMockAPI, expectCardSnapshot, sensitiveTextMasks } from "../util/testHelper";
+import { expandRepoCard, logMockAPI, expectCardSnapshot, sensitiveTextMasks, expectVisibleWithin } from "../util/testHelper";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Mock Tests - ${viewportName}`, () => {
@@ -418,9 +418,10 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await invalidRepoOption.click();
 			await expect(repoInput).toHaveValue(invalidRepoName);
 			await expect(repoInput).toHaveAttribute("aria-expanded", "false");
-			await expect(repoCard.getByText("Not a clone")).toBeVisible();
+			await expect(repoCard.getByText("Not a clone", { exact: true, })).toBeVisible();
 			await expect(repoCard.getByText("This repo is not a clone of the template. Only repos cloned from ZenMe-AU/ZBCorpArchitecture can be used.")).toBeVisible();
-			await expect(repoCard.getByText("No environment found.")).toBeVisible();
+			await expectVisibleWithin(repoCard.getByText('No environment found'), "Text: No environment found.", 500000);
+			await expect(repoCard.getByText("No environment found")).toBeVisible();
 
 			await expectCardSnapshot(page, repoCard, testInfo, "invalid-repo-mock.png",
 				{

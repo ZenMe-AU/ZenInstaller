@@ -55,6 +55,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
         await expect(azureCard.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
         await expect(azureCard.getByRole("button", { name: "Sign in with Azure", exact: true })).toHaveCount(0);
         await expect(azureCard.getByText(/^Tenant/)).toBeVisible();
+        // TODO: This scenario assumes a tenant selector; add coverage for tenant-specific UI variants as settings evolve.
         const tenantSelect = azureCard.getByRole("combobox");
         await expect(tenantSelect).toBeVisible();
 

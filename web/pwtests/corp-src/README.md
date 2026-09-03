@@ -1,6 +1,7 @@
 # Playwright Tests folder
 
 This folder contain the playwright tests for this project.
+Folder paths are expressed from the root of this Node workspace.
 
 For each card in /corp-src/cards there must be two .spec.ts files.
 1. One (cardname).spec.ts file within /pwtests/corp-src/integration-tests that is an integrated test, testing against the actual backend systems.
@@ -31,8 +32,8 @@ Then run the following test while showing the browser: /pwtests/corp-src/setup/g
 #### Backend path
 Run the following test while showing the browser and letting the user authenticate: /pwtests/corp-src/setup/github-backend-login.setup.ts
 
-## Note to AI:
+## Notes to AI:
 1. Always ask a human if they can be product owner and guide you through the steps.
 2. Keep testing patterns in alignment, if it's not clear ask a human which pattern should be standard accross the test files.
-3. When modifying tests, run playwright with the browser visible so that the human can follow your process. Once the tests are confirmed working, playwright headed mode is no longer needed.
-
+3. When modifying tests, run Playwright with a headed browser and live terminal output (use `--reporter=line`) so that the human can follow the process. Do not open the HTML report during the run. Once the tests are confirmed working, headed mode is no longer needed.
+4. If an of the integration tests for a card fails, ask the product owner if it's ok to continue with updating the mock test. By default only update mock tests that match integration tests that passed. For integration tests that fail, only check for glaring differences and recommend the product owner to request an update to them if needed.

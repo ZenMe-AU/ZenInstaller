@@ -1,17 +1,20 @@
-import type { PipelineConfig } from "../types";
+import type { PipelineConfig, StageDefinition } from "../types";
 import { GRAPH_PERMISSIONS } from "../config/azureConfig";
 import { AZURE_VARIABLE_KEYS, AWS_VARIABLE_KEYS, C01_KEYS } from "./variables";
 
-export const PIPELINES: Record<string, PipelineConfig> = {
+type StageSource = Omit<StageDefinition, "workflowId">;
+type PipelineSource = Omit<PipelineConfig, "stages"> & { stages: StageSource[] };
+const DEFINITIONS: Record<string, PipelineSource> = {
   corpSetup: {
     workflowId: "planChanges.yml",
+    deployWorkflowId: "deployPlan.yml",
     label: "ZenInstaller Setup Central Corp Environment",
     templateRepo: "ZenMe-AU/ZBCorpArchitecture",
     validEnvs: ["PROD", "TEST"] as const,
     stages: [
       {
-        key: "c01",
-        label: "c01subscription",
+        dir: "c01subscription",
+        label: "Subscription Budget",
         azurePermissions: [],
         prerequisites: [
           { type: "var", key: "NAME" },
@@ -27,8 +30,8 @@ export const PIPELINES: Record<string, PipelineConfig> = {
         ],
       },
       {
-        key: "c02",
-        label: "c02globalGroups",
+        dir: "c02globalGroups",
+        label: "Global groups",
         azurePermissions: [
           GRAPH_PERMISSIONS.GroupReadWriteAll,
           GRAPH_PERMISSIONS.GroupMemberReadWriteAll,
@@ -45,8 +48,8 @@ export const PIPELINES: Record<string, PipelineConfig> = {
        * which create the same resources directly via ARM/Graph from the browser.
        */
       {
-        key: "c07",
-        label: "c07userAccounts",
+        dir: "c07userAccounts",
+        label: "User accounts",
         azurePermissions: [
           GRAPH_PERMISSIONS.GroupReadWriteAll,
           GRAPH_PERMISSIONS.GroupMemberReadWriteAll,
@@ -63,8 +66,8 @@ export const PIPELINES: Record<string, PipelineConfig> = {
         ],
       },
       {
-        key: "c20",
-        label: "c20awsentrasso",
+        dir: "c20awsentrasso",
+        label: "AWS Entra SSO",
         azurePermissions: [GRAPH_PERMISSIONS.ApplicationReadWriteAll],
         prerequisites: [
           { type: "var", key: "NAME" },
@@ -73,8 +76,8 @@ export const PIPELINES: Record<string, PipelineConfig> = {
         ],
       },
       {
-        key: "c21",
-        label: "c21awsentrassoP2",
+        dir: "c21awsentrassoP2",
+        label: "AWS Entra SSO P2",
         azurePermissions: [
           GRAPH_PERMISSIONS.AppRoleAssignmentReadWriteAll,
           GRAPH_PERMISSIONS.PolicyReadWriteApplicationConfiguration,
@@ -87,8 +90,8 @@ export const PIPELINES: Record<string, PipelineConfig> = {
         ],
       },
       {
-        key: "c25",
-        label: "c25cloudfront",
+        dir: "c25cloudfront",
+        label: "CloudFront",
         azurePermissions: [GRAPH_PERMISSIONS.ApplicationReadWriteAll],
         prerequisites: [
           { type: "var", key: "NAME" },
@@ -101,6 +104,17 @@ export const PIPELINES: Record<string, PipelineConfig> = {
   },
   // Add future pipelines here — no other files need to change
 };
+
+function withStageWorkflows(config: PipelineSource): PipelineConfig {
+  return {
+    ...config,
+    stages: config.stages.map((stage) => ({ ...stage, workflowId: `plan-${stage.dir}.yml` })),
+  };
+}
+
+export const PIPELINES: Record<string, PipelineConfig> = Object.fromEntries(
+  Object.entries(DEFINITIONS).map(([name, config]) => [name, withStageWorkflows(config)]),
+);
 
 // The only pipeline in use — cards import this directly instead of it being threaded through hooks.
 export const PIPELINE = PIPELINES.corpSetup;

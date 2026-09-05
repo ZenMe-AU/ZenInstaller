@@ -9,8 +9,24 @@ import type {
   PrerequisiteVar,
   PrerequisiteVarGroup,
   Stage,
+  StageReport,
   StageStatus,
 } from "../types";
+
+// The Deployments API types payload as object-or-string, so both shapes have to parse.
+export function toStageReport(payload: unknown, createdAt: string): StageReport | null {
+  let data: unknown = payload;
+  if (typeof data === "string") {
+    try {
+      data = JSON.parse(data);
+    } catch {
+      return null;
+    }
+  }
+  if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+  const at = new Date(createdAt).getTime();
+  return { stage: data as Stage, createdAt: Number.isNaN(at) ? 0 : at };
+}
 
 export function getStageCardId(stageKey: string): CardId {
   return `stage_${stageKey}`;
@@ -98,15 +114,4 @@ export function hasVariableDiff(
       );
     return false;
   });
-}
-
-export function isPlanStale(
-  triggerTime: number,
-  fileUpdatedAt: number | null,
-  fetchedRunId: string | null,
-  prevRunId: string | null,
-): boolean {
-  const timeStale = fileUpdatedAt === null || triggerTime > fileUpdatedAt;
-  const runIdStale = prevRunId !== null && fetchedRunId !== null && fetchedRunId === prevRunId;
-  return timeStale || runIdStale;
 }

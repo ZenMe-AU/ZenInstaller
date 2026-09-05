@@ -1,37 +1,32 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { deployChangeset, fetchStatus, getPlanEnv, triggerWorkflow } from "../api";
-import { isPlanStale } from "../logic/stage";
-import type { Account, Branch, CardStatus, GhEnv, PipelineConfig, PlanSummary, Stage, StageDefinition } from "../types";
+import { deployChangeset, fetchStageReport, getPlanEnv, triggerWorkflow } from "../api";
+import type { Account, Branch, GhEnv, PipelineConfig, PlanSummary, Stage, StageReport } from "../types";
 
 interface PollContext {
   attempt: number;
   triggerTime: number;
-  prevRunId: string | null;
+  stageKey: string;
+  kind: "plan" | "deploy";
 }
 
-export interface DeployStageParams {
-  stageDef: StageDefinition;
-  stage: Stage;
-  envName: string;
-  branches: Branch[];
+export interface StageRun {
+  kind: "plan" | "deploy";
+  countdown: number;
+  retryCount: number;
+  error: string | null;
 }
 
 export interface UseDeploymentPlan {
   stages: Stage[];
   stageSummaries: Record<string, PlanSummary>;
   hasPlan: boolean;
-  running: boolean;
   stagesLoading: boolean;
-  runError: string | null;
-  countdown: number;
-  lastTriggeredAt: number | null;
-  retryCount: number;
+  runs: Record<string, StageRun>;
   deployedEnv: Record<string, string> | null;
-  isStale: boolean;
-  statusUpdateStatus: CardStatus;
-  statusFileRunId: string | null;
-  onRun: () => Promise<void>;
-  deployStage: (params: DeployStageParams) => Promise<void>;
+  // Both take just the stage key: the hook already holds the pipeline, the stages, the selected
+  // env and the branches, so handing them back in would be a second source for the same value.
+  onRun: (stageKey: string) => Promise<void>; // One card, one stage — never the whole pipeline.
+  deployStage: (stageKey: string) => Promise<void>;
   setStageSummary: (key: string, summary: PlanSummary) => void;
 }
 
@@ -69,33 +64,58 @@ export function useDeploymentPlan(opts: {
 
   const [stageSummaries, setStageSummariesState] = useState<Record<string, PlanSummary>>({});
   const [hasPlan, setHasPlan] = useState(true);
-  const [running, setRunning] = useState(false);
   const [stagesLoading, setStagesLoading] = useState(false);
-  const [runError, setRunError] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState(0);
-  const [lastTriggeredAt, setLastTriggeredAt] = useState<number | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
+  const [runs, setRuns] = useState<Record<string, StageRun>>({});
   const [deployedEnv, setDeployedEnv] = useState<Record<string, string> | null>(null);
-  const [statusUpdateStatus, setStatusUpdateStatus] = useState<CardStatus>("idle");
-  const [statusFileRunId, setStatusFileRunId] = useState<string | null>(null);
+  // One interval per stage, so a second card starting a run cannot cancel the first one's.
+  const tickers = useRef<Record<string, ReturnType<typeof setInterval>>>({});
+
+  const patchRun = (stageKey: string, patch: Partial<StageRun> | null) =>
+    setRuns((prev) => {
+      if (!patch) {
+        const rest = { ...prev };
+        delete rest[stageKey];
+        return rest;
+      }
+      const base = prev[stageKey] ?? { kind: "plan", countdown: 0, retryCount: 0, error: null };
+      return { ...prev, [stageKey]: { ...base, ...patch } };
+    });
+
+  const stopTicker = (stageKey: string) => {
+    clearInterval(tickers.current[stageKey]);
+    delete tickers.current[stageKey];
+  };
+  useEffect(() => () => Object.keys(tickers.current).forEach(stopTicker), []);
   const lastFetchedEnvId = useRef<number | null>(null);
 
   const implRef = useRef<{
     loadPlanImpl: (ref: string, poll?: PollContext) => void;
-    startPollingImpl: (ref: string, attempt: number, triggerTime: number, prevRunId: string | null) => void;
+    startPollingImpl: (
+      ref: string,
+      attempt: number,
+      triggerTime: number,
+      stageKey: string,
+      kind: "plan" | "deploy",
+    ) => void;
   }>({ loadPlanImpl: () => {}, startPollingImpl: () => {} });
 
-  const startPollingImpl = (ref: string, attempt: number, triggerTime: number, prevRunId: string | null) => {
+  const startPollingImpl = (
+    ref: string,
+    attempt: number,
+    triggerTime: number,
+    stageKey: string,
+    kind: "plan" | "deploy",
+  ) => {
     const delay = POLL_DELAYS[attempt] ?? POLL_DELAYS[POLL_DELAYS.length - 1];
-    setRunning(true);
-    setCountdown(delay);
+    stopTicker(stageKey);
+    patchRun(stageKey, { kind, countdown: delay });
     let remaining = delay;
-    const interval = setInterval(() => {
+    tickers.current[stageKey] = setInterval(() => {
       remaining -= 1;
-      setCountdown(remaining);
+      patchRun(stageKey, { countdown: remaining });
       if (remaining <= 0) {
-        clearInterval(interval);
-        implRef.current.loadPlanImpl(ref, { attempt, triggerTime, prevRunId });
+        stopTicker(stageKey);
+        implRef.current.loadPlanImpl(ref, { attempt, triggerTime, stageKey, kind });
       }
     }, 1000);
   };
@@ -104,64 +124,80 @@ export function useDeploymentPlan(opts: {
     const acc = accountRef.current;
     const repo = repoNameRef.current;
     const pipe = pipelineRef.current;
-    if (!acc || !repo) return;
+    const envName = selectedEnvRef.current?.name;
+    if (!acc || !repo || !envName) return;
 
-    setStagesLoading(true);
+    if (!poll) setStagesLoading(true);
+    const load = (dir: string, kind: "plan" | "deploy") =>
+      fetchStageReport(acc, repo, envName, dir, kind).catch((e) => {
+        console.error(`Failed to fetch the ${kind} report for "${dir}":`, e);
+        return null;
+      });
 
-    fetchStatus(acc, repo, ref)
-      .then((data) => {
-        setRunning(false);
-        setStagesLoading(false);
+    Promise.all(
+      pipe.stages.map(async (stageDef) => {
+        const [plan, deploy] = await Promise.all([load(stageDef.dir, "plan"), load(stageDef.dir, "deploy")]);
+        return [stageDef.dir, { plan, deploy }] as const;
+      }),
+    )
+      .then((entries) => {
+        const byKey = new Map(entries);
+        if (!poll) setStagesLoading(false);
 
-        if (!data) {
-          setStages(pipe.stages.map(({ key }) => ({ stage: key, status: "pending" as const })));
-          setHasPlan(false);
-          setStatusUpdateStatus("idle");
-          return;
-        }
-
-        const statusData = data as Record<string, unknown>;
-        const fileUpdatedAt = typeof statusData.updatedAt === "number" ? statusData.updatedAt * 1000 : null;
-        const fetchedRunId =
-          (statusData.runId as string | undefined) ?? (statusData.stages as Stage[] | undefined)?.[0]?.runId ?? null;
-        const envId = typeof statusData.envId === "number" ? statusData.envId : null;
-        if (fetchedRunId) setStatusFileRunId(fetchedRunId);
+        const nothingReported = ![...byKey.values()].some((r) => r.plan || r.deploy);
 
         if (poll) {
-          const stale = isPlanStale(poll.triggerTime, fileUpdatedAt, fetchedRunId, poll.prevRunId);
-          if (stale) {
+          const reported = byKey.get(poll.stageKey)?.[poll.kind]?.createdAt ?? 0;
+          if (reported <= poll.triggerTime) {
             const next = poll.attempt + 1;
-            setRetryCount(next);
-            if (next >= POLL_DELAYS.length) setRunError("Workflow is taking too long. Please check GitHub Actions.");
-            else implRef.current.startPollingImpl(ref, next, poll.triggerTime, poll.prevRunId);
+            if (next >= POLL_DELAYS.length) {
+              patchRun(poll.stageKey, {
+                retryCount: next,
+                countdown: 0,
+                error: "Workflow is taking too long. Please check GitHub Actions.",
+              });
+            } else {
+              patchRun(poll.stageKey, { retryCount: next });
+              implRef.current.startPollingImpl(ref, next, poll.triggerTime, poll.stageKey, poll.kind);
+            }
           } else {
-            setLastTriggeredAt(null);
-            setRetryCount(0);
+            patchRun(poll.stageKey, null);
           }
         }
 
+        if (nothingReported) {
+          setStages(pipe.stages.map(({ dir }) => ({ stage: dir, status: "pending" as const })));
+          setHasPlan(false);
+          return;
+        }
+
+        // The env artifact belongs to whichever plan reported most recently across the pipeline.
+        const newest = [...byKey.values()]
+          .map((r) => r.plan)
+          .filter((r): r is StageReport => !!r)
+          .sort((a, b) => b.createdAt - a.createdAt)[0];
+        const envId = typeof newest?.stage.envId === "number" ? newest.stage.envId : null;
         if (envId && envId !== lastFetchedEnvId.current) {
           lastFetchedEnvId.current = envId;
           getPlanEnv(acc, repo, envId).then(setDeployedEnv).catch(console.error);
         }
 
-        const fetched = (statusData.stages as Stage[]) || [];
         setStages(
-          pipe.stages.map(({ key }) => {
-            const found = fetched.find((s) => s.stage === key);
-            return found ?? { stage: key, status: "failed" as const };
+          pipe.stages.map(({ dir }) => {
+            const { plan, deploy } = byKey.get(dir) ?? { plan: null, deploy: null };
+            if (!plan && !deploy) return { stage: dir, status: "pending" as const };
+            // The plan deployment owns the plan fields, the deploy one owns the deploy fields.
+            return { ...plan?.stage, ...deploy?.stage, stage: dir } as Stage;
           }),
         );
         setHasPlan(true);
-        setStatusUpdateStatus("complete");
       })
       .catch((e) => {
-        console.error("Failed to fetch status:", e);
-        setRunning(false);
-        setStagesLoading(false);
-        setStages(pipe.stages.map(({ key }) => ({ stage: key, status: "pending" as const })));
+        console.error("Failed to load the stage reports:", e);
+        if (!poll) setStagesLoading(false);
+        if (poll) patchRun(poll.stageKey, { countdown: 0, error: "Could not read the stage reports" });
+        setStages(pipe.stages.map(({ dir }) => ({ stage: dir, status: "pending" as const })));
         setHasPlan(false);
-        setStatusUpdateStatus("idle");
       });
   };
 
@@ -171,18 +207,13 @@ export function useDeploymentPlan(opts: {
   });
 
   useEffect(() => {
-    setRunning(false);
-    setRunError(null);
-    setCountdown(0);
-    setLastTriggeredAt(null);
-    setRetryCount(0);
+    Object.keys(tickers.current).forEach(stopTicker);
+    setRuns({});
     setStages([]);
     setStageSummariesState({});
     setHasPlan(true);
-    setStatusUpdateStatus("idle");
     setDeployedEnv(null);
     setStagesLoading(false);
-    setStatusFileRunId(null);
     lastFetchedEnvId.current = null;
   }, [opts.selectedEnv?.id]);
 
@@ -192,56 +223,62 @@ export function useDeploymentPlan(opts: {
     if (branch) implRef.current.loadPlanImpl(branch.name);
   }, [opts.selectedEnv?.id, opts.branchMatchError]);
 
-  const onRun = useCallback(async () => {
+  const onRun = useCallback(async (stageKey: string) => {
     const acc = accountRef.current;
     const repo = repoNameRef.current;
     const env = selectedEnvRef.current;
-    if (!acc || !repo || !envReadyRef.current || !env) return;
-
-    setRunError(null);
-    setStatusUpdateStatus("loading");
+    const stage = pipelineRef.current.stages.find((s) => s.dir === stageKey);
+    if (!acc || !repo || !envReadyRef.current || !env || !stage) return;
     const triggerTime = Date.now();
-    const prevRunId = stagesRef.current[0]?.runId ?? null;
-    setLastTriggeredAt(triggerTime);
-    setRetryCount(0);
+    patchRun(stageKey, { kind: "plan", countdown: 0, retryCount: 0, error: null });
 
     try {
-      await triggerWorkflow(acc, repo, pipelineRef.current.workflowId, env.name, env.name);
+      await triggerWorkflow(acc, repo, stage.workflowId, env.name, env.name);
     } catch (e) {
       console.error("Failed to trigger workflow:", e);
-      setStatusUpdateStatus("error");
-      setRunError("Failed to trigger workflow");
-      setLastTriggeredAt(null);
+      patchRun(stageKey, { error: "Failed to trigger workflow", countdown: 0 });
       return;
     }
 
     const matchedBranch = branchesRef.current.find((b) => b.name.toLowerCase() === env.name.toLowerCase());
     if (!matchedBranch) {
-      setRunError(`No branch found matching env "${env.name}"`);
+      patchRun(stageKey, { error: `No branch found matching env "${env.name}"`, countdown: 0 });
       return;
     }
-    implRef.current.startPollingImpl(matchedBranch.name, 0, triggerTime, prevRunId);
+    implRef.current.startPollingImpl(matchedBranch.name, 0, triggerTime, stageKey, "plan");
   }, []);
 
-  const deployStage = useCallback(async (params: DeployStageParams) => {
+  const deployStage = useCallback(async (stageKey: string) => {
     const acc = accountRef.current;
     const repo = repoNameRef.current;
-    if (!acc || !repo || !params.stage.runId) return;
+    const env = selectedEnvRef.current;
+    const stageDef = pipelineRef.current.stages.find((s) => s.dir === stageKey);
+    const stage = stagesRef.current.find((s) => s.stage === stageKey);
+    if (!acc || !repo || !env || !stageDef || !stage?.runId) return;
+
+    patchRun(stageKey, { kind: "deploy", countdown: 0, retryCount: 0, error: null });
 
     try {
-      await deployChangeset(acc, repo, params.stage.runId, params.stageDef.label, params.envName, params.envName);
+      await deployChangeset(
+        acc,
+        repo,
+        stage.runId,
+        pipelineRef.current.deployWorkflowId,
+        stageDef.dir,
+        env.name,
+        env.name,
+      );
     } catch (e) {
       console.error("Failed to trigger deploy:", e);
+      patchRun(stageKey, { error: "Failed to trigger deploy", countdown: 0 });
       return;
     }
 
     const triggerTime = Date.now();
-    const prevRunId = stagesRef.current[0]?.runId ?? null;
-    setLastTriggeredAt(triggerTime);
-    setRetryCount(0);
-    const ref =
-      params.branches.find((b) => b.name.toLowerCase() === params.envName.toLowerCase())?.name ?? params.envName;
-    implRef.current.startPollingImpl(ref, 0, triggerTime, prevRunId);
+    // Same branch lookup onRun does, from the same ref. onRun treats no match as an error while
+    // this falls back to the env name — left as it was rather than changed in passing.
+    const ref = branchesRef.current.find((b) => b.name.toLowerCase() === env.name.toLowerCase())?.name ?? env.name;
+    implRef.current.startPollingImpl(ref, 0, triggerTime, stageKey, "deploy");
   }, []);
 
   const setStageSummary = useCallback((key: string, summary: PlanSummary) => {
@@ -252,16 +289,9 @@ export function useDeploymentPlan(opts: {
     stages,
     stageSummaries,
     hasPlan,
-    running,
     stagesLoading,
-    runError,
-    countdown,
-    lastTriggeredAt,
-    retryCount,
+    runs,
     deployedEnv,
-    isStale: running || lastTriggeredAt !== null || retryCount > 0,
-    statusUpdateStatus,
-    statusFileRunId,
     onRun,
     deployStage,
     setStageSummary,

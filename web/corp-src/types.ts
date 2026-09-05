@@ -177,8 +177,9 @@ export type PrerequisiteStageVar = {
 export type Prerequisite = PrerequisiteCard | PrerequisiteVar | PrerequisiteVarGroup | PrerequisiteStageVar;
 
 export type StageDefinition = {
-  key: string;
-  label: string;
+  dir: string;
+  label: string; // Shown on the card
+  workflowId: string;
   prerequisites: Prerequisite[];
   optional?: boolean; // When true, a pending stage is treated as skipped rather than waiting.
   azurePermissions?: readonly string[]; // Microsoft Graph application permission IDs required by this stage.
@@ -186,6 +187,7 @@ export type StageDefinition = {
 
 export type PipelineConfig = {
   workflowId: string;
+  deployWorkflowId: string;
   label: string;
   templateRepo: string;
   validEnvs: readonly string[];
@@ -199,9 +201,14 @@ export type StageStatus = "deployed" | "success" | "failed" | "pending" | "skipp
 export type Stage = {
   stage: string;
   status: StageStatus;
-  planPath?: string;
   planJsonId?: string;
   planJsonUrl?: string;
+  // "failed" alone says nothing, so the plan publishes its output the way the deploy does.
+  planLogId?: number;
+  planLogUrl?: string;
+  // The merged corp.env artifact from the run that produced this plan.
+  envId?: number;
+  envUrl?: string;
   runId?: string;
   deployPlanRunId?: string;
   deployStatus?: string;
@@ -209,6 +216,13 @@ export type Stage = {
   deployedAt?: number;
   deployLogId?: number;
   deployLogUrl?: string;
+};
+
+// One stage's latest plan result as the workflow recorded it, plus when it was recorded — the
+// timestamp is what tells a poll whether the run it triggered has reported yet.
+export type StageReport = {
+  stage: Stage;
+  createdAt: number;
 };
 
 // ─── Secrets ──────────────────────────────────────────────────────────────────

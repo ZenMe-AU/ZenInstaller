@@ -8,6 +8,7 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import type {
   Account,
+  AzureAccount,
   CardChrome,
   CardId,
   CardStatus,
@@ -19,7 +20,8 @@ import type {
   Stage,
   StageDefinition,
 } from "../types";
-import { createVariable, fetchDeployLog, fetchPlan, updateVariable } from "../api";
+import { createVariable, fetchLogArtifact, fetchPlan, updateVariable } from "../api";
+import { useAzurePermissions } from "../hooks/util/useAzurePermissions";
 import { computePlanSummary } from "../logic/stage";
 import { getVariableDisplayName } from "../logic/variables";
 import ViewLink from "../components/ViewLink";
@@ -163,6 +165,32 @@ function StageVarEditor({
   );
 }
 
+// Shared by the plan and deploy failures — both publish the same kind of single-file log artifact.
+function FailureLog({ fetched, text }: { fetched: boolean; text: string | null }) {
+  if (!fetched) return <Typography sx={{ fontSize: "0.72rem", color: "#94a3b8", ...mono }}>Loading log...</Typography>;
+  if (!text) return null;
+  return (
+    <Box
+      sx={{
+        mt: 0.5,
+        p: 1.25,
+        borderRadius: "6px",
+        background: "#fef2f2",
+        border: "1px solid #fecaca",
+        maxHeight: "10rem",
+        overflowY: "auto",
+      }}
+    >
+      <Typography
+        component="pre"
+        sx={{ fontSize: "0.68rem", color: "#b91c1c", whiteSpace: "pre-wrap", wordBreak: "break-all", m: 0, ...mono }}
+      >
+        {text}
+      </Typography>
+    </Box>
+  );
+}
+
 function relativeTime(unixSeconds: number): string {
   const diff = Date.now() - unixSeconds * 1000;
   const mins = Math.floor(diff / 60000);
@@ -210,7 +238,7 @@ function RunStatusUpdateButton({
           Running... {countdown >= 60 ? `${Math.ceil(countdown / 60)}m` : `${countdown}s`}
         </>
       ) : (
-        "Run Status Update"
+        "Get Updated Plan"
       )}
     </Button>
   );
@@ -235,8 +263,7 @@ type Props = {
   statusUpdateCountdown: number;
   statusUpdateDisabled: boolean;
   runError: string | null;
-  ensureAzurePermissions: () => Promise<void>;
-  azurePermissionsGranting: boolean;
+  azureAccount: AzureAccount | null;
 };
 
 function Action({ repoFullName, runId }: { repoFullName: string | null; runId?: string }) {
@@ -263,17 +290,25 @@ export default function StageCard({
   statusUpdateCountdown,
   statusUpdateDisabled,
   runError,
-  ensureAzurePermissions,
-  azurePermissionsGranting,
+  azureAccount,
 }: Props) {
   const [expandedPrereqs, setExpandedPrereqs] = useState<Record<number, boolean>>({});
   const [planItems, setPlanItems] = useState<PlanItem[]>([]);
   const [planSummary, setPlanSummary] = useState<PlanSummary>({ create: 0, update: 0, delete: 0, replace: 0 });
   const [planLoading, setPlanLoading] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
-  const [deployLog, setDeployLog] = useState<string | null>(null);
-  const [deployLogFetched, setDeployLogFetched] = useState(false);
+  const [deployLog, setDeployLog] = useState<{ id: number; text: string | null } | null>(null);
+  const [planLog, setPlanLog] = useState<{ id: number; text: string | null } | null>(null);
   const [permissionError, setPermissionError] = useState<string | null>(null);
+
+  // One instance per card. The permissions come straight from this stage's definition, so there
+  // is no shared pending flag to leak and no union of every stage's permissions to over-grant.
+  const azurePermissions = useAzurePermissions({
+    azureAccount,
+    spClientId: variableValues.AZURE_CLIENT_ID ?? "",
+    tenantId: variableValues.AZURE_TENANT_ID || undefined,
+    permissions: stageDef.azurePermissions,
+  });
   const onPlanSummaryRef = useRef(onPlanSummary);
   useLayoutEffect(() => {
     onPlanSummaryRef.current = onPlanSummary;
@@ -310,23 +345,29 @@ export default function StageCard({
   }, [stage.planJsonId, stage.status, account, repoName]);
 
   useEffect(() => {
-    setDeployLog(null);
-    setDeployLogFetched(false);
-  }, [stage.deployLogId, stage.deployStatus]);
+    const id = stage.deployLogId;
+    if (stage.deployStatus !== "failed" || !id || !account) return;
+    fetchLogArtifact(account, repoName, id)
+      .then((text) => setDeployLog({ id, text }))
+      .catch(console.error);
+  }, [stage.deployLogId, stage.deployStatus, account, repoName]);
 
   useEffect(() => {
-    if (stage.deployStatus !== "failed" || !stage.deployLogId || !account) return;
-    fetchDeployLog(account, repoName, stage.deployLogId)
-      .then(setDeployLog)
-      .catch(console.error)
-      .finally(() => setDeployLogFetched(true));
-  }, [stage.deployLogId, stage.deployStatus, account, repoName]);
+    const id = stage.planLogId;
+    if (stage.status !== "failed" || !id || !account) return;
+    fetchLogArtifact(account, repoName, id)
+      .then((text) => setPlanLog({ id, text }))
+      .catch(console.error);
+  }, [stage.planLogId, stage.status, account, repoName]);
+
+  const deployLogFetched = !!stage.deployLogId && deployLog?.id === stage.deployLogId;
+  const planLogFetched = !!stage.planLogId && planLog?.id === stage.planLogId;
 
   // Make sure the pipeline's service principal can do what the run needs before triggering it.
   const handleRunStatusUpdate = async () => {
     setPermissionError(null);
     try {
-      await ensureAzurePermissions();
+      await azurePermissions.ensure();
     } catch (e) {
       console.error("Failed to grant Graph permissions:", e);
       setPermissionError(e instanceof Error ? e.message : "Failed to grant the pipeline's Graph permissions");
@@ -346,9 +387,9 @@ export default function StageCard({
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
           <RunStatusUpdateButton
             onRun={handleRunStatusUpdate}
-            running={statusUpdateRunning || azurePermissionsGranting}
+            running={statusUpdateRunning || azurePermissions.granting}
             countdown={statusUpdateCountdown}
-            disabled={statusUpdateDisabled || azurePermissionsGranting}
+            disabled={statusUpdateDisabled || azurePermissions.granting}
           />
           {(permissionError ?? runError) && (
             <Typography sx={{ fontSize: "0.72rem", color: "#ef4444" }}>{permissionError ?? runError}</Typography>
@@ -381,7 +422,7 @@ export default function StageCard({
                     prereq.keys.some((k) => (variableValues[k] ?? "") !== (deployedEnv[k] ?? ""))) ||
                     (prereq.type === "var" && (variableValues[prereq.key] ?? "") !== (deployedEnv[prereq.key] ?? "")));
                 return (
-                  <Box key={`${stageDef.key}-${i}`}>
+                  <Box key={`${stageDef.dir}-${i}`}>
                     <Box
                       onClick={
                         isExpandable ? () => setExpandedPrereqs((prev) => ({ ...prev, [i]: !prev[i] })) : undefined
@@ -499,6 +540,10 @@ export default function StageCard({
           </Typography>
         )}
 
+        {stage.status === "failed" && stage.planLogId && (
+          <FailureLog fetched={planLogFetched} text={planLog?.text ?? null} />
+        )}
+
         {(stage.deployedAt || stage.deployStatus) && (
           <Box>
             <Typography
@@ -526,37 +571,7 @@ export default function StageCard({
                   </Typography>
                 )}
                 {stage.deployStatus === "failed" && (
-                  <Box sx={{ mt: 0.5 }}>
-                    {!deployLogFetched ? (
-                      <Typography sx={{ fontSize: "0.72rem", color: "#94a3b8", ...mono }}>Loading log...</Typography>
-                    ) : deployLog ? (
-                      <Box
-                        sx={{
-                          mt: 0.5,
-                          p: 1.25,
-                          borderRadius: "6px",
-                          background: "#fef2f2",
-                          border: "1px solid #fecaca",
-                          maxHeight: "10rem",
-                          overflowY: "auto",
-                        }}
-                      >
-                        <Typography
-                          component="pre"
-                          sx={{
-                            fontSize: "0.68rem",
-                            color: "#b91c1c",
-                            whiteSpace: "pre-wrap",
-                            wordBreak: "break-all",
-                            m: 0,
-                            ...mono,
-                          }}
-                        >
-                          {deployLog}
-                        </Typography>
-                      </Box>
-                    ) : null}
-                  </Box>
+                  <FailureLog fetched={deployLogFetched} text={deployLog?.text ?? null} />
                 )}
               </Box>
             </Box>

@@ -1,6 +1,5 @@
 import type {
   Account,
-  Branch,
   CardChrome,
   CardHook,
   CardId,
@@ -52,7 +51,6 @@ export function useCorpStageCards({
   account,
   repoName,
   selectedEnv,
-  branches,
   variableValues,
   onVariableConfirmed,
   onToggle,
@@ -67,7 +65,6 @@ export function useCorpStageCards({
   account: Account | null;
   repoName: string;
   selectedEnv: GhEnv | null;
-  branches: Branch[];
   variableValues: Record<string, string>;
   onVariableConfirmed: (key: string, value: string) => void;
   onToggle: (id: CardId) => void;
@@ -79,16 +76,19 @@ export function useCorpStageCards({
   >;
 
   return pipeline.stages.map((stageDef: StageDefinition) => {
-    const stage = plan.stages.find((s) => s.stage === stageDef.key) ?? {
-      stage: stageDef.key,
+    const stage = plan.stages.find((s) => s.stage === stageDef.dir) ?? {
+      stage: stageDef.dir,
       status: "pending" as const,
     };
-    const summary = plan.stageSummaries[stageDef.key];
+    const summary = plan.stageSummaries[stageDef.dir];
     const effectiveStatus = getEffectiveStatus(stage, summary, stageDef.optional);
     const varsMismatch =
       plan.deployedEnv != null && hasVariableDiff(stageDef.prerequisites, variableValues, plan.deployedEnv);
-    const deployDisabled = plan.isStale || varsMismatch;
-    const cardId = getStageCardId(stageDef.key);
+    // This stage's own run, if it has one — a run on another card must not grey this one out.
+    const run = plan.runs[stageDef.dir];
+    const isStale = run != null;
+    const deployDisabled = isStale || varsMismatch;
+    const cardId = getStageCardId(stageDef.dir);
     const requirements = repoDone
       ? []
       : [
@@ -100,10 +100,8 @@ export function useCorpStageCards({
     const locked = requirements.length > 0;
     const card: CardChrome = {
       cardId,
-      status: locked ? "idle" : stageToCardStatus(effectiveStatus, plan.isStale, plan.stagesLoading),
-      summary: locked
-        ? undefined
-        : getStageSummaryText(stage, summary, plan.stagesLoading, plan.isStale, stageDef.optional),
+      status: locked ? "idle" : stageToCardStatus(effectiveStatus, isStale, plan.stagesLoading),
+      summary: locked ? undefined : getStageSummaryText(stage, summary, plan.stagesLoading, isStale, stageDef.optional),
       locked,
       requirements,
       unavailable: false,
@@ -114,17 +112,12 @@ export function useCorpStageCards({
     const onDeploy =
       effectiveStatus === "success" && stage.runId && selectedEnv
         ? async () => {
-            await plan.deployStage({
-              stageDef,
-              stage,
-              envName: selectedEnv.name,
-              branches,
-            });
+            await plan.deployStage(stageDef.dir);
           }
         : undefined;
 
     return {
-      key: stageDef.key,
+      key: stageDef.dir,
       card,
       stageDef,
       stage,
@@ -137,12 +130,12 @@ export function useCorpStageCards({
       selectedEnv,
       onVariableConfirmed,
       onDeploy,
-      onPlanSummary: (s) => plan.setStageSummary(stageDef.key, s),
-      onRunStatusUpdate: plan.onRun,
-      statusUpdateRunning: plan.running,
-      statusUpdateCountdown: plan.countdown,
-      statusUpdateDisabled: !repoDone || plan.running || plan.retryCount > 0,
-      runError: plan.runError,
+      onPlanSummary: (s) => plan.setStageSummary(stageDef.dir, s),
+      onRunStatusUpdate: () => plan.onRun(stageDef.dir),
+      statusUpdateRunning: run != null && run.error == null,
+      statusUpdateCountdown: run?.countdown ?? 0,
+      statusUpdateDisabled: !repoDone || run != null,
+      runError: run?.error ?? null,
     };
   });
 }

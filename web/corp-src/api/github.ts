@@ -1,6 +1,7 @@
 import { parse } from "dotenv";
 import JSZip from "jszip";
-import type { Account, Branch, GhEnv, PullRequest, Repo, WorkflowRun, UpsertSecretResult } from "../types";
+import type { Account, Branch, GhEnv, PullRequest, Repo, StageReport, WorkflowRun, UpsertSecretResult } from "../types";
+import { toStageReport } from "../logic/stage";
 
 const GH = "https://api.github.com";
 
@@ -311,14 +312,20 @@ export function createGithubApi(token: string) {
 
   // ── Repo contents ─────────────────────────────────────────────────────────────
 
-  async function fetchStatus(account: Account, repo: string, ref: string): Promise<object | null> {
-    const res = await gh(
-      `/repos/${account.login}/${repo}/contents/corpSetup/deploymentChangeset.json?ref=${encodeURIComponent(ref)}`,
-    );
-    if (res.status === 404) return null;
-    if (!res.ok) throw new Error(`Failed to fetch status: ${res.status}`);
-    const data = await res.json();
-    return JSON.parse(decodeContent(data.content));
+  async function fetchStageReport(
+    account: Account,
+    repo: string,
+    envName: string,
+    dir: string,
+    kind: "plan" | "deploy",
+    perPage: number = 1,
+  ): Promise<StageReport | null> {
+    const params = new URLSearchParams({ environment: envName, task: `${kind}:${dir}`, per_page: perPage.toString() });
+    const res = await gh(`/repos/${account.login}/${repo}/deployments?${params}`);
+    if (!res.ok) throw new Error(`Failed to fetch the report for "${dir}": ${res.status}`);
+    const [latest] = (await res.json()) as { payload: unknown; created_at: string }[];
+    console.log(`🚧Fetched stage report for "${dir}" in env "${envName}":`, latest);
+    return latest ? toStageReport(latest.payload, latest.created_at) : null;
   }
 
   async function fetchEnv(account: Account, repo: string): Promise<Record<string, string> | null> {
@@ -341,7 +348,8 @@ export function createGithubApi(token: string) {
     }
   }
 
-  async function fetchDeployLog(account: Account, repo: string, logId: number): Promise<string | null> {
+  // Any single-file log artifact — the plan and deploy paths both publish one.
+  async function fetchLogArtifact(account: Account, repo: string, logId: number): Promise<string | null> {
     try {
       const zip = await downloadZip(account, repo, logId);
       const file = Object.values(zip.files).find((f) => !f.dir);
@@ -404,13 +412,14 @@ export function createGithubApi(token: string) {
     account: Account,
     repo: string,
     runId: string,
+    workflowId: string,
     dir: string,
     githubEnvName: string,
     ref: string,
   ): Promise<void> {
-    const res = await gh(`/repos/${account.login}/${repo}/actions/workflows/deployChangeset.yml/dispatches`, {
+    const res = await gh(`/repos/${account.login}/${repo}/actions/workflows/${workflowId}/dispatches`, {
       method: "POST",
-      body: JSON.stringify({ ref, inputs: { github_env_name: githubEnvName, run_id: runId, dir } }),
+      body: JSON.stringify({ ref, inputs: { github_env_name: githubEnvName, plan_run_id: runId, dir } }),
     });
     if (!res.ok) throw new Error(`Failed to trigger deploy: ${res.status}`);
   }
@@ -433,11 +442,11 @@ export function createGithubApi(token: string) {
     createVariable,
     updateVariable,
     deleteVariable,
-    fetchStatus,
+    fetchStageReport,
     setOidcImmutableSubject,
     fetchEnv,
     getPlanEnv,
-    fetchDeployLog,
+    fetchLogArtifact,
     fetchPlan,
     triggerWorkflow,
     triggerWorkflowFromPR,

@@ -11,8 +11,11 @@ app.http("triggerActions", {
     const accessToken = getAccessToken(request);
 
     const body = await request.json();
-    const { workflow_id, ref, type, owner, repo, github_env_name, run_id, dir } = body;
+    const { workflow_id, ref, type, owner, repo, github_env_name, run_id, plan_run_id, dir } = body;
     if (!ref || !type || !owner || !repo || !workflow_id || !github_env_name) {
+      throw new MissingParam();
+    }
+    if (workflow_id === "deployPlan.yml" && (!plan_run_id || !dir)) {
       throw new MissingParam();
     }
     if (workflow_id === "deployChangeset.yml" && (!run_id || !dir)) {
@@ -25,7 +28,7 @@ app.http("triggerActions", {
       repo,
       workflow_id,
       ref,
-      inputs: { github_env_name, run_id, dir },
+      inputs: { github_env_name, run_id, plan_run_id, dir },
       headers: {
         "X-GitHub-Api-Version": "2026-03-10",
       },

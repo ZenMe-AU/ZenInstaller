@@ -22,6 +22,8 @@ import type {
 } from "../types";
 import { createVariable, fetchLogArtifact, fetchPlan, updateVariable } from "../api";
 import { useAzurePermissions } from "../hooks/util/useAzurePermissions";
+import { useRemoteTerminal } from "../hooks/useRemoteTerminal";
+import { PIPELINE } from "../logic/pipeline";
 import { computePlanSummary } from "../logic/stage";
 import { getVariableDisplayName } from "../logic/variables";
 import ViewLink from "../components/ViewLink";
@@ -30,6 +32,7 @@ import { MONO as mono } from "../config/styles";
 import Card from "../components/Card";
 import VariablesCard from "../components/VariablesCard";
 import StagePlanDetail from "./StagePlanDetail";
+import RemoteTerminal from "./RemoteTerminal";
 
 function checkPrerequisite(
   prereq: Prerequisite,
@@ -309,6 +312,16 @@ export default function StageCard({
     tenantId: variableValues.AZURE_TENANT_ID || undefined,
     permissions: stageDef.azurePermissions,
   });
+  const remoteTerminal = useRemoteTerminal({
+    account,
+    repoName,
+    workflowId: PIPELINE.deployWorkflowId,
+    dir: stageDef.label,
+    selectedEnv,
+  });
+  // Deploy opens the remote `az login` terminal; onDeploy is only the "this plan is deployable" gate.
+  const handleDeploy = onDeploy && (() => remoteTerminal.start());
+
   const onPlanSummaryRef = useRef(onPlanSummary);
   useLayoutEffect(() => {
     onPlanSummaryRef.current = onPlanSummary;
@@ -529,10 +542,12 @@ export default function StageCard({
             summary={planSummary}
             loading={planLoading}
             error={planError}
-            onDeploy={onDeploy}
+            onDeploy={handleDeploy}
             stagesStale={deployDisabled}
           />
         )}
+
+        <RemoteTerminal session={remoteTerminal} />
 
         {!hasDetails && stage.status !== "pending" && (
           <Typography sx={{ fontSize: "0.72rem", color: stage.status === "failed" ? "#ef4444" : "#cbd5e1", ...mono }}>

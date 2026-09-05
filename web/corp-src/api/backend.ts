@@ -419,6 +419,33 @@ export async function deployChangeset(
   return res.json();
 }
 
+// Hands the workflow the session the browser already registered, never the access token.
+export async function triggerRemoteLogin(
+  account: Account,
+  repo: string,
+  workflowId: string,
+  githubEnvName: string,
+  ref: string,
+  sessionId: string,
+  dir: string,
+) {
+  const res = await fetchWithAuth(`${url}/triggerActions`, {
+    method: "POST",
+    body: JSON.stringify({
+      repo,
+      owner: account.login,
+      type: account.type,
+      workflow_id: workflowId,
+      ref,
+      github_env_name: githubEnvName,
+      session_id: sessionId,
+      dir,
+    }),
+  });
+  if (!res.ok) throw new Error(`Failed to start the remote login workflow: ${res.status}`);
+  return res.json();
+}
+
 // ─── Deploy error (from artifact log) ────────────────────────────────────────
 
 export async function fetchLogArtifact(account: Account, repo: string, logId: number): Promise<string | null> {

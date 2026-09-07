@@ -51,7 +51,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				async (route) => { await route.fulfill({ status: 200, contentType: "application/json", body: "[]", }); },
 			);
 
-			await page.route(new RegExp("https://api\\.github\\.com/repos/ZenMe-AU/ZBCorpArchitecture/generate(?:\\?.*)?$",),
+			await page.route(new RegExp("https://api\\.github\\.com/repos/ZenMe-AU/ZenbloxCore/generate(?:\\?.*)?$",),
 				async (route) => {
 					expect(route.request().postDataJSON()).toMatchObject({
 						name: newRepoName,
@@ -90,7 +90,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 						body: JSON.stringify({
 							id: newRepoId,
 							name: newRepoName,
-							template_repository: { full_name: "ZenMe-AU/ZBCorpArchitecture", },
+							template_repository: { full_name: "ZenMe-AU/ZenbloxCore", },
 						}),
 					});
 				},
@@ -204,7 +204,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 						body: JSON.stringify({
 							id: validRepoId,
 							name: validRepoName,
-							template_repository: { full_name: "ZenMe-AU/ZBCorpArchitecture", },
+							template_repository: { full_name: "ZenMe-AU/ZenbloxCore", },
 						}),
 					});
 				},
@@ -273,7 +273,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 						body: JSON.stringify({
 							id: repoId,
 							name: repoName,
-							template_repository: { full_name: "ZenMe-AU/ZBCorpArchitecture", },
+							template_repository: { full_name: "ZenMe-AU/ZenbloxCore", },
 						}),
 					});
 				},
@@ -419,7 +419,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expect(repoInput).toHaveValue(invalidRepoName);
 			await expect(repoInput).toHaveAttribute("aria-expanded", "false");
 			await expect(repoCard.getByText("Not a clone", { exact: true, })).toBeVisible();
-			await expect(repoCard.getByText("This repo is not a clone of the template. Only repos cloned from ZenMe-AU/ZBCorpArchitecture can be used.")).toBeVisible();
+			await expect(repoCard.getByText("This repo is not a clone of the template. Only repos cloned from ZenMe-AU/ZenbloxCore can be used.")).toBeVisible();
 			await expectVisibleWithin(repoCard.getByText('No environment found'), "Text: No environment found.", 500000);
 			await expect(repoCard.getByText("No environment found")).toBeVisible();
 

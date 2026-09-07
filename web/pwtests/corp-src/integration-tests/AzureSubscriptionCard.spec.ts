@@ -4,10 +4,34 @@ import { chooseRepoOption, expandAzureLoginCard, expandAzureSubscriptionCard, ex
 import { CORP_URL, viewports, } from "../../testInit";
 
 // const azureSubscriptionRunId = Date.now().toString(36);
+//TODO: Convert to test.step method for testing multiple steps in one test.
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Azure Subscription Card - ${viewportName}`, () => {
 		test.use({ viewport, deviceScaleFactor: 1, });
+
+		// The happy path is the main scenario for this card, showing the expect standard use case.
+		test("Happy path", async ({ page, context, }, testInfo) => {
+			await restoreGithubSessionStorage(context);
+			await restoreAzureSessionStorage(context);
+			await page.goto(CORP_URL);
+
+			test.step("Select tenant", async () => {
+
+				/* Signing into Azure and selecting tenant id*/
+				const azureCard = await expandAzureLoginCard(page);
+				await expect(azureCard.getByText(/Signed in as/i)).toBeVisible();
+				await expect(azureCard.getByTestId("txtAzureUsername")).toBeVisible();
+				await expect(azureCard.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
+				await expect(azureCard.getByRole("button", { name: "Sign in with Azure", exact: true })).toHaveCount(0);
+				await expect(azureCard.getByText(/^Tenant/)).toBeVisible();
+				await expectVisibleWithin(azureCard.getByRole("combobox"), "Combobox: Load already stored tenant id.", 500000);
+
+			});
+
+
+
+		});
 
 		test("Unauthenticated card state", async ({ page, }, testInfo) => {
 			await page.goto(CORP_URL);

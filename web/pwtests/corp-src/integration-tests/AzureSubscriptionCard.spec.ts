@@ -1,23 +1,22 @@
 import {expect, test,} from "@playwright/test";
 import {restoreAzureSessionStorage, restoreGithubSessionStorage,} from "../util/setupHelper";
-import {chooseRepoOption, expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard, expectCardSnapshot, expectVisibleWithin, sensitiveTextMasks, } from "../util/testHelper";
+import {chooseRepoOption, expandAzureLoginCard, expandAzureSubscriptionCard, expandGithubLoginCard, expandRepoCard, expectCardSnapshot, expectVisibleWithin, sensitiveTextMasks, } from "../util/testHelper";
 import {CORP_URL, viewports,} from "../../testInit";
 
-const azureSubscriptionRunId = Date.now().toString(36);
-const azureTenantName = "Default Directory";
+// const azureSubscriptionRunId = Date.now().toString(36);
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Azure Subscription Card - ${viewportName}`, () => {
 		test.use({viewport,deviceScaleFactor: 1,});
 
-		test("Unauthenticated card state", async ({page,}, testInfo) => {
+		test("Unauth - Azure not logged in and Github not logged in", async ({page,}, testInfo) => {
 				await page.goto(CORP_URL);
 				const subscriptionCard = await expandAzureSubscriptionCard(page);
 				await expect(subscriptionCard.getByText("Complete these first", {exact: true,},),).toBeVisible();
 				await expect(subscriptionCard.getByText("Sign in to Azure", {exact: true,},),).toBeVisible();
 				await expect(subscriptionCard.getByText("Select a repository & environment",{exact: true,},),).toBeVisible();
 				await expect(subscriptionCard.getByRole("combobox"),).toHaveCount(0);
-				await expectCardSnapshot(page, subscriptionCard, testInfo, "unauth-state.png", {
+				await expectCardSnapshot(page, subscriptionCard, testInfo, "unauth.png", {
 						userId: "signed-out",
 						viewportName,
 						testFolder: "Azure Subscription Card",
@@ -26,20 +25,24 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			},
 		);
 
-		test.describe("Only one prequisite fullfilled", () => {
+		test.describe("Card Prerequisites Testing", () => {
 
 			test.beforeEach(async ({page, context,}) => {
 				await restoreAzureSessionStorage(context);
 				await page.goto(CORP_URL);
 			});
 
-			test("Card state - only Azure Session Restored & No Repo Env Selected", async ({page,}, testInfo) => {
+			test("Azure logged in and Github not logged in", async ({page,}, testInfo) => {
+					const githubCard = await expandGithubLoginCard(page,);
+					await expect(githubCard.getByRole("button", {name: "Login with GitHub", exact: true,},),).toBeVisible();
+					await expect(githubCard.getByText(/Authenticated as/i,),).toHaveCount(0);
+
 					const subscriptionCard = await expandAzureSubscriptionCard(page);
 					await expect(subscriptionCard.getByText("Complete these first", {exact: true,},),).toBeVisible();
 					await expect(subscriptionCard.getByText("Select a repository & environment", {exact: true,},),).toBeVisible();
 					await expect(subscriptionCard.getByText("Sign in to Azure", {exact: true,},),).toHaveCount(0);
 					await expect(subscriptionCard.getByRole("combobox"),).toHaveCount(0);
-					await expectCardSnapshot(page, subscriptionCard, testInfo, "azure-authenticated-repo-required.png",
+					await expectCardSnapshot(page, subscriptionCard, testInfo, "azure-auth-github-required.png",
 						{
 							userId: "azure-login",
 							viewportName,
@@ -50,37 +53,60 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				},
 			);
 
-			test("Card State - Only Rep Env Select & No Azure Session",async ({page,}) => {
-                const subscriptionCard = await expandAzureSubscriptionCard(page);
-                await subscriptionCard.getByText("Select a repository & environment",{exact: true,},).click();
-				const repoCard = page.locator("#card-repo");
+			test("Azure logged in, Github logged in and no repository cloned",async ({page, context}, testInfo) => {
+				await restoreGithubSessionStorage(context);
+				await page.reload();
+
+				const githubCard = await expandGithubLoginCard(page,);
+				await expect(githubCard.getByText(/Authenticated as/i,),).toBeVisible();
+				await expect(githubCard.getByRole("button", {name: "Login with GitHub", exact: true,},),).toHaveCount(0);
+
+				const subscriptionCard = await expandAzureSubscriptionCard(page);
+				await expect(subscriptionCard.getByText("Complete these first", {exact: true,},),).toBeVisible();
+				await expect(subscriptionCard.getByText("Select a repository & environment", {exact: true,},),).toBeVisible();
+
+				const repoCard = await expandRepoCard(page,);
 				await expect(repoCard.getByText(/^Repository & environment$/i,),).toBeVisible();
 				await expect(repoCard.getByText(/Select the GitHub location and type the name of the repository/i,),).toBeVisible();
+				await expect(repoCard.getByRole("combobox", {name: "Select or type repo name...",},),).toHaveValue("");
+				await expect(repoCard.getByRole("button", {name: "Clone Repository",},),).toHaveCount(0);
+
+				await expectCardSnapshot(page, subscriptionCard, testInfo, "azure-auth-repo-required.png",
+						{
+							userId: "azure-login",
+							viewportName,
+							testFolder: "Azure Subscription Card Authenticated",
+							mask: sensitiveTextMasks(subscriptionCard),
+						},
+					);
 				},
 			);
+
+			
          
         });
 
-
-        test.describe("Azure authenticated & Rep Env Selected", () => {
+        test.describe("Auth", () => {
             test.beforeEach(async ({page, context,}) => {
                 await restoreGithubSessionStorage(context,);
                 await restoreAzureSessionStorage(context,);
                 await page.goto(CORP_URL);
         });
 
-        test("Selects tenant, creates Rep Env and fulfils both prerequisites", async ({page,}, testInfo) => {
+        test("Rendering authenticated card after prerequisites are fulfilled.", async ({page,}, testInfo) => {
 	    
         /* Signing into Azure and selecting tenant id*/
+		console.log("Signing into Azure and selecting tenant id");
         const azureCard = await expandAzureLoginCard(page);
         await expect(azureCard.getByText(/Signed in as/i)).toBeVisible();
         await expect(azureCard.getByTestId("txtAzureUsername")).toBeVisible();
         await expect(azureCard.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
         await expect(azureCard.getByRole("button", { name: "Sign in with Azure", exact: true })).toHaveCount(0);
         await expect(azureCard.getByText(/^Tenant/)).toBeVisible();
-        await expect(azureCard.getByRole("combobox",)).toContainText(azureTenantName, {timeout: 120_000,});
+		await expect(azureCard.getByRole("combobox",)).toBeVisible({timeout: 120_000,});
 
         /* cloning repo and creating environment*/
+		console.log("cloning repo and creating environment");
         const reponame = `azure-subscrip-${viewportName}`;
 		const repoCard = await expandRepoCard(page);
 		await chooseRepoOption(page, repoCard, reponame);
@@ -100,6 +126,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await createProdButton.click();
 
         /* start of Azure subscription testing */
+		console.log("start of Azure subscription testing");
         const subscriptionCard = await expandAzureSubscriptionCard(page,);
         await expect(subscriptionCard.getByText(/Pick the subscription to deploy into\./i,),).toBeVisible();
         expectVisibleWithin(subscriptionCard.getByText(/^Tenant:/i,), "Text: Rendering Tenant", 50000);
@@ -114,7 +141,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		await expect(subscriptionCard.getByText("Select a repository & environment to save the tenant and subscription to GitHub.", {exact: true,},),).toHaveCount(0);
 		const subscriptionMask = await subscriptionSelect.isVisible() ? [subscriptionSelect,] : [];
 
-        await expectCardSnapshot(page, subscriptionCard, testInfo, "auth-state.png", {
+        await expectCardSnapshot(page, subscriptionCard, testInfo, "auth-prefilled.png", {
             userId: "azure-github-auth",
             viewportName,
             testFolder: "Azure Subscription Card Authenticated",

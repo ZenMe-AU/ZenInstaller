@@ -1,10 +1,10 @@
 import { expect, test } from "@playwright/test";
-import { corpGithubAuthStateExists, restoreGithubSessionStorage } from "../util/setupHelper";
+import { restoreGithubSessionStorage } from "../util/setupHelper";
 import { CORP_URL, viewports, } from "../../testInit";
 import { expandRepoCard, chooseRepoOption, expectVisibleWithin, expectCardSnapshot, sensitiveTextMasks } from "../util/testHelper";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
-	test.describe(`Live Tests - ${viewportName}`, () => {
+	test.describe(`Integration Tests - ${viewportName}`, () => {
 		test.use({ viewport, deviceScaleFactor: 1});
 
 		test.beforeEach(async ({ page, context, }) => {
@@ -12,7 +12,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await page.goto(CORP_URL);
 		});
 
-		test("Renders Repo-env Card after Github Auth", async ({ page, }, testInfo) => {
+		test("Renders card after Github Auth", async ({ page, }, testInfo) => {
 			const repoCard = await expandRepoCard(page,);
 			await expect(repoCard.getByRole("combobox", { name: "Select or type repo name...", },)).toBeVisible();
 			await expect(repoCard.getByText(/^Repository & environment$/i,)).toBeVisible();

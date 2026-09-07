@@ -5,7 +5,7 @@ import { authDir, azureSessionStorageFile, azureStorageStateFile, corpAzureAuthS
 
 const tenantReselectionTimeout = 120_000;
 
-setup("Manual Microsoft passkey login for corp Azure auth tests", async ({ page, context }) => {
+setup("Manual setup for corp Azure auth tests", async ({ page, context }) => {
   fs.mkdirSync(authDir, { recursive: true });
 
   if (corpAzureAuthStateExists() && process.env.FORCE_AZURE_PASSKEY_SETUP !== "true") {
@@ -31,7 +31,7 @@ setup("Manual Microsoft passkey login for corp Azure auth tests", async ({ page,
   try {
     await page.waitForURL(/localhost:5173\/?(?:[/?#].*)?$/i, { timeout: 180_000 });
   } catch {
-    console.log("Page did not return to the Corp page yet.");
+    console.log("Page failed to redirect after manual sign in.");
     console.log(`Current URL: ${page.url()}`);
 
     if (page.url().startsWith("http://localhost:5173")) {

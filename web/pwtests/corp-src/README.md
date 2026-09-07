@@ -35,4 +35,5 @@ Run the following test while showing the browser and letting the user authentica
 1. Always ask a human if they can be product owner and guide you through the steps.
 2. Keep testing patterns in alignment, if it's not clear ask a human which pattern should be standard accross the test files.
 3. When modifying tests, run playwright with the browser visible so that the human can follow your process. Once the tests are confirmed working, playwright headed mode is no longer needed.
+4. When a HTML report is served, prompt product owner if they wish to continue testing or terminate the session.
 

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { restoreAzureSessionStorage } from "../util/setupHelper";
 import { CORP_URL, viewports } from "../../testInit";
-import { expandAzureLoginCard, expectCardSnapshot, sensitiveTextMasks } from "../util/testHelper";
+import { expandAzureLoginCard, expectCardSnapshot, expectVisibleWithin, sensitiveTextMasks } from "../util/testHelper";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
   test.describe(`Azure Login Card - ${viewportName}`, () => {
@@ -39,8 +39,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
         await expect(azureCard.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
         await expect(azureCard.getByRole("button", { name: "Sign in with Azure", exact: true })).toHaveCount(0);
         await expect(azureCard.getByText(/^Tenant/)).toBeVisible();
-        const tenantSelect = azureCard.getByRole("combobox");
-        await expect(tenantSelect).toBeVisible();
+        await expectVisibleWithin(azureCard.getByRole("combobox"), "Combobox: Load already stored tenant id.", 500000);
 
         await expectCardSnapshot(page, azureCard, testInfo, "tenant-selected.png", {
           userId: "azure-login",

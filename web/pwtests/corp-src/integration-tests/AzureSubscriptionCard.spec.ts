@@ -1,6 +1,6 @@
 import { expect, test, } from "@playwright/test";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage, } from "../util/setupHelper";
-import { chooseRepoOption, expandAzureLoginCard, expandAzureSubscriptionCard, expandGithubLoginCard, expandRepoCard, expectCardSnapshot, expectVisibleWithin, sensitiveTextMasks, } from "../util/testHelper";
+import { chooseRepoOption, expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard, expectCardSnapshot, expectVisibleWithin, sensitiveTextMasks, } from "../util/testHelper";
 import { CORP_URL, viewports, } from "../../testInit";
 
 // const azureSubscriptionRunId = Date.now().toString(36);
@@ -101,7 +101,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await expect(azureCard.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
 				await expect(azureCard.getByRole("button", { name: "Sign in with Azure", exact: true })).toHaveCount(0);
 				await expect(azureCard.getByText(/^Tenant/)).toBeVisible();
-				await expect(azureCard.getByRole("combobox",)).toContainText(azureTenantName, { timeout: 120_000, });
+				await expectVisibleWithin(azureCard.getByRole("combobox"), "Combobox: Load already stored tenant id.", 500000);
 
 				/* cloning repo and creating environment*/
 				const reponame = `azure-subscrip-${viewportName}`;

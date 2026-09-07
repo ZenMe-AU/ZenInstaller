@@ -56,7 +56,11 @@ export const RBAC_ROLE_IDS: Record<string, string> = {
   "Storage Blob Data Reader": "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
   // Contributor: "b24988ac-6180-42a0-ab88-20f7382dd24c",
   // "User Access Administrator": "18d7d88d-d35e-4fb5-a5c3-7773c20a72d9",
-  // "Storage Blob Data Contributor": "ba92f5b4-2d11-453d-a403-e96b0029c9fe",
+  "Storage Blob Data Contributor": "ba92f5b4-2d11-453d-a403-e96b0029c9fe",
+  "Storage Table Data Contributor": "0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3",
+  "Storage Queue Data Contributor": "974c5e8b-45b9-4653-ba55-5f855dd0fb88",
+  "Monitoring Metrics Publisher": "3913510d-42f4-4e42-8a64-420c390055eb",
+  "Web PubSub Service Owner": "12cf5a90-567b-43ae-8102-96cf46c7d9b4",
   // Owner: "8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
 };
 
@@ -67,3 +71,10 @@ export const CORE_INFRA_PROVIDERS = [
   "Microsoft.Storage",
 ] as const;
 export const DNS_PROVIDERS = ["Microsoft.Network"] as const;
+export const REMOTE_TERMINAL_PROVIDERS = [
+  "Microsoft.OperationalInsights",
+  "Microsoft.Insights",
+  "Microsoft.Storage",
+  "Microsoft.SignalRService",
+  "Microsoft.Web",
+] as const;

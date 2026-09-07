@@ -192,7 +192,7 @@ describe("useGithubRepo", () => {
       { name: "feature", commit: "aaa", protected: false },
       { name: "main", commit: "bbb", protected: true },
     ];
-    mockApi.checkTemplate.mockResolvedValue({ templateName: "ZenMe-AU/ZBCorpArchitecture" });
+    mockApi.checkTemplate.mockResolvedValue({ templateName: "ZenMe-AU/ZenbloxCore" });
     mockApi.fetchBranches.mockResolvedValue(branches);
 
     let latest: UseGithubRepo | null = null;
@@ -224,7 +224,7 @@ describe("useGithubRepo", () => {
 
   it("falls back to first branch when main is absent and handles loadBranches errors", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
-    mockApi.checkTemplate.mockResolvedValue({ templateName: "ZenMe-AU/ZBCorpArchitecture" });
+    mockApi.checkTemplate.mockResolvedValue({ templateName: "ZenMe-AU/ZenbloxCore" });
     mockApi.fetchBranches.mockResolvedValueOnce([{ name: "dev", commit: "abc", protected: false }]);
 
     let latest: UseGithubRepo | null = null;
@@ -556,7 +556,7 @@ describe("useGithubRepo", () => {
   });
 
   it("creates a branch successfully and reports create-branch failure", async () => {
-    mockApi.checkTemplate.mockResolvedValue({ templateName: "ZenMe-AU/ZBCorpArchitecture" });
+    mockApi.checkTemplate.mockResolvedValue({ templateName: "ZenMe-AU/ZenbloxCore" });
     mockApi.fetchBranches.mockResolvedValue([{ name: "main", commit: "a", protected: true }]);
 
     let latest: UseGithubRepo | null = null;

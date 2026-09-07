@@ -16,6 +16,7 @@ import { useAzureAppRegistrationCard } from "./hooks/useAzureAppRegistrationCard
 import { useAzureSubscriptionCard } from "./hooks/useAzureSubscriptionCard";
 import { useCreateDomainCard } from "./hooks/useCreateDomainCard";
 import { useCoreInfraCard } from "./hooks/useCoreInfraCard";
+import { useRemoteTerminalInfraCard } from "./hooks/useRemoteTerminalInfraCard";
 import { useCompanyInfoCard } from "./hooks/useCompanyInfoCard";
 import { useAccessPassCard } from "./hooks/useAccessPassCard";
 import { useAwsLoginCard } from "./hooks/useAwsLoginCard";
@@ -30,6 +31,7 @@ import AzureLoginCard from "./cards/AzureLoginCard";
 import AzureAppRegistrationCard from "./cards/AzureAppRegistrationCard";
 import AzureSubscriptionCard from "./cards/AzureSubscriptionCard";
 import CoreInfraCard from "./cards/CoreInfraCard";
+import RemoteTerminalInfraCard from "./cards/RemoteTerminalInfraCard";
 import CreateDomainCard from "./cards/CreateDomainCard";
 import AccessPassCard from "./cards/AccessPassCard";
 import AwsLoginCard from "./cards/AwsLoginCard";
@@ -130,6 +132,18 @@ function AppDashboard() {
       corpName: companyInfo.corpName,
       spClientId: githubVariableValues.AZURE_CLIENT_ID ?? "",
       tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
+    }),
+  );
+  const remoteTerminalInfra = addCard(
+    useRemoteTerminalInfraCard({
+      azureAccount: azureLogin.account,
+      subscriptionId: azureSubscription.selectedSubscriptionId,
+      corpName: companyInfo.corpName,
+      tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
+      allowedOrigin: window.location.origin,
+      githubAccount: githubRepoEnv.repo.selectedAccount,
+      githubRepo: githubRepoEnv.repo.selectedRepo?.name ?? "",
+      githubRepoId: typeof githubRepoEnv.repo.selectedRepo?.id === "number" ? githubRepoEnv.repo.selectedRepo.id : null,
     }),
   );
   const createDomain = addCard(
@@ -335,6 +349,18 @@ function AppDashboard() {
               corpName={companyInfo.corpName}
               subscriptionId={azureSubscription.selectedSubscriptionId}
               spClientId={azureAppSetup.spClientId}
+            />
+
+            <RemoteTerminalInfraCard
+              card={cardProps("remote_terminal_infra")}
+              infra={remoteTerminalInfra}
+              subscriptionId={azureSubscription.selectedSubscriptionId}
+              tenantId={githubVariableValues.AZURE_TENANT_ID}
+              githubAccount={githubRepoEnv.repo.selectedAccount}
+              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+              selectedEnv={githubRepoEnv.env.selectedEnv}
+              variables={githubVariables}
+              githubUrl={githubRepoEnv.githubEnvUrl}
             />
 
             <CreateDomainCard

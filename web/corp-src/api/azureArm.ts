@@ -9,6 +9,7 @@ const ARM = "https://management.azure.com";
 
 type ArmResource = {
   id?: string;
+  identity?: { principalId?: string };
   properties?: {
     provisioningState?: string;
     nameServers?: string[];
@@ -367,4 +368,163 @@ export function resourceGroupScope(subscriptionId: string, resourceGroup: string
 
 export function subscriptionScope(subscriptionId: string): string {
   return `/subscriptions/${subscriptionId}`;
+}
+
+// ── Remote terminal infrastructure ─────────────────────────────────────────────
+
+const WEBPUBSUB_API = "2023-02-01";
+const WEB_API = "2023-12-01";
+
+export async function ensureWebPubSub(
+  account: AzureAccount,
+  subscriptionId: string,
+  resourceGroup: string,
+  name: string,
+  location: string,
+  sku: string,
+  overrideTenantId?: string,
+): Promise<EnsureResult> {
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+  const path = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.SignalRService/webPubSub/${name}?api-version=${WEBPUBSUB_API}`;
+  if (await armGet(token, path)) return "exists";
+
+  await gFetch(token, ARM, path, {
+    method: "PUT",
+    body: JSON.stringify({ location, sku: { name: sku, capacity: 1 } }),
+  });
+  await pollProvisioning(async () => {
+    const t = await getToken(account, ARM_SCOPES, overrideTenantId);
+    return (await armGet(t, path))?.properties?.provisioningState;
+  }, "Web PubSub");
+  return "created";
+}
+
+// The hub settings record. Connections already require a token without it; this pins that shut so a
+// portal change cannot quietly enable anonymous connect.
+export async function ensureWebPubSubHub(
+  account: AzureAccount,
+  subscriptionId: string,
+  resourceGroup: string,
+  webPubSubName: string,
+  hubName: string,
+  overrideTenantId?: string,
+): Promise<EnsureResult> {
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+  const path = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.SignalRService/webPubSub/${webPubSubName}/hubs/${hubName}?api-version=${WEBPUBSUB_API}`;
+  if (await armGet(token, path)) return "exists";
+  await gFetch(token, ARM, path, {
+    method: "PUT",
+    body: JSON.stringify({ properties: { anonymousConnectPolicy: "deny" } }),
+  });
+  return "created";
+}
+
+export async function ensureStorageTable(
+  account: AzureAccount,
+  subscriptionId: string,
+  resourceGroup: string,
+  storageAccountName: string,
+  tableName: string,
+  overrideTenantId?: string,
+): Promise<EnsureResult> {
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+  const path = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Storage/storageAccounts/${storageAccountName}/tableServices/default/tables/${tableName}?api-version=2023-01-01`;
+  if (await armGet(token, path)) return "exists";
+  await gFetch(token, ARM, path, { method: "PUT", body: JSON.stringify({}) });
+  return "created";
+}
+
+export async function ensureFlexServicePlan(
+  account: AzureAccount,
+  subscriptionId: string,
+  resourceGroup: string,
+  name: string,
+  location: string,
+  overrideTenantId?: string,
+): Promise<EnsureResult> {
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+  const path = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Web/serverfarms/${name}?api-version=${WEB_API}`;
+  if (await armGet(token, path)) return "exists";
+  await gFetch(token, ARM, path, {
+    method: "PUT",
+    body: JSON.stringify({
+      location,
+      kind: "functionapp",
+      sku: { name: "FC1", tier: "FlexConsumption" },
+      properties: { reserved: true },
+    }),
+  });
+  return "created";
+}
+
+export type FunctionAppSettings = Record<string, string>;
+
+// Flex Consumption, system-assigned identity, deployment container reached by that identity —
+// the same shape web/deploy-remote-terminal/env/main.tf declares.
+export async function ensureFlexFunctionApp(
+  account: AzureAccount,
+  subscriptionId: string,
+  resourceGroup: string,
+  name: string,
+  location: string,
+  planId: string,
+  deploymentContainerUrl: string,
+  appSettings: FunctionAppSettings,
+  allowedOrigins: string[],
+  overrideTenantId?: string,
+): Promise<{ result: EnsureResult; principalId: string }> {
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+  const path = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Web/sites/${name}?api-version=${WEB_API}`;
+  const existing = await armGet(token, path);
+
+  if (!existing) {
+    await gFetch(token, ARM, path, {
+      method: "PUT",
+      body: JSON.stringify({
+        location,
+        kind: "functionapp,linux",
+        identity: { type: "SystemAssigned" },
+        properties: {
+          serverFarmId: planId,
+          functionAppConfig: {
+            deployment: {
+              storage: {
+                type: "blobContainer",
+                value: deploymentContainerUrl,
+                authentication: { type: "SystemAssignedIdentity" },
+              },
+            },
+            runtime: { name: "node", version: "22" },
+            scaleAndConcurrency: { maximumInstanceCount: 100, instanceMemoryMB: 2048 },
+          },
+          siteConfig: {
+            appSettings: Object.entries(appSettings).map(([nameKey, value]) => ({ name: nameKey, value })),
+            cors: { allowedOrigins },
+          },
+        },
+      }),
+    });
+    await pollProvisioning(async () => {
+      const t = await getToken(account, ARM_SCOPES, overrideTenantId);
+      return (await armGet(t, path))?.properties?.provisioningState;
+    }, "Function App");
+  }
+
+  const t = await getToken(account, ARM_SCOPES, overrideTenantId);
+  const site = await armGet(t, path);
+  const principalId = site?.identity?.principalId;
+  if (!principalId) throw new Error(`Function App ${name} has no system-assigned identity`);
+  return { result: existing ? "exists" : "created", principalId };
+}
+
+export function webPubSubScope(subscriptionId: string, resourceGroup: string, name: string): string {
+  return `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.SignalRService/webPubSub/${name}`;
+}
+
+export function appInsightsScope(subscriptionId: string, resourceGroup: string, name: string): string {
+  return `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Insights/components/${name}`;
+}
+
+export function servicePlanId(subscriptionId: string, resourceGroup: string, name: string): string {
+  return `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Web/serverfarms/${name}`;
 }

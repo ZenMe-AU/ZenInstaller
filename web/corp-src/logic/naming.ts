@@ -16,6 +16,40 @@ export function getAppInsightsName(corpName: string): string {
   return `${corpName}-appinsights`;
 }
 
+// Remote terminal infrastructure — its own resource group so it can be torn down on its own.
+export function getTerminalResourceGroupName(corpName: string): string {
+  return `terminal-${corpName}`;
+}
+
+export function getTerminalStorageAccountName(corpName: string): string {
+  return `${corpName}term`.toLowerCase();
+}
+
+export function getTerminalWebPubSubName(corpName: string): string {
+  return `${corpName}-wpubsub`;
+}
+
+// The identity GitHub Actions mints Web PubSub tokens with, kept apart from the plan pipeline's.
+export function getTerminalPipelineAppName(corpName: string): string {
+  return `${corpName}-terminal-pipeline`;
+}
+
+export function getTerminalFunctionAppName(corpName: string): string {
+  return `${corpName}-terminal-app`;
+}
+
+export function getTerminalLogAnalyticsWorkspaceName(corpName: string): string {
+  return `${corpName}-terminal-law`;
+}
+
+export function getTerminalAppInsightsName(corpName: string): string {
+  return `${corpName}-terminal-ai`;
+}
+
+export const TERMINAL_HUB = "terminal";
+export const TERMINAL_SESSION_TABLE = "sessions";
+export const TERMINAL_DEPLOY_CONTAINER = "deployment";
+
 export const TFSTATE_CONTAINER = "terraformstate";
 export const DIAGNOSTIC_SETTING_NAME = "standard-diagnostics-setting";
 export const DEFAULT_AZURE_LOCATION = "australiaeast";

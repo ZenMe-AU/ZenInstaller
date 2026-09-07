@@ -12,6 +12,7 @@ export type CardId =
   | "company_info"
   | "azure_app_registration"
   | "core_infra"
+  | "remote_terminal_infra"
   | "create_domain"
   | "access_pass"
   | "global_groups"

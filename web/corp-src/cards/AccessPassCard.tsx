@@ -12,15 +12,15 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import type { CardChrome, SetupStep } from "../types";
 import type { UseAccessPassCard } from "../hooks/useAccessPassCard";
 import StepRow from "./StepRow";
 import { logEvent } from "../monitor/telemetry";
 import Card from "../components/Card";
+import CopyRow from "../components/CopyRow";
 import ViewLink from "../components/ViewLink";
 import { getEntraUsersUrl } from "../logic/consoleUrls";
-import { MONO as mono, labelSx } from "../config/styles";
+import { MONO as mono } from "../config/styles";
 
 const COMPLETED_USERS_KEY = "zeninstaller_corp_access_pass_completed_users";
 const DELIVERY_CONFIRMED_USERS_KEY = "zeninstaller_corp_access_pass_delivery_confirmed_users";
@@ -48,40 +48,6 @@ function loadDeliveryConfirmedByUserId(): Record<string, boolean> {
 }
 function saveDeliveryConfirmedByUserId(value: Record<string, boolean>) {
   localStorage.setItem(DELIVERY_CONFIRMED_USERS_KEY, JSON.stringify(value));
-}
-
-function CopyRow({ label, value, masked = false }: { label: string; value: string; masked?: boolean }) {
-  const [copied, setCopied] = useState(false);
-  const displayValue = masked ? "*".repeat(Math.max(value.length, 12)) : value;
-  const copy = () => {
-    navigator.clipboard.writeText(value).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    });
-  };
-  return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0.5 }}>
-      <Typography sx={{ ...labelSx, minWidth: 180 }}>{label}</Typography>
-      <Typography
-        sx={{
-          fontSize: "0.78rem",
-          color: "#1e293b",
-          ...mono,
-          ...(masked ? { flex: "0 0 auto" } : { flex: 1, wordBreak: "break-all" }),
-        }}
-      >
-        {displayValue}
-      </Typography>
-      <Button
-        size="small"
-        onClick={copy}
-        sx={{ minWidth: 0, p: 0.5, color: "#94a3b8", "&:hover": { color: "#2563eb" } }}
-      >
-        <ContentCopyIcon sx={{ fontSize: 13 }} />
-        <Typography sx={{ fontSize: "0.65rem", ml: 0.5, ...mono }}>{copied ? "Copied" : "Copy"}</Typography>
-      </Button>
-    </Box>
-  );
 }
 
 type Props = {

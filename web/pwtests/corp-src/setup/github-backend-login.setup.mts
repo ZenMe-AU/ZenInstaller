@@ -1,7 +1,7 @@
 import { expect, test as setup, } from "@playwright/test";
 import fs from "fs";
 import { CORP_URL, } from "../../testInit";
-import { authDir, corpGithubAuthStateExists, githubStorageStateFile, githubSessionStorageFile, saveGithubSessionStorage } from "../util/setupHelper";
+import { authDir, corpGithubAuthStateExists, githubStorageStateFile, githubSessionStorageFile, saveGithubSessionStorage } from "../util/setupHelper.mts";
 
 setup("Manual GitHub OAuth login for corp auth tests", async ({ page, context}) => {
 	fs.mkdirSync(authDir, { recursive: true, });

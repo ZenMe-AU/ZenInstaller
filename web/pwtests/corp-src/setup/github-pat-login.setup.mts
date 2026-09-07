@@ -1,7 +1,7 @@
 import { expect, test as setup, } from "@playwright/test";
 import fs from "fs";
 import { CORP_URL, } from "../../testInit";
-import { authDir, corpGithubAuthStateExists, saveGithubSessionStorage, githubStorageStateFile, githubSessionStorageFile } from "../util/setupHelper";
+import { authDir, corpGithubAuthStateExists, saveGithubSessionStorage, githubStorageStateFile, githubSessionStorageFile } from "../util/setupHelper.mts";
 
 const pat = process.env.GITHUB_TOKEN;
 

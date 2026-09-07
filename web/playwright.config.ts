@@ -43,7 +43,7 @@ export default defineConfig({
   projects: [
     {
       name: "Setup Corp Github Auth",
-      testMatch: /github-pat-login\.setup\.ts/,
+      testMatch: /github-pat-login\.setup\.mts/,
       fullyParallel: false,
       retries: 0,
       use: {
@@ -53,7 +53,7 @@ export default defineConfig({
 
     {
       name: "Setup Corp Azure Login",
-      testMatch: /corp-src\/setup\/azure-login\.setup\.ts/,
+      testMatch: /corp-src\/setup\/azure-login\.setup\.mts/,
       fullyParallel: false,
       retries: 0,
       use: {
@@ -63,7 +63,7 @@ export default defineConfig({
 
     {
       name: "Test Corp",
-      testMatch: /corp-src\/.*\.spec\.ts/,
+      testMatch: /corp-src\/.*\.spec\.mts/,
       fullyParallel: false,
       workers: 1,
       retries: 1,

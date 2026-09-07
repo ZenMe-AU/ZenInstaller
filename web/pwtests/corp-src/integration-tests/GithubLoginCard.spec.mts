@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
-import { getCorpGithubAuthMode, restoreGithubSessionStorage } from "../util/setupHelper";
+import { getCorpGithubAuthMode, restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { CORP_URL, viewports, } from "../../testInit";
-import { expandGithubLoginCard, expectCardSnapshot, sensitiveTextMasks } from "../util/testHelper";
+import { expandGithubLoginCard, expectCardSnapshot, sensitiveTextMasks } from "../util/testHelper.mts";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`GitHub Login Card - ${viewportName}`, () => {

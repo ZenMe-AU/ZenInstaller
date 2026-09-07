@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
-import { restoreGithubSessionStorage } from "../util/setupHelper";
+import { restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { CORP_URL, viewports, } from "../../testInit";
-import { expandRepoCard, chooseRepoOption, expectVisibleWithin, expectCardSnapshot, sensitiveTextMasks } from "../util/testHelper";
+import { expandRepoCard, chooseRepoOption, expectVisibleWithin, expectCardSnapshot, sensitiveTextMasks } from "../util/testHelper.mts";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Integration Tests - ${viewportName}`, () => {

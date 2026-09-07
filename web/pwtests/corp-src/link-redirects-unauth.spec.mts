@@ -1,6 +1,6 @@
 import { expect, test, } from "@playwright/test";
 import { CORP_URL, viewports, } from "../testInit";
-import { expectPageSnapshot, } from "./util/testHelper";
+import { expectPageSnapshot, } from "./util/testHelper.mts";
 
 type NavLinkCase = {
 	label: string;

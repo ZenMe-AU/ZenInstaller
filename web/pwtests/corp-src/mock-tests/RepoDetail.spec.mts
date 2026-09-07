@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
-import { corpGithubAuthStateExists, restoreGithubSessionStorage } from "../util/setupHelper";
+import { corpGithubAuthStateExists, restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { CORP_URL, viewports, } from "../../testInit";
-import { expandRepoCard, logMockAPI, expectCardSnapshot, sensitiveTextMasks, expectVisibleWithin } from "../util/testHelper";
+import { expandRepoCard, logMockAPI, expectCardSnapshot, sensitiveTextMasks, expectVisibleWithin } from "../util/testHelper.mts";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Mock Tests - ${viewportName}`, () => {

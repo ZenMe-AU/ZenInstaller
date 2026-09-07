@@ -2,7 +2,7 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "",
-  "main": "src/functions/*.js",
+  "main": "src/functions/**/*.js",
   "type": "module",
   "engines": {
     "node": ">=22.12.0"
@@ -17,7 +17,10 @@
     "deploy": "pnpm --filter . deploy --legacy --prod ${DEPLOY_OUT:-./dist} --config.node-linker=hoisted --config.symlink=false --config.package-import-method=copy"
   },
   "dependencies": {
+    "@azure/data-tables": "^13.3.0",
     "@azure/functions": "^4.16.2",
+    "@azure/identity": "^4.5.0",
+    "@azure/web-pubsub": "^1.0.0",
     "octokit": "^5.0.5"
   },
   "devDependencies": {

@@ -303,10 +303,7 @@ export async function ensureStorageContainer(
 }
 
 // ── Scoped RBAC role assignment ────────────────────────────────────────────────
-// Same as azureGraph's ensureRbacRole but at an arbitrary scope (e.g. a storage account).
-
-// Read-only check — includes assignments inherited from an ancestor scope (e.g. subscription-level
-// Contributor satisfies a resource-group-scoped check too), since assignedTo() reports effective access.
+// Same as azureGraph's ensureRbacRole but at an arbitrary scope (e.g. a storage account)
 export async function hasRbacRoleAtScope(
   account: AzureAccount,
   scope: string,

@@ -342,12 +342,12 @@ describe("useAzureAppRegistrationCard", () => {
 				"repo:org-one@1/repo-one@456789:environment:PROD",
 				"repo:org-one@1/repo-one@456789:environment:TEST",
 			]);
-			expect(apiMocks.ensureRbacRole).toHaveBeenNthCalledWith(
-				1,
+			expect(apiMocks.ensureRbacRole).toHaveBeenCalledTimes(1);
+			expect(apiMocks.ensureRbacRole).toHaveBeenCalledWith(
 				expect.anything(),
 				"sub-1",
 				"sp-existing",
-				"Contributor",
+				"Reader",
 				undefined,
 			);
 			expect(latest?.result?.tenantId).toBe("tenant-home");

@@ -238,8 +238,7 @@ export function useAzureAppRegistrationCard({
 
       currentStep = "rbac";
       updateStep("rbac", "running");
-      await ensureRbacRole(azureAccount, subscriptionId, spObjectId, "Contributor", effectiveTenantId);
-      await ensureRbacRole(azureAccount, subscriptionId, spObjectId, "User Access Administrator", effectiveTenantId);
+      await ensureRbacRole(azureAccount, subscriptionId, spObjectId, "Reader", effectiveTenantId);
       updateStep("rbac", "done", subscriptionLabel || subscriptionId);
 
       const r = { clientId: appId, tenantId: resolvedTenantId, subscriptionIds: [subscriptionId] };

@@ -44,7 +44,7 @@ describe("useRbacCheck", () => {
 		vi.clearAllMocks();
 	});
 
-	it("reports ready when the service principal has both roles", async () => {
+	it("reports ready when the service principal has the role", async () => {
 		apiMocks.getExistingSP.mockResolvedValue({ id: "sp-1" });
 		apiMocks.hasRbacRole.mockResolvedValue(true);
 
@@ -76,9 +76,9 @@ describe("useRbacCheck", () => {
 		});
 	});
 
-	it("reports missing roles when RBAC is incomplete", async () => {
+	it("reports Reader missing when it has not been assigned", async () => {
 		apiMocks.getExistingSP.mockResolvedValue({ id: "sp-1" });
-		apiMocks.hasRbacRole.mockImplementation(async (_acc: unknown, _sub: string, _sp: string, role: string) => role !== "Contributor");
+		apiMocks.hasRbacRole.mockImplementation(async (_acc: unknown, _sub: string, _sp: string, role: string) => role !== "Reader");
 
 		let latest: RbacCheckResult | null = null;
 		const root = createRoot(document.createElement("div"));
@@ -100,38 +100,29 @@ describe("useRbacCheck", () => {
 			await new Promise((resolve) => setTimeout(resolve, 0));
 		});
 
-		expect(latest).toEqual({ status: "missing-role", missingRoles: ["Contributor"] });
+		expect(latest).toEqual({ status: "missing-role", missingRoles: ["Reader"] });
 
 		await act(async () => {
 			root.unmount();
 		});
 	});
 
-	it("reports both roles missing when neither is granted", async () => {
+	it("asks for Reader and nothing more — the pipeline identity only plans", async () => {
 		apiMocks.getExistingSP.mockResolvedValue({ id: "sp-1" });
-		apiMocks.hasRbacRole.mockResolvedValue(false);
+		apiMocks.hasRbacRole.mockResolvedValue(true);
 
-		let latest: RbacCheckResult | null = null;
 		const root = createRoot(document.createElement("div"));
-
 		await act(async () => {
 			root.render(
-				<HookHarness
-					onUpdate={(value) => {
-						latest = value;
-					}}
-					azureAccount={azureAccount}
-					spClientId="client-1"
-					subscriptionId="sub-1"
-				/>,
+				<HookHarness onUpdate={() => {}} azureAccount={azureAccount} spClientId="client-1" subscriptionId="sub-1" />,
 			);
 		});
-
 		await act(async () => {
 			await new Promise((resolve) => setTimeout(resolve, 0));
 		});
 
-		expect(latest).toEqual({ status: "missing-role", missingRoles: ["Contributor", "User Access Administrator"] });
+		const rolesAsked = apiMocks.hasRbacRole.mock.calls.map((c) => c[3]);
+		expect(rolesAsked).toEqual(["Reader"]);
 
 		await act(async () => {
 			root.unmount();

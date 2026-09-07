@@ -68,12 +68,6 @@ const RESULT_KEY = "zeninstaller_infra_result";
 
 const { save: saveResult, load: loadResult } = createResultStorage<CoreInfraResult>(RESULT_KEY);
 
-/*
- * The root Azure infrastructure a corp needs before Terraform can run: resource group,
- * observability (Log Analytics, diagnostics, App Insights), the private storage account,
- * and the Terraform state container + its RBAC grant. The DNS/Entra domain is a separate
- * card (useCreateDomainCard); it locks behind this one because the DNS zone lives in the RG.
- */
 export function useCoreInfraCard({
   azureAccount,
   subscriptionId,
@@ -106,7 +100,7 @@ export function useCoreInfraCard({
   const storageAccountName = getStorageAccountName(corpName);
   const appInsightsName = getAppInsightsName(corpName);
 
-  // Live check: does the resource group exist, and does the SP hold Contributor on it (directly or
+  // Live check: does the resource group exist, and does the SP hold Reader on it (directly or
   // inherited from the subscription)? Mirrors useRbacCheck's sp-not-found/missing-role split.
   useEffect(() => {
     let cancelled = false;
@@ -133,7 +127,7 @@ export function useCoreInfraCard({
           azureAccount,
           resourceGroupScope(subscriptionId, resourceGroupName),
           sp.id,
-          "Contributor",
+          "Reader",
           tenantId,
         );
         if (!cancelled) setInfraRbacStatus(hasRole ? "ready" : "missing-role");
@@ -220,11 +214,11 @@ export function useCoreInfraCard({
       sp = await getExistingSP(azureAccount, spClientId, tenantId);
       if (!sp) throw new Error(`Service principal for app ${spClientId} not found — run the Azure card first`);
       const rgScope = resourceGroupScope(subscriptionId, resourceGroupName);
-      const rgRbac = await ensureRbacRoleAtScope(azureAccount, rgScope, sp.id, "Contributor", tenantId);
+      const rgRbac = await ensureRbacRoleAtScope(azureAccount, rgScope, sp.id, "Reader", tenantId);
       updateStep(
         "rg-rbac",
         rgRbac === "exists" ? "skipped" : "done",
-        rgRbac === "exists" ? "Already assigned" : "Contributor",
+        rgRbac === "exists" ? "Already assigned" : "Reader",
       );
 
       currentStep = "law";
@@ -306,11 +300,11 @@ export function useCoreInfraCard({
       currentStep = "rbac";
       updateStep("rbac", "running");
       const scope = storageAccountScope(subscriptionId, resourceGroupName, storageAccountName);
-      const rbac = await ensureRbacRoleAtScope(azureAccount, scope, sp.id, "Storage Blob Data Contributor", tenantId);
+      const rbac = await ensureRbacRoleAtScope(azureAccount, scope, sp.id, "Storage Blob Data Reader", tenantId);
       updateStep(
         "rbac",
         rbac === "exists" ? "skipped" : "done",
-        rbac === "exists" ? "Already assigned" : "Storage Blob Data Contributor",
+        rbac === "exists" ? "Already assigned" : "Storage Blob Data Reader",
       );
 
       const r: CoreInfraResult = { corpName, subscriptionId };

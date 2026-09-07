@@ -34,7 +34,6 @@ app.http("createBranch", {
         "X-GitHub-Api-Version": "2026-03-10",
       },
     });
-    console.log("👍newBranchData", newBranchData);
     return {
       jsonBody: { success: true, branch: { name: newBranchData.ref.replace("refs/heads/", ""), commit: newBranchData.object.sha } },
     };

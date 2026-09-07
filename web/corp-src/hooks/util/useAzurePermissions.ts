@@ -6,7 +6,7 @@ export type UseAzurePermissionsParams = {
   azureAccount: AzureAccount | null;
   spClientId: string; // The app registration's client id — its service principal is what the pipeline runs as.
   tenantId?: string;
-  permissions: readonly string[]; // Microsoft Graph application permission ids the run needs.
+  permissions?: readonly string[]; // Microsoft Graph application permission ids this caller needs.
 };
 
 export type UseAzurePermissions = {
@@ -14,12 +14,15 @@ export type UseAzurePermissions = {
   granting: boolean;
 };
 
-// Grants the Graph application permissions a pipeline run needs, skipping any already assigned.
+// A stable default, so a caller that needs nothing does not hand `ensure` a fresh array each render.
+const NONE: readonly string[] = [];
+
+// Grants the Graph application permissions one caller needs, skipping any already assigned.
 export function useAzurePermissions({
   azureAccount,
   spClientId,
   tenantId,
-  permissions,
+  permissions = NONE,
 }: UseAzurePermissionsParams): UseAzurePermissions {
   const [granting, setGranting] = useState(false);
 

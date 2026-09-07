@@ -219,7 +219,7 @@ function AppDashboard() {
               onRepoChange={repo.setSelectedRepo}
               templateStatus={repo.templateStatus}
               templateName={repo.templateName}
-              defaultTemplateRepo="ZenMe-AU/ZBCorpArchitecture"
+              defaultTemplateRepo="ZenMe-AU/ZenbloxCore"
               isPrivate={repo.isPrivate}
               onIsPrivateChange={repo.setIsPrivate}
               includeAllBranch={repo.includeAllBranch}

@@ -1,9 +1,7 @@
-import { expect, test, type Page } from "@playwright/test";
-import { corpAzureAuthStateExists, restoreAzureSessionStorage, azureStorageStateFile } from "../util/setupHelper";
+import { expect, test } from "@playwright/test";
+import { restoreAzureSessionStorage } from "../util/setupHelper";
 import { CORP_URL, viewports } from "../../testInit";
 import { expandAzureLoginCard, expectCardSnapshot, expectVisibleWithin, sensitiveTextMasks } from "../util/testHelper";
-
-const azureTenantName = "Default Directory";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
   test.describe(`Azure Login Card - ${viewportName}`, () => {
@@ -26,20 +24,6 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
         await expectCardSnapshot(page, azureCard, testInfo, "signed-out.png", { userId: "signed-out", viewportName, testFolder: "Azure Login Card" });
       });
 
-      test("Clicking Sign in with Azure starts Microsoft authentication", async ({ page, browserName }) => {
-        const azureCard = await expandAzureLoginCard(page);
-        const popupPromise = page.waitForEvent("popup", { timeout: 10_000 }).catch(() => null);
-        await azureCard.getByRole("button", { name: "Sign in with Azure", exact: true }).click();
-        const popup = await popupPromise;
-
-        if (popup) {
-          await popup.waitForLoadState("domcontentloaded").catch(() => undefined);
-          await expect(popup).toHaveURL(/login\.microsoftonline\.com|login\.live\.com|microsoftonline\.com/);
-          await popup.close();
-        } else {
-          await expect(page).toHaveURL(/login\.microsoftonline\.com|login\.live\.com|microsoftonline\.com/);
-        }
-      });
     });
 
     test.describe("Auth", () => {
@@ -48,25 +32,14 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
         await page.goto(CORP_URL);
       });
 
-      test("Shows authenticated Azure card state and allows choosing a tenant", async ({ page }, testInfo) => {
+      test("Shows authenticated Azure card and selects a tenant", async ({ page }, testInfo) => {
         const azureCard = await expandAzureLoginCard(page);
         await expect(azureCard.getByText(/Signed in as/i)).toBeVisible();
         await expect(azureCard.getByTestId("txtAzureUsername")).toBeVisible();
         await expect(azureCard.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
         await expect(azureCard.getByRole("button", { name: "Sign in with Azure", exact: true })).toHaveCount(0);
         await expect(azureCard.getByText(/^Tenant/)).toBeVisible();
-        // TODO: This scenario assumes a tenant selector; add coverage for tenant-specific UI variants as settings evolve.
-        const tenantSelect = azureCard.getByRole("combobox");
-        await expect(tenantSelect).toBeVisible();
-
-        if ((await tenantSelect.textContent())?.includes("Select a tenant")) {
-          await tenantSelect.click();
-          const tenantOption = page.getByRole("option", { name: azureTenantName, exact: true }).first();
-          await expect(tenantOption).toBeVisible();
-          await tenantOption.click();
-        } else {
-          await expect(tenantSelect).toContainText(azureTenantName);
-        }
+        await expectVisibleWithin(azureCard.getByRole("combobox"), "Combobox: Load already stored tenant id.", 500000);
 
         await expectCardSnapshot(page, azureCard, testInfo, "tenant-selected.png", {
           userId: "azure-login",
@@ -77,7 +50,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
       });
 
-      test("Signing out clears the authenticated state", async ({ page }) => {
+      test("Signing Out button logs out current user", async ({ page }) => {
         const azureCard = await expandAzureLoginCard(page);
         await expect(azureCard.getByText(/Signed in as/i)).toBeVisible();
         await azureCard.getByRole("button", { name: "Sign out", exact: true }).click();

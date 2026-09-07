@@ -17,7 +17,7 @@ app.http("generateRepo", {
       type,
       repo,
       createEnvs = true,
-      templateRepo = "ZenMe-AU/ZBCorpArchitecture",
+      templateRepo = "ZenMe-AU/ZenbloxCore",
       envNames = ["PROD", "TEST"],
     } = body;
 

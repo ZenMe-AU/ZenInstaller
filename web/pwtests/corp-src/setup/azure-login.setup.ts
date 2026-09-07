@@ -3,9 +3,9 @@ import fs from "fs";
 import { CORP_URL } from "../../testInit";
 import { authDir, azureSessionStorageFile, azureStorageStateFile, corpAzureAuthStateExists, saveAzureSessionStorage } from "../util/setupHelper";
 
-const azureTenantName = "Default Directory";
+const tenantReselectionTimeout = 120_000;
 
-setup("Manual Microsoft passkey login for corp Azure auth tests", async ({ page, context }) => {
+setup("Manual setup for corp Azure auth tests", async ({ page, context }) => {
   fs.mkdirSync(authDir, { recursive: true });
 
   if (corpAzureAuthStateExists() && process.env.FORCE_AZURE_PASSKEY_SETUP !== "true") {
@@ -25,13 +25,13 @@ setup("Manual Microsoft passkey login for corp Azure auth tests", async ({ page,
   }
   await expect(signInButton).toBeVisible();
   await signInButton.click();
-
+  console.log("You need to manually sign into your Azure account in the test browser.");
   await page.pause();
 
   try {
     await page.waitForURL(/localhost:5173\/?(?:[/?#].*)?$/i, { timeout: 180_000 });
   } catch {
-    console.log("Page did not return to the Corp page yet.");
+    console.log("Page failed to redirect after manual sign in.");
     console.log(`Current URL: ${page.url()}`);
 
     if (page.url().startsWith("http://localhost:5173")) {
@@ -44,15 +44,11 @@ setup("Manual Microsoft passkey login for corp Azure auth tests", async ({ page,
   }
 
   await expect(page.locator("#card-azure_login").getByText(/Signed in as/i)).toBeVisible({ timeout: 120_000 });
-
   const authenticatedAzureCard = page.locator("#card-azure_login");
   const tenantSelect = authenticatedAzureCard.getByRole("combobox");
-  await tenantSelect.click();
-  const tenantOption = page.getByRole("option", { name: azureTenantName}).first();
-  await expect(tenantOption).toBeVisible({ timeout: 30_000 });
-  const azureTenantId = await tenantOption.getAttribute("data-value");
-  if (!azureTenantId) throw new Error(`Tenant option "${azureTenantName}" does not expose a tenant ID.`);
-  await tenantOption.click();
+  if (await tenantSelect.isVisible()) await tenantSelect.click();
+  console.log("Select a tenant, or enter and confirm a tenant ID to resume the Playwright test.");
+  await page.pause();
 
   const microsoftConsent = page.waitForURL(/login\.microsoftonline\.com|login\.live\.com/i, { timeout: 15_000 })
     .then(() => true)
@@ -64,7 +60,25 @@ setup("Manual Microsoft passkey login for corp Azure auth tests", async ({ page,
 
   const restoredAzureCard = page.locator("#card-azure_login");
   await expect(restoredAzureCard.getByText(/Signed in as/i)).toBeVisible({ timeout: 120_000 });
-  // await expect(restoredAzureCard.getByRole("combobox")).toContainText(azureTenantName, { timeout: 120_000 });
+  const restoredTenantSelect = restoredAzureCard.getByTestId("tenant-select");
+  const restoredTenantInput = restoredAzureCard.getByPlaceholder("Tenant ID");
+  await expect(restoredTenantSelect.or(restoredTenantInput)).toBeVisible({ timeout: 120_000 });
+
+  const restoredTenantValue = await restoredTenantSelect.isVisible()
+    ? restoredTenantSelect.locator("input")
+    : restoredTenantInput;
+  let azureTenantId = (await restoredTenantValue.inputValue()).trim();
+
+  if (!azureTenantId) {
+    if (await restoredTenantSelect.isVisible()) await restoredTenantSelect.click();
+    console.log("The tenant selection was not restored. Select or enter a tenant to continue.");
+    await expect(restoredTenantValue).toHaveValue(/.+/, { timeout: tenantReselectionTimeout });
+
+    azureTenantId = (await restoredTenantValue.inputValue()).trim();
+  }
+
+  if (!azureTenantId) throw new Error("Select or confirm an Azure tenant before resuming the setup test.");
+
   await page.evaluate((tenantId) => sessionStorage.setItem("zeninstaller_arm_tenant", tenantId), azureTenantId);
 
   await page.context().storageState({ path: azureStorageStateFile });

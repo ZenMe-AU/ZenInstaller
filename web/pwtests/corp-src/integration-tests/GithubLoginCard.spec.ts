@@ -42,7 +42,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expect(githubCard.getByRole("button", { name: "Login with GitHub", exact: true, }),).toBeVisible();
 		});
 
-		test("Shows authenticated GitHub card state after login", async ({ page, context }, testInfo) => {
+		test("Shows authenticated GitHub card after login", async ({ page, context }, testInfo) => {
 			await restoreGithubSessionStorage(context,);
 			await page.reload();
 

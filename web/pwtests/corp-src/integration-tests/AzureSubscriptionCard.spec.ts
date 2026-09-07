@@ -1,10 +1,9 @@
 import { expect, test, } from "@playwright/test";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage, } from "../util/setupHelper";
-import { chooseRepoOption, expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard, expectCardSnapshot, expectVisibleWithin, sensitiveTextMasks, } from "../util/testHelper";
+import { chooseRepoOption, expandAzureLoginCard, expandAzureSubscriptionCard, expandGithubLoginCard, expandRepoCard, expectCardSnapshot, expectVisibleWithin, sensitiveTextMasks, } from "../util/testHelper";
 import { CORP_URL, viewports, } from "../../testInit";
 
-const azureSubscriptionRunId = Date.now().toString(36);
-const azureTenantName = "Default Directory";
+// const azureSubscriptionRunId = Date.now().toString(36);
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Azure Subscription Card - ${viewportName}`, () => {

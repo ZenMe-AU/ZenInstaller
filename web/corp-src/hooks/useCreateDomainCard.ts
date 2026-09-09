@@ -15,9 +15,11 @@ import {
   getDomainVerificationTxt,
   verifyEntraDomain,
   setPrimaryEntraDomain,
+  listVerifiedDomains,
   getExistingSP,
   grantAdminConsent,
 } from "../api/azureGraph";
+import type { VerifiedDomain } from "../api/azureGraph";
 import { isConsentError } from "../logic/consent";
 import { getRootResourceGroupName } from "../logic/naming";
 import { createResultStorage } from "../logic/resultStorage";
@@ -53,6 +55,8 @@ export interface UseCreateDomainCard extends CardHook, AzureConfigHook {
   verifying: boolean;
   verifyError: string | null;
   verify: () => Promise<void>;
+  // Domains this tenant has already proved it owns.
+  verifiedDomains: VerifiedDomain[];
   // Narrowed from CardHook (optional there) — every card provides these.
   cardRequirements: CardRequirements;
   cardDependencyLabel: string;
@@ -106,6 +110,7 @@ export function useCreateDomainCard({
    * Once a subscription is known, check Graph directly for verified+primary status instead of
    * trusting localStorage, which won't reflect setup done on another device or by hand.
    */
+  const [verifiedDomains, setVerifiedDomains] = useState<VerifiedDomain[]>([]);
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [checkStatusError, setCheckStatusError] = useState<string | null>(null);
 
@@ -148,6 +153,24 @@ export function useCreateDomainCard({
       cancelled = true;
     };
   }, [azureAccount, subscriptionId, corpName, dnsName, tenantId]);
+
+  useEffect(() => {
+    if (!azureAccount) return;
+    let cancelled = false;
+    // Empty until AZURE_TENANT_ID loads, and getToken's ?? treats "" as a real tenant.
+    listVerifiedDomains(azureAccount, tenantId || undefined)
+      .then((domains) => {
+        if (!cancelled) setVerifiedDomains(domains);
+      })
+      .catch((err) => {
+        // Silently empty was indistinguishable from "the call never happened" — say which it is.
+        console.warn("Could not list verified domains:", err instanceof Error ? err.message : err);
+        if (!cancelled) setVerifiedDomains([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [azureAccount, tenantId]);
 
   // Redirects for Domain.ReadWrite.All incremental consent; user re-runs after returning.
   const requestDomainConsent = useCallback(async () => {
@@ -375,6 +398,7 @@ export function useCreateDomainCard({
 
   return {
     cardId: "create_domain" as const,
+    verifiedDomains,
     checkingStatus,
     checkStatusError,
     steps,

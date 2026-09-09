@@ -16,6 +16,7 @@ export const APP_SCOPES = [
 
 export const ARM_SCOPES = ["https://management.azure.com/user_impersonation"];
 export const DOMAIN_SCOPES = ["https://graph.microsoft.com/Domain.ReadWrite.All"];
+export const ORGANIZATION_SCOPES = ["https://graph.microsoft.com/Organization.Read.All"];
 
 // Domain card: granting DomainReadWriteAll to the pipeline's service principal.
 export const GRANT_CONSENT_SCOPES = [

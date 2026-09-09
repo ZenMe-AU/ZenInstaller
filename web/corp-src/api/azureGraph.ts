@@ -3,6 +3,7 @@ import {
   APP_SCOPES,
   ARM_SCOPES,
   DOMAIN_SCOPES,
+  ORGANIZATION_SCOPES,
   GRANT_CONSENT_SCOPES,
   ACCESS_PASS_SCOPES,
   GROUPS_SCOPES,
@@ -342,6 +343,28 @@ export async function revokeOAuth2Grants(
  */
 
 export type EntraDomain = { id: string; isVerified: boolean; isDefault: boolean };
+export type VerifiedDomain = { name: string; isDefault: boolean; isInitial: boolean };
+
+export async function listVerifiedDomains(account: AzureAccount, overrideTenantId?: string): Promise<VerifiedDomain[]> {
+  const token = await getToken(account, DOMAIN_SCOPES, overrideTenantId);
+  const data = await gFetch(token, GRAPH, "/domains?$select=id,isVerified,isDefault,isInitial");
+  return (data?.value ?? [])
+    .filter((d: { isVerified: boolean }) => d.isVerified)
+    .map((d: { id: string; isDefault: boolean; isInitial: boolean }) => ({
+      name: d.id,
+      isDefault: d.isDefault,
+      isInitial: d.isInitial,
+    }));
+}
+
+export async function listVerifiedDomainsViaOrganization(
+  account: AzureAccount,
+  overrideTenantId?: string,
+): Promise<VerifiedDomain[]> {
+  const token = await getToken(account, ORGANIZATION_SCOPES, overrideTenantId);
+  const data = await gFetch(token, GRAPH, "/organization?$select=verifiedDomains");
+  return data?.value?.[0]?.verifiedDomains ?? [];
+}
 
 export async function getEntraDomain(
   account: AzureAccount,

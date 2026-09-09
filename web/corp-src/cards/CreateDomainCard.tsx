@@ -49,6 +49,7 @@ export default function CreateDomainCard({
     running,
     resourcesDone,
     nameServers,
+    verifiedDomains,
     domainVerified,
     isPrimary,
     verifying,
@@ -80,7 +81,6 @@ export default function CreateDomainCard({
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Intro dnsName={dnsName} />
-
         {/* Gating hints */}
         {!azureAccount && (
           <Box sx={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", px: 2, py: 1.25 }}>
@@ -96,7 +96,6 @@ export default function CreateDomainCard({
             </Typography>
           </Box>
         )}
-
         {checkingStatus && (
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
             <CircularProgress size={12} />
@@ -110,7 +109,6 @@ export default function CreateDomainCard({
             Couldn't check existing setup: {checkStatusError}
           </Typography>
         )}
-
         {/* Planned resources */}
         {ready && steps.length === 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
@@ -155,7 +153,6 @@ export default function CreateDomainCard({
             </Button>
           </Box>
         )}
-
         {/* Progress steps */}
         {steps.length > 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, borderLeft: "2px solid #e2e8f0", pl: 1.5 }}>
@@ -180,6 +177,30 @@ export default function CreateDomainCard({
                 ↩ Start over
               </Button>
             )}
+          </Box>
+        )}
+        {verifiedDomains.length > 0 && (
+          <Box>
+            <Typography sx={{ ...labelSx, mb: 0.75 }}>Verified domains in this tenant</Typography>
+            <Box sx={{ borderLeft: "2px solid #e2e8f0", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
+              {verifiedDomains.map((d) => (
+                <Typography key={d.name} sx={{ fontSize: "0.75rem", color: "#0f172a", ...mono }}>
+                  {d.name}
+                  {d.isDefault && (
+                    <Box component="span" sx={{ color: "#64748b" }}>
+                      {" "}
+                      — primary
+                    </Box>
+                  )}
+                  {d.isInitial && (
+                    <Box component="span" sx={{ color: "#64748b" }}>
+                      {" "}
+                      — initial
+                    </Box>
+                  )}
+                </Typography>
+              ))}
+            </Box>
           </Box>
         )}
 
@@ -213,7 +234,6 @@ export default function CreateDomainCard({
             </Box>
           </Box>
         )}
-
         {/* Domain verification + primary promotion (one button drives both) */}
         {resourcesDone && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>

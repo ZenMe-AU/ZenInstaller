@@ -32,6 +32,7 @@ const { apiMocks } = vi.hoisted(() => ({
 		getDomainVerificationTxt: vi.fn(),
 		verifyEntraDomain: vi.fn(),
 		setPrimaryEntraDomain: vi.fn(),
+		listVerifiedDomains: vi.fn().mockResolvedValue([]),
 		ensureResourceGroup: vi.fn(),
 		resourceGroupExists: vi.fn(),
 		ensureLogAnalyticsWorkspace: vi.fn(),
@@ -74,6 +75,7 @@ vi.mock("../api/azureGraph", () => ({
 	getDomainVerificationTxt: apiMocks.getDomainVerificationTxt,
 	verifyEntraDomain: apiMocks.verifyEntraDomain,
 	setPrimaryEntraDomain: apiMocks.setPrimaryEntraDomain,
+	listVerifiedDomains: apiMocks.listVerifiedDomains,
 }));
 
 vi.mock("../api/azureArm", () => ({

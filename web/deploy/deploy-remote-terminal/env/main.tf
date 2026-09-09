@@ -125,8 +125,8 @@ resource "azurerm_function_app_flex_consumption" "fa" {
     WEBPUBSUB_ENDPOINT = azurerm_web_pubsub.wps.hostname
     HUB_NAME           = azurerm_web_pubsub_hub.hub.name
 
-    SESSION_TABLE_ACCOUNT_URL = azurerm_storage_account.sa.primary_table_endpoint
-    SESSION_TABLE_NAME        = azurerm_storage_table.sessions.name
+    SESSION_TABLE_ACCOUNT_NAME = azurerm_storage_account.sa.name
+    SESSION_TABLE_NAME         = azurerm_storage_table.sessions.name
   }
 
   site_config {

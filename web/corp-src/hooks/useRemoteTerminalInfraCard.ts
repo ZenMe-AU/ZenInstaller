@@ -303,7 +303,7 @@ export function useRemoteTerminalInfraCard({
           AzureWebJobsStorage__queueServiceUri: `https://${storageAccountName}.queue.core.windows.net/`,
           WEBPUBSUB_ENDPOINT: `${webPubSubName}.webpubsub.azure.com`,
           HUB_NAME: TERMINAL_HUB,
-          SESSION_TABLE_ACCOUNT_URL: `${tableBase}/`,
+          SESSION_TABLE_ACCOUNT_NAME: storageAccountName,
           SESSION_TABLE_NAME: TERMINAL_SESSION_TABLE,
         },
         allowedOrigin ? [allowedOrigin] : [],

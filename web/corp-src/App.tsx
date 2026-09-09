@@ -17,7 +17,6 @@ import { useAzureSubscriptionCard } from "./hooks/useAzureSubscriptionCard";
 import { useCreateDomainCard } from "./hooks/useCreateDomainCard";
 import { useCoreInfraCard } from "./hooks/useCoreInfraCard";
 import { useRemoteTerminalInfraCard } from "./hooks/useRemoteTerminalInfraCard";
-import { useCompanyInfoCard } from "./hooks/useCompanyInfoCard";
 import { useAccessPassCard } from "./hooks/useAccessPassCard";
 import { useAwsLoginCard } from "./hooks/useAwsLoginCard";
 import { useAwsSetupCard } from "./hooks/useAwsSetupCard";
@@ -26,7 +25,6 @@ import NavBar from "./components/NavBar";
 import RestoreToast from "./components/RestoreToast";
 import GithubLoginCard from "./cards/GithubLoginCard";
 import RepoCard from "./cards/RepoCard";
-import CompanyInfoCard from "./cards/CompanyInfoCard";
 import AzureLoginCard from "./cards/AzureLoginCard";
 import AzureAppRegistrationCard from "./cards/AzureAppRegistrationCard";
 import AzureSubscriptionCard from "./cards/AzureSubscriptionCard";
@@ -68,12 +66,8 @@ function AppDashboard() {
   });
   const githubVariableValues = githubVariables.values;
 
-  const companyInfo = addCard(
-    useCompanyInfoCard({
-      variableValues: githubVariableValues,
-      envSelected: !!githubRepoEnv.env.selectedEnv,
-    }),
-  );
+  const corpName = githubVariableValues.NAME ?? "";
+  const dnsName = githubVariableValues.DNS ?? "";
 
   // The Azure sign-in session, shared by the login / subscription / app-registration / access-pass cards.
   const azureLogin = addCard(
@@ -129,7 +123,7 @@ function AppDashboard() {
     useCoreInfraCard({
       azureAccount: azureLogin.account,
       subscriptionId: azureSubscription.selectedSubscriptionId,
-      corpName: companyInfo.corpName,
+      corpName,
       spClientId: githubVariableValues.AZURE_CLIENT_ID ?? "",
       tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
     }),
@@ -138,7 +132,7 @@ function AppDashboard() {
     useRemoteTerminalInfraCard({
       azureAccount: azureLogin.account,
       subscriptionId: azureSubscription.selectedSubscriptionId,
-      corpName: companyInfo.corpName,
+      corpName,
       tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
       allowedOrigin: window.location.origin,
       githubAccount: githubRepoEnv.repo.selectedAccount,
@@ -150,8 +144,8 @@ function AppDashboard() {
     useCreateDomainCard({
       azureAccount: azureLogin.account,
       subscriptionId: azureSubscription.selectedSubscriptionId,
-      corpName: companyInfo.corpName,
-      dnsName: companyInfo.dnsName,
+      corpName,
+      dnsName,
       spClientId: githubVariableValues.AZURE_CLIENT_ID ?? "",
       tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
     }),
@@ -333,22 +327,18 @@ function AppDashboard() {
               githubUrl={githubRepoEnv.githubEnvUrl}
             />
 
-            <CompanyInfoCard
-              card={cardProps("company_info")}
-              selectedEnv={githubRepoEnv.env.selectedEnv}
-              variables={githubVariables}
-              githubAccount={githubRepoEnv.repo.selectedAccount}
-              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
-              githubUrl={githubRepoEnv.githubEnvUrl}
-            />
-
             <CoreInfraCard
               card={cardProps("core_infra")}
               infra={infra}
               azureAccount={azureLogin.account}
-              corpName={companyInfo.corpName}
+              corpName={corpName}
               subscriptionId={azureSubscription.selectedSubscriptionId}
               spClientId={azureAppSetup.spClientId}
+              githubAccount={githubRepoEnv.repo.selectedAccount}
+              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+              selectedEnv={githubRepoEnv.env.selectedEnv}
+              variables={githubVariables}
+              githubUrl={githubRepoEnv.githubEnvUrl}
             />
 
             <RemoteTerminalInfraCard
@@ -367,9 +357,14 @@ function AppDashboard() {
               card={cardProps("create_domain")}
               createDomain={createDomain}
               azureAccount={azureLogin.account}
-              corpName={companyInfo.corpName}
-              dnsName={companyInfo.dnsName}
+              corpName={corpName}
+              dnsName={dnsName}
               subscriptionId={azureSubscription.selectedSubscriptionId}
+              githubAccount={githubRepoEnv.repo.selectedAccount}
+              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+              selectedEnv={githubRepoEnv.env.selectedEnv}
+              variables={githubVariables}
+              githubUrl={githubRepoEnv.githubEnvUrl}
             />
 
             <AwsLoginCard card={cardProps("aws_login")} awsLogin={awsLogin} />

@@ -16,7 +16,8 @@ export const DEPLOYMENT_TERMINAL_KEYS = [
   "BACKEND_API",
 ] as const;
 export const AWS_VARIABLE_KEYS = ["AWS_ROLE_ARN"] as const;
-export const GITHUB_VARIABLE_KEYS = ["NAME", "DNS"] as const;
+export const CORP_NAME_KEYS = ["NAME"] as const;
+export const DNS_KEYS = ["DNS"] as const;
 export const C01_KEYS = ["CONTACT_EMAILS"] as const;
 
 export const AZURE_SECRET_KEYS = ["AZURE_CLIENT_SECRET"];

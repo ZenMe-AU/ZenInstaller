@@ -367,7 +367,7 @@ export function useCoreInfraCard({
     storageAccountName,
     appInsightsName,
     containerName: TFSTATE_CONTAINER,
-    cardRequirements: ["azure_login", "repo", "azure_subscription", "company_info", "azure_app_registration"],
+    cardRequirements: ["azure_login", "repo", "azure_subscription", "azure_app_registration"],
     cardDependencyLabel: "Set up Corp infrastructure",
   };
 }

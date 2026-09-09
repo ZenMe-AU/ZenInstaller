@@ -9,9 +9,11 @@ import Card from "../components/Card";
 import ViewLink from "../components/ViewLink";
 import { AZURE_RESOURCE_GROUPS_URL, getAzureResourceUrl } from "../logic/consoleUrls";
 import { resourceGroupScope } from "../api/azureArm";
-import { getVariableDisplayName } from "../logic/variables";
+import { getVariableDisplayName, CORP_NAME_KEYS } from "../logic/variables";
+import CloudVariableDetail from "./CloudVariableDetail";
+import type { UseGithubVariables } from "../hooks/useGithubVariables";
 import { MONO as mono, labelSx } from "../config/styles";
-import type { CardChrome, AzureAccount } from "../types";
+import type { Account, CardChrome, AzureAccount, GhEnv } from "../types";
 
 type Props = {
   card: CardChrome;
@@ -20,6 +22,11 @@ type Props = {
   corpName: string;
   subscriptionId: string;
   spClientId: string;
+  githubAccount: Account | null;
+  repoName: string;
+  selectedEnv: GhEnv | null;
+  variables: UseGithubVariables;
+  githubUrl?: string;
 };
 
 function Intro({ containerName }: { containerName: string }) {
@@ -39,7 +46,19 @@ function Action({ resourceId }: { resourceId: string | null }) {
   return <ViewLink href={resourceId ? getAzureResourceUrl(undefined, resourceId) : AZURE_RESOURCE_GROUPS_URL} />;
 }
 
-export default function CoreInfraCard({ card, infra, azureAccount, corpName, subscriptionId, spClientId }: Props) {
+export default function CoreInfraCard({
+  card,
+  infra,
+  azureAccount,
+  corpName,
+  subscriptionId,
+  spClientId,
+  githubAccount,
+  repoName,
+  selectedEnv,
+  variables,
+  githubUrl,
+}: Props) {
   const {
     location,
     setLocation,
@@ -104,6 +123,16 @@ export default function CoreInfraCard({ card, infra, azureAccount, corpName, sub
             </Typography>
           </Box>
         )}
+
+        <CloudVariableDetail
+          account={githubAccount}
+          repo={repoName}
+          envName={selectedEnv?.name ?? null}
+          keys={CORP_NAME_KEYS}
+          variables={variables}
+          title="Company short code"
+          githubUrl={githubUrl}
+        />
 
         {rgNotFound && (
           <Box

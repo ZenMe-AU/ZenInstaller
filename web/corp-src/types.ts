@@ -9,7 +9,6 @@ export type CardId =
   | "azure_login"
   | "repo"
   | "azure_subscription"
-  | "company_info"
   | "azure_app_registration"
   | "core_infra"
   | "remote_terminal_infra"

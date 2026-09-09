@@ -10,7 +10,10 @@ import { dnsZoneScope } from "../api/azureArm";
 import { getRootResourceGroupName } from "../logic/naming";
 import { getVariableDisplayName } from "../logic/variables";
 import { MONO as mono, labelSx } from "../config/styles";
-import type { CardChrome, AzureAccount } from "../types";
+import { DNS_KEYS } from "../logic/variables";
+import CloudVariableDetail from "./CloudVariableDetail";
+import type { UseGithubVariables } from "../hooks/useGithubVariables";
+import type { Account, CardChrome, AzureAccount, GhEnv } from "../types";
 
 type Props = {
   card: CardChrome;
@@ -19,6 +22,11 @@ type Props = {
   corpName: string;
   dnsName: string;
   subscriptionId: string;
+  githubAccount: Account | null;
+  repoName: string;
+  selectedEnv: GhEnv | null;
+  variables: UseGithubVariables;
+  githubUrl?: string;
 };
 
 function Intro({ dnsName }: { dnsName: string }) {
@@ -41,6 +49,11 @@ export default function CreateDomainCard({
   corpName,
   dnsName,
   subscriptionId,
+  githubAccount,
+  repoName,
+  selectedEnv,
+  variables,
+  githubUrl,
 }: Props) {
   const {
     checkingStatus,
@@ -81,6 +94,17 @@ export default function CreateDomainCard({
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Intro dnsName={dnsName} />
+
+        <CloudVariableDetail
+          account={githubAccount}
+          repo={repoName}
+          envName={selectedEnv?.name ?? null}
+          keys={DNS_KEYS}
+          variables={variables}
+          title="Corp domain"
+          githubUrl={githubUrl}
+        />
+
         {/* Gating hints */}
         {!azureAccount && (
           <Box sx={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", px: 2, py: 1.25 }}>
@@ -92,7 +116,7 @@ export default function CreateDomainCard({
         {azureAccount && missing.length > 0 && (
           <Box sx={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", px: 2, py: 1.25 }}>
             <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>
-              Missing before setup can run: <b>{missing.join(", ")}</b> — fill them in via the Company info card.
+              Missing before setup can run: <b>{missing.join(", ")}</b>.
             </Typography>
           </Box>
         )}

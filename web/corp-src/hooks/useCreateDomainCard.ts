@@ -414,7 +414,7 @@ export function useCreateDomainCard({
     reset,
     status,
     summary,
-    cardRequirements: ["azure_login", "repo", "azure_subscription", "company_info", "core_infra"],
+    cardRequirements: ["azure_login", "repo", "azure_subscription", "core_infra"],
     cardDependencyLabel: "Set up the corp domain",
     done,
   };

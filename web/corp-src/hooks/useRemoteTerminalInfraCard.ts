@@ -424,7 +424,7 @@ export function useRemoteTerminalInfraCard({
     storageAccountName,
     hubName: TERMINAL_HUB,
     pipelineAppName,
-    cardRequirements: ["azure_login", "azure_subscription", "company_info"],
+    cardRequirements: ["azure_login", "azure_subscription", "core_infra"],
     cardDependencyLabel: "Set up the terminal",
   };
 }

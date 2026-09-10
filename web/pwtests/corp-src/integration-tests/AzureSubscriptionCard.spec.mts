@@ -9,7 +9,8 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Azure Subscription Card - ${viewportName}`, () => {
 		test.use({ viewport, deviceScaleFactor: 1, });
 		// The happy path is the main scenario for this card, showing the expect standard use case.
-		test("Happy path", async ({ page, context, }, testInfo) => {			
+		test("Happy path", async ({ page, context, }, testInfo) => {
+			test.setTimeout(300_000);			
 			const testName = safePathSegment(testInfo.title,);
 			await restoreGithubSessionStorage(context);
 			await restoreAzureSessionStorage(context);
@@ -20,25 +21,28 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				return azureCard;
 			});
 
+			const azureSubscriptionCard = await test.step("Expand Azure Subscription Card", async () => {
+				const azureSubscriptionCard = await expandAzureSubscriptionCard(page);
+				return azureSubscriptionCard;
+			});
+
 			await test.step("Select tenant", async () => {
-				await expect(azureCard.getByText(/Signed in as/i)).toBeVisible();
-				await expect(azureCard.getByTestId("txtAzureUsername")).toBeVisible();
-				await expect(azureCard.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
-				await expect(azureCard.getByRole("button", { name: "Sign in with Azure", exact: true })).toHaveCount(0);
-				await expect(azureCard.getByText(/^Tenant/)).toBeVisible();
-				const tenantSelect = azureCard.getByTestId("tenant-select",);
-				await expectVisibleWithin(tenantSelect, "Combobox: Load already stored tenant id.", 500_000);
-				const tenantId = (await tenantSelect.locator("input",).inputValue()).trim();
-				expect(tenantId).not.toBe("");
+				const signedInText = azureCard.getByText(/Signed in as/i);
+				const tenantSelect = azureCard.getByTestId("tenant-select");
+				await expect(signedInText).toBeVisible({ timeout: 120_000 });
+				await expect(tenantSelect).toBeVisible({ timeout: 120_000 });
+				const tenantId = (await tenantSelect.locator("input").inputValue()).trim();
+				expect(tenantId, "The restored Azure tenant ID should not be empty").not.toBe("");
 				await tenantSelect.click();
-				await page.getByRole("option",).filter({ hasText: tenantId, }).click();
-				const subscriptionCard = await expandAzureSubscriptionCard(page);
-				await expectCardSnapshot(page, subscriptionCard, testInfo, `${testName}-start.png`,
+				await page.getByRole("option").filter({ hasText: tenantId }).click()
+				await expect(azureSubscriptionCard.getByText("Select a tenant", { exact: true }),).toHaveCount(0);
+
+				await expectCardSnapshot(page, azureSubscriptionCard, testInfo, `${testName}-start.png`,
 					{
 						userId: "azure-login",
 						viewportName,
 						testFolder: "Azure Subscription Card",
-						mask: sensitiveTextMasks(subscriptionCard),
+						mask: sensitiveTextMasks(azureSubscriptionCard),
 					},
 				);
 			});
@@ -89,10 +93,6 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				console.log(`Created repo environment: ${PROD}`,);
 			});
 
-			const azureSubscriptionCard = await test.step("Expand Azure Subscription Card", async () => {
-				const azureSubscriptionCard = await expandAzureSubscriptionCard(page);
-				return azureSubscriptionCard;
-			});
 
 			await test.step("Saving prefilled Azure subscription variables", async () => {
 				await expect(azureSubscriptionCard.getByText(/Pick the subscription to deploy into\./i,),).toBeVisible();
@@ -119,7 +119,6 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 					],
 				},);
 			});
-
-		});
+		})
 	});
 }

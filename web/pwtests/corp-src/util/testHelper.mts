@@ -1,5 +1,6 @@
 import { expect, type Locator, type Page, type Route, type TestInfo } from "@playwright/test";
 import fs from "fs";
+import path from "node:path";
 
 export type PageSnapshotOptions = {
 	userId: string;
@@ -13,7 +14,7 @@ export type PageSnapshotOptions = {
 
 // Returns sensitive identity fields contained by the supplied page or locator.
 export function sensitiveTextMasks(root: Page | Locator,): Locator[] {
-	return [root.locator('[data-sensitive="true"]'),];
+	return [root.locator('[data-sensitive="true"]'),]; //TODO: filter out items not visible on UI
 }
 
 // Normalizes arbitrary strings into stable snapshot path segments.
@@ -25,15 +26,20 @@ export function safePathSegment(value: string,): string {
 	return safeValue || "unnamed";
 }
 
-function snapshotTestFolders(testInfo: TestInfo,): string[] {
-	const testPathSegments = testInfo.file.split(/[\\/]/,);
-	const corpSourceIndex = testPathSegments.lastIndexOf("corp-src",);
-	const testDirectories = testPathSegments
-		.slice(corpSourceIndex + 1, -1,)
-		.map((segment,) => safePathSegment(segment,),);
-	const testFile = safePathSegment(testPathSegments.at(-1)?.replace(/\.spec\.tsx?$/, "",) ?? "unnamed",);
+function snapshotPath(testInfo: TestInfo, viewportName: string, snapshotName: string,): string[] {
+	const relativeTestPath = path.relative(testInfo.project.testDir, testInfo.file,);
+	const testPathSegments = relativeTestPath.split(path.sep,).map((segment,) => safePathSegment(segment,),);
+	const testFile = testPathSegments.pop()?.replace(/\.spec\.(?:m?[jt]sx?)$/, "",) ?? "unnamed";
+	const sourceFolder = testPathSegments.shift();
 
-	return [...testDirectories, testFile,];
+	return [
+		...(sourceFolder ? [sourceFolder,] : []),
+		"snapshots",
+		...testPathSegments,
+		safePathSegment(testFile,),
+		safePathSegment(viewportName,),
+		safePathSegment(snapshotName.endsWith(".png") ? snapshotName : `${snapshotName}.png`,),
+	];
 }
 
 // Waits for visual stability and compares against a stored screenshot baseline.
@@ -44,9 +50,7 @@ export async function expectPageSnapshot(page: Page, testInfo: TestInfo, snapsho
 	await document.fonts?.ready;}).catch(() => undefined);
 	await page.waitForTimeout(300).catch(() => undefined);
 
-	const normalizedSnapshotName = safePathSegment(snapshotName.endsWith(".png") ? snapshotName : `${snapshotName}.png`,);
-	const viewportFolder = safePathSegment(options.viewportName,);
-	const relativeSnapshotPath = ["corp-src", "snapshots", ...snapshotTestFolders(testInfo,), viewportFolder, normalizedSnapshotName,];
+	const relativeSnapshotPath = snapshotPath(testInfo, options.viewportName, snapshotName,);
 	const expectedSnapshotPath = testInfo.snapshotPath(...relativeSnapshotPath,);
 	const baselineExists = fs.existsSync(expectedSnapshotPath,);
 
@@ -74,9 +78,7 @@ export async function expectCardSnapshot(page: Page, card: Locator, testInfo: Te
 	await page.locator("body").evaluate(async () => document.fonts?.ready).catch(() => undefined);
 	await page.waitForTimeout(300).catch(() => undefined);
 
-	const normalizedSnapshotName = safePathSegment(snapshotName.endsWith(".png") ? snapshotName : `${snapshotName}.png`,);
-	const viewportFolder = safePathSegment(options.viewportName,);
-	const relativeSnapshotPath = ["corp-src", "snapshots", ...snapshotTestFolders(testInfo,), viewportFolder, normalizedSnapshotName,];
+	const relativeSnapshotPath = snapshotPath(testInfo, options.viewportName, snapshotName,);
 	const originalStyle = await card.evaluate((element,) => element.getAttribute("style"),);
 	const screenshotStyle = await page.addStyleTag({
 		content: "html { scrollbar-width: none !important; } html::-webkit-scrollbar { display: none !important; }",
@@ -214,4 +216,14 @@ export async function expandAzureSubscriptionCard(page: Page) {
 	}
 	await expect(introText).toBeVisible();
 	return subscriptionCard;
+}
+
+export async function expandAzureAppRegistrationCard(page: Page) {
+	const appRegistrationCard = page.locator("#card-azure_app_registration",);
+	const introText = appRegistrationCard.getByText(/Create an app registration for GitHub Actions/i,);
+	if (!(await introText.isVisible())) {
+		await appRegistrationCard.getByText(/^Create an app registration in Azure$/i,).click();
+	}
+	await expect(introText).toBeVisible();
+	return appRegistrationCard;
 }

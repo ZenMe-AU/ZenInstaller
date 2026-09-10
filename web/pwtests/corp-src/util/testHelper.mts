@@ -17,7 +17,7 @@ export function sensitiveTextMasks(root: Page | Locator,): Locator[] {
 }
 
 // Normalizes arbitrary strings into stable snapshot path segments.
-function safePathSegment(value: string,): string {
+export function safePathSegment(value: string,): string {
 	const safeValue = value
 		.trim()
 		.replace(/[^a-zA-Z0-9._-]+/g,"-",)
@@ -44,7 +44,7 @@ export async function expectPageSnapshot(page: Page, testInfo: TestInfo, snapsho
 	await document.fonts?.ready;}).catch(() => undefined);
 	await page.waitForTimeout(300).catch(() => undefined);
 
-	const normalizedSnapshotName = snapshotName.endsWith(".png") ? snapshotName : `${snapshotName}.png`;
+	const normalizedSnapshotName = safePathSegment(snapshotName.endsWith(".png") ? snapshotName : `${snapshotName}.png`,);
 	const viewportFolder = safePathSegment(options.viewportName,);
 	const relativeSnapshotPath = ["corp-src", "snapshots", ...snapshotTestFolders(testInfo,), viewportFolder, normalizedSnapshotName,];
 	const expectedSnapshotPath = testInfo.snapshotPath(...relativeSnapshotPath,);
@@ -74,7 +74,7 @@ export async function expectCardSnapshot(page: Page, card: Locator, testInfo: Te
 	await page.locator("body").evaluate(async () => document.fonts?.ready).catch(() => undefined);
 	await page.waitForTimeout(300).catch(() => undefined);
 
-	const normalizedSnapshotName = snapshotName.endsWith(".png") ? snapshotName : `${snapshotName}.png`;
+	const normalizedSnapshotName = safePathSegment(snapshotName.endsWith(".png") ? snapshotName : `${snapshotName}.png`,);
 	const viewportFolder = safePathSegment(options.viewportName,);
 	const relativeSnapshotPath = ["corp-src", "snapshots", ...snapshotTestFolders(testInfo,), viewportFolder, normalizedSnapshotName,];
 	const originalStyle = await card.evaluate((element,) => element.getAttribute("style"),);

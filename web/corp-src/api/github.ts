@@ -2,6 +2,7 @@ import { parse } from "dotenv";
 import JSZip from "jszip";
 import type { Account, Branch, GhEnv, PullRequest, Repo, StageReport, WorkflowRun, UpsertSecretResult } from "../types";
 import { toStageReport } from "../logic/stage";
+import { readBlobWithProgress, type DownloadProgress } from "../logic/download";
 
 const GH = "https://api.github.com";
 
@@ -65,10 +66,21 @@ export function createGithubApi(token: string) {
     return results;
   }
 
-  async function downloadZip(account: Account, repo: string, artifactId: number): Promise<JSZip> {
+  // Raw bytes rather than a parsed zip: the backend package goes straight to the Function App.
+  async function fetchArtifactZip(
+    account: Account,
+    repo: string,
+    artifactId: number,
+    onProgress?: DownloadProgress,
+  ): Promise<Blob> {
     const res = await gh(`/repos/${account.login}/${repo}/actions/artifacts/${artifactId}/zip`);
-    if (!res.ok) throw new Error(`Failed to download artifact ${artifactId}: ${res.status}`);
-    return JSZip.loadAsync(await res.blob());
+    if (!res.ok) throw new Error(`Failed to download the package: ${res.status}`);
+    return readBlobWithProgress(res, onProgress);
+  }
+
+  // Same download, parsed — for callers that read files out of the artifact rather than forward it.
+  async function downloadZip(account: Account, repo: string, artifactId: number): Promise<JSZip> {
+    return JSZip.loadAsync(await fetchArtifactZip(account, repo, artifactId));
   }
 
   // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -327,7 +339,7 @@ export function createGithubApi(token: string) {
     repo: string,
     envName: string,
     dir: string,
-    kind: "plan" | "deploy",
+    kind: "plan" | "deploy" | "build",
     perPage: number = 1,
   ): Promise<StageReport | null> {
     const params = new URLSearchParams({ environment: envName, task: `${kind}:${dir}`, per_page: perPage.toString() });
@@ -347,7 +359,7 @@ export function createGithubApi(token: string) {
   }
 
   // ── Artifacts ─────────────────────────────────────────────────────────────────
-
+  //TODO:getPlanEnv, fetchLogArtifact, fetchPlan need to replace downloadZip with fetchArtifactZip
   async function getPlanEnv(account: Account, repo: string, envId: number): Promise<Record<string, string> | null> {
     try {
       const zip = await downloadZip(account, repo, envId);
@@ -470,6 +482,7 @@ export function createGithubApi(token: string) {
     updateVariable,
     deleteVariable,
     fetchStageReport,
+    fetchArtifactZip,
     setOidcImmutableSubject,
     fetchEnv,
     getPlanEnv,

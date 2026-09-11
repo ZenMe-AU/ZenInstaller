@@ -1,4 +1,4 @@
-import { Box, CircularProgress, Typography } from "@mui/material";
+import { Box, CircularProgress, LinearProgress, Typography } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
@@ -32,6 +32,19 @@ export default function StepRow({ step }: { step: SetupStep }) {
           <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, mt: 0.25, wordBreak: "break-all" }}>
             {step.detail}
           </Typography>
+        )}
+        {step.progress != null && step.status === "running" && (
+          <LinearProgress
+            variant="determinate"
+            value={Math.min(100, Math.max(0, step.progress * 100))}
+            sx={{
+              mt: 0.5,
+              height: 4,
+              borderRadius: 2,
+              background: "#e2e8f0",
+              "& .MuiLinearProgress-bar": { background: "#2563eb", borderRadius: 2 },
+            }}
+          />
         )}
       </Box>
     </Box>

@@ -2,6 +2,7 @@ import { parse } from "dotenv";
 import JSZip from "jszip";
 import type { Account, Branch, GhEnv, PullRequest, Repo, StageReport, WorkflowRun, UpsertSecretResult } from "../types";
 import { toStageReport } from "../logic/stage";
+import { readBlobWithProgress, type DownloadProgress } from "../logic/download";
 import type { RemoteLoginDispatch } from "./github";
 
 const url = import.meta.env.VITE_API_URL;
@@ -293,7 +294,7 @@ export async function fetchStageReport(
   repo: string,
   envName: string,
   dir: string,
-  kind: "plan" | "deploy",
+  kind: "plan" | "deploy" | "build",
 ): Promise<StageReport | null> {
   const params = new URLSearchParams({
     owner: account.login,
@@ -319,7 +320,7 @@ export async function fetchEnv(account: Account, repo: string): Promise<Record<s
   const data = await res.json();
   return parse(data.content);
 }
-
+// TODO: getPlanEnv need to replace downloadArtifacts with downloadArtifactZip
 export async function getPlanEnv(
   account: Account,
   repo: string,
@@ -420,6 +421,23 @@ export async function deployChangeset(
   return res.json();
 }
 
+export async function fetchArtifactZip(
+  account: Account,
+  repo: string,
+  artifactId: number,
+  onProgress?: DownloadProgress,
+): Promise<Blob> {
+  const params = new URLSearchParams({
+    artifacts_id: String(artifactId),
+    owner: account.login,
+    repo,
+    type: account.type,
+  });
+  const res = await fetchWithAuth(`${url}/downloadArtifactZip?${params}`);
+  if (!res.ok) throw new Error(`Failed to download the package: ${res.status}`);
+  return readBlobWithProgress(res, onProgress);
+}
+
 // Hands the workflow the session the browser already registered, never the access token.
 export async function triggerRemoteLogin(account: Account, repo: string, opts: RemoteLoginDispatch) {
   const res = await fetchWithAuth(`${url}/triggerActions`, {
@@ -441,7 +459,7 @@ export async function triggerRemoteLogin(account: Account, repo: string, opts: R
 }
 
 // ─── Deploy error (from artifact log) ────────────────────────────────────────
-
+// TODO: fetchLogArtifact need to replace downloadArtifacts with downloadArtifactZip
 export async function fetchLogArtifact(account: Account, repo: string, logId: number): Promise<string | null> {
   const params = new URLSearchParams({ artifacts_id: String(logId), owner: account.login, type: account.type, repo });
   const res = await fetchWithAuth(`${url}/downloadArtifacts?${params}`);
@@ -454,7 +472,7 @@ export async function fetchLogArtifact(account: Account, repo: string, logId: nu
 }
 
 // ─── Plan (artifact) ──────────────────────────────────────────────────────────
-
+// TODO: fetchPlan need to replace downloadArtifacts with downloadArtifactZip
 export async function fetchPlan(id: string, account: { login: string; type: string }, repo: string) {
   const params = new URLSearchParams({ artifacts_id: id, owner: account.login, type: account.type, repo, ref: "dev" });
   const res = await fetchWithAuth(`${url}/downloadArtifacts?${params.toString()}`);

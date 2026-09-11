@@ -1,9 +1,120 @@
 import { getToken, gFetch } from "./azureGraph";
-import { ARM_SCOPES, RBAC_ROLE_IDS } from "../config/azureConfig";
+import { ARM_SCOPES, BACKEND_VERSION_KEYS, RBAC_ROLE_IDS } from "../config/azureConfig";
 import { deterministicUuid } from "../logic/crypto";
 import type { AzureAccount } from "../types";
 
 const ARM = "https://management.azure.com";
+
+// ── Function App code deployment ──────────────────────────────────────────────
+
+function appSettingsPath(subscriptionId: string, resourceGroup: string, name: string) {
+  return `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Web/sites/${name}/config/appsettings`;
+}
+
+export async function readFunctionAppSettings(
+  account: AzureAccount,
+  subscriptionId: string,
+  resourceGroup: string,
+  name: string,
+  overrideTenantId?: string,
+): Promise<Record<string, string>> {
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+  const path = `${appSettingsPath(subscriptionId, resourceGroup, name)}/list?api-version=${WEB_API}`;
+  return (await gFetch(token, ARM, path, { method: "POST" }))?.properties ?? {};
+}
+
+export async function updateFunctionAppSettings(
+  account: AzureAccount,
+  subscriptionId: string,
+  resourceGroup: string,
+  name: string,
+  settings: Record<string, string>,
+  overrideTenantId?: string,
+): Promise<void> {
+  const current = await readFunctionAppSettings(account, subscriptionId, resourceGroup, name, overrideTenantId);
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+  await gFetch(token, ARM, `${appSettingsPath(subscriptionId, resourceGroup, name)}?api-version=${WEB_API}`, {
+    method: "PUT",
+    body: JSON.stringify({ properties: { ...current, ...settings } }),
+  });
+}
+
+export type DeployedBackend = {
+  version: string;
+  sha: string;
+  builtAt: number;
+  deployedAt: number | null;
+};
+
+export async function fetchDeployedBackend(
+  account: AzureAccount,
+  subscriptionId: string,
+  resourceGroup: string,
+  name: string,
+  overrideTenantId?: string,
+): Promise<DeployedBackend | null> {
+  const settings = await readFunctionAppSettings(account, subscriptionId, resourceGroup, name, overrideTenantId);
+  const version = settings[BACKEND_VERSION_KEYS.version];
+  if (!version) return null;
+
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+
+  // Kudu owns when it went live; the stamp only knows what was sent.
+  let deployedAt: number | null = null;
+  const latest = await fetch(`https://${name}.scm.azurewebsites.net/api/deployments/latest`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (latest.ok) {
+    const ms = Date.parse((await latest.json())?.end_time ?? "");
+    if (!Number.isNaN(ms)) deployedAt = Math.floor(ms / 1000);
+  }
+  return {
+    version,
+    sha: settings[BACKEND_VERSION_KEYS.sha] ?? "",
+    builtAt: Number(settings[BACKEND_VERSION_KEYS.builtAt]) || 0,
+    deployedAt,
+  };
+}
+
+export async function deployZipToFunctionApp(
+  account: AzureAccount,
+  appName: string,
+  zip: Blob,
+  overrideTenantId?: string,
+  onProgress?: (phase: "uploading" | "deploying") => void,
+): Promise<void> {
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+  const scm = `https://${appName}.scm.azurewebsites.net`;
+
+  onProgress?.("uploading");
+  const res = await fetch(`${scm}/api/publish?type=zip`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/zip" },
+    body: zip,
+  });
+  if (!res.ok) {
+    throw new Error(`Deploying the package failed: ${res.status} ${(await res.text()).slice(0, 300)}`);
+  }
+
+  // One-deploy returns as soon as the package is accepted; the unpack happens afterwards.
+  onProgress?.("deploying");
+  const start = Date.now();
+  for (;;) {
+    await new Promise((r) => setTimeout(r, 5000));
+    const status = await fetch(`${scm}/api/deployments/latest`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (status.ok) {
+      const data = await status.json();
+      if (data?.complete === true) {
+        // Kudu's status: 3 is failed, 4 is success.
+        if (data.status === 3) throw new Error(`Deployment failed: ${data.status_text || data.progress || "unknown"}`);
+        return;
+      }
+    }
+    if (Date.now() - start > 600_000) throw new Error("Deployment did not finish within 10 minutes");
+  }
+}
 
 // ── Shared helpers ─────────────────────────────────────────────────────────────
 

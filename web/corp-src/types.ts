@@ -12,6 +12,7 @@ export type CardId =
   | "azure_app_registration"
   | "core_infra"
   | "remote_terminal_infra"
+  | "backend_deploy"
   | "create_domain"
   | "access_pass"
   | "global_groups"
@@ -84,6 +85,7 @@ export type SetupStep = {
   label: string;
   status: "pending" | "running" | "done" | "skipped" | "error";
   detail?: string;
+  progress?: number; // 0-1, renders a bar under the detail line
 };
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────

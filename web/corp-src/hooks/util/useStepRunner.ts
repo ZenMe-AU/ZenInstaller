@@ -12,14 +12,14 @@ export function useStepRunner(): {
   setSteps: Dispatch<SetStateAction<SetupStep[]>>;
   running: boolean;
   setRunning: Dispatch<SetStateAction<boolean>>;
-  updateStep: (id: string, status: SetupStep["status"], detail?: string) => void;
+  updateStep: (id: string, status: SetupStep["status"], detail?: string, progress?: number) => void;
   resetSteps: () => void;
 } {
   const [steps, setSteps] = useState<SetupStep[]>([]);
   const [running, setRunning] = useState(false);
 
-  const updateStep = useCallback((id: string, status: SetupStep["status"], detail?: string) => {
-    setSteps((prev) => prev.map((s) => (s.id === id ? { ...s, status, detail } : s)));
+  const updateStep = useCallback((id: string, status: SetupStep["status"], detail?: string, progress?: number) => {
+    setSteps((prev) => prev.map((s) => (s.id === id ? { ...s, status, detail, progress } : s)));
   }, []);
 
   const resetSteps = useCallback(() => setSteps([]), []);

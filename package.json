@@ -15,7 +15,7 @@
     "test:all": "pnpm -r test",
     "test:watch": "pnpm --filter web test:watch",
     "backend:start": "pnpm --filter backend start",
-    "backend:deploy": "pnpm --filter backend deploy",
+    "backend:deploy": "pnpm --filter backend run build",
     "web:preview": "pnpm --filter web preview",
     "docs:dev": "pnpm --filter web docs:dev",
     "docs:build": "pnpm --filter web docs:build",

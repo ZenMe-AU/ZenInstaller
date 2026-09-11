@@ -26,7 +26,7 @@ export function getAllowedOrigin(origin) {
   return "";
 }
 
-export function buildCorsResponse({ origin, status = 200, headers = {}, jsonBody } = {}) {
+export function buildCorsResponse({ origin, status = 200, headers = {}, jsonBody, body } = {}) {
   const allowedOrigin = getAllowedOrigin(origin);
 
   const corsHeaders = allowedOrigin
@@ -44,6 +44,7 @@ export function buildCorsResponse({ origin, status = 200, headers = {}, jsonBody
       ...headers,
     },
     ...(jsonBody !== undefined && { jsonBody }),
+    ...(body !== undefined && { body }), // Raw bytes for large files (e.g. the backend package).
   };
 }
 

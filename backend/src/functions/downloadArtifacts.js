@@ -3,6 +3,7 @@ import { Octokit } from "octokit";
 import { getAccessToken } from "../utils/auth.js";
 import { corsWrapper } from "../utils/cors.js";
 
+// TODO: merge with downloadArtifactZip
 app.http("downloadArtifacts", {
   methods: ["GET"],
   authLevel: "anonymous",

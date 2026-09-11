@@ -17,6 +17,7 @@ import { useAzureSubscriptionCard } from "./hooks/useAzureSubscriptionCard";
 import { useCreateDomainCard } from "./hooks/useCreateDomainCard";
 import { useCoreInfraCard } from "./hooks/useCoreInfraCard";
 import { useRemoteTerminalInfraCard } from "./hooks/useRemoteTerminalInfraCard";
+import { useBackendDeployCard } from "./hooks/useBackendDeployCard";
 import { useAccessPassCard } from "./hooks/useAccessPassCard";
 import { useAwsLoginCard } from "./hooks/useAwsLoginCard";
 import { useAwsSetupCard } from "./hooks/useAwsSetupCard";
@@ -30,6 +31,7 @@ import AzureAppRegistrationCard from "./cards/AzureAppRegistrationCard";
 import AzureSubscriptionCard from "./cards/AzureSubscriptionCard";
 import CoreInfraCard from "./cards/CoreInfraCard";
 import RemoteTerminalInfraCard from "./cards/RemoteTerminalInfraCard";
+import BackendDeployCard from "./cards/BackendDeployCard";
 import CreateDomainCard from "./cards/CreateDomainCard";
 import AccessPassCard from "./cards/AccessPassCard";
 import AwsLoginCard from "./cards/AwsLoginCard";
@@ -138,6 +140,17 @@ function AppDashboard() {
       githubAccount: githubRepoEnv.repo.selectedAccount,
       githubRepo: githubRepoEnv.repo.selectedRepo?.name ?? "",
       githubRepoId: typeof githubRepoEnv.repo.selectedRepo?.id === "number" ? githubRepoEnv.repo.selectedRepo.id : null,
+    }),
+  );
+  const backendDeploy = addCard(
+    useBackendDeployCard({
+      azureAccount: azureLogin.account,
+      subscriptionId: azureSubscription.selectedSubscriptionId,
+      tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
+      corpName,
+      githubAccount: githubRepoEnv.repo.selectedAccount,
+      repoName: githubRepoEnv.repo.selectedRepo?.name ?? "",
+      selectedEnv: githubRepoEnv.env.selectedEnv,
     }),
   );
   const createDomain = addCard(
@@ -351,6 +364,16 @@ function AppDashboard() {
               selectedEnv={githubRepoEnv.env.selectedEnv}
               variables={githubVariables}
               githubUrl={githubRepoEnv.githubEnvUrl}
+            />
+
+            <BackendDeployCard
+              card={cardProps("backend_deploy")}
+              backend={backendDeploy}
+              repoFullName={
+                githubRepoEnv.repo.selectedAccount && githubRepoEnv.repo.selectedRepo
+                  ? `${githubRepoEnv.repo.selectedAccount.login}/${githubRepoEnv.repo.selectedRepo.name}`
+                  : null
+              }
             />
 
             <CreateDomainCard

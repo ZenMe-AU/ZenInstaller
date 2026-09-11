@@ -65,6 +65,13 @@ export const RBAC_ROLE_IDS: Record<string, string> = {
   // Owner: "8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
 };
 
+// ── Function App settings the installer writes ─────────────────────────────────
+export const BACKEND_VERSION_KEYS = {
+  version: "BACKEND_VERSION",
+  sha: "BACKEND_SHA",
+  builtAt: "BACKEND_BUILT_AT",
+} as const;
+
 // ── Resource provider namespaces ───────────────────────────────────────────────
 export const CORE_INFRA_PROVIDERS = [
   "Microsoft.OperationalInsights",

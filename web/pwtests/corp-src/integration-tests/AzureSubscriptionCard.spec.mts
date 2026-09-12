@@ -1,9 +1,8 @@
 import { expect, test, } from "@playwright/test";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage, } from "../util/setupHelper.mts";
-import { chooseRepoOption, expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard, expectCardSnapshot, expectVisibleWithin, safePathSegment, sensitiveTextMasks, } from "../util/testHelper.mts";
+import { chooseRepoOption, expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard, expectCardSnapshot, expectVisibleWithin, openExistingAzureSubscription, safePathSegment, sensitiveTextMasks, } from "../util/testHelper.mts";
 import { CORP_URL, viewports, } from "../../testInit";
 
-// const azureSubscriptionRunId = Date.now().toString(36);
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Azure Subscription Card - ${viewportName}`, () => {
@@ -37,7 +36,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await page.getByRole("option").filter({ hasText: tenantId }).click()
 				await expect(azureSubscriptionCard.getByText("Select a tenant", { exact: true }),).toHaveCount(0);
 
-				await expectCardSnapshot(page, azureSubscriptionCard, testInfo, `${testName}-start.png`,
+				await expectCardSnapshot(page, azureSubscriptionCard, testInfo, safePathSegment(`${testName}-start.png`),
 					{
 						userId: "azure-login",
 						viewportName,
@@ -60,7 +59,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await cloneRepoButton.click();
 				await expectVisibleWithin(repoCard.getByText('Pick the environment to configure.'), "Text: Pick the environment to configure", 500000);
 				const subscriptionCard = await expandAzureSubscriptionCard(page);
-				await expectCardSnapshot(page, subscriptionCard, testInfo, `${testName}-clone-repo.png`,
+				await expectCardSnapshot(page, subscriptionCard, testInfo, safePathSegment(`${testName}-clone-repo.png`),
 					{
 						userId: "azure-login",
 						viewportName,
@@ -79,10 +78,15 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await expect(TEST).toBeVisible();
 				await PROD.click();
 				const createProdButton = repoCard.getByRole("button", { name: "Create New Branch: PROD", });
-				await expect(createProdButton).toBeVisible();
+				await expectVisibleWithin(createProdButton, "Button: Create New Branch: PROD", 30_000);
+				const sourceBranchSelect = createProdButton.locator("..").getByRole("combobox",);
+				await page.waitForTimeout(1000);
+				// await expect(sourceBranchSelect).toContainText("main", { timeout: 120_000, });
 				await createProdButton.click();
+				await expect(createProdButton).toBeHidden({ timeout: 30_000, });
+				await expect(repoCard.getByText(/^No branch found matching environment "PROD"\.$/),).toHaveCount(0);
 				const subscriptionCard = await expandAzureSubscriptionCard(page);
-				await expectCardSnapshot(page, subscriptionCard, testInfo, `${testName}-create-env.png`,
+				await expectCardSnapshot(page, subscriptionCard, testInfo, safePathSegment(`${testName}-create-env.png`),
 					{
 						userId: "azure-login",
 						viewportName,
@@ -106,9 +110,19 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await expect(azureSubscriptionCard.getByText("Select a repository & environment to save the tenant and subscription to GitHub.", { exact: true, },),).toHaveCount(0);
 				const subscriptionMask = await subscriptionSelect.isVisible() ? [subscriptionSelect,] : [];
 				const saveButton = azureSubscriptionCard.getByRole("button", { name: "Save 2 variables" });
-				await saveButton.click();
+				await expectCardSnapshot(page, azureSubscriptionCard, testInfo, safePathSegment(`${testName}-before-save.png`), {
+					userId: "azure-github-auth",
+					viewportName,
+					testFolder: "Azure Subscription Card Authenticated",
+					mask: [
+						azureSubscriptionCard.getByText(/^Tenant:/i,).locator("span",),
+						...sensitiveTextMasks(azureSubscriptionCard,),
+						...subscriptionMask,
+					],
+				},);
 
-				await expectCardSnapshot(page, azureSubscriptionCard, testInfo, `${testName}-end.png`, {
+				await saveButton.click();
+				await expectCardSnapshot(page, azureSubscriptionCard, testInfo, safePathSegment(`${testName}-end.png`), {
 					userId: "azure-github-auth",
 					viewportName,
 					testFolder: "Azure Subscription Card Authenticated",
@@ -119,6 +133,116 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 					],
 				},);
 			});
+		})
+
+
+		test("Selecting an existing repository with environment variables already saved", async ({ page, context, }, testInfo) => {
+			test.setTimeout(300_000);
+			const { azureSubscriptionCard, tenantVariableInput, subscriptionVariableInput, saveButton, } = await openExistingAzureSubscription(page, context, viewportName,);
+
+			await expect(tenantVariableInput).not.toHaveValue("");
+			await expect(subscriptionVariableInput).not.toHaveValue("");
+			await expect(azureSubscriptionCard.getByText("Unsaved change — save to apply.", { exact: true, }),).toHaveCount(0);
+			await expect(saveButton).toBeDisabled();
+
+			await expectCardSnapshot(page, azureSubscriptionCard, testInfo, safePathSegment(`edge-case-existing-repo.png`,), {
+				userId: "azure-github-auth",
+				viewportName,
+				testFolder: "Azure Subscription Card Authenticated",
+				mask: sensitiveTextMasks(azureSubscriptionCard,),
+			},);
+		})
+
+		test("Modifying one existing prefilled variable", async ({ page, context, }, testInfo) => {
+			test.setTimeout(300_000);
+			const { azureSubscriptionCard, subscriptionVariableInput, saveButton, } = await openExistingAzureSubscription(page, context, viewportName,);
+			const savedSubscriptionId = await subscriptionVariableInput.inputValue();
+
+			await subscriptionVariableInput.fill(`${savedSubscriptionId}-modified`,);
+			const saveOneVariableButton = azureSubscriptionCard.getByRole("button", { name: "Save 1 variable" });
+			await expect(saveOneVariableButton).toBeEnabled();
+			await expect(azureSubscriptionCard.getByText("overwrites", { exact: true, }),).toBeVisible();
+
+			await expectCardSnapshot(page, azureSubscriptionCard, testInfo, safePathSegment(`edge-case-variable-modified.png`,), {
+				userId: "azure-github-auth",
+				viewportName,
+				testFolder: "Azure Subscription Card Authenticated",
+				mask: sensitiveTextMasks(azureSubscriptionCard,),
+			},);
+
+			await azureSubscriptionCard.getByRole("button", { name: "Revert to saved value", }).click();
+			await expect(subscriptionVariableInput).toHaveValue(savedSubscriptionId);
+			await expect(azureSubscriptionCard.getByText("overwrites", { exact: true, }),).toHaveCount(0);
+			await expect(saveButton).toBeDisabled();
+		})
+
+		test("Modifying all existing prefilled variables", async ({ page, context, }, testInfo) => {
+			test.setTimeout(300_000);
+			const { azureSubscriptionCard, tenantVariableInput, subscriptionVariableInput, saveButton, } = await openExistingAzureSubscription(page, context, viewportName,);
+			const savedTenantId = await tenantVariableInput.inputValue();
+			const savedSubscriptionId = await subscriptionVariableInput.inputValue();
+			const tenantVariableRow = azureSubscriptionCard.getByText("AZURE_TENANT_ID", { exact: true, }).locator("..").locator("..");
+			const subscriptionVariableRow = azureSubscriptionCard.getByText("AZURE_SUBSCRIPTION_ID", { exact: true, }).locator("..").locator("..");
+
+			await tenantVariableInput.fill(`modified`,);
+			await subscriptionVariableInput.fill(`modified`,);
+			const saveTwoVariablesButton = azureSubscriptionCard.getByRole("button", { name: "Save 2 variables" });
+			await expect(saveTwoVariablesButton).toBeEnabled();
+			await expect(azureSubscriptionCard.getByText("overwrites", { exact: true, }),).toHaveCount(2);
+			
+			const subscriptionSelect = azureSubscriptionCard.getByRole("combobox",);
+			await expectCardSnapshot(page, azureSubscriptionCard, testInfo, safePathSegment(`$edge-case-both-variables-modified.png`,), {
+				userId: "azure-github-auth",
+				viewportName,
+				testFolder: "Azure Subscription Card Authenticated",
+				mask: [subscriptionSelect],
+			},);
+
+			await tenantVariableRow.getByRole("button", { name: "Revert to saved value", }).click();
+			await subscriptionVariableRow.getByRole("button", { name: "Revert to saved value", }).click();
+			await expect(tenantVariableInput).toHaveValue(savedTenantId);
+			await expect(subscriptionVariableInput).toHaveValue(savedSubscriptionId);
+			await expect(azureSubscriptionCard.getByText("overwrites", { exact: true, }),).toHaveCount(0);
+			await expect(saveButton).toBeDisabled();
+		})
+
+		test("Both prefilled variables are removed before saving", async ({ page, context, }, testInfo) => {
+			test.setTimeout(300_000);
+			const { azureSubscriptionCard, tenantVariableInput, subscriptionVariableInput, } = await openExistingAzureSubscription(page, context, viewportName,);
+			const savedTenantId = await tenantVariableInput.inputValue();
+			const savedSubscriptionId = await subscriptionVariableInput.inputValue();
+
+			try {
+				await tenantVariableInput.fill("");
+				await subscriptionVariableInput.fill("");
+				const removeVariablesButton = azureSubscriptionCard.getByRole("button", { name: "Save 2 variables", exact: true, });
+				await expect(removeVariablesButton).toBeEnabled();
+				await expect(azureSubscriptionCard.getByText("overwrites", { exact: true, }),).toHaveCount(2);
+				await removeVariablesButton.click();
+
+				await expect(tenantVariableInput).toHaveValue("");
+				await expect(subscriptionVariableInput).toHaveValue("");
+				await expect(azureSubscriptionCard.getByText("2 not configured", { exact: true, }),).toBeVisible({ timeout: 60_000, });
+				
+				const subscriptionSelect = azureSubscriptionCard.getByRole("combobox",);
+				await expectCardSnapshot(page, azureSubscriptionCard, testInfo, safePathSegment(`edge-case-both-variables-removed.png`,), {
+					userId: "azure-github-auth",
+					viewportName,
+					testFolder: "Azure Subscription Card Authenticated",
+					mask: [subscriptionSelect],
+				},);
+			} finally {
+				await tenantVariableInput.fill(savedTenantId);
+				await subscriptionVariableInput.fill(savedSubscriptionId);
+				const restoreVariablesButton = azureSubscriptionCard.getByRole("button", { name: "Save 2 variables", exact: true, });
+				if (await restoreVariablesButton.isEnabled()) {
+					await restoreVariablesButton.click();
+				}
+				await expect(tenantVariableInput).toHaveValue(savedTenantId);
+				await expect(subscriptionVariableInput).toHaveValue(savedSubscriptionId);
+				await expect(azureSubscriptionCard.getByText("2 not configured", { exact: true, }),).toHaveCount(0, { timeout: 60_000, });
+				await expect(azureSubscriptionCard.getByRole("button", { name: "Save variables", exact: true, }),).toBeDisabled({ timeout: 60_000, });
+			}
 		})
 	});
 }

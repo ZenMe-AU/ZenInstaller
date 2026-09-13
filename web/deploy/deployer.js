@@ -16,7 +16,7 @@ await runDeploy({
   subscriptionId: tfvars.subscription_id,
   vaultName: tfvars.key_vault_name,
   secretList: {
-    "oauth-secret": process.env.OAUTH_SECRET,
+    "oauth-secret": process.env.GITHUB_OAUTH_CLIENT_SECRET,
   },
   functionAppName: tfvars.function_app_name,
   resourceGroupName: tfvars.resource_group_name,

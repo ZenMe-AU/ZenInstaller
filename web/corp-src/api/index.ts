@@ -21,9 +21,6 @@ export const switchToBackend = () => {
 export { createGithubApi } from "./github";
 export type { ApiProvider } from "./github";
 
-// Always-backend — exchangePkceCode needs OAUTH_SECRET server-side
-export { exchangePkceCode, logout } from "./backend";
-
 // fetchGithubUser — used with an explicit token before provider is set (initial PAT check)
 export { fetchGithubUser } from "./github";
 
@@ -93,5 +90,4 @@ export const setOidcImmutableSubject: ApiProvider["setOidcImmutableSubject"] = (
 export const triggerWorkflow: ApiProvider["triggerWorkflow"] = (...a) => _provider.triggerWorkflow(...a);
 export const triggerWorkflowFromPR: ApiProvider["triggerWorkflowFromPR"] = (...a) =>
   _provider.triggerWorkflowFromPR(...a);
-export const deployChangeset: ApiProvider["deployChangeset"] = (...a) => _provider.deployChangeset(...a);
 export const triggerRemoteLogin: ApiProvider["triggerRemoteLogin"] = (...a) => _provider.triggerRemoteLogin(...a);

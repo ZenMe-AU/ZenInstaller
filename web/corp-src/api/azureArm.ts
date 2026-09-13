@@ -1,9 +1,8 @@
-import { getToken, gFetch } from "./azureGraph";
+import { getToken } from "./msal";
+import { azFetch as gFetch, ARM } from "./azureFetch";
 import { ARM_SCOPES, BACKEND_VERSION_KEYS, RBAC_ROLE_IDS } from "../config/azureConfig";
 import { deterministicUuid } from "../logic/crypto";
 import type { AzureAccount } from "../types";
-
-const ARM = "https://management.azure.com";
 
 // ── Function App code deployment ──────────────────────────────────────────────
 

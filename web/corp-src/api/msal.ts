@@ -53,3 +53,46 @@ export async function ensureScopeConsent(
   await msal.acquireTokenRedirect(request);
   return true;
 }
+
+// ── Tokens ────────────────────────────────────────────────────────────────────
+export async function getToken(account: AzureAccount, scopes: string[], overrideTenantId?: string): Promise<string> {
+  const msal = await getMsal();
+  if (!msal) throw new Error("MSAL not configured");
+
+  const isArm = scopes.some((s) => s.includes("management.azure.com"));
+  if (isArm && account.tenantId === MSA_TENANT && !overrideTenantId) {
+    throw new Error("MSA_NEEDS_TENANT");
+  }
+
+  const tenant = overrideTenantId ?? account.tenantId;
+  const authority = tenant !== MSA_TENANT ? `https://login.microsoftonline.com/${tenant}` : undefined;
+
+  const res = await msal.acquireTokenSilent({
+    scopes,
+    account,
+    ...(authority ? { authority } : {}),
+  });
+  return res.accessToken;
+}
+
+let activeAccount: AzureAccount | null = null;
+let activeTenantId: string | undefined;
+
+// Called by whoever owns the selection, so this stays a mirror rather than a second source.
+export function setActiveAzureIdentity(account: AzureAccount | null, tenantId?: string): void {
+  activeAccount = account;
+  // getToken's ?? treats "" as a real tenant, so an unloaded variable has to become undefined.
+  activeTenantId = tenantId || undefined;
+}
+
+// Acquired per call rather than held: MSAL refreshes silently and callers are minutes apart.
+export async function getMsToken(scopes: string[]): Promise<string | null> {
+  if (!activeAccount) return null;
+  return getToken(activeAccount, scopes, activeTenantId);
+}
+
+export async function requireMsToken(scopes: string[]): Promise<string> {
+  const token = await getMsToken(scopes);
+  if (!token) throw new Error("Sign in with Microsoft first");
+  return token;
+}

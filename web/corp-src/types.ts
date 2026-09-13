@@ -1,6 +1,7 @@
 import type { AccountInfo } from "@azure/msal-browser";
 
 export type AzureAccount = AccountInfo;
+export type AzureTenant = { tenantId: string; displayName: string; defaultDomain?: string };
 
 // ─── Card ─────────────────────────────────────────────────────────────────────
 

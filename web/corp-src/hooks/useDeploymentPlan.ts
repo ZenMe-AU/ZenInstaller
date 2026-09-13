@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { deployChangeset, fetchStageReport, getPlanEnv, triggerWorkflow } from "../api";
+import { fetchStageReport, getPlanEnv, triggerWorkflow } from "../api";
 import type { Account, Branch, GhEnv, PipelineConfig, PlanSummary, Stage, StageReport } from "../types";
 
 interface PollContext {
@@ -250,6 +250,7 @@ export function useDeploymentPlan(opts: {
     implRef.current.startPollingImpl(matchedBranch.name, 0, triggerTime, stageKey, "plan");
   }, []);
 
+  // Watches for the deploy report. The remote terminal is what actually dispatches the run.
   const deployStage = useCallback(async (stageKey: string) => {
     const acc = accountRef.current;
     const repo = repoNameRef.current;
@@ -259,22 +260,6 @@ export function useDeploymentPlan(opts: {
     if (!acc || !repo || !env || !stageDef || !stage?.runId) return;
 
     patchRun(stageKey, { kind: "deploy", countdown: 0, retryCount: 0, error: null });
-
-    try {
-      await deployChangeset(
-        acc,
-        repo,
-        stage.runId,
-        pipelineRef.current.deployWorkflowId,
-        stageDef.dir,
-        env.name,
-        env.name,
-      );
-    } catch (e) {
-      console.error("Failed to trigger deploy:", e);
-      patchRun(stageKey, { error: "Failed to trigger deploy", countdown: 0 });
-      return;
-    }
 
     const triggerTime = Date.now();
     // Same branch lookup onRun does, from the same ref. onRun treats no match as an error while

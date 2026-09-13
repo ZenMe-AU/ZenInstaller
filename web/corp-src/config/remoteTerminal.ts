@@ -1,9 +1,3 @@
-// Session backend of the azure-remote-login deployment.
-export const REMOTE_TERMINAL_API = (import.meta.env.VITE_REMOTE_TERMINAL_API as string | undefined)?.replace(
-  /\/+$/,
-  "",
-);
-
 // Matches SESSION_TTL in the remote-login runner, so both sides expire together.
 export const REMOTE_TERMINAL_TTL_SECONDS = 1800;
 
@@ -33,3 +27,19 @@ export const TERMINAL_THEME = {
   cursor: TERMINAL_COLORS.accent,
   selectionBackground: TERMINAL_COLORS.surface,
 } as const;
+
+// The runner names the stages; these are what the card shows for them.
+const STAGE_LABELS: Record<string, string> = {
+  connecting: "Connecting...",
+  "azure-login": "Azure Login",
+  "aws-login": "AWS Login",
+  "terraform-init": "Terraform Init",
+  "terraform-plan": "Terraform Plan",
+  done: "Complete",
+  error: "Error",
+};
+
+// An unknown stage shows as itself rather than blank, so a new runner stage is still readable.
+export function stageLabel(stage: string): string {
+  return STAGE_LABELS[stage] ?? stage;
+}

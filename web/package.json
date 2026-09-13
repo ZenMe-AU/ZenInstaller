@@ -14,7 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "backend:dev": "pnpm --filter backend start",
-    "backend:deploy": "pnpm --filter backend run deploy"
+    "backend:deploy": "pnpm --filter backend run build"
   },
   "dependencies": {
     "@aws-sdk/client-iam": "^3.1114.0",

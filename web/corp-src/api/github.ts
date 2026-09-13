@@ -429,23 +429,6 @@ export function createGithubApi(token: string) {
   ): Promise<void> {
     return triggerWorkflow(account, repo, workflowId, githubEnvName, commitSha);
   }
-
-  async function deployChangeset(
-    account: Account,
-    repo: string,
-    runId: string,
-    workflowId: string,
-    dir: string,
-    githubEnvName: string,
-    ref: string,
-  ): Promise<void> {
-    const res = await gh(`/repos/${account.login}/${repo}/actions/workflows/${workflowId}/dispatches`, {
-      method: "POST",
-      body: JSON.stringify({ ref, inputs: { github_env_name: githubEnvName, plan_run_id: runId, dir } }),
-    });
-    if (!res.ok) throw new Error(`Failed to trigger deploy: ${res.status}`);
-  }
-
   // Hands the workflow the session the browser already registered, never the access token.
   async function triggerRemoteLogin(account: Account, repo: string, opts: RemoteLoginDispatch): Promise<void> {
     const res = await gh(`/repos/${account.login}/${repo}/actions/workflows/${opts.workflowId}/dispatches`, {
@@ -490,7 +473,6 @@ export function createGithubApi(token: string) {
     fetchPlan,
     triggerWorkflow,
     triggerWorkflowFromPR,
-    deployChangeset,
     triggerRemoteLogin,
   };
 }

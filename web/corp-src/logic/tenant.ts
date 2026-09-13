@@ -1,4 +1,4 @@
-import type { AzureTenant } from "../api/azureGraph";
+import type { AzureTenant } from "../types";
 
 // Looks up a tenant's display name in a fetched list, falling back to the raw id when unknown.
 export function tenantDisplayName(tenants: AzureTenant[], tenantId: string | null | undefined): string | undefined {

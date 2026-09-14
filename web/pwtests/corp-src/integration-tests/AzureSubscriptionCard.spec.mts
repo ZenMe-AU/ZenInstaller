@@ -79,9 +79,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await PROD.click();
 				const createProdButton = repoCard.getByRole("button", { name: "Create New Branch: PROD", });
 				await expectVisibleWithin(createProdButton, "Button: Create New Branch: PROD", 30_000);
-				const sourceBranchSelect = createProdButton.locator("..").getByRole("combobox",);
-				await page.waitForTimeout(1000);
-				// await expect(sourceBranchSelect).toContainText("main", { timeout: 120_000, });
+				await page.waitForTimeout(2000);
 				await createProdButton.click();
 				await expect(createProdButton).toBeHidden({ timeout: 30_000, });
 				await expect(repoCard.getByText(/^No branch found matching environment "PROD"\.$/),).toHaveCount(0);

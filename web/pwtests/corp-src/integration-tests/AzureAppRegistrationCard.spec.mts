@@ -55,6 +55,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await prodEnvironment.click();
 				const createProdButton = card.getByRole("button", { name: "Create New Branch: PROD" });
 				await expect(createProdButton).toBeVisible();
+				await page.waitForTimeout(1000);
 				await createProdButton.click();
 				await expect(createProdButton).toBeHidden({ timeout: 30_000 });
 				return card;
@@ -65,7 +66,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await expect(card.getByText("Loading subscriptions...", { exact: true })).toBeHidden({ timeout: 60_000 });
 				const subscriptionSelect = card.getByRole("combobox");
 				await expect(subscriptionSelect).toBeVisible({ timeout: 100_000 });
-				await card.getByRole("button", { name: "Save 2 variables" }).click();
+				await card.getByRole("button", { name: "Save 2 variables"} ).click();
 				await expect(card.getByRole("button", { name: /^Save\s+variables$/ })).toBeDisabled({ timeout: 60_000 });
 			});
 

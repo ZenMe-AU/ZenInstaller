@@ -1,25 +1,48 @@
 import { expect, test } from "@playwright/test";
 import { getCorpGithubAuthMode, restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { CORP_URL, viewports, } from "../../testInit";
-import { expandGithubLoginCard, expectCardSnapshot, sensitiveTextMasks } from "../util/testHelper.mts";
+import { expandGithubLoginCard, expectCardSnapshot, safePathSegment, sensitiveTextMasks } from "../util/testHelper.mts";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`GitHub Login Card - ${viewportName}`, () => {
 		test.use({ viewport, deviceScaleFactor: 1 });
 		
-		test.beforeEach(async ({ page }) => {
+		test("Happy path", async ({ page, context, }, testInfo) => {
+			const testName = safePathSegment(testInfo.title,);
 			await page.goto(CORP_URL);
+			
+			const githubCard = await test.step("Expand Unauthenticated Github Login Card", async () => {
+				const githubCard = await expandGithubLoginCard(page,);
+				await expectCardSnapshot(page, githubCard, testInfo, `${testName}-start.png`, { userId: "signed-out", viewportName, testFolder: "GitHub Login Card", },);
+				return githubCard;
+			});
+			
+			await test.step("Shows authenticated GitHub card after login", async () => {
+				await restoreGithubSessionStorage(context,);
+				await page.reload();
+
+				const authMode = getCorpGithubAuthMode();
+				expect(authMode,).not.toBeNull();
+				const githubCard = await expandGithubLoginCard(page,);
+				await expect(githubCard.getByText(/Authenticated as/i,),).toBeVisible();
+				const patMode = githubCard.getByText(/· PAT mode/i,);
+				if (authMode === "direct") {
+					await expect(patMode,).toBeVisible();
+				} else {
+					await expect(patMode,).toHaveCount(0);
+				}
+				await expect(githubCard.getByRole("button", { name: "Sign out", exact: true, }),).toBeVisible();
+				await expect(githubCard.getByRole("button", { name: "Login with GitHub", exact: true, }),).toHaveCount(0);
+				await expectCardSnapshot(page, githubCard, testInfo, `${testName}-end.png`,
+					{ userId: `${testName}-end.png`, viewportName, testFolder: "GitHub Login Card Authenticated", mask: sensitiveTextMasks(githubCard,), },
+				);
+			});
+
 		});
 
-		test("Renders GitHub login card with Backend mode defaults", async ({ page, }, testInfo) => {
-			const githubCard = await expandGithubLoginCard(page,);
-			await expect(githubCard.getByRole("button", { name: "Backend", exact: true, }),).toBeVisible();
-			await expect(githubCard.getByRole("button", { name: "Direct (PAT)", exact: true, }),).toBeVisible();
-			await expect(githubCard.getByRole("button", { name: "Login with GitHub", exact: true, }),).toBeVisible();
-			await expectCardSnapshot(page, githubCard, testInfo, "backend-mode.png", { userId: "signed-out", viewportName, testFolder: "GitHub Login Card", },);
-		});
 
 		test("Testing invalid PAT token in direct (PAT) mode", async ({ page }, testInfo) => {
+			await page.goto(CORP_URL);
 			const githubCard = await expandGithubLoginCard(page,);
 			await githubCard.getByRole("button", { name: "Direct (PAT)", exact: true, }).click();
 			const patInput = githubCard.getByPlaceholder("ghp_… or github_pat_…",);
@@ -34,7 +57,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		});
 
 		test("Can switch from Direct mode back to Backend mode", async ({ page, context }) => {
-			await restoreGithubSessionStorage(context,);
+			await page.goto(CORP_URL);
 			const githubCard = await expandGithubLoginCard(page,);
 			await githubCard.getByRole("button", { name: "Direct (PAT)", exact: true, }).click();
 			await expect(githubCard.getByRole("button", { name: "Connect with PAT", exact: true, }),).toBeVisible();
@@ -42,25 +65,5 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expect(githubCard.getByRole("button", { name: "Login with GitHub", exact: true, }),).toBeVisible();
 		});
 
-		test("Shows authenticated GitHub card after login", async ({ page, context }, testInfo) => {
-			await restoreGithubSessionStorage(context,);
-			await page.reload();
-
-			const authMode = getCorpGithubAuthMode();
-			expect(authMode,).not.toBeNull();
-			const githubCard = await expandGithubLoginCard(page,);
-			await expect(githubCard.getByText(/Authenticated as/i,),).toBeVisible();
-			const patMode = githubCard.getByText(/· PAT mode/i,);
-			if (authMode === "direct") {
-				await expect(patMode,).toBeVisible();
-			} else {
-				await expect(patMode,).toHaveCount(0);
-			}
-			await expect(githubCard.getByRole("button", { name: "Sign out", exact: true, }),).toBeVisible();
-			await expect(githubCard.getByRole("button", { name: "Login with GitHub", exact: true, }),).toHaveCount(0);
-			await expectCardSnapshot(page, githubCard, testInfo, `${authMode}-auth-state.png`,
-				{ userId: `github-${authMode}`, viewportName, testFolder: "GitHub Login Card Authenticated", mask: sensitiveTextMasks(githubCard,), },
-			);
-		});
 	});
 }

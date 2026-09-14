@@ -278,7 +278,7 @@ export async function openExistingAzureSubscription(page: Page, context: Browser
 
 	const tenantVariableInput = azureSubscriptionCard.getByText("AZURE_TENANT_ID", { exact: true, }).locator("..").locator("..").getByRole("textbox",);
 	const subscriptionVariableInput = azureSubscriptionCard.getByText("AZURE_SUBSCRIPTION_ID", { exact: true, }).locator("..").locator("..").getByRole("textbox",);
-	const saveButton = azureSubscriptionCard.getByRole("button", { name: "Save variables", exact: true, });
+	const saveButton = azureSubscriptionCard.getByRole("button", { name: "Save variables" });
 	await expect.poll(async () => (await tenantVariableInput.inputValue()).trim(), { timeout: 60_000, },).not.toBe("");
 	await expect.poll(async () => (await subscriptionVariableInput.inputValue()).trim(), { timeout: 60_000, },).not.toBe("");
 	if (expectSavedVariables) {

@@ -74,6 +74,7 @@ export async function expectPageSnapshot(page: Page, testInfo: TestInfo, snapsho
 }
 
 // takes snapshot of a specific card element, rather than the whole page
+//TODO: rename to expectSnapshot and simplify function call 
 export async function expectCardSnapshot(page: Page, card: Locator, testInfo: TestInfo, snapshotName: string, options: PageSnapshotOptions,): Promise<void> {
 	await page.waitForLoadState("domcontentloaded").catch(() => undefined);
 	await page.waitForLoadState("networkidle").catch(() => undefined);

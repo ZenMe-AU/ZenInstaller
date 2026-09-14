@@ -3,7 +3,7 @@
   "tasks": [
     {
       "type": "shell",
-      "label": "Install Node Dependencies",
+      "label": "Install Dependencies",
       "command": "pnpm install",
       "options": {
         "cwd": "${workspaceFolder:ROOT}"
@@ -15,7 +15,7 @@
       "command": "pnpm",
       "args": ["exec", "azurite", "--silent", "--location", "${workspaceFolder:ROOT}/azurite", "--debug", "${workspaceFolder:ROOT}/azurite/debug.log"],
       "isBackground": true,
-      "dependsOn": ["Install Node Dependencies"],
+      "dependsOn": ["Install Dependencies"],
       "problemMatcher": {
         "owner": "custom",
         "pattern": {

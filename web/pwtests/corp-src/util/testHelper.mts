@@ -1,0 +1,301 @@
+import { BrowserContext, expect, type Locator, type Page, type Route, type TestInfo } from "@playwright/test";
+import fs from "fs";
+import path from "node:path";
+import { restoreAzureSessionStorage, restoreGithubSessionStorage } from "./setupHelper.mts";
+import { CORP_URL } from "../../testInit";
+
+export type PageSnapshotOptions = {
+	userId: string;
+	viewportName: string;
+	testFolder?: string;
+	mask?: Locator[];
+  	stabilizeAuth?: boolean;
+};
+
+/* -------------------------------------- SHARED HELPER FUNCTIONS ------------------------------------------------------------------*/
+
+// Returns sensitive identity fields contained by the supplied page or locator.
+export function sensitiveTextMasks(root: Page | Locator,): Locator[] {
+	return [root.locator('[data-sensitive="true"]'),]; //TODO: filter out items not visible on UI
+}
+
+// Normalizes arbitrary strings into stable snapshot path segments.
+export function safePathSegment(value: string,): string {
+	const safeValue = value
+		.trim()
+		.replace(/[^a-zA-Z0-9._-]+/g,"-",)
+		.replace(/^[-_.]+|[-_.]+$/g,"",);
+	return safeValue || "unnamed";
+}
+
+function snapshotPath(testInfo: TestInfo, viewportName: string, snapshotName: string,): string[] {
+	const relativeTestPath = path.relative(testInfo.project.testDir, testInfo.file,);
+	const testPathSegments = relativeTestPath.split(path.sep,).map((segment,) => safePathSegment(segment,),);
+	const testFile = testPathSegments.pop()?.replace(/\.spec\.(?:m?[jt]sx?)$/, "",) ?? "unnamed";
+	const sourceFolder = testPathSegments.shift();
+
+	return [
+		...(sourceFolder ? [sourceFolder,] : []),
+		"snapshots",
+		...testPathSegments,
+		safePathSegment(testFile,),
+		safePathSegment(viewportName,),
+		safePathSegment(snapshotName.endsWith(".png") ? snapshotName : `${snapshotName}.png`,),
+	];
+}
+
+// Waits for visual stability and compares against a stored screenshot baseline.
+export async function expectPageSnapshot(page: Page, testInfo: TestInfo, snapshotName: string, options: PageSnapshotOptions,): Promise<void> {
+	await page.waitForLoadState("domcontentloaded").catch(() => undefined);
+	await page.waitForLoadState("networkidle").catch(() => undefined);
+	await page.locator("body").evaluate(async () => {
+	await document.fonts?.ready;}).catch(() => undefined);
+	await page.waitForTimeout(300).catch(() => undefined);
+
+	const relativeSnapshotPath = snapshotPath(testInfo, options.viewportName, snapshotName,);
+	const expectedSnapshotPath = testInfo.snapshotPath(...relativeSnapshotPath,);
+	const baselineExists = fs.existsSync(expectedSnapshotPath,);
+
+	if (!baselineExists && testInfo.config.updateSnapshots === "missing") {
+		console.info(["","Generating missing baseline snapshot:",expectedSnapshotPath,"",].join("\n"),);
+	}
+
+	await expect(page).toHaveScreenshot(
+		relativeSnapshotPath,
+		{
+			fullPage: false,
+			animations: "disabled",
+			caret: "hide",
+			maxDiffPixelRatio: 0.02,
+			mask: options.mask ?? [],
+        	maskColor: "rgb(0, 0, 0)",
+		},
+	);
+}
+
+// takes snapshot of a specific card element, rather than the whole page
+export async function expectCardSnapshot(page: Page, card: Locator, testInfo: TestInfo, snapshotName: string, options: PageSnapshotOptions,): Promise<void> {
+	await page.waitForLoadState("domcontentloaded").catch(() => undefined);
+	await page.waitForLoadState("networkidle").catch(() => undefined);
+	await page.locator("body").evaluate(async () => document.fonts?.ready).catch(() => undefined);
+	await page.waitForTimeout(300).catch(() => undefined);
+
+	const relativeSnapshotPath = snapshotPath(testInfo, options.viewportName, snapshotName,);
+	const originalStyle = await card.evaluate((element,) => element.getAttribute("style"),);
+	const screenshotStyle = await page.addStyleTag({
+		content: "html { scrollbar-width: none !important; } html::-webkit-scrollbar { display: none !important; }",
+	},);
+
+	try {
+		await card.evaluate((element,) => {
+			const cardElement = element as HTMLElement;
+			cardElement.style.position = "fixed";
+			cardElement.style.inset = "0";
+			cardElement.style.width = "100vw";
+			cardElement.style.height = "auto";
+			cardElement.style.maxWidth = "100vw";
+			cardElement.style.maxHeight = "none";
+			cardElement.style.overflow = "visible";
+			cardElement.style.zIndex = "2147483647";
+			cardElement.style.borderRadius = "0";
+		},);
+
+		await expect(card).toHaveScreenshot(relativeSnapshotPath, {
+			animations: "disabled",
+			caret: "hide", 
+			maxDiffPixelRatio: 0.02,
+			mask: options.mask ?? [],
+			maskColor: "rgb(0, 0, 0)",
+		},);
+	} finally {
+		await screenshotStyle.evaluate((element,) => element.parentNode?.removeChild(element),);
+		await card.evaluate((element, style,) => {
+			if (style === null) {
+				element.removeAttribute("style");
+			} else {
+				element.setAttribute("style", style,);
+			}
+		}, originalStyle,);
+	}
+}
+
+/* ---------------------------------------------- GITHUB LOGIN CARD ------------------------------------------------------------------*/
+
+export async function expandGithubLoginCard(page: Page,) {
+	const githubCard = page.locator("#card-github_login",);
+	const introText = githubCard.getByText(/Connect your GitHub account so ZenInstaller can create the repository, environment, and secrets needed to deploy Zenblox\./i,);
+	if (!(await introText.isVisible())) {await githubCard.getByText(/^GitHub login$/i,).click();}
+	await expect(introText).toBeVisible();
+	return githubCard;
+}
+
+/* ---------------------------------------------- AZURE LOGIN CARD ------------------------------------------------------------------*/
+
+export async function expandAzureLoginCard(page: Page) {
+	const azureCard = page.locator("#card-azure_login");
+	const introText = azureCard.getByText(/Sign in with Azure so we can create the app registration and cloud resources for you\./i);
+	if (!(await introText.isVisible())) {await azureCard.getByText(/^Azure login$/i).click();}
+	await expect(introText).toBeVisible();
+	return azureCard;
+}
+
+/* ---------------------------------------------- REP ENV CARD ------------------------------------------------------------------*/
+
+const isDebugEnabled = process.env.DEBUG?.includes('pw:api') || process.env.NODE_ENV === 'development';
+
+export async function expandRepoCard(page: Page,) {
+	const repoCard = page.locator("#card-repo",);
+	const repoInput = repoCard.getByRole("combobox", { name: "Select or type repo name...", },);
+	if (!(await repoInput.isVisible())) {await repoCard.getByText(/^Repository & environment$/i,).click();}
+	await expect(repoInput).toBeVisible();
+	return repoCard;
+}
+
+export async function chooseRepoOption(page: Page, card: Locator, reponame: string, options: { reuseExisting?: boolean } = {}) {
+	const repoInput = card.getByRole("combobox", { name: "Select or type repo name...", });
+	await repoInput.click();
+	await waitForLocatorContentLoaded(page.getByRole("option",), "No options", "Repo list", 5000000);
+	await repoInput.fill(reponame);
+	const escapedRepoName = reponame.replace(/[.*+?^${}()|[\]\\]/g, "\\$&",);
+	const alreadyClonedOption = page.getByRole("option", { name: new RegExp(`^(?:▪\\s*)?${escapedRepoName}$`, "i",), });
+	const cloneOption = page.getByRole("option", { name: new RegExp(`^Clone as [\"'“‘]${escapedRepoName}[\"'”’]$`,), });
+
+	await expect(alreadyClonedOption.or(cloneOption),).toBeVisible();
+	if (await alreadyClonedOption.isVisible()) {
+		if (!options.reuseExisting) {
+			throw new Error(`The repo "${reponame}" already exists. Please delete it from your GitHub account before running this test.`);
+		}
+
+		await alreadyClonedOption.click();
+		await expect(repoInput).toHaveValue(reponame);
+		await expect(card.getByText("Valid", { exact: true, }),).toBeVisible();
+		return "existing" as const;
+	}
+
+	await expectVisibleWithin(cloneOption, `Clone as ${reponame}`, 500,);
+	await cloneOption.click();
+	// Confirm the option click changed the application's state.
+	await expect(cloneOption).toBeHidden();
+	await expect(repoInput).toHaveAttribute("aria-expanded", "false");
+	await expectVisibleWithin(card.getByText("Clone from template",), "Clone from template", 500,);
+	await expect(card.getByRole("button", { name: "Clone Repository" }),).toBeVisible();
+	await expect(card.getByRole("switch", { name: "Private" }),).toBeChecked();
+	await expect(card.getByRole("switch", { name: "Clone all branches" }),).not.toBeChecked();
+	await expect(card.getByRole("switch", { name: "Create environments" }),).toBeChecked();
+	await expect(card.getByText(/Pick the environment to configure/i),).toHaveCount(0);
+	return "new" as const;
+}
+
+export async function logMockAPI(page: Page, route: Route, status: number, body: unknown) {
+	const message = `Mock Route Method : ${route.request().method()} , URL : ${route.request().url()} | Fulfilled with ${status} | Body: ${body}`;
+	if (isDebugEnabled) { console.log(message) }
+}
+
+export async function expectVisibleWithin(locator: Locator, label: string, timeoutMs = 500,) {
+	const start = performance.now();
+	try {
+		await expect(locator,).toBeVisible({ timeout: timeoutMs, });
+	} finally {
+		const elapsedMs = performance.now() - start;
+		console.log(`${label} visible in ${elapsedMs.toFixed(1)}ms (timeout ${timeoutMs}ms)`,);
+	}
+}
+
+export async function waitForLocatorContentLoaded(locator: Locator, emptyPlaceholder = "No options", label: string, timeoutMs = 500,) {
+	await expect.poll(async () => {
+		const texts = (await locator.allTextContents()).map((value,) => value.trim()).filter(Boolean,);
+		if (!texts.length) {
+			return false;
+		}
+		if (texts.length === 1 && texts[0] === emptyPlaceholder) {
+			return false;
+		}
+		return true;
+	}, {
+		timeout: timeoutMs,
+		message: `${label} content did not load`,
+	}).toBeTruthy();
+}
+
+
+export async function expandAzureSubscriptionCard(page: Page) {
+	const subscriptionCard = page.locator("#card-azure_subscription",);
+	const introText = subscriptionCard.getByText(/Pick the subscription to deploy into\./i,);
+	if (!(await introText.isVisible())) {
+		await subscriptionCard.getByText(/^Choose Azure subscription$/i).click();
+	}
+	await expect(introText).toBeVisible();
+	return subscriptionCard;
+}
+
+export async function openExistingAzureSubscription(page: Page, context: BrowserContext, viewportName: string, options: {
+	environmentName?: "PROD" | "TEST";
+	expectSavedVariables?: boolean;
+} = {},): Promise<{
+	azureSubscriptionCard: Locator;
+	tenantVariableInput: Locator;
+	subscriptionVariableInput: Locator;
+	saveButton: Locator;
+}> {
+	const { environmentName = "PROD", expectSavedVariables = true, } = options;
+	await restoreGithubSessionStorage(context);
+	await restoreAzureSessionStorage(context);
+	await page.goto(CORP_URL);
+
+	const azureCard = await expandAzureLoginCard(page);
+	const tenantSelect = azureCard.getByTestId("tenant-select");
+	await expect(tenantSelect).toBeVisible({ timeout: 120_000, });
+	const tenantId = (await tenantSelect.locator("input").inputValue()).trim();
+	expect(tenantId, "The restored Azure tenant ID should not be empty").not.toBe("");
+	await tenantSelect.click();
+	await page.getByRole("option").filter({ hasText: tenantId, }).click();
+
+	const repoCard = await expandRepoCard(page);
+	const repoName = safePathSegment(`azure-subscrip-${viewportName}`,);
+	const repoSelection = await chooseRepoOption(page, repoCard, repoName, { reuseExisting: true, });
+	expect(repoSelection, `Expected the repository "${repoName}" to already exist`).toBe("existing");
+
+	await expect(repoCard.getByText("Loading environments...", { exact: true, }),).toBeHidden({ timeout: 120_000, });
+	const environment = repoCard.getByText(environmentName, { exact: true, });
+	await expect(environment).toBeVisible();
+	await environment.click();
+
+	const azureSubscriptionCard = await expandAzureSubscriptionCard(page);
+	const createBranchButton = repoCard.getByRole("button", { name: `Create New Branch: ${environmentName}`, });
+	const selectEnvironmentMessage = azureSubscriptionCard.getByText("Select a repository & environment to save the tenant and subscription to GitHub.", { exact: true, });
+	await expect.poll(async () => await createBranchButton.isVisible() || await selectEnvironmentMessage.count() === 0, {
+		timeout: 30_000,
+		message: `${environmentName} branch state did not finish loading`,
+	},).toBeTruthy();
+	if (await createBranchButton.isVisible()) {
+		await createBranchButton.click();
+		await expect(createBranchButton).toBeHidden({ timeout: 30_000, });
+	}
+
+	await expect(selectEnvironmentMessage).toHaveCount(0);
+	await expect(azureSubscriptionCard.getByText("Loading subscriptions...", { exact: true, }),).toBeHidden({ timeout: 60_000, });
+	await expect(azureSubscriptionCard.getByRole("combobox",),).toBeVisible({ timeout: 100_000, });
+
+	const tenantVariableInput = azureSubscriptionCard.getByText("AZURE_TENANT_ID", { exact: true, }).locator("..").locator("..").getByRole("textbox",);
+	const subscriptionVariableInput = azureSubscriptionCard.getByText("AZURE_SUBSCRIPTION_ID", { exact: true, }).locator("..").locator("..").getByRole("textbox",);
+	const saveButton = azureSubscriptionCard.getByRole("button", { name: "Save variables", exact: true, });
+	await expect.poll(async () => (await tenantVariableInput.inputValue()).trim(), { timeout: 60_000, },).not.toBe("");
+	await expect.poll(async () => (await subscriptionVariableInput.inputValue()).trim(), { timeout: 60_000, },).not.toBe("");
+	if (expectSavedVariables) {
+		await expect(saveButton).toBeDisabled({ timeout: 60_000, });
+	} else {
+		await expect(azureSubscriptionCard.getByText("2 not configured", { exact: true, }),).toBeVisible({ timeout: 60_000, });
+	}
+
+	return { azureSubscriptionCard, tenantVariableInput, subscriptionVariableInput, saveButton, };
+}
+
+export async function expandAzureAppRegistrationCard(page: Page) {
+	const appRegistrationCard = page.locator("#card-azure_app_registration",);
+	const introText = appRegistrationCard.getByText(/Create an app registration for GitHub Actions/i,);
+	if (!(await introText.isVisible())) {
+		await appRegistrationCard.getByText(/^Create an app registration in Azure$/i,).click();
+	}
+	await expect(introText).toBeVisible();
+	return appRegistrationCard;
+}

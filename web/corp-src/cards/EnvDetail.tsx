@@ -111,7 +111,7 @@ export default function EnvDetail({
           </Box>
         ) : filteredEnvs.length === 0 ? (
           <Typography sx={{ fontSize: "0.78rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>
-            No environment found.
+            No environment found, create one manually on GitHub.
           </Typography>
         ) : (
           <Box sx={{ display: !selectedEnv && lockedByPR ? "none" : "flex", gap: 1.5, flexWrap: "wrap" }}>

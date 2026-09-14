@@ -9,7 +9,7 @@ const DEFINITIONS: Record<string, PipelineSource> = {
     workflowId: "planChanges.yml",
     deployWorkflowId: "remoteLogin.yml",
     label: "ZenInstaller Setup Central Corp Environment",
-    templateRepo: "ZenMe-AU/ZBCorpArchitecture",
+    templateRepo: "ZenMe-AU/ZenbloxCore",
     validEnvs: ["PROD", "TEST"] as const,
     stages: [
       {

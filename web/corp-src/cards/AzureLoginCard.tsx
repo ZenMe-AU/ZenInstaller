@@ -191,7 +191,7 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
                 // Fetched (or MSA-fallback) list available — plain dropdown, picking loads that tenant immediately.
                 <Select
                   data-id="tenant-select"
-                  // data-sensitive="true"
+                  data-sensitive="true"
                   size="small"
                   value={manualTenantId || ""}
                   onChange={(e) => selectTenant(e.target.value)}

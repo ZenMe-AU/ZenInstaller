@@ -6,10 +6,9 @@ import {
 	expandAzureLoginCard,
 	expandAzureSubscriptionCard,
 	expandRepoCard,
-	expectCardSnapshot,
+	expectSnapshot,
 	expectVisibleWithin,
 	safePathSegment,
-	sensitiveTextMasks,
 } from "../util/testHelper.mts";
 import { CORP_URL, viewports } from "../../testInit";
 
@@ -19,7 +18,6 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
 		test("Happy path", async ({ page, context }, testInfo) => {
 			test.setTimeout(600_000);
-			const testName = safePathSegment(testInfo.title);
 			const runId = Date.now().toString(36);
 			const repoName = safePathSegment(`azure-app-reg-${viewportName}-${runId}`);
 			const appName = `zeninstaller-${repoName}`;
@@ -76,12 +74,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await expect(appNameInput).toBeVisible();
 				await appNameInput.fill(appName);
 
-				await expectCardSnapshot(page, card, testInfo, `${testName}-start.png`, {
-					userId: "azure-github-auth",
-					viewportName,
-					testFolder: "Azure App Registration Card",
-					mask: sensitiveTextMasks(card),
-				});
+				await expectSnapshot(page, card, testInfo, `start`, viewportName);
 
 				await card.getByRole("button", { name: "Create app registration" }).click();
 				await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 300_000 });
@@ -114,12 +107,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				expect(clientIds[1], "AZURE_PLAN_CLIENT_ID should be populated").toBe(clientIds[0]);
 				await expect(appRegistrationCard.getByText("2 not configured", { exact: true })).toHaveCount(0);
 
-				await expectCardSnapshot(page, appRegistrationCard, testInfo, `${testName}-end.png`, {
-					userId: "azure-github-auth",
-					viewportName,
-					testFolder: "Azure App Registration Card",
-					mask: sensitiveTextMasks(appRegistrationCard),
-				});
+				await expectSnapshot(page, appRegistrationCard, testInfo, `end`, viewportName);
 			});
 
 			console.log(`Created live Azure app registration test resources: ${appName} for ${repoName}`);

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { corpGithubAuthStateExists, restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { CORP_URL, viewports, } from "../../testInit";
-import { expandRepoCard, logMockAPI, expectCardSnapshot, sensitiveTextMasks, expectVisibleWithin } from "../util/testHelper.mts";
+import { expandRepoCard, logMockAPI, expectSnapshot, expectVisibleWithin } from "../util/testHelper.mts";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Mock Tests - ${viewportName}`, () => {
@@ -117,32 +117,17 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expect(PROD).toBeVisible();
 			await expect(TEST).toBeVisible();
 
-			await expectCardSnapshot(page, repoCard, testInfo, "clone-env-mock.png", {
-				userId: "github-pat",
-				viewportName,
-				testFolder: "Repository and Environment Authenticated",
-				mask: sensitiveTextMasks(repoCard,),
-			});
+			await expectSnapshot(page, repoCard, testInfo, "clone-env-mock", viewportName);
 
 			await PROD.click();
 			await expect(repoCard.getByText(/^No branch found matching environment "PROD"\.$/)).toBeVisible();
 
-			await expectCardSnapshot(page, repoCard, testInfo, "PROD-clone-mock.png", {
-				userId: "github-pat",
-				viewportName,
-				testFolder: "Repository and Environment Authenticated",
-				mask: sensitiveTextMasks(repoCard,),
-			});
+			await expectSnapshot(page, repoCard, testInfo, "PROD-clone-mock", viewportName);
 
 			await TEST.click();
 			await expect(repoCard.getByText(/^No branch found matching environment "TEST"\.$/)).toBeVisible();
 
-			await expectCardSnapshot(page, repoCard, testInfo, "TEST-clone-mock.png", {
-				userId: "github-pat",
-				viewportName,
-				testFolder: "Repository and Environment Authenticated",
-				mask: sensitiveTextMasks(repoCard,),
-			});
+			await expectSnapshot(page, repoCard, testInfo, "TEST-clone-mock", viewportName);
 		});
 
 		test("MOCK TEST - Typing new repo name in the textbox", async ({ page, }, testInfo) => {
@@ -173,13 +158,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expect(repoCard.getByRole("switch", { name: "Create environments" }),).toBeChecked();
 			await expect(repoCard.getByText(/Pick the environment to configure/i),).toHaveCount(0);
 
-			await expectCardSnapshot(page, repoCard, testInfo, "typed-repo-mock.png",
-				{
-					userId: "github-pat",
-					viewportName,
-					testFolder: "Repository and Environment Authenticated",
-					mask: sensitiveTextMasks(repoCard,),
-				});
+			await expectSnapshot(page, repoCard, testInfo, "typed-repo-mock", viewportName);
 		});
 
 		test("MOCK TEST - Selecting valid repo with no environments", async ({ page, }, testInfo) => {
@@ -239,13 +218,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expect(repoCard.getByText("No environment found",)).toBeVisible();
 			await expect(repoCard.getByRole("button", { name: "Clone Repository", })).toHaveCount(0);
 
-			await expectCardSnapshot(page, repoCard, testInfo, "valid-repo-no-env-mock.png",
-				{
-					userId: "github-pat",
-					viewportName,
-					testFolder: "Repository and Environment Authenticated",
-					mask: sensitiveTextMasks(repoCard,),
-				});
+			await expectSnapshot(page, repoCard, testInfo, "valid-repo-no-env-mock", viewportName);
 		});
 
 		test("MOCK TEST - Creates PROD branch, then creates TEST from PROD", async ({ page, }, testInfo) => {
@@ -340,13 +313,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expect.poll(() => createdBranches,).toEqual([{ ref: "refs/heads/PROD", sha: mainSha, },]);
 			await expect(createProdButton).toBeHidden();
 
-			await expectCardSnapshot(page, repoCard, testInfo, "prod-branch-created-mock.png",
-				{
-					userId: "github-pat",
-					viewportName,
-					testFolder: "Repository and Environment Authenticated",
-					mask: sensitiveTextMasks(repoCard,),
-				});
+			await expectSnapshot(page, repoCard, testInfo, "prod-branch-created-mock", viewportName);
 
 			await repoCard.getByText("TEST", { exact: true, }).click();
 			const createTestButton = repoCard.getByRole("button", { name: "Create New Branch: TEST", });
@@ -356,13 +323,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await page.getByRole("option", { name: "PROD", exact: true, }).click();
 			await expect(sourceBranchSelect).toHaveText(/PROD/);
 
-			await expectCardSnapshot(page, repoCard, testInfo, "prod-branch-visible-mock.png",
-				{
-					userId: "github-pat",
-					viewportName,
-					testFolder: "Repository and Environment Authenticated",
-					mask: sensitiveTextMasks(repoCard,),
-				});
+			await expectSnapshot(page, repoCard, testInfo, "prod-branch-visible-mock", viewportName);
 
 			await createTestButton.click();
 
@@ -373,13 +334,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expect(createTestButton).toBeHidden();
 			await expect(repoCard.getByText(/^No branch found matching environment "TEST"\.$/),).toHaveCount(0);
 
-			await expectCardSnapshot(page, repoCard, testInfo, "test-branch-created-mock.png",
-				{
-					userId: "github-pat",
-					viewportName,
-					testFolder: "Repository and Environment Authenticated",
-					mask: sensitiveTextMasks(repoCard,),
-				});
+			await expectSnapshot(page, repoCard, testInfo, "test-branch-created-mock", viewportName);
 		});
 
 		test("MOCK TEST - Selecting repo not a clone of source repo", async ({ page, }, testInfo) => {
@@ -423,13 +378,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expectVisibleWithin(repoCard.getByText('No environment found'), "Text: No environment found.", 500000);
 			await expect(repoCard.getByText("No environment found")).toBeVisible();
 
-			await expectCardSnapshot(page, repoCard, testInfo, "invalid-repo-mock.png",
-				{
-					userId: "github-pat",
-					viewportName,
-					testFolder: "Repository and Environment Authenticated",
-					mask: sensitiveTextMasks(repoCard,),
-				});
+			await expectSnapshot(page, repoCard, testInfo, "invalid-repo-mock", viewportName);
 		});
 	});
 }

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { CORP_URL, viewports, } from "../../testInit";
-import { expandRepoCard, chooseRepoOption, expectVisibleWithin, expectCardSnapshot, sensitiveTextMasks, safePathSegment } from "../util/testHelper.mts";
+import { expandRepoCard, chooseRepoOption, expectVisibleWithin, expectSnapshot, safePathSegment } from "../util/testHelper.mts";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`RepoDetail Integrated - ${viewportName}`, () => {
@@ -9,7 +9,6 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
 		test("Happy path", async ({ page, context, }, testInfo) => {
 			test.setTimeout(300_000);			
-			const testName = safePathSegment(testInfo.title,);
 			const repoName = safePathSegment(`integrated-test-${viewportName}`,);
 			await restoreGithubSessionStorage(context);
 			await page.goto(CORP_URL);
@@ -20,21 +19,9 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			});
 
 			await test.step("Typing the new repository name in the textbox", async () => {
-				await expectCardSnapshot(page, repoCard, testInfo, `${testName}-start.png`,
-					{
-						userId: "github-pat",
-						viewportName,
-						testFolder: "Repository and Environment Authenticated",
-						mask: sensitiveTextMasks(repoCard),
-				});	
+				await expectSnapshot(page, repoCard, testInfo, `start`, viewportName);	
 				await chooseRepoOption(page, repoCard, repoName);
-				await expectCardSnapshot(page, repoCard, testInfo, `${testName}-typed-repo.png`,
-					{
-						userId: "github-pat",
-						viewportName,
-						testFolder: "Repository and Environment Authenticated",
-						mask: sensitiveTextMasks(repoCard),
-				});
+				await expectSnapshot(page, repoCard, testInfo, `typed-repo`, viewportName);
 			});
 			
 
@@ -49,13 +36,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await expect(PROD).toBeVisible();
 				await expect(TEST).toBeVisible();
 
-				await expectCardSnapshot(page, repoCard, testInfo, `${testName}-cloned-repo.png`,
-					{
-						userId: "github-pat",
-						viewportName,
-						testFolder: "Repository and Environment Authenticated",
-						mask: sensitiveTextMasks(repoCard),
-				});
+				await expectSnapshot(page, repoCard, testInfo, `cloned-repo`, viewportName);
 			});
 
 			await test.step("Creates new PROD branch from main", async () => {
@@ -75,13 +56,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await expect(missingProdBranch).toHaveCount(0);
 				await expect(repoCard.getByText("Failed to create branch", { exact: true, }),).toHaveCount(0);
 
-				await expectCardSnapshot(page, repoCard, testInfo, `${testName}-prod-cloned.png`,
-					{
-						userId: "github-pat",
-						viewportName,
-						testFolder: "Repository and Environment Authenticated",
-						mask: sensitiveTextMasks(repoCard),
-				});
+				await expectSnapshot(page, repoCard, testInfo, `prod-cloned`, viewportName);
 
 			});
 
@@ -102,13 +77,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await expect(missingTestBranch).toHaveCount(0);
 				await expect(repoCard.getByText("Failed to create branch", { exact: true, }),).toHaveCount(0);
 
-				await expectCardSnapshot(page, repoCard, testInfo, `${testName}-end.png`,
-					{
-						userId: "github-pat",
-						viewportName,
-						testFolder: "Repository and Environment Authenticated",
-						mask: sensitiveTextMasks(repoCard),
-				});
+				await expectSnapshot(page, repoCard, testInfo, `end`, viewportName);
 			});
 				
 		});
@@ -134,12 +103,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expect(repoCard.getByText("No environment found",)).toBeVisible();
 			await expect(repoCard.getByRole("button", { name: "Clone Repository", })).toHaveCount(0);
 
-			await expectCardSnapshot(page, repoCard, testInfo, `repo-no-env.png`, {
-				userId: "github-pat",
-				viewportName,
-				testFolder: "Repository and Environment Authenticated",
-				mask: sensitiveTextMasks(repoCard,),
-			});
+			await expectSnapshot(page, repoCard, testInfo, `repo-no-env`, viewportName);
 		});
 
 		test("Edge Integrated - Creates PROD branch, then creates TEST from PROD", async ({ page, context}, testInfo) => {
@@ -178,17 +142,13 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await page.getByRole("option", { name: "PROD", exact: true, }).click();
 			await expect(sourceBranchSelect).toHaveText(/PROD/);
 
-			await expectCardSnapshot(page, repoCard, testInfo, `prod-from-test-branch.png`, {
-				userId: "github-pat", viewportName, testFolder: "Repository and Environment Authenticated", mask: sensitiveTextMasks(repoCard,),
-			});
+			await expectSnapshot(page, repoCard, testInfo, `prod-from-test-branch`, viewportName);
 
 			await createTestButton.click();
 			await expect(createTestButton).toBeHidden({ timeout: 30_000, });
 			await expect(repoCard.getByText(/^No branch found matching environment "TEST"\.$/),).toHaveCount(0);
 
-			await expectCardSnapshot(page, repoCard, testInfo, `prod-from-test-cloned.png`, {
-				userId: "github-pat", viewportName, testFolder: "Repository and Environment Authenticated", mask: sensitiveTextMasks(repoCard,),
-			});
+			await expectSnapshot(page, repoCard, testInfo, `prod-from-test-cloned`, viewportName);
 		});
 	});
 }

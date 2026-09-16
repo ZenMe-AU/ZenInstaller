@@ -1,19 +1,18 @@
 import { expect, test } from "@playwright/test";
 import { getCorpGithubAuthMode, restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { CORP_URL, viewports, } from "../../testInit";
-import { expandGithubLoginCard, expectCardSnapshot, safePathSegment, sensitiveTextMasks } from "../util/testHelper.mts";
+import { expandGithubLoginCard, expectSnapshot } from "../util/testHelper.mts";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`GitHub Login Card - ${viewportName}`, () => {
 		test.use({ viewport, deviceScaleFactor: 1 });
 		
 		test("Happy path", async ({ page, context, }, testInfo) => {
-			const testName = safePathSegment(testInfo.title,);
 			await page.goto(CORP_URL);
 			
 			const githubCard = await test.step("Expand Unauthenticated Github Login Card", async () => {
 				const githubCard = await expandGithubLoginCard(page,);
-				await expectCardSnapshot(page, githubCard, testInfo, `${testName}-start.png`, { userId: "signed-out", viewportName, testFolder: "GitHub Login Card", },);
+				await expectSnapshot(page, githubCard, testInfo, `start`, viewportName);
 				return githubCard;
 			});
 			
@@ -33,9 +32,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				}
 				await expect(githubCard.getByRole("button", { name: "Sign out", exact: true, }),).toBeVisible();
 				await expect(githubCard.getByRole("button", { name: "Login with GitHub", exact: true, }),).toHaveCount(0);
-				await expectCardSnapshot(page, githubCard, testInfo, `${testName}-end.png`,
-					{ userId: `${testName}-end.png`, viewportName, testFolder: "GitHub Login Card Authenticated", mask: sensitiveTextMasks(githubCard,), },
-				);
+				await expectSnapshot(page, githubCard, testInfo, `end`, viewportName);
 			});
 
 		});
@@ -53,7 +50,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expect(connectWithPat,).toBeEnabled();
 			await connectWithPat.click();
 			await expect(githubCard.getByText(/Must be a GitHub PAT \(ghp_… or github_pat_…\)/i,),).toBeVisible();
-			await expectCardSnapshot(page, githubCard, testInfo, "invalid-pat.png", { userId: "signed-out", viewportName, testFolder: "GitHub Login Card", },);
+			await expectSnapshot(page, githubCard, testInfo, "invalid-pat", viewportName);
 		});
 
 		test("Can switch from Direct mode back to Backend mode", async ({ page, context }) => {

@@ -1,6 +1,6 @@
 import { expect, test, type Page, } from "@playwright/test";
 import { CORP_URL, viewports, } from "../testInit";
-import { expectCardSnapshot, } from "./util/testHelper.mts";
+import { expectSnapshot, } from "./util/testHelper.mts";
 
 const CARDS_UNAUTHENTICATED = [
 	{ id: "github_login", title: /^GitHub login$/i, },
@@ -87,7 +87,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
 			for (const { id, } of CARDS_UNAUTHENTICATED) {
 				const card = page.locator(`#card-${id}`,);
-				await expectCardSnapshot(page, card, testInfo, `${id}.png`, { userId: "signed-out", viewportName, testFolder: "Expand Cards", },);
+				await expectSnapshot(page, card, testInfo, `${id}`, viewportName);
 			}
 		});
 	});

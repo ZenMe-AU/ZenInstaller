@@ -3,10 +3,9 @@ import { restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import {
 	chooseRepoOption,
 	expandRepoCard,
-	expectCardSnapshot,
+	expectSnapshot,
 	expectVisibleWithin,
 	safePathSegment,
-	sensitiveTextMasks,
 } from "../util/testHelper.mts";
 import { CORP_URL, viewports } from "../../testInit";
 
@@ -16,7 +15,6 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
 		test("Happy path", async ({ page, context }, testInfo) => {
 			test.setTimeout(300_000);
-			const testName = safePathSegment(testInfo.title);
 			const runId = Date.now().toString(36);
 			const repoName = safePathSegment(`company-info-${viewportName.toLowerCase()}-${runId}`);
 			const companyCode = `znt${runId}`.toUpperCase();
@@ -77,12 +75,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
 				await expect(companyInput).toHaveValue(companyCode);
 				await expect(domainInput).toHaveValue(domain);
-				await expectCardSnapshot(page, companyInfoCard, testInfo, `${testName}-start.png`, {
-					userId: "github-auth",
-					viewportName,
-					testFolder: "Company Info Card",
-					mask: sensitiveTextMasks(companyInfoCard),
-				});
+				await expectSnapshot(page, companyInfoCard, testInfo, `start`, viewportName);
 			});
 
 			await test.step("Save both variables to GitHub", async () => {
@@ -98,12 +91,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await expect(inputs).toHaveCount(2);
 				await expect(inputs.nth(0)).toHaveValue(companyCode);
 				await expect(inputs.nth(1)).toHaveValue(domain);
-				await expectCardSnapshot(page, companyInfoCard, testInfo, `${testName}-end.png`, {
-					userId: "github-auth",
-					viewportName,
-					testFolder: "Company Info Card",
-					mask: sensitiveTextMasks(companyInfoCard),
-				});
+				await expectSnapshot(page, companyInfoCard, testInfo, `end`, viewportName);
 			});
 
 			await expect(repoCard.getByText("PROD", { exact: true })).toBeVisible();
@@ -169,12 +157,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			const partialSaveButton = companyInfoCard.getByRole("button", { name: "Save 1 variable" });
 			await expect(partialSaveButton).toBeVisible();
 			await expect(partialSaveButton).toBeEnabled();
-			await expectCardSnapshot(page, companyInfoCard, testInfo, `company-code-modified.png`, {
-					userId: "github-auth",
-					viewportName,
-					testFolder: "Company Info Card",
-					mask: sensitiveTextMasks(companyInfoCard),
-				});
+			await expectSnapshot(page, companyInfoCard, testInfo, `company-code-modified`, viewportName);
 			await partialSaveButton.click();
 
 			await expect(companyInfoCard.getByText("just updated", { exact: true })).toHaveCount(1);

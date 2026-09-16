@@ -16,7 +16,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		test("Happy path", async ({ page, context }, testInfo) => {
 			test.setTimeout(300_000);
 			const runId = Date.now().toString(36);
-			const repoName = safePathSegment(`company-info-${viewportName.toLowerCase()}-${runId}`);
+			const repoName = safePathSegment(`company-info-${viewportName.toLowerCase()}`);
 			const companyCode = `znt${runId}`.toUpperCase();
 			const domain = `${repoName}.example.com`;
 

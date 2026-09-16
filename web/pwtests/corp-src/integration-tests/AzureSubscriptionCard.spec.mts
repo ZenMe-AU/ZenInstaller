@@ -1,7 +1,7 @@
 import { expect, test, } from "@playwright/test";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage, } from "../util/setupHelper.mts";
 import { chooseRepoOption, expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard, expectSnapshot, expectVisibleWithin, openExistingAzureSubscription, safePathSegment, } from "../util/testHelper.mts";
-import { CORP_URL, viewports, } from "../../testInit";
+import { CORP_URL, SUBSCRIPTION_ID, viewports, } from "../../testInit";
 
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
@@ -83,6 +83,17 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				const subscriptionSelect = azureSubscriptionCard.getByRole("combobox",);
 				const noSubscriptionsMessage = azureSubscriptionCard.getByText("This tenant has no subscriptions you can access.", { exact: true, },);
 				await expect(subscriptionSelect.or(noSubscriptionsMessage,),).toBeVisible({ timeout: 100_000, });
+
+				if (await subscriptionSelect.isVisible()) {
+					console.log(`Selecting subscription "${SUBSCRIPTION_ID}" automatically.`);
+					await subscriptionSelect.click();
+					const subscriptionOption = page.getByRole("option").filter({ hasText: SUBSCRIPTION_ID, });
+					await expect(subscriptionOption).toBeVisible({ timeout: 30_000, });
+					await subscriptionOption.click();
+					// Defocus the select so it doesn't render a focus ring in the upcoming snapshot.
+					await azureSubscriptionCard.getByText(/Pick the subscription to deploy into\./i,).click();
+				}
+
 				await expect(azureSubscriptionCard.getByText("Select a repository & environment to save the tenant and subscription to GitHub.", { exact: true, },),).toHaveCount(0);
 				const saveButton = azureSubscriptionCard.getByRole("button", { name: "Save 2 variables" });
 				await expectSnapshot(page, azureSubscriptionCard, testInfo, `before-save`, viewportName);

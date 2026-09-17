@@ -1,9 +1,25 @@
-import { expect, test as setup } from "@playwright/test";
+import { expect, Locator, Page, test as setup } from "@playwright/test";
 import fs from "fs";
-import { CORP_URL } from "../../testInit";
+import { CORP_URL, TENANT_ID } from "../../testInit";
 import { authDir, azureSessionStorageFile, azureStorageStateFile, corpAzureAuthStateExists, saveAzureSessionStorage } from "../util/setupHelper.mts";
 
-const tenantReselectionTimeout = 120_000;
+// Selects the tenant identified by `tenantId`, whether it appears in the fetched tenant dropdown
+// or must be typed into the manual "Tenant ID" field (e.g. for personal Microsoft accounts).
+async function selectAzureTenant(page: Page, azureCard: Locator, tenantId: string): Promise<void> {
+  const tenantSelect = azureCard.getByTestId("tenant-select");
+  const tenantInput = azureCard.getByPlaceholder("Tenant ID");
+  await expect(tenantSelect.or(tenantInput)).toBeVisible({ timeout: 120_000 });
+
+  if (await tenantSelect.isVisible()) {
+    await tenantSelect.click();
+    const tenantOption = page.getByRole("option").filter({ hasText: tenantId });
+    await expect(tenantOption).toBeVisible({ timeout: 30_000 });
+    await tenantOption.click();
+  } else {
+    await tenantInput.fill(tenantId);
+    await azureCard.getByRole("button", { name: "Confirm tenant" }).click();
+  }
+}
 
 setup("Manual setup for corp Azure auth tests", async ({ page, context }) => {
   fs.mkdirSync(authDir, { recursive: true });
@@ -45,10 +61,8 @@ setup("Manual setup for corp Azure auth tests", async ({ page, context }) => {
 
   await expect(page.locator("#card-azure_login").getByText(/Signed in as/i)).toBeVisible({ timeout: 120_000 });
   const authenticatedAzureCard = page.locator("#card-azure_login");
-  const tenantSelect = authenticatedAzureCard.getByRole("combobox");
-  if (await tenantSelect.isVisible()) await tenantSelect.click();
-  console.log("Select a tenant, or enter and confirm a tenant ID to resume the Playwright test.");
-  await page.pause();
+  console.log(`Selecting tenant "${TENANT_ID}" automatically.`);
+  await selectAzureTenant(page, authenticatedAzureCard, TENANT_ID);
 
   const microsoftConsent = page.waitForURL(/login\.microsoftonline\.com|login\.live\.com/i, { timeout: 15_000 })
     .then(() => true)
@@ -70,9 +84,8 @@ setup("Manual setup for corp Azure auth tests", async ({ page, context }) => {
   let azureTenantId = (await restoredTenantValue.inputValue()).trim();
 
   if (!azureTenantId) {
-    if (await restoredTenantSelect.isVisible()) await restoredTenantSelect.click();
-    console.log("The tenant selection was not restored. Select or enter a tenant to continue.");
-    await expect(restoredTenantValue).toHaveValue(/.+/, { timeout: tenantReselectionTimeout });
+    console.log(`Tenant selection was not restored. Selecting tenant "${TENANT_ID}" automatically.`);
+    await selectAzureTenant(page, restoredAzureCard, TENANT_ID);
 
     azureTenantId = (await restoredTenantValue.inputValue()).trim();
   }

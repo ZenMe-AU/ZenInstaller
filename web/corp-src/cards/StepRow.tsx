@@ -29,7 +29,7 @@ export default function StepRow({ step }: { step: SetupStep }) {
           {step.label}
         </Typography>
         {step.detail && (
-          <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, mt: 0.25, wordBreak: "break-all" }}>
+          <Typography data-sensitive="true" sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, mt: 0.25, wordBreak: "break-all" }}>
             {step.detail}
           </Typography>
         )}

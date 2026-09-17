@@ -6,12 +6,52 @@ import {
 	expandAzureLoginCard,
 	expandAzureSubscriptionCard,
 	expandRepoCard,
-	expectCardSnapshot,
+	expectSnapshot,
 	expectVisibleWithin,
 	safePathSegment,
-	sensitiveTextMasks,
 } from "../util/testHelper.mts";
 import { CORP_URL, viewports } from "../../testInit";
+
+async function prepareAppRegistrationCard(page: import("@playwright/test").Page, context: import("@playwright/test").BrowserContext, repoName: string) {
+	await restoreGithubSessionStorage(context);
+	await restoreAzureSessionStorage(context);
+	await page.goto(CORP_URL);
+
+	const azureLoginCard = await expandAzureLoginCard(page);
+	const signedInText = azureLoginCard.getByText(/Signed in as/i);
+	const tenantSelect = azureLoginCard.getByTestId("tenant-select");
+	await expect(signedInText).toBeVisible({ timeout: 120_000 });
+	await expect(tenantSelect).toBeVisible({ timeout: 120_000 });
+	const tenantId = (await tenantSelect.locator("input").inputValue()).trim();
+	expect(tenantId, "The restored Azure tenant ID should not be empty").not.toBe("");
+	await tenantSelect.click();
+	await page.getByRole("option").filter({ hasText: tenantId }).click();
+
+	const repoCard = await expandRepoCard(page);
+	await chooseRepoOption(page, repoCard, repoName);
+	await repoCard.getByRole("button", { name: "Clone Repository" }).click();
+	await expectVisibleWithin(
+		repoCard.getByText("Pick the environment to configure."),
+		"Text: Pick the environment to configure",
+		500_000,
+	);
+	const prodEnvironment = repoCard.getByText("PROD", { exact: true });
+	await expect(prodEnvironment).toBeVisible();
+	await prodEnvironment.click();
+	await page.waitForTimeout(1000);
+	const createProdButton = repoCard.getByRole("button", { name: "Create New Branch: PROD" });
+	await expect(createProdButton).toBeVisible();
+	await createProdButton.click();
+	await expect(createProdButton).toBeHidden({ timeout: 30_000 });
+
+	const subscriptionCard = await expandAzureSubscriptionCard(page);
+	await expect(subscriptionCard.getByText("Loading subscriptions...", { exact: true })).toBeHidden({ timeout: 60_000 });
+	await expect(subscriptionCard.getByRole("combobox")).toBeVisible({ timeout: 100_000 });
+	await subscriptionCard.getByRole("button", { name: "Save 2 variables" }).click();
+	await expect(subscriptionCard.getByRole("button", { name: /^Save\s+variables$/ })).toBeDisabled({ timeout: 60_000 });
+
+	return expandAzureAppRegistrationCard(page);
+}
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Azure App Registration Card - ${viewportName}`, () => {
@@ -19,10 +59,9 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
 		test("Happy path", async ({ page, context }, testInfo) => {
 			test.setTimeout(600_000);
-			const testName = safePathSegment(testInfo.title);
 			const runId = Date.now().toString(36);
-			const repoName = safePathSegment(`azure-app-reg-${viewportName}-${runId}`);
-			const appName = `zeninstaller-${repoName}`;
+			const repoName = safePathSegment(`azure-app-reg-${viewportName}`);
+			const appName = `zeninstaller-${repoName}-${runId}`;
 
 			await restoreGithubSessionStorage(context);
 			await restoreAzureSessionStorage(context);
@@ -76,12 +115,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await expect(appNameInput).toBeVisible();
 				await appNameInput.fill(appName);
 
-				await expectCardSnapshot(page, card, testInfo, `${testName}-start.png`, {
-					userId: "azure-github-auth",
-					viewportName,
-					testFolder: "Azure App Registration Card",
-					mask: sensitiveTextMasks(card),
-				});
+				await expectSnapshot(page, card, testInfo, `start`, viewportName);
 
 				await card.getByRole("button", { name: "Create app registration" }).click();
 				await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 300_000 });
@@ -114,17 +148,52 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				expect(clientIds[1], "AZURE_PLAN_CLIENT_ID should be populated").toBe(clientIds[0]);
 				await expect(appRegistrationCard.getByText("2 not configured", { exact: true })).toHaveCount(0);
 
-				await expectCardSnapshot(page, appRegistrationCard, testInfo, `${testName}-end.png`, {
-					userId: "azure-github-auth",
-					viewportName,
-					testFolder: "Azure App Registration Card",
-					mask: sensitiveTextMasks(appRegistrationCard),
-				});
+				await expectSnapshot(page, appRegistrationCard, testInfo, `end`, viewportName);
 			});
 
 			console.log(`Created live Azure app registration test resources: ${appName} for ${repoName}`);
 			await expect(azureLoginCard.getByText(/Signed in as/i)).toBeVisible();
 			await expect(repoCard.getByText("PROD", { exact: true })).toBeVisible();
+		});
+
+		test("Edge case - keeps creation disabled for a blank app name", async ({ page, context }) => {
+			test.setTimeout(600_000);
+			const runId = Date.now().toString(36);
+			const repoName = safePathSegment(`azure-app-reg-blank-${viewportName}-${runId}`);
+			const card = await prepareAppRegistrationCard(page, context, repoName);
+			const appNameInput = card.locator("input:visible").first();
+			const createButton = card.getByRole("button", { name: "Create app registration" });
+
+			await appNameInput.fill("   ");
+			await expect(createButton).toBeDisabled();
+
+			await appNameInput.fill(`valid-app-${runId}`);
+			await expect(createButton).toBeEnabled();
+		});
+
+		test("Edge case - reuses an existing app registration on retry", async ({ page, context }) => {
+			test.setTimeout(600_000);
+			const runId = Date.now().toString(36);
+			const repoName = safePathSegment(`azure-app-reg-retry-${viewportName}-${runId}`);
+			const appName = `zeninstaller-${repoName}`;
+			const card = await prepareAppRegistrationCard(page, context, repoName);
+			const appNameInput = card.locator("input:visible").first();
+
+			await appNameInput.fill(appName);
+			await card.getByRole("button", { name: "Create app registration" }).click();
+			await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 300_000 });
+			await expect(card.getByRole("button", { name: "Try again" })).toBeVisible();
+			await expect(card.getByText("Create app registration", { exact: true })).toBeVisible();
+
+			await card.getByRole("button", { name: "Try again" }).click();
+			await expect(appNameInput).toBeVisible();
+			await card.getByRole("button", { name: "Create app registration" }).click();
+			await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 300_000 });
+			await expect(card.getByText(/Existing:/i)).toBeVisible();
+			await expect(card.getByText("Already exists", { exact: true })).toBeVisible();
+			await expect(card.getByText(/Connection details saved(?: — no changes needed)?\./i)).toBeVisible({
+				timeout: 120_000,
+			});
 		});
 	});
 }

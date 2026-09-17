@@ -2,7 +2,7 @@ import { BrowserContext, expect, type Locator, type Page, type Route, type TestI
 import fs from "fs";
 import path from "node:path";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage } from "./setupHelper.mts";
-import { CORP_URL } from "../../testInit";
+import { CORP_URL, SUBSCRIPTION_ID } from "../../testInit";
 
 export type PageSnapshotOptions = {
 	userId: string;
@@ -28,67 +28,40 @@ export function safePathSegment(value: string,): string {
 	return safeValue || "unnamed";
 }
 
-function snapshotPath(testInfo: TestInfo, viewportName: string, snapshotName: string,): string[] {
+function snapshotPath(testInfo: TestInfo, viewportName: string, fileSubstring: string,): string[] {
+	const testName = safePathSegment(testInfo.title);
+	let snapshotName = `${fileSubstring}.png`
+	if (testName.toLowerCase() == "happy-path") {
+		snapshotName = `${testName}-${fileSubstring}.png`
+	}
 	const relativeTestPath = path.relative(testInfo.project.testDir, testInfo.file,);
 	const testPathSegments = relativeTestPath.split(path.sep,).map((segment,) => safePathSegment(segment,),);
 	const testFile = testPathSegments.pop()?.replace(/\.spec\.(?:m?[jt]sx?)$/, "",) ?? "unnamed";
 	const sourceFolder = testPathSegments.shift();
 
 	return [
-		...(sourceFolder ? [sourceFolder,] : []),
-		"snapshots",
-		...testPathSegments,
-		safePathSegment(testFile,),
-		safePathSegment(viewportName,),
+		...(sourceFolder ? [sourceFolder,] : []), "snapshots", ...testPathSegments,
+		safePathSegment(testFile,), safePathSegment(viewportName,),
 		safePathSegment(snapshotName.endsWith(".png") ? snapshotName : `${snapshotName}.png`,),
 	];
 }
 
-// Waits for visual stability and compares against a stored screenshot baseline.
-export async function expectPageSnapshot(page: Page, testInfo: TestInfo, snapshotName: string, options: PageSnapshotOptions,): Promise<void> {
-	await page.waitForLoadState("domcontentloaded").catch(() => undefined);
-	await page.waitForLoadState("networkidle").catch(() => undefined);
-	await page.locator("body").evaluate(async () => {
-	await document.fonts?.ready;}).catch(() => undefined);
-	await page.waitForTimeout(300).catch(() => undefined);
-
-	const relativeSnapshotPath = snapshotPath(testInfo, options.viewportName, snapshotName,);
-	const expectedSnapshotPath = testInfo.snapshotPath(...relativeSnapshotPath,);
-	const baselineExists = fs.existsSync(expectedSnapshotPath,);
-
-	if (!baselineExists && testInfo.config.updateSnapshots === "missing") {
-		console.info(["","Generating missing baseline snapshot:",expectedSnapshotPath,"",].join("\n"),);
-	}
-
-	await expect(page).toHaveScreenshot(
-		relativeSnapshotPath,
-		{
-			fullPage: false,
-			animations: "disabled",
-			caret: "hide",
-			maxDiffPixelRatio: 0.02,
-			mask: options.mask ?? [],
-        	maskColor: "rgb(0, 0, 0)",
-		},
-	);
-}
 
 // takes snapshot of a specific card element, rather than the whole page
-//TODO: rename to expectSnapshot and simplify function call 
-export async function expectCardSnapshot(page: Page, card: Locator, testInfo: TestInfo, snapshotName: string, options: PageSnapshotOptions,): Promise<void> {
+export async function expectSnapshot(page: Page, locator: Locator, testInfo: TestInfo, snapshotName: string, viewportName: string,): Promise<void> {
 	await page.waitForLoadState("domcontentloaded").catch(() => undefined);
 	await page.waitForLoadState("networkidle").catch(() => undefined);
 	await page.locator("body").evaluate(async () => document.fonts?.ready).catch(() => undefined);
 	await page.waitForTimeout(300).catch(() => undefined);
 
-	const relativeSnapshotPath = snapshotPath(testInfo, options.viewportName, snapshotName,);
-	const originalStyle = await card.evaluate((element,) => element.getAttribute("style"),);
+	const relativeSnapshotPath = snapshotPath(testInfo, viewportName, snapshotName,);
+	const originalStyle = await locator.evaluate((element,) => element.getAttribute("style"),);
 	const screenshotStyle = await page.addStyleTag({
 		content: "html { scrollbar-width: none !important; } html::-webkit-scrollbar { display: none !important; }",
 	},);
 
 	try {
-		await card.evaluate((element,) => {
+		await locator.evaluate((element,) => {
 			const cardElement = element as HTMLElement;
 			cardElement.style.position = "fixed";
 			cardElement.style.inset = "0";
@@ -101,16 +74,16 @@ export async function expectCardSnapshot(page: Page, card: Locator, testInfo: Te
 			cardElement.style.borderRadius = "0";
 		},);
 
-		await expect(card).toHaveScreenshot(relativeSnapshotPath, {
+		await expect(locator).toHaveScreenshot(relativeSnapshotPath, {
 			animations: "disabled",
 			caret: "hide", 
 			maxDiffPixelRatio: 0.02,
-			mask: options.mask ?? [],
+			mask: sensitiveTextMasks(locator) ?? [],
 			maskColor: "rgb(0, 0, 0)",
 		},);
 	} finally {
 		await screenshotStyle.evaluate((element,) => element.parentNode?.removeChild(element),);
-		await card.evaluate((element, style,) => {
+		await locator.evaluate((element, style,) => {
 			if (style === null) {
 				element.removeAttribute("style");
 			} else {
@@ -275,7 +248,25 @@ export async function openExistingAzureSubscription(page: Page, context: Browser
 
 	await expect(selectEnvironmentMessage).toHaveCount(0);
 	await expect(azureSubscriptionCard.getByText("Loading subscriptions...", { exact: true, }),).toBeHidden({ timeout: 60_000, });
-	await expect(azureSubscriptionCard.getByRole("combobox",),).toBeVisible({ timeout: 100_000, });
+	const subscriptionSelect = azureSubscriptionCard.getByRole("combobox",);
+	await expect(subscriptionSelect).toBeVisible({ timeout: 100_000, });
+
+	// a prior run may have saved a tenant/subscription that no longer restores automatically
+	if (expectSavedVariables) {
+		await subscriptionSelect.click();
+		const subscriptionOption = page.getByRole("option").filter({ hasText: SUBSCRIPTION_ID, });
+		await expect(subscriptionOption).toBeVisible({ timeout: 30_000, });
+		await subscriptionOption.click();
+		// Defocus the select so it doesn't render a focus ring in any upcoming snapshot.
+		await azureSubscriptionCard.getByText(/Pick the subscription to deploy into\./i,).click();
+
+		const saveVariablesButton = azureSubscriptionCard.getByRole("button", { name: /^Save(?: \d+)? variables?$/, });
+		if (await saveVariablesButton.isEnabled().catch(() => false)) {
+			console.log("Detected drift between the currently selected tenant/subscription and the saved GitHub variables — re-saving.");
+			await saveVariablesButton.click();
+			await expect(azureSubscriptionCard.getByRole("button", { name: "Save variables", }),).toBeDisabled({ timeout: 60_000, });
+		}
+	}
 
 	const tenantVariableInput = azureSubscriptionCard.getByText("AZURE_TENANT_ID", { exact: true, }).locator("..").locator("..").getByRole("textbox",);
 	const subscriptionVariableInput = azureSubscriptionCard.getByText("AZURE_SUBSCRIPTION_ID", { exact: true, }).locator("..").locator("..").getByRole("textbox",);

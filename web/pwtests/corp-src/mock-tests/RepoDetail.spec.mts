@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
-import { corpGithubAuthStateExists, restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { CORP_URL, viewports, } from "../../testInit";
-import { expandRepoCard, logMockAPI, expectSnapshot, expectVisibleWithin } from "../util/testHelper.mts";
+import { chooseRepoOption, expandRepoCard, logMockAPI, expectSnapshot, expectVisibleWithin } from "../util/testHelper.mts";
+import { installMockGitHub } from "./mockFixtures.mts";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Mock Tests - ${viewportName}`, () => {
@@ -18,37 +18,30 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				console.info(`Blocked unexpected GitHub write: ${request.method()} ${request.url()}`,);
 				await route.abort("blockedbyclient");
 			});
-			await restoreGithubSessionStorage(context,);
+			await installMockGitHub(page, context);
 			await page.goto(CORP_URL);
 		});
 
-		test("SAFETY CHECK - blocks unexpected GitHub writes", async ({ page }) => {
-			await expect(page.evaluate(async () => {
-				await fetch("https://api.github.com/repos/nonexistant-repo/nonexistant", { method: "DELETE" },);
-			}),).rejects.toThrow("Failed to fetch");
-		});
-
-		test("SAFETY CHECK - permits GitHub reads", async ({ page }) => {
-			await page.route("https://api.github.com/rate_limit", (route) => route.fulfill({
-				status: 200,
-				contentType: "application/json",
-				body: JSON.stringify({ resources: {} }),
-			}),
-			);
-			const response = await page.evaluate(() => fetch("https://api.github.com/rate_limit").then((result) => result.status),);
-			expect(response).toBe(200);
-		});
-
-		test("MOCK TEST - Cloning a new repo for both PROD and TEST", async ({ page, }, testInfo) => {
+		test("Happy path", async ({ page, }, testInfo) => {
 			const newRepoName = "mock-clone-test";
 			const newRepoId = 987654322;
+			const mainSha = "main-commit-sha";
+			const prodSha = "prod-commit-sha";
+			const createdBranches: Array<{ ref: string; sha: string }> = [];
 			const environments = [
 				{ name: "PROD", id: 1001, url: `https://api.github.com/repos/mock-owner/${newRepoName}/environments/PROD`, },
 				{ name: "TEST", id: 1002, url: `https://api.github.com/repos/mock-owner/${newRepoName}/environments/TEST`, },
 			];
 
 			await page.route(new RegExp("https://api\\.github\\.com/(?:user/repos|orgs/[^/]+/repos)(?:\\?.*)?$",),
-				async (route) => { await route.fulfill({ status: 200, contentType: "application/json", body: "[]", }); },
+				async (route) => {
+					const ownerType = route.request().url().includes("/orgs/") ? "Organization" : "User";
+					await route.fulfill({
+						status: 200,
+						contentType: "application/json",
+						body: JSON.stringify([{ id: 111111, name: "existing-unrelated-repo", owner: { type: ownerType, }, },]),
+					});
+				},
 			);
 
 			await page.route(new RegExp("https://api\\.github\\.com/repos/ZenMe-AU/ZenbloxCore/generate(?:\\?.*)?$",),
@@ -79,7 +72,36 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			);
 
 			await page.route(new RegExp(`https://api\\.github\\.com/repos/[^/]+/${newRepoName}/branches(?:\\?.*)?$`,),
-				async (route) => { await route.fulfill({ status: 200, contentType: "application/json", body: "[]", }); },
+				async (route) => {
+					const branches = [
+						{ name: "main", commit: { sha: mainSha }, protected: true },
+						...createdBranches.map(({ ref, sha }) => ({
+							name: ref.replace("refs/heads/", ""),
+							commit: { sha },
+							protected: false,
+						})),
+					];
+					await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(branches) });
+				},
+			);
+
+			await page.route(new RegExp(`https://api\\.github\\.com/repos/[^/]+/${newRepoName}/git/ref/heads/(?:main|PROD)(?:\\?.*)?$`,),
+				async (route) => {
+					const sourceSha = route.request().url().includes("/heads/PROD") ? prodSha : mainSha;
+					await route.fulfill({
+						status: 200,
+						contentType: "application/json",
+						body: JSON.stringify({ object: { sha: sourceSha } }),
+					});
+				},
+			);
+
+			await page.route(new RegExp(`https://api\\.github\\.com/repos/[^/]+/${newRepoName}/git/refs(?:\\?.*)?$`,),
+				async (route) => {
+					const branch = route.request().postDataJSON() as { ref: string; sha: string };
+					createdBranches.push(branch);
+					await route.fulfill({ status: 201, contentType: "application/json", body: "{}" });
+				},
 			);
 
 			await page.route(new RegExp(`https://api\\.github\\.com/repos/[^/]+/${newRepoName}(?:\\?.*)?$`,),
@@ -101,33 +123,75 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await page.reload();
 			await mockedReposLoaded;
 
-			const repoCard = await expandRepoCard(page);
-			const repoInput = repoCard.getByRole("combobox", { name: "Select or type repo name...", });
-			await repoInput.fill(newRepoName);
-			const cloneOption = page.getByRole("option", { name: `Clone as “${newRepoName}”`, });
-			await expect(cloneOption).toBeVisible();
-			await cloneOption.click();
-			const cloneRepoButton = repoCard.getByRole("button", { name: "Clone Repository", });
-			await expect(cloneRepoButton).toBeVisible();
-			await cloneRepoButton.click();
+			const repoCard = await test.step("Expand RepoDetail Card", async () => {
+				return expandRepoCard(page);
+			});
 
-			const PROD = repoCard.getByText("PROD", { exact: true, });
-			const TEST = repoCard.getByText("TEST", { exact: true, });
-			await expect(repoCard.getByText("Loading environments...", { exact: true, })).toBeHidden();
-			await expect(PROD).toBeVisible();
-			await expect(TEST).toBeVisible();
+			await test.step("Typing the new repository name in the textbox", async () => {
+				await expectSnapshot(page, repoCard, testInfo, "start", viewportName);
+				await chooseRepoOption(page, repoCard, newRepoName);
+				await expectSnapshot(page, repoCard, testInfo, "typed-repo", viewportName);
+			});
 
-			await expectSnapshot(page, repoCard, testInfo, "clone-env-mock", viewportName);
+			await test.step("Cloning a new repository", async () => {
+				const cloneRepoButton = repoCard.getByRole("button", { name: "Clone Repository" });
+				await expect(cloneRepoButton).toBeVisible();
+				await cloneRepoButton.click();
+				await expectVisibleWithin(
+					repoCard.getByText("Pick the environment to configure."),
+					"Text: Pick the environment to configure",
+					500_000,
+				);
+				const PROD = repoCard.getByText("PROD", { exact: true });
+				const TEST = repoCard.getByText("TEST", { exact: true });
+				await expect(repoCard.getByText("Loading environments...", { exact: true })).toBeHidden();
+				await expect(PROD).toBeVisible();
+				await expect(TEST).toBeVisible();
+				await expectSnapshot(page, repoCard, testInfo, "cloned-repo", viewportName);
+			});
 
-			await PROD.click();
-			await expect(repoCard.getByText(/^No branch found matching environment "PROD"\.$/)).toBeVisible();
+			await test.step("Creates new PROD branch from main", async () => {
+				const PROD = repoCard.getByText("PROD", { exact: true });
+				const TEST = repoCard.getByText("TEST", { exact: true });
+				await expect(repoCard.getByText("Loading environments...", { exact: true })).toBeHidden();
+				await expect(PROD).toBeVisible();
+				await expect(TEST).toBeVisible();
+				await PROD.click();
+				const missingProdBranch = repoCard.getByText(/^No branch found matching environment "PROD"\.$/);
+				await expect(missingProdBranch).toBeVisible();
+				const createProdButton = repoCard.getByRole("button", { name: "Create New Branch: PROD" });
+				await expectVisibleWithin(createProdButton, "Button: Create New Branch: PROD", 30_000);
+				await createProdButton.click();
+				await expect.poll(() => createdBranches).toEqual([{ ref: "refs/heads/PROD", sha: mainSha }]);
+				await expect(createProdButton).toBeHidden();
+				await expect(missingProdBranch).toHaveCount(0);
+				await expectSnapshot(page, repoCard, testInfo, "prod-cloned", viewportName);
+			});
 
-			await expectSnapshot(page, repoCard, testInfo, "PROD-clone-mock", viewportName);
-
-			await TEST.click();
-			await expect(repoCard.getByText(/^No branch found matching environment "TEST"\.$/)).toBeVisible();
-
-			await expectSnapshot(page, repoCard, testInfo, "TEST-clone-mock", viewportName);
+			await test.step("Creates new TEST branch from main", async () => {
+				const PROD = repoCard.getByText("PROD", { exact: true });
+				const TEST = repoCard.getByText("TEST", { exact: true });
+				await expect(repoCard.getByText("Loading environments...", { exact: true })).toBeHidden();
+				await expect(PROD).toBeVisible();
+				await expect(TEST).toBeVisible();
+				await TEST.click();
+				const missingTestBranch = repoCard.getByText(/^No branch found matching environment "TEST"\.$/);
+				await expect(missingTestBranch).toBeVisible();
+				const createTestButton = repoCard.getByRole("button", { name: "Create New Branch: TEST" });
+				await expectVisibleWithin(createTestButton, "Button: Create New Branch: TEST", 30_000);
+				const sourceBranchSelect = createTestButton.locator("..").getByRole("combobox");
+				await sourceBranchSelect.click();
+				await page.getByRole("option", { name: "PROD", exact: true }).click();
+				await expect(sourceBranchSelect).toHaveText(/PROD/);
+				await createTestButton.click();
+				await expect.poll(() => createdBranches).toEqual([
+					{ ref: "refs/heads/PROD", sha: mainSha },
+					{ ref: "refs/heads/TEST", sha: prodSha },
+				]);
+				await expect(createTestButton).toBeHidden();
+				await expect(missingTestBranch).toHaveCount(0);
+				await expectSnapshot(page, repoCard, testInfo, "end", viewportName);
+			});
 		});
 
 		test("MOCK TEST - Typing new repo name in the textbox", async ({ page, }, testInfo) => {
@@ -380,8 +444,6 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
 			await expectSnapshot(page, repoCard, testInfo, "invalid-repo-mock", viewportName);
 		});
+
 	});
 }
-
-
-

@@ -69,6 +69,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
 			const azureLoginCard = await test.step("Select the restored Azure tenant", async () => {
 				const card = await expandAzureLoginCard(page);
+				await expectSnapshot(page, card, testInfo, "start", viewportName);
 				const signedInText = card.getByText(/Signed in as/i);
 				const tenantSelect = card.getByTestId("tenant-select");
 				await expect(signedInText).toBeVisible({ timeout: 120_000 });
@@ -77,6 +78,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				expect(tenantId, "The restored Azure tenant ID should not be empty").not.toBe("");
 				await tenantSelect.click();
 				await page.getByRole("option").filter({ hasText: tenantId }).click();
+				await expectSnapshot(page, card, testInfo, "tenant-selected", viewportName);
 				return card;
 			});
 
@@ -97,6 +99,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await page.waitForTimeout(1000);
 				await createProdButton.click();
 				await expect(createProdButton).toBeHidden({ timeout: 30_000 });
+				await expectSnapshot(page, card, testInfo, "repo-created", viewportName);
 				return card;
 			});
 
@@ -107,6 +110,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await expect(subscriptionSelect).toBeVisible({ timeout: 100_000 });
 				await card.getByRole("button", { name: "Save 2 variables"} ).click();
 				await expect(card.getByRole("button", { name: /^Save\s+variables$/ })).toBeDisabled({ timeout: 60_000 });
+				await expectSnapshot(page, card, testInfo, "subscription-saved", viewportName);
 			});
 
 			const appRegistrationCard = await test.step("Create the app registration and grant access", async () => {
@@ -132,6 +136,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 					await expect(card.getByText(stepLabel, { exact: true })).toBeVisible();
 				}
 				await expect(card.getByText(/Additional consent required|Consent redirect failed/i)).toHaveCount(0);
+				await expectSnapshot(page, card, testInfo, "app-created", viewportName);
 				return card;
 			});
 
@@ -148,7 +153,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				expect(clientIds[1], "AZURE_PLAN_CLIENT_ID should be populated").toBe(clientIds[0]);
 				await expect(appRegistrationCard.getByText("2 not configured", { exact: true })).toHaveCount(0);
 
-				await expectSnapshot(page, appRegistrationCard, testInfo, `end`, viewportName);
+				await expectSnapshot(page, appRegistrationCard, testInfo, "end", viewportName);
 			});
 
 			console.log(`Created live Azure app registration test resources: ${appName} for ${repoName}`);
@@ -169,6 +174,13 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
 			await appNameInput.fill(`valid-app-${runId}`);
 			await expect(createButton).toBeEnabled();
+			await expectSnapshot(
+				page,
+				prepared.appRegistrationCard,
+				testInfo,
+				"blank-app-name",
+				viewportName,
+			);
 		});
 
 		test("Edge case - reuses an existing app registration on retry", async ({ page, context }) => {
@@ -194,6 +206,13 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expect(card.getByText(/Connection details saved(?: — no changes needed)?\./i)).toBeVisible({
 				timeout: 120_000,
 			});
+			await expectSnapshot(
+				page,
+				prepared.appRegistrationCard,
+				testInfo,
+				"existing-app-reused",
+				viewportName,
+			);
 		});
 	});
 }

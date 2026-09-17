@@ -7,15 +7,13 @@ import {
 	expandAzureSubscriptionCard,
 	expandRepoCard,
 	expectSnapshot,
+	expectVisibleWithin,
+	safePathSegment,
 } from "../util/testHelper.mts";
 import { installMockAzure, installMockGitHub, signInMockAzure } from "./mockFixtures.mts";
 import { prepareMockAzureSubscription } from "./mockTestHelper.mts";
 
-async function prepareAppRegistrationCard(
-	page: import("@playwright/test").Page,
-	context: import("@playwright/test").BrowserContext,
-	repoName: string,
-) {
+async function prepareAppRegistrationCard(	page: import("@playwright/test").Page,	context: import("@playwright/test").BrowserContext,	repoName: string,) {
 	const prepared = await prepareMockAzureSubscription(page, context, repoName, { saveVariables: true });
 	return {
 		...prepared,
@@ -28,7 +26,8 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		test.use({ viewport, deviceScaleFactor: 1 });
 
 		test("Happy path", async ({ page, context }, testInfo) => {
-			const repoName = `mock-azure-app-${viewportName.toLowerCase()}`;
+			const runId = Date.now().toString(36);
+			const repoName = safePathSegment(`mock-azure-app-${viewportName.toLowerCase()}`);
 			const appName = `zeninstaller-${repoName}`;
 			await installMockGitHub(page, context);
 			await installMockAzure(page);
@@ -75,6 +74,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				const appNameInput = card.locator("input:visible").first();
 				await expect(appNameInput).toBeVisible();
 				await appNameInput.fill(appName);
+				await expectSnapshot(page, card, testInfo, `start`, viewportName);
 				await card.getByRole("button", { name: "Create app registration" }).click();
 				await expect(card.getByText("Running...", { exact: true })).toBeHidden();
 				await expect(card.getByRole("button", { name: "Try again" })).toBeVisible();
@@ -102,8 +102,8 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				const clientIds = await connectionInputs.evaluateAll((inputs) =>
 					inputs.map((input) => (input as HTMLInputElement).value.trim()),
 				);
-				expect(clientIds[0]).not.toBe("");
-				expect(clientIds[1]).toBe(clientIds[0]);
+				expect(clientIds[0], "AZURE_CLIENT_ID should be populated").not.toBe("");
+				expect(clientIds[1], "AZURE_PLAN_CLIENT_ID should be populated").toBe(clientIds[0]);
 				await expect(appRegistrationCard.getByText("2 not configured", { exact: true })).toHaveCount(0);
 				await expectSnapshot(page, appRegistrationCard, testInfo, "end", viewportName);
 			});
@@ -113,6 +113,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		});
 
 		test("Edge case - keeps creation disabled for a blank app name", async ({ page, context }, testInfo) => {
+			const runId = Date.now().toString(36);
 			const prepared = await prepareAppRegistrationCard(
 				page,
 				context,
@@ -122,7 +123,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			const createButton = prepared.appRegistrationCard.getByRole("button", { name: "Create app registration" });
 			await appNameInput.fill("   ");
 			await expect(createButton).toBeDisabled();
-			await appNameInput.fill("valid-mock-app");
+			await appNameInput.fill(`valid-app-${runId}`);
 			await expect(createButton).toBeEnabled();
 			await expectSnapshot(
 				page,

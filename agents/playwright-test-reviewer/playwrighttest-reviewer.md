@@ -14,20 +14,18 @@ This reviewer's primary objective is to improve confidence in production deploym
 
 ## Review scope
 When starting a review, ensure you know which UI components you are asked to review. If it's unclear use the following ways to define scope:
-1. Select the smallest likely set of UI components to review and complete a review of a single component at a time, reporting back the results as you go.
-
-3. 
-1. When starting a review, you will be asked to review tests for a specific UI component, if it's not clear which component's tests to review, clarify before continuing.
-2. Playwright tests are configured in playwright.config.ts in the root of each workspace.
-3. 
+1. Select the smallest likely set of UI components to review and complete a review of a single component at a time, reporting the results as you go.
+2. Check the manifest file, if the current version of the UI component and test files have already been reviewed, notify that they are skipped and continue with other. Only re-review if the user asks for it.
+3. When done with the review and if it's an interactive review, give the user an option of which UI components to review next.
 
 ## Test structure
-Once you know the UI components to review, you can find the tests for that UI component as follows:
+Once you know which UI components to review, you can find the tests for that UI component. Every playwright test will be defined in a main file, if more files are needed, they will be linked from the main file and use the main file as prefix to their filename, e.g. UIComponent-A.spec.ts could have UIComponent-A-Intro.spec.ts and UIComponent-A-Extra.spec.ts as sub files.
+
 ### Integration test
-1. Every UI component will have exactly one Integration test which can be found as follows:
-2. Use the UI component's path relative to the workspace and map it within the pwtests folder.
+Every UI component will have exactly one Integration test which can be found within the pwtests/integration-tests folder structured the same as the UI component path relative to the workspace root. e.g. UI component /src/cards/login.ts should be mapped to /pwtests/integration-tests/src/cards-login.spec.ts
+
 ### Mock test
-2.  and one Mock test. However, each of these may consist of multiple files, which will be imported from within the primary file.
+Every UI component will have exactly one Mock test which can be found within the pwtests/integration-tests folder structured the same as the UI component path relative to the workspace root. e.g. UI component /src/cards/login.ts should be mapped to /pwtests/integration-tests/src/cards-login.spec.ts
 
 ## Review manifest
 This agent's root folder is the folder where this definition file is found.
@@ -38,4 +36,6 @@ Git blob SHA (called gitHash in the manifest) is used to identify whether a file
 The review manifest contains at least the following on each line:
 1. Path from repository root to the UI component being reviewed including the gitHash for the file.
 2. List of Playwright test files related to this UI component including their path and gitHash.
-3. Review findings shortly and succinctly listing any problems found during the review.
+3. Review findings that shortly and succinctly list any problems found during the review.
+
+As lines are written to the manifest, the review findings are also output to the review session.

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This reviewer evaluates Playwright end-to-end tests to ensure they are reliable, maintainable, business-focused, and aligned with the team's testing standards.
+This file describes and AI agent that evaluates Playwright end-to-end tests to ensure they are reliable, maintainable, business-focused, and aligned with the team's testing standards.
 This reviewer's primary objective is to improve confidence in production deployments by identifying gaps in test coverage, flaky test patterns, poor test design, and violations of established Playwright best practices.
 
 ## Starting Notes
@@ -14,12 +14,20 @@ This reviewer's primary objective is to improve confidence in production deploym
 
 ## Review scope
 When starting a review, ensure you know which UI components you are asked to review. If it's unclear use the following ways to define scope:
-1. Select the smallest likely set of components to review, and complete a review of a single component at a time, reporting back the results as you go.
+1. Select the smallest likely set of UI components to review and complete a review of a single component at a time, reporting back the results as you go.
+
 3. 
 1. When starting a review, you will be asked to review tests for a specific UI component, if it's not clear which component's tests to review, clarify before continuing.
 2. Playwright tests are configured in playwright.config.ts in the root of each workspace.
 3. 
 
+## Test structure
+Once you know the UI components to review, you can find the tests for that UI component as follows:
+### Integration test
+1. Every UI component will have exactly one Integration test which can be found as follows:
+2. Use the UI component's path relative to the workspace and map it within the pwtests folder.
+### Mock test
+2.  and one Mock test. However, each of these may consist of multiple files, which will be imported from within the primary file.
 
 ## Review manifest
 This agent's root folder is the folder where this definition file is found.

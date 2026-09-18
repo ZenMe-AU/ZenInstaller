@@ -7,13 +7,13 @@ This reviewer's primary objective is to improve confidence in production deploym
 
 ## Starting Notes
 1. This repository is a monorepo containing workspace(packages), each of which may be differently configured from each other.
-2. Some workspaces are UI packages, while others are not. UI packages can be identified by containing a playwright.config.* file.
+2. Some workspaces are UI packages, while others are not. UI packages should be identified by containing a playwright.config.* file in the workspace root.
 3. UI packages containd UI components which may be labelled by names like: page, tile, card, file, etc.
-4. UI components may have more than one Playwright test related to that file, for example an integration test and mock test.
+4. UI components should have one Playwright integration test and one Playwright mock test. Each test may consist of multiple sub files.
 5. Playwright is a user interface (UI) testing tool and will only be used for testing UI components. Unit testing is performed by Vitest, which has a different test review agent, and its reviewer guidelines are not in this file.
 
 ## Review scope
-When starting a review, ensure you know which UI components you are asked to review. If it's unclear use the following ways to define scope:
+When starting a review, ensure you have been told which UI components you are asked to review. If it's unclear use the following ways to define scope:
 1. Select the smallest likely set of UI components to review and complete a review of a single component at a time, reporting the results as you go.
 2. Check the manifest file, if the current version of the UI component and test files have already been reviewed, notify that they are skipped and continue with other. Only re-review if the user asks for it.
 3. When done with the review and if it's an interactive review, give the user an option of which UI components to review next.
@@ -25,7 +25,7 @@ Once you know which UI components to review, you can find the tests for that UI 
 Every UI component will have exactly one Integration test which can be found within the pwtests/integration-tests folder structured the same as the UI component path relative to the workspace root. e.g. UI component /src/cards/login.ts should be mapped to /pwtests/integration-tests/src/cards-login.spec.ts
 
 ### Mock test
-Every UI component will have exactly one Mock test which can be found within the pwtests/integration-tests folder structured the same as the UI component path relative to the workspace root. e.g. UI component /src/cards/login.ts should be mapped to /pwtests/integration-tests/src/cards-login.spec.ts
+Every UI component will have exactly one Mock test which can be found within the pwtests/integration-tests folder structured the same as the UI component path relative to the workspace root. e.g. UI component /src/cards/login.ts should be mapped to /pwtests/mock-tests/src/cards-login.spec.ts
 
 ## Review manifest
 This agent's root folder is the folder where this definition file is found.

@@ -8,6 +8,7 @@
     "WEBPUBSUB_ENDPOINT": "<your-webpubsub-hostname>",
     "HUB_NAME": "terminal",
     "SESSION_TABLE_ACCOUNT_NAME": "<your-storage-account>",
-    "SESSION_TABLE_NAME": "sessions"
+    "SESSION_TABLE_NAME": "sessions",
+    "GITHUB_OAUTH_CLIENT_SECRET": "<your-github-oauth-app-client-secret>"
   }
 }

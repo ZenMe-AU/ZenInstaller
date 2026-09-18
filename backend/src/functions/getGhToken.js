@@ -10,7 +10,7 @@ const GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token";
  * Exchanges an OAuth authorization code for a GitHub access token, and refreshes one.
  * This has to be server-side: GitHub requires client_secret
  */
-app.http("getAccessToken", {
+app.http("getGhToken", {
   methods: ["POST", "OPTIONS"],
   authLevel: "anonymous",
   handler: corsWrapper(async (request) => {

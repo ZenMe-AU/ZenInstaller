@@ -1,3 +1,6 @@
+
+// This card handles the setup of AWS IAM roles for GitHub Actions through OIDC.
+
 import { useEffect, useRef, useState } from "react";
 import { Box, Button, CircularProgress, Collapse, TextField, Typography } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";

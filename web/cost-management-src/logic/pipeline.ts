@@ -6,7 +6,7 @@ export const PIPELINES: Record<string, PipelineConfig> = {
   costManagement: {
     workflowId: "planChanges.yml",
     label: "ZenInstaller Cost Management",
-    templateRepo: "ZenMe-AU/ZBCorpArchitecture",
+    templateRepo: "ZenMe-AU/ZenbloxCore",
     validEnvs: ["PROD", "TEST"] as const,
     stages: [
       {

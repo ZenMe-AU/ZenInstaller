@@ -4,7 +4,7 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "Node Debug Current File",
+      "name": "Debug Current JS File",
       "program": "${file}",
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
@@ -25,7 +25,7 @@
       "name": "Install Root Dependencies",
       "type": "node",
       "request": "launch",
-      "preLaunchTask": "Install Node Dependencies"
+      "preLaunchTask": "Install Dependencies"
     }
   ]
 }

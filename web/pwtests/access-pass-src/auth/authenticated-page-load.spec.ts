@@ -42,7 +42,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
             // Wait for user-specific post-login content
             await expect(page.getByText(new RegExp(escapeRegExp(user.expectedPostLoginText), "i"),).first(),).toBeVisible({ timeout: 10_000 });
             // Snapshot the authenticated page state
-            await expectPageSnapshot(page,testInfo,"page-rendered.png", {userId: user.id, viewportName,mask: sensitiveTextMasks(page),stabilizeAuth: true,},);
+            await expectPageSnapshot(page,testInfo,"page-rendered.png", {userId: user.role, viewportName,mask: sensitiveTextMasks(page),stabilizeAuth: true,},);
           } finally {
             await context.close();
           }

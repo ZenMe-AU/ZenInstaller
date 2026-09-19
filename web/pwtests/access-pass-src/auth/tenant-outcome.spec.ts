@@ -79,7 +79,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
               }
               // Snapshot the outcome
               await expectPageSnapshot(page,testInfo, `${user.expectedEntraResult}-tenant.png`,
-                {userId: user.id, viewportName, mask: sensitiveTextMasks(page), stabilizeAuth: true,},);
+                {userId: user.role, viewportName, mask: sensitiveTextMasks(page), stabilizeAuth: true,},);
             } finally {
               await context.close();
             }

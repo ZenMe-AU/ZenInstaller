@@ -95,6 +95,7 @@ function VariableRow({
       </Box>
 
       <TextField
+        data-sensitive="true"
         size="small"
         placeholder="not set"
         value={localValue}

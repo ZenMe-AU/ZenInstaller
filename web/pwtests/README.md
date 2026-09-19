@@ -1,90 +1,47 @@
-# Playwright Tests
-
-Two Options include running the tests from Testing Tab or using the terminal.
-
-## Prerequisites
-
-1. Install all the project dependencies from the repository root:
-```bash
-pnpm i
-```
-
-2. Install the Playwright browser binaries the first time you set up the workspace:
-```bash
-pnpm exec playwright install
-```
-
-3. Download "Playwright Test for VSCode" extension for Playwright Test Tab
-
-4. Create your local `pwtests/auth/data/access-pass-users.local.json` file.
- - Use the `pwtests/auth/data/access-pass-users.example.json` example template for reference.
- - Update `access-pass-users.local.json` with the users and tenant data that match your environment. The tests read this file at startup and will fail if it is missing.
+# Playwright Tests folder
 
 
-## OPTION 1: Running from the Playwright Test Tab 
+This folder contain the playwright tests for this project. If you want to run tests, see [How to run tests](./Howto%20run%20tests.md), if you want to create tests, see below. 
 
-### 1. Enable the following options in the Playwright menu.
+For each card in /corp-src/cards there must be two .spec.ts files.
+1. One (cardname).spec.ts file within /pwtests/corp-src/integration-tests that is an integrated test, testing against the actual backend systems.
+1. One (cardname).spec.ts file within /pwtests/corp-src/mock-tests that is mocking the backend systems APIs, e.g. keeping all local browser capability, but removing cross network traffic.
 
-![alt text](doc/options.png)
+Note: Folder paths are expressed from the root of this Node workspace.
 
-### 2. Press the 'Run Test' icon next to Playwright dropdown.
+When creating tests, always first create the integration test first and verify every step individually with a product owner.
+Once the integration test correctly captures the business requirements then the mock test can be created from that.
+Always ensure the mock test is in alignment with the integration test for that card, so that changes to the integration test is transfered to the mock test.
 
-![alt text](doc/runTest.png)
+When reviewing and changing tests, work on one card at a time, completing the integration test and mock test before doing another card, under guidenance from the product owner.
 
-### 3. Log in as test users to generate .auth files when prompted.
- - Manually log in using test UPN + passkey when prompted by the browser.
- - The generated .auth files can be reused without manual login for future testing.
- - Regeneration recommended if more than one hour passes since session info can expire.
+## Authenticated Session State
+Session state is only needed for integration tests, not mock tests. 
+It's recommended to refresh the session state for GitHub and Azure whenever starting a new session of work on integration tests.
+The session state files are stored in /pwtests/corp-src/.auth can be refreshed by running the auth session state setup cards.
 
-### 4. Remaining tests will automatically run.
+### To setup auth session state for cards that use Azure
+Run the following test while showing the browser and letting the user authenticate: /pwtests/corp-src/setup/azure-login.setup.ts
 
-Ensure `RUN_ACCESS_PASS_CREATION=true` is set in your web .env file to allow Access Pass Creations tests to run.
+### Setup auth session state for cards that use Github:
+Ask the user if they want to use a PAT or backend. 
 
-### Updating snapshots
-When UI change is expected, snapshots can be updated using the 'Update snapshots' option in Playwright menu.
+#### PAT path
+If they want to use a PAT, they need to save the PAT into /.env as GITHUB_TOKEN
+Then run the following test while showing the browser: /pwtests/corp-src/setup/github-pat-login.setup.ts
 
+#### Backend path
+Run the following test while showing the browser and letting the user authenticate: /pwtests/corp-src/setup/github-backend-login.setup.ts
 
-## OPTION 2: Running Using the Terminal from Workspace Root
+## Notes to AI:
+1. Always ask a human if they can be product owner and guide you through the steps.
+2. Keep testing patterns in alignment, if it's not clear ask a human which pattern should be standard accross the test files.
+3. When modifying tests, run Playwright with a headed browser and live terminal output (use `--reporter=line`) so that the human can follow the process. Do not open the HTML report during the run. Once the tests are confirmed working, headed mode is no longer needed.
+4. If an of the integration tests for a card fails, ask the product owner if it's ok to continue with updating the mock test. By default only update mock tests that match integration tests that passed. For integration tests that fail, only check for glaring differences and recommend the product owner to request an update to them if needed.
+5. When starting a new integration test, list the cards that are missing integration tests for the product owner to select which one to proceed with.
+6. When creating a new integration test, use the AzureSubscriptionCard.spec.ts integration test as the example test file but also check for standards from the other integration tests.
+7. When creating a new mock test, use the RepoDetail.spec.ts mock test as the example test file.
+8. The expected user interaction is the "Happy Path" in the example test file and the other tests separate from the Happy Path are considered edge cases.
+9. When creating the mock tests, follow the same structure as the existing integration tests with the Happy Path created first and then the edge case tests.
+10. For any test being created, add an expectSnapshot() at the start of the Happy Path and at the end of each test.step(). For edge cases, add an expectSnapshot() only at the end of the test.
 
-### 1. Generate .auth files for authenticated test setup
-
-Generate the authentication state for each user by running the manual passkey setup flow:
-
-```bash
-pnpm exec playwright test azure-passkey.setup.ts --project=chromium --headed --workers=1
-```
-
-- If you only want to prepare one configured user, set `ACCESS_PASS_AUTH_USER` to that user id before running the setup command.
-- This step creates the `.auth` files under `web/pwtests/auth/.auth/`.
-
-### 2. Run the tests
-
-Run the full Playwright suite:
-
-```bash
-pnpm exec playwright test --workers=1
-```
-
-Useful narrower runs:
-
-```bash
-pnpm exec playwright test --project=chromium
-pnpm exec playwright test --project=chromium-authenticated --workers=1
-```
-
-Ensure `RUN_ACCESS_PASS_CREATION=true` is set in your web .env file to allow Access Pass Creation tests to run.
-
-### Updating snapshots
-
-When a UI change is expected, update the Playwright screenshot baselines with:
-
-```bash
-pnpm exec playwright test --update-snapshots
-```
-
-### Common failures
-
-- Missing `pwtests/auth/data/access-pass-users.local.json`: create it from the example file.
-- Missing auth files: rerun the `azure-passkey.setup.ts` command.
-- Unexplainable failed tests: regenerate .auth files.
-- App not reachable: confirm `pnpm run dev` is running on `http://localhost:5173` and backend is running.

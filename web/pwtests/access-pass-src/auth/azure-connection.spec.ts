@@ -66,7 +66,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
             await expect(authenticatedPage.getByText(new RegExp(escapeRegExp(user.expectedPostLoginText,), "i",),).first(),).toBeVisible({ timeout: 45_000,});
             await expect(authenticatedPage.getByTestId("txtAzureUsername",),).toBeVisible();
 
-            await expectPageSnapshot(authenticatedPage,testInfo,"after-connect.png", {userId: user.id, viewportName, mask:sensitiveTextMasks(authenticatedPage,), stabilizeAuth: true,},);
+            await expectPageSnapshot(authenticatedPage,testInfo,"after-connect.png", {userId: user.role, viewportName, mask:sensitiveTextMasks(authenticatedPage,), stabilizeAuth: true,},);
           } finally {
             try {
               await context.close();

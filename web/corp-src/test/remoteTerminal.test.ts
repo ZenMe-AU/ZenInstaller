@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { parseSocketEvent, stageLabel } from "../logic/remoteTerminal";
+import { parseSocketEvent } from "../logic/remoteTerminal";
+import { stageLabel } from "../config/remoteTerminal";
 
 const SESSION = "11111111-2222-3333-4444-555555555555";
 

@@ -124,7 +124,9 @@ export default function GithubLoginCard({ card, auth }: Props) {
         {authLoading ? (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 1 }}>
             <CircularProgress size={16} sx={{ color: "#cbd5e1" }} />
-            <Typography sx={{ fontSize: "0.78rem", color: "#94a3b8", ...monoSx }}>Verifying access...</Typography>
+            <Typography sx={{ fontSize: "0.78rem", color: "#94a3b8", ...monoSx }}>
+              {signingIn ? "Signing you in..." : "Verifying access..."}
+            </Typography>
           </Box>
         ) : !user ? (
           mode === "direct" ? (

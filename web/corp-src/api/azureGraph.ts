@@ -1,4 +1,5 @@
-import { getMsal, MSA_TENANT } from "./msal";
+import { getToken } from "./msal";
+import { azFetch as gFetch, ARM, GRAPH } from "./azureFetch";
 import {
   APP_SCOPES,
   ARM_SCOPES,
@@ -10,60 +11,7 @@ import {
 } from "../config/azureConfig";
 import { RBAC_ROLE_IDS } from "../config/azureConfig";
 import { deterministicUuid } from "../logic/crypto";
-import type { AzureAccount } from "../types";
-
-const GRAPH = "https://graph.microsoft.com/v1.0";
-const ARM = "https://management.azure.com";
-
-// ── Token helpers ──────────────────────────────────────────────────────────────
-
-/*
- * overrideTenantId is used for MSA accounts to target a specific AAD tenant
- * for BOTH Graph and ARM calls (MSA consumer directory doesn't support app management)
- */
-export async function getToken(account: AzureAccount, scopes: string[], overrideTenantId?: string): Promise<string> {
-  const msal = await getMsal();
-  if (!msal) throw new Error("MSAL not configured");
-
-  const isArm = scopes.some((s) => s.includes("management.azure.com"));
-  if (isArm && account.tenantId === MSA_TENANT && !overrideTenantId) {
-    throw new Error("MSA_NEEDS_TENANT");
-  }
-
-  /*
-   * Always use a tenant-specific authority to avoid consumer token issues — overrideTenantId
-   * takes precedence, else the account's tenantId, skipped for the MSA consumer tenant.
-   */
-  const tenant = overrideTenantId ?? account.tenantId;
-  const authority = tenant !== MSA_TENANT ? `https://login.microsoftonline.com/${tenant}` : undefined;
-
-  const res = await msal.acquireTokenSilent({
-    scopes,
-    account,
-    ...(authority ? { authority } : {}),
-  });
-  return res.accessToken;
-}
-
-export async function gFetch(token: string, base: string, path: string, options?: RequestInit) {
-  const res = await fetch(`${base}${path}`, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`${res.status} ${path}: ${body}`);
-  }
-
-  const text = await res.text();
-  if (text) return JSON.parse(text);
-  if (res.status === 202 || res.status === 204) return null;
-  throw new Error(`${res.status} ${path}: expected a JSON body but got none`);
-}
+import type { AzureAccount, AzureTenant } from "../types";
 
 // ── Subscriptions ──────────────────────────────────────────────────────────────
 
@@ -90,8 +38,6 @@ export async function listSubscriptions(account: AzureAccount, overrideTenantId?
 }
 
 // ── Tenants ──────────────────────────────────────────────────────────────────────
-
-export type AzureTenant = { tenantId: string; displayName: string; defaultDomain?: string };
 
 /*
  * Lists tenants the signed-in identity can access. Needs an ARM token, so it throws

@@ -6,7 +6,6 @@ import type { Account, Branch, GhEnv } from "../types";
 
 const apiMocks = vi.hoisted(() => ({
   triggerWorkflow: vi.fn(),
-  deployChangeset: vi.fn(),
   fetchStageReport: vi.fn(),
   getPlanEnv: vi.fn(),
 }));
@@ -28,7 +27,6 @@ beforeEach(() => {
   reports.clear();
   apiMocks.getPlanEnv.mockResolvedValue(null);
   apiMocks.triggerWorkflow.mockResolvedValue(undefined);
-  apiMocks.deployChangeset.mockResolvedValue(undefined);
   apiMocks.fetchStageReport.mockResolvedValue(null);
 });
 
@@ -76,7 +74,7 @@ describe("Run Status Update triggers one stage", () => {
     expect(workflowId).not.toBe(PIPELINE.workflowId);
   });
 
-  it("deploys through that stage's own workflow, with the directory baked into the file", async () => {
+  it("watches for the deploy report without dispatching — the remote terminal starts the run", async () => {
     // The hook finds the run id in its own loaded stages rather than being handed one.
     reportFor("c25cloudfront", "plan", { runId: "999", stage: "c25cloudfront", status: "success" });
     const plan = await mount();
@@ -85,13 +83,8 @@ describe("Run Status Update triggers one stage", () => {
       await plan().deployStage("c25cloudfront");
     });
 
-    expect(apiMocks.deployChangeset).toHaveBeenCalledTimes(1);
-    const [, , runId, workflowId, dir] = apiMocks.deployChangeset.mock.calls[0];
-    expect(runId).toBe("999");
-    expect(dir).toBe("c25cloudfront");
-    // Deploy is identical for every stage, so unlike plan there is one file for all.
-    expect(workflowId).toBe(PIPELINE.deployWorkflowId);
-    expect(workflowId).not.toBe("deployChangeset.yml");
+    expect(apiMocks.triggerWorkflow).not.toHaveBeenCalled();
+    expect(plan().runs.c25cloudfront).toMatchObject({ kind: "deploy", retryCount: 0, error: null });
   });
 });
 

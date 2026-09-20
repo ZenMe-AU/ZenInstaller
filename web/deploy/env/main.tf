@@ -93,31 +93,14 @@ resource "azurerm_function_app_flex_consumption" "fa" {
     AzureWebJobsStorage__tableServiceUri      = "https://${var.storage_account_name}.table.core.windows.net/"
     AzureWebJobsStorage__blobServiceUri       = "https://${var.storage_account_name}.blob.core.windows.net/"
     ALLOWED_ORIGINS                           = var.allowed_origins
-    OAUTH_SECRET                              = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.oauth_secret.versionless_id})"
+    GITHUB_OAUTH_CLIENT_SECRET                = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.oauth_secret.versionless_id})"
   }
 
   site_config {
     application_insights_connection_string = azurerm_application_insights.ai.connection_string
     cors {
       allowed_origins     = split(",", var.allowed_origins)
-      support_credentials = true # required — browser sends credentials: "include" (Easy Auth cookies)
-    }
-  }
-
-  auth_settings_v2 {
-    auth_enabled           = true
-    default_provider       = "github"
-    unauthenticated_action = "RedirectToLoginPage"
-    http_route_api_prefix  = "/auth" # only apply auth to routes under /auth, so we can have a health check endpoint that doesn't require auth
-    github_v2 {
-      client_id                  = var.oauth_client_id
-      client_secret_setting_name = "OAUTH_SECRET"
-      login_scopes               = ["read:user", "user:email", "read:org", "repo"]
-    }
-    login {
-      token_store_enabled            = true
-      token_refresh_extension_time   = 12
-      allowed_external_redirect_urls = var.allowed_origins == "" ? ["*"] : split(",", var.allowed_origins) # allow any redirect URL, since we will dynamically specify the redirect URL in the GitHub App based on the installation's host URL. We will validate the redirect URL in our code before accepting it.
+      support_credentials = true
     }
   }
 

@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Terminal } from "@xterm/xterm";
 import { triggerRemoteLogin } from "../api";
-import { createSessionCredentials, deleteSession, negotiateSession, registerSession } from "../api/remoteTerminal";
-import type { SessionCredentials } from "../api/remoteTerminal";
+import { deleteSession, negotiateSession, registerSession } from "../api/backend";
 import { TERMINAL_COLS, TERMINAL_ROWS, TERMINAL_THEME } from "../config/remoteTerminal";
-import { parseSocketEvent } from "../logic/remoteTerminal";
-import type { Cloud, RunnerMessage, TerminalStatus } from "../logic/remoteTerminal";
+import { createSessionCredentials, parseSocketEvent } from "../logic/remoteTerminal";
+import type { Cloud, RunnerMessage, SessionCredentials, TerminalStatus } from "../logic/remoteTerminal";
 import type { Account, GhEnv } from "../types";
 
 const MAX_RECONNECT_ATTEMPTS = 10;
@@ -23,7 +22,7 @@ export interface UseRemoteTerminal {
   loggedIn: Cloud[];
   runnerJoined: boolean;
   error: string | null;
-  start: () => Promise<void>;
+  start: () => Promise<boolean>;
   stop: () => void;
   resize: (cols: number, rows: number) => void;
 }
@@ -254,9 +253,9 @@ export function useRemoteTerminal(opts: {
     connectRef.current = connect;
   });
 
-  const start = useCallback(async () => {
+  const start = useCallback(async (): Promise<boolean> => {
     const { account, repoName, workflowId, dir, planRunId, selectedEnv } = optsRef.current;
-    if (!account || !repoName || !selectedEnv || !planRunId) return;
+    if (!account || !repoName || !selectedEnv || !planRunId) return false;
 
     teardown();
     setStatus("registering");
@@ -282,22 +281,23 @@ export function useRemoteTerminal(opts: {
     try {
       await registerSession(creds);
       setStatus("dispatching");
-      await triggerRemoteLogin(account, repoName, {
-        workflowId,
-        githubEnvName: selectedEnv.name,
-        ref: selectedEnv.name,
-        sessionId: creds.sessionId,
-        dir,
-        planRunId,
-      });
+      // await triggerRemoteLogin(account, repoName, {
+      //   workflowId,
+      //   githubEnvName: selectedEnv.name,
+      //   ref: selectedEnv.name,
+      //   sessionId: creds.sessionId,
+      //   dir,
+      //   planRunId,
+      // });
     } catch (e) {
       console.error("Failed to start the remote login session:", e);
       setStatus("error");
       setError(e instanceof Error ? e.message : "Failed to start the remote login session");
-      return;
+      return false;
     }
 
     await connectRef.current();
+    return true;
   }, [sendToGroup, teardown]);
 
   useEffect(() => teardown, [teardown]);

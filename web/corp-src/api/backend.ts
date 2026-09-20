@@ -2,64 +2,70 @@ import { parse } from "dotenv";
 import JSZip from "jszip";
 import type { Account, Branch, GhEnv, PullRequest, Repo, StageReport, WorkflowRun, UpsertSecretResult } from "../types";
 import { toStageReport } from "../logic/stage";
+import { getStoredToken } from "../logic/tokenStore";
+import { GITHUB_TOKEN_KEYS } from "../config/githubConfig";
+import { requireMsToken } from "./msal";
 import { readBlobWithProgress, type DownloadProgress } from "../logic/download";
 import type { RemoteLoginDispatch } from "./github";
+import { REMOTE_TERMINAL_TTL_SECONDS } from "../config/remoteTerminal";
+import { ARM_SCOPES } from "../config/azureConfig";
+import type { SessionCredentials } from "../logic/remoteTerminal";
 
 const url = import.meta.env.VITE_API_URL;
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 /*
- * Auto-refreshes the Easy Auth session on 401: retries once after /auth/refresh, else
- * redirects to login. Not used by verifyAuth (initial check should show a login button).
+ * The browser holds the GitHub token now, so it travels as a bearer header rather than a session
+ * cookie. A 401 means that token is no longer good, and only a fresh sign-in fixes it.
  */
-async function fetchWithAuth(input: string, init: RequestInit = {}): Promise<Response> {
-  const headers =
-    (init.method ?? "GET").toUpperCase() === "POST" ? { "X-CSRF-Token": "1", ...init.headers } : init.headers;
-  const res = await fetch(input, { credentials: "include", ...init, headers });
-  if (res.status !== 401) return res;
+// Named to match the backend's own constants. Microsoft tokens are scope-specific, so the caller
+// passes whichever one the endpoint needs; the GitHub one has no scopes to choose between.
+export const GH_TOKEN_HEADER = "Zb.Github.Authorization";
+export const MS_TOKEN_HEADER = "Zb.Msal.Authorization";
 
-  const refreshed = await fetch(`${url}/auth/refresh`, { credentials: "include" });
-  if (refreshed.ok) {
-    const retried = await fetch(input, { credentials: "include", ...init, headers });
-    if (retried.status !== 401) return retried;
-    // Refresh appeared to succeed but API still returns 401 — session is unusable
-  }
+// msScopes says this endpoint authorises against the Microsoft identity; the scopes decide which
+// token, so the caller names them rather than handing one over.
+export type AuthedInit = RequestInit & { msScopes?: string[] };
 
-  window.dispatchEvent(new CustomEvent("auth:session-expired"));
+export async function fetchWithAuth(input: string, init: AuthedInit = {}): Promise<Response> {
+  const { msScopes, ...requestInit } = init;
+  const token = getStoredToken(GITHUB_TOKEN_KEYS);
+  const headers: Record<string, string> = {
+    ...((requestInit.headers as Record<string, string>) ?? {}),
+    ...(token ? { [GH_TOKEN_HEADER]: `Bearer ${token}` } : {}),
+    ...(msScopes ? { [MS_TOKEN_HEADER]: `Bearer ${await requireMsToken(msScopes)}` } : {}),
+    ...((requestInit.method ?? "GET").toUpperCase() === "POST" ? { "X-CSRF-Token": "1" } : {}),
+  };
+  const res = await fetch(input, { ...requestInit, headers });
+  // A Microsoft 401 says nothing about the GitHub session, and this event is what marks it expired.
+  if (res.status === 401 && !msScopes) window.dispatchEvent(new CustomEvent("auth:session-expired"));
   return res;
 }
 
+/*
+ * The one call made before a token exists, which is why it uses a bare fetch rather than
+ * fetchWithAuth. The exchange needs GitHub's client secret, so only the backend can make it.
+ */
+export async function exchangeGithubCode(body: {
+  client_id: string;
+  code: string;
+  code_verifier: string;
+  redirect_uri: string;
+}): Promise<{ access_token?: string; error?: string }> {
+  const res = await fetch(`${url}/getGhToken`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return res.json();
+}
+
 export async function verifyAuth(): Promise<{ login: string }> {
-  const res = await fetch(`${url}/getUser`, { credentials: "include" });
+  const res = await fetchWithAuth(`${url}/getUser`);
   if (!res.ok) throw new Error("Unauthorized");
   const data = await res.json();
   return data.user;
-}
-
-export async function logout(): Promise<void> {
-  await fetch(`${url}/logout?redirect_uri=${encodeURIComponent(window.location.href)}`, {
-    method: "GET",
-    credentials: "include",
-  });
-}
-
-// ─── PKCE auth (used by usePkceAuth — inactive until VITE_AUTH_PKCE=true) ────
-
-export async function exchangePkceCode(
-  code: string,
-  verifier: string,
-  clientId: string,
-  redirectUri: string,
-): Promise<string> {
-  const res = await fetch(`${url}/getAccessToken`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ client_id: clientId, code, code_verifier: verifier, redirect_uri: redirectUri }),
-  });
-  const data = await res.json();
-  if (!data.access_token) throw new Error(data.error ?? "Token exchange failed");
-  return data.access_token;
 }
 
 // ─── Orgs & Repos ─────────────────────────────────────────────────────────────
@@ -395,32 +401,6 @@ export async function triggerWorkflowFromPR(
   return res.json();
 }
 
-export async function deployChangeset(
-  account: Account,
-  repo: string,
-  runId: string,
-  workflowId: string,
-  dir: string,
-  githubEnvName: string,
-  ref: string,
-) {
-  const res = await fetchWithAuth(`${url}/triggerActions`, {
-    method: "POST",
-    body: JSON.stringify({
-      repo,
-      owner: account.login,
-      type: account.type,
-      workflow_id: workflowId,
-      ref,
-      github_env_name: githubEnvName,
-      plan_run_id: runId,
-      dir,
-    }),
-  });
-  if (!res.ok) throw new Error(`Failed to trigger deploy: ${res.status}`);
-  return res.json();
-}
-
 export async function fetchArtifactZip(
   account: Account,
   repo: string,
@@ -483,4 +463,39 @@ export async function fetchPlan(id: string, account: { login: string; type: stri
   if (!fileName) throw new Error("No JSON file found in artifact zip");
   const content = await zip.file(fileName)!.async("string");
   return JSON.parse(content);
+}
+
+// ─── Remote terminal ──────────────────────────────────────────────────────────
+
+// The relay guards Azure resources, so it checks the Microsoft identity, not the GitHub one.
+const MS_AUTHED = { msScopes: ARM_SCOPES };
+
+export async function registerSession({ sessionId, accessToken }: SessionCredentials): Promise<void> {
+  const res = await fetchWithAuth(`${url}/terminal/register`, {
+    ...MS_AUTHED,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId, accessToken, ttlSeconds: REMOTE_TERMINAL_TTL_SECONDS }),
+  });
+  if (!res.ok) throw new Error(`Failed to register the terminal session: ${res.status}`);
+}
+
+// Returns the Web PubSub client URL, already scoped to this session's group.
+export async function negotiateSession({ sessionId, accessToken }: SessionCredentials): Promise<string> {
+  const params = new URLSearchParams({ session: sessionId, token: accessToken });
+  const res = await fetchWithAuth(`${url}/terminal/negotiate?${params}`, { ...MS_AUTHED, method: "POST" });
+  if (!res.ok) throw new Error(`Failed to negotiate the terminal session: ${res.status}`);
+  const data = await res.json();
+  const clientUrl = typeof data.url === "string" ? data.url : data.url?.url;
+  if (typeof clientUrl !== "string") throw new Error("Unexpected negotiate response");
+  return clientUrl;
+}
+
+// Best effort — the session row carries a TTL, so a failure here costs nothing.
+export async function deleteSession(sessionId: string): Promise<void> {
+  try {
+    await fetchWithAuth(`${url}/terminal/session/${sessionId}`, { ...MS_AUTHED, method: "DELETE" });
+  } catch {
+    /* empty */
+  }
 }

@@ -323,8 +323,13 @@ export default function StageCard({
     planRunId: stage.runId,
     selectedEnv,
   });
-  // Deploy opens the remote `az login` terminal; onDeploy is only the "this plan is deployable" gate.
-  const handleDeploy = onDeploy && (() => remoteTerminal.start());
+  // Deploying is both halves: the terminal dispatches the run and carries the sign-in, then
+  // onDeploy starts polling for the report it will eventually record.
+  const handleDeploy =
+    onDeploy &&
+    (async () => {
+      if (await remoteTerminal.start()) await onDeploy();
+    });
 
   const onPlanSummaryRef = useRef(onPlanSummary);
   useLayoutEffect(() => {

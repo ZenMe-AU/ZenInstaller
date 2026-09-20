@@ -25,7 +25,6 @@ const tfvars = {
   key_vault_name: `${target}-kv`,
   storage_account_name: storageAccountName,
   function_app_name: `${target}-app`,
-  oauth_client_id: env.OAUTH_CLIENT_ID?.trim() ?? "",
   allowed_origins: env.ALLOWED_ORIGINS?.trim() ?? "",
   oauth_secret: "", // placeholder — actual value is managed via Key Vault by deployer.js
 };

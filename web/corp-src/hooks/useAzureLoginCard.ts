@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { CardHook, CardRequirements, CardStatus, LoginHook, AzureAccount } from "../types";
 import { AZURE_CLIENT_ID } from "../config/azureConfig";
-import type { AzureTenant } from "../api/azureGraph";
+import type { AzureTenant } from "../types";
 import { tenantDisplayName } from "../logic/tenant";
 import { findIgnoreCase } from "../logic/search";
 import { INITIAL_URL_PARAMS, type UrlRestoreField } from "./useUrlStateManager";
 import { useAzureAccount, type UseAzureAccount } from "./useAzureAccount";
+import { setActiveAzureIdentity } from "../api/msal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -43,6 +44,11 @@ export interface UseAzureLoginCard extends UseAzureAccount, CardHook, LoginHook<
  */
 export function useAzureLoginCard({ savedTenantId }: UseAzureLoginCardParams): UseAzureLoginCard {
   const azure = useAzureAccount();
+
+  // The API layer mints its own Microsoft tokens, so it needs to know who it is minting them for.
+  useEffect(() => {
+    setActiveAzureIdentity(azure.account, savedTenantId);
+  }, [azure.account, savedTenantId]);
   // Which saved tenant value we've already tried to auto-apply, so a fresh save can retrigger it once.
   const appliedSavedTenantRef = useRef<string | null>(null);
   useEffect(() => {

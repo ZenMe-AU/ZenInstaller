@@ -6,7 +6,7 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 import type { UseRemoteTerminal } from "../hooks/useRemoteTerminal";
 import type { Cloud, TerminalStatus } from "../logic/remoteTerminal";
-import { stageLabel } from "../logic/remoteTerminal";
+import { stageLabel } from "../config/remoteTerminal";
 import { MONO as mono } from "../config/styles";
 import { TERMINAL_COLORS } from "../config/remoteTerminal";
 

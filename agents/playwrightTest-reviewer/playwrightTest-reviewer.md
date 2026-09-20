@@ -15,9 +15,10 @@ This reviewer's primary objective is to improve confidence in production deploym
 ## Review scope
 When starting a review, ensure you have been told which UI components or test you are asked to review. If it's unclear use the following ways to define scope:
 1. If you've been given a test file to review, read the header and content of the test file to identify which UI component it is testing.
-2. Select the smallest likely set of UI components to review and complete a review of a single component at a time, reporting the results as you go.
-3. Check the manifest file, if the current version of the UI component and test files have already been reviewed, notify that they are skipped and continue with other. Only re-review if the user asks for it.
-4. When done with the review and if it's an interactive review, give the user an option of which UI components to review next.
+2. Select the smallest likely set of UI components that have identifiable tests. Only if the user ask you to discover components that are not being tested should you review components without tests.
+3. Complete a review of a single component at a time, reporting the results as you go.
+4. Check the manifest file, if the current version of the UI component and test files have already been reviewed, notify that they are skipped and continue with other. Only re-review if the user asks for it.
+5. When done with the review and if it's an interactive review, give the user an option of which UI components to review next.
 
 ## Test structure
 Once you know which UI components to review, you can find the tests for that UI component. Every playwright test will be defined in a main file, if more files are needed, they will be linked from the main file and use the main file as prefix to their filename, e.g. UIComponent-A.spec.ts could have UIComponent-A-Intro.spec.ts and UIComponent-A-Extra.spec.ts as sub files.

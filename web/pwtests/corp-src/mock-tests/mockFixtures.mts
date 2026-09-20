@@ -1,4 +1,14 @@
 import type { BrowserContext, Page, Route } from "@playwright/test";
+import {
+	AZURE_MANAGEMENT_SCOPE,
+	AZURE_MANAGEMENT_URL,
+	GRAPH_APPLICATION_SCOPE,
+	GRAPH_APP_ROLE_ASSIGNMENT_SCOPE,
+	MICROSOFT_GRAPH_URL,
+	MICROSOFT_LOGIN_URL,
+	MOCK_BACKEND_URL,
+	GITHUB_API_URL,
+} from "../../testInit";
 
 const mockUser = { login: "mock-user", id: 12345 };
 const mockTenantId = "00000000-0000-0000-0000-000000000001";
@@ -47,7 +57,7 @@ export async function installMockGitHub(
 		branches: new Set(["main"]),
 	};
 
-	await page.route("https://api.github.com/**", async (route) => {
+	await page.route(`${GITHUB_API_URL}/**`, async (route) => {
 		const request = route.request();
 		const url = new URL(request.url());
 		const path = url.pathname;
@@ -150,7 +160,7 @@ export async function installMockBackend(page: Page, context?: BrowserContext) {
 		});
 	}
 	const variables: Record<string, string> = {};
-	await page.route("http://localhost:7071/**", async (route) => {
+	await page.route(`${MOCK_BACKEND_URL}/**`, async (route) => {
 		const request = route.request();
 		const path = new URL(request.url()).pathname;
 		if (path === "/getUser") return json(route, { user: mockUser });
@@ -192,7 +202,7 @@ export async function installMockAzure(page: Page): Promise<MockAzureState> {
 		rbacAssigned: false,
 	};
 
-	await page.route("https://management.azure.com/**", async (route) => {
+	await page.route(`${AZURE_MANAGEMENT_URL}/**`, async (route) => {
 		const path = new URL(route.request().url()).pathname;
 		if (path.endsWith("/subscriptions")) {
 			return json(route, {
@@ -215,7 +225,7 @@ export async function installMockAzure(page: Page): Promise<MockAzureState> {
 		}
 		return json(route, {});
 	});
-	await page.route("https://graph.microsoft.com/**", async (route) => {
+	await page.route(`${MICROSOFT_GRAPH_URL}/**`, async (route) => {
 		const request = route.request();
 		const url = new URL(request.url());
 		const path = url.pathname;
@@ -259,7 +269,7 @@ export async function installMockAzure(page: Page): Promise<MockAzureState> {
 
 export async function signInMockAzure(page: Page) {
 	const localUrl = page.url();
-	await page.route("https://login.microsoftonline.com/**", async (route) => {
+	await page.route(`${MICROSOFT_LOGIN_URL}/**`, async (route) => {
 		await route.abort("blockedbyclient");
 	});
 	const authorizeRequest = page.waitForRequest((request) => {
@@ -271,7 +281,7 @@ export async function signInMockAzure(page: Page) {
 	if (!clientId) throw new Error("The mocked Azure sign-in did not include a client ID.");
 
 	await page.goto(localUrl);
-	await page.evaluate(({ clientId, tenantId }) => {
+	await page.evaluate(({ clientId, tenantId, azureManagementScope, graphApplicationScope, graphAppRoleAssignmentScope }) => {
 		const environment = "login.microsoftonline.com";
 		const homeAccountId = `mock-home.${tenantId}`;
 		const accountKey = `msal.3|${homeAccountId}|${environment}|${tenantId}`.toLowerCase();
@@ -282,12 +292,12 @@ export async function signInMockAzure(page: Page) {
 			"accesstoken",
 			clientId,
 			tenantId,
-			"https://management.azure.com/user_impersonation",
+			azureManagementScope,
 			"",
 		].join("|").toLowerCase();
 		const graphTarget = [
-			"https://graph.microsoft.com/application.readwrite.all",
-			"https://graph.microsoft.com/approleassignment.readwrite.all",
+			graphApplicationScope,
+			graphAppRoleAssignmentScope,
 		].join(" ");
 		const graphAccessTokenKey = [
 			"msal.3",
@@ -338,12 +348,18 @@ export async function signInMockAzure(page: Page) {
 			environment,
 			clientId,
 			realm: tenantId,
-			target: "https://management.azure.com/user_impersonation",
+			target: azureManagementScope,
 			tokenType: "Bearer",
 		};
 		sessionStorage.setItem(accessTokenKey, JSON.stringify(token));
 		sessionStorage.setItem(graphAccessTokenKey, JSON.stringify({ ...token, target: graphTarget }));
-	}, { clientId, tenantId: mockTenantId });
+	}, {
+		clientId,
+		tenantId: mockTenantId,
+		azureManagementScope: AZURE_MANAGEMENT_SCOPE,
+		graphApplicationScope: GRAPH_APPLICATION_SCOPE,
+		graphAppRoleAssignmentScope: GRAPH_APP_ROLE_ASSIGNMENT_SCOPE,
+	});
 
 	await page.reload();
 }

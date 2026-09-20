@@ -1,15 +1,6 @@
 import { expect, test } from "../../coverage/fixture";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage } from "../util/setupHelper.mts";
-import {
-	chooseRepoOption,
-	expandAzureAppRegistrationCard,
-	expandAzureLoginCard,
-	expandAzureSubscriptionCard,
-	expandRepoCard,
-	expectSnapshot,
-	expectVisibleWithin,
-	safePathSegment,
-} from "../util/testHelper.mts";
+import {chooseRepoOption, expandAzureAppRegistrationCard, expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard, expectSnapshot, expectVisibleWithin, safePathSegment} from "../util/testHelper.mts";
 import { CORP_URL, viewports } from "../../testInit";
 
 async function prepareAppRegistrationCard(page: import("@playwright/test").Page, context: import("@playwright/test").BrowserContext, repoName: string) {
@@ -61,8 +52,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			test.setTimeout(600_000);
 			const runId = Date.now().toString(36);
 			const repoName = safePathSegment(`azure-app-reg-${viewportName}`);
-			const appName = `zeninstaller-${repoName}-${runId}`;
-
+			const appName = safePathSegment(`zeninstaller-${repoName}-${runId}`);
 			await restoreGithubSessionStorage(context);
 			await restoreAzureSessionStorage(context);
 			await page.goto(CORP_URL);
@@ -161,7 +151,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expect(repoCard.getByText("PROD", { exact: true })).toBeVisible();
 		});
 
-		test("Edge case - keeps creation disabled for a blank app name", async ({ page, context }) => {
+		test("Edge case - keeps creation disabled for a blank app name", async ({ page, context }, testInfo) => {
 			test.setTimeout(600_000);
 			const runId = Date.now().toString(36);
 			const repoName = safePathSegment(`azure-app-reg-blank-${viewportName}-${runId}`);
@@ -176,14 +166,14 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expect(createButton).toBeEnabled();
 			await expectSnapshot(
 				page,
-				prepared.appRegistrationCard,
+				card,
 				testInfo,
 				"blank-app-name",
 				viewportName,
 			);
 		});
 
-		test("Edge case - reuses an existing app registration on retry", async ({ page, context }) => {
+		test("Edge case - reuses an existing app registration on retry", async ({ page, context }, testInfo) => {
 			test.setTimeout(600_000);
 			const runId = Date.now().toString(36);
 			const repoName = safePathSegment(`azure-app-reg-retry-${viewportName}-${runId}`);
@@ -208,7 +198,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			});
 			await expectSnapshot(
 				page,
-				prepared.appRegistrationCard,
+				card,
 				testInfo,
 				"existing-app-reused",
 				viewportName,

@@ -41,6 +41,8 @@ import StageCard from "./cards/StageCard";
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
 
+// TODO: Remove fontSize and fontFamily from all Typography components and rely on theme defaults instead.
+
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 const EXPANDED_CARDS_KEY = "zeninstaller_corp_expanded_cards";
@@ -299,7 +301,7 @@ function AppDashboard() {
               boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
             }}
           >
-            <Typography sx={{ fontSize: "0.85rem", color: "#475569", lineHeight: 1.7 }}>
+            <Typography sx={{ color: "#475569", lineHeight: 1.7 }}>
               ZenInstaller is used to create your organisation configuration on a number of cloud hosting providers of
               your choosing. Before starting, you will need the following: <br />
               1. A personal email address, using Google, or any other email hosting provider. <br />

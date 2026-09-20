@@ -1,4 +1,4 @@
-import { expect, test, type Page, } from "@playwright/test";
+import { expect, test, type Page, } from "../coverage/fixture";
 import { CORP_URL, viewports, } from "../testInit";
 import { expectSnapshot, } from "./util/testHelper.mts";
 

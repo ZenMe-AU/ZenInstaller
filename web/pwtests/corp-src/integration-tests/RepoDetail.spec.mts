@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../coverage/fixture";
 import { restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { CORP_URL, viewports, } from "../../testInit";
 import { expandRepoCard, chooseRepoOption, expectVisibleWithin, expectSnapshot, safePathSegment } from "../util/testHelper.mts";

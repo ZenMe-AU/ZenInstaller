@@ -118,6 +118,9 @@ importers:
       '@vitest/coverage-v8':
         specifier: 4.1.9
         version: 4.1.9(vitest@4.1.11)
+      ast-v8-to-istanbul:
+        specifier: 1.0.5
+        version: 1.0.5
       dotenv:
         specifier: ^16.6.1
         version: 16.6.1
@@ -133,6 +136,15 @@ importers:
       globals:
         specifier: ^17.11.0
         version: 17.11.0
+      istanbul-lib-coverage:
+        specifier: 3.2.2
+        version: 3.2.2
+      istanbul-lib-report:
+        specifier: 3.0.1
+        version: 3.0.1
+      istanbul-reports:
+        specifier: 3.2.0
+        version: 3.2.0
       jsdom:
         specifier: ^29.1.1
         version: 29.1.1

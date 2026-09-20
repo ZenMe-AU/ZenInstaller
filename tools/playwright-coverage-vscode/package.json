@@ -1,0 +1,21 @@
+{
+  "name": "zeninstaller-playwright-coverage",
+  "displayName": "ZenInstaller Playwright Coverage",
+  "description": "Display the project's Istanbul Playwright coverage in VS Code.",
+  "version": "0.1.4",
+  "publisher": "zeninstaller",
+  "engines": { "vscode": "^1.93.0" },
+  "main": "./extension.cjs",
+  "activationEvents": ["workspaceContains:web/playwright.config.ts", "workspaceContains:playwright.config.ts"],
+  "capabilities": { "untrustedWorkspaces": { "supported": false } },
+  "contributes": {
+    "commands": [
+      { "command": "zeninstaller.coverage.runFile", "title": "Playwright: Run with Coverage", "icon": "$(run-coverage)" },
+      { "command": "zeninstaller.coverage.load", "title": "Playwright: Load Latest Coverage" }
+    ],
+    "menus": {
+      "testing/item/context": [{ "command": "zeninstaller.coverage.runFile", "when": "controllerId == playwright && testing.testItemHasUri", "group": "inline@4" }],
+      "editor/title": [{ "command": "zeninstaller.coverage.runFile", "when": "resourcePath =~ /pwtests/ && resourceFilename =~ /\\.spec\\.[cm]?ts$/", "group": "navigation" }]
+    }
+  }
+}

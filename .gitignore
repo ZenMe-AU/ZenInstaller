@@ -33,3 +33,4 @@ deploy/.env
 # Playwright
 /pwtest/test-results/
 .auth/
+.pnpm-store/v11/index.db

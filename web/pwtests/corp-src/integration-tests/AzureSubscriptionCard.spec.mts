@@ -1,4 +1,4 @@
-import { expect, test, } from "@playwright/test";
+import { expect, test, } from "../../coverage/fixture";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage, } from "../util/setupHelper.mts";
 import { chooseRepoOption, expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard, expectSnapshot, expectVisibleWithin, openExistingAzureSubscription, safePathSegment, } from "../util/testHelper.mts";
 import { CORP_URL, SUBSCRIPTION_ID, viewports, } from "../../testInit";

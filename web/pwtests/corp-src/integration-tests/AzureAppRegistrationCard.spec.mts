@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../coverage/fixture";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import {
 	chooseRepoOption,

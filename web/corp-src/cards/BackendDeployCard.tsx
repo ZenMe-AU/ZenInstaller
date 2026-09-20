@@ -35,13 +35,13 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
 
   return (
     <Card
-      title="Backend deployment"
+      title="Private Zeninstaller Backend"
       action={repoFullName && latest ? <ViewLink href={getWorkflowRunUrl(repoFullName, latest.runId)} /> : undefined}
       {...card}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.6 }}>
-          Builds the corp backend in GitHub Actions, then pushes the package straight from this browser to{" "}
+          Builds the Zeninstaller backend in GitHub Actions, then pushes the package straight from this browser to{" "}
           <Box component="span" sx={mono}>
             {appName || "the Function App"}
           </Box>

@@ -39,11 +39,6 @@ variable "function_app_name" {
   type        = string
 }
 
-variable "oauth_client_id" {
-  description = "GitHub OAuth App Client ID"
-  type        = string
-}
-
 variable "allowed_origins" {
   description = "Allowed origin list for CORS, use comma to separate multiple origins"
   type        = string

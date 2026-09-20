@@ -65,7 +65,7 @@ export default function RemoteTerminalInfraCard({
       : undefined;
 
   return (
-    <Card title="Deployment terminal" action={rgUrl ? <ViewLink href={rgUrl} /> : undefined} {...card}>
+    <Card title="Private Zeninstaller Environment" action={rgUrl ? <ViewLink href={rgUrl} /> : undefined} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.6 }}>
           The relay behind the stage-card terminal: Web PubSub, the session table, and the Function App that issues

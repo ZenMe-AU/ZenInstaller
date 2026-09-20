@@ -121,7 +121,6 @@ session table and the Function App's deployment container.
 
 ## When the backend moves into ZenInstaller
 
-`../deploy` scopes Easy Auth to `/auth` via `http_route_api_prefix`, so these four anonymous
-endpoints could live in the existing ZenInstaller Function App without the platform login
-intercepting them. If they do, the Function App, service plan and storage account here become
-redundant and only the Web PubSub needs to survive.
+`../deploy` has no platform login either — it authenticates in the handler with `requireAuth` — so
+these endpoints could live in the existing ZenInstaller Function App. If they do, the Function App,
+service plan and storage account here become redundant and only the Web PubSub needs to survive.

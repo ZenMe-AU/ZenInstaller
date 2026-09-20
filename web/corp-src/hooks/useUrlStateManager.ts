@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { captureOAuthReturn } from "../logic/oauth";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -22,6 +23,9 @@ export type UseUrlRestoreResult = {
   dismissWarnings: () => void;
   cancel: (keys?: string[]) => void;
 };
+// An OAuth return lands on the bare origin, so the restore params are not on the address bar yet.
+captureOAuthReturn();
+
 // TODO: belongs to app startup, not URL restore, move to a shared startup module.
 export const INITIAL_URL_PARAMS = new URLSearchParams(window.location.search);
 

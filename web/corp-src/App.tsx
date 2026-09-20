@@ -354,6 +354,20 @@ function AppDashboard() {
               githubUrl={githubRepoEnv.githubEnvUrl}
             />
 
+            <CreateDomainCard
+              card={cardProps("create_domain")}
+              createDomain={createDomain}
+              azureAccount={azureLogin.account}
+              corpName={corpName}
+              dnsName={dnsName}
+              subscriptionId={azureSubscription.selectedSubscriptionId}
+              githubAccount={githubRepoEnv.repo.selectedAccount}
+              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+              selectedEnv={githubRepoEnv.env.selectedEnv}
+              variables={githubVariables}
+              githubUrl={githubRepoEnv.githubEnvUrl}
+            />
+
             <RemoteTerminalInfraCard
               card={cardProps("remote_terminal_infra")}
               infra={remoteTerminalInfra}
@@ -374,20 +388,6 @@ function AppDashboard() {
                   ? `${githubRepoEnv.repo.selectedAccount.login}/${githubRepoEnv.repo.selectedRepo.name}`
                   : null
               }
-            />
-
-            <CreateDomainCard
-              card={cardProps("create_domain")}
-              createDomain={createDomain}
-              azureAccount={azureLogin.account}
-              corpName={corpName}
-              dnsName={dnsName}
-              subscriptionId={azureSubscription.selectedSubscriptionId}
-              githubAccount={githubRepoEnv.repo.selectedAccount}
-              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
-              selectedEnv={githubRepoEnv.env.selectedEnv}
-              variables={githubVariables}
-              githubUrl={githubRepoEnv.githubEnvUrl}
             />
 
             <AwsLoginCard card={cardProps("aws_login")} awsLogin={awsLogin} />

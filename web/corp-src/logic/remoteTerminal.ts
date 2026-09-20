@@ -1,3 +1,15 @@
+import { toHex } from "./crypto";
+
+export type SessionCredentials = { sessionId: string; accessToken: string };
+
+// The browser owns the credentials so the access token never travels as a workflow input.
+export function createSessionCredentials(): SessionCredentials {
+  return {
+    sessionId: crypto.randomUUID(),
+    accessToken: toHex(crypto.getRandomValues(new Uint8Array(32))),
+  };
+}
+
 // What the remote-login runner sends into the session group.
 export type Cloud = "azure" | "aws";
 
@@ -31,20 +43,6 @@ export type TerminalStatus =
   | "reconnecting"
   | "closed"
   | "error";
-
-const STAGE_LABELS: Record<string, string> = {
-  connecting: "Connecting...",
-  "azure-login": "Azure Login",
-  "aws-login": "AWS Login",
-  "terraform-init": "Terraform Init",
-  "terraform-plan": "Terraform Plan",
-  done: "Complete",
-  error: "Error",
-};
-
-export function stageLabel(stage: string): string {
-  return STAGE_LABELS[stage] ?? stage;
-}
 
 function asRunnerMessage(payload: unknown): RunnerMessage | null {
   if (typeof payload !== "object" || payload === null) return null;

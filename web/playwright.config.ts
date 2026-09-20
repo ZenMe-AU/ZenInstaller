@@ -6,7 +6,8 @@ import path from "node:path";
 import { fileURLToPath, } from "node:url";
 
 process.env.NODE_ENV = process.env.NODE_ENV || 'dev';
-process.env.DEBUG = process.env.DEBUG || 'pw:api';
+// Enable Playwright API logs for normal and coverage runs, preserving other namespaces.
+process.env.DEBUG = [process.env.DEBUG, 'pw:api'].filter(Boolean).join(',');
 const currentFilePath = fileURLToPath(import.meta.url,);
 const currentDirectory = path.dirname(currentFilePath,);
 dotenv.config({ path: path.resolve(currentDirectory, ".env",), });
@@ -28,6 +29,8 @@ export default defineConfig({
       ["line"],
       ["html", { outputFolder: "./pwtests/playwright-report", open: "never" }],
       ["./pwtests/coverage/reporter.mjs"],
+      ...(process.env.PLAYWRIGHT_VSCODE_REPORTER
+        ? [[process.env.PLAYWRIGHT_VSCODE_REPORTER] as [string]] : []),
     ]
     : [["html", { outputFolder: './pwtests/playwright-report', open: "never" }]],
   timeout: 60_000,

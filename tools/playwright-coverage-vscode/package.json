@@ -2,7 +2,7 @@
   "name": "zeninstaller-playwright-coverage",
   "displayName": "ZenInstaller Playwright Coverage",
   "description": "Display the project's Istanbul Playwright coverage in VS Code.",
-  "version": "0.1.1",
+  "version": "0.1.4",
   "publisher": "zeninstaller",
   "engines": { "vscode": "^1.93.0" },
   "main": "./extension.cjs",
@@ -10,7 +10,7 @@
   "capabilities": { "untrustedWorkspaces": { "supported": false } },
   "contributes": {
     "commands": [
-      { "command": "zeninstaller.coverage.runFile", "title": "Playwright: Run File with Coverage", "icon": "$(run-coverage)" },
+      { "command": "zeninstaller.coverage.runFile", "title": "Playwright: Run with Coverage", "icon": "$(run-coverage)" },
       { "command": "zeninstaller.coverage.load", "title": "Playwright: Load Latest Coverage" }
     ],
     "menus": {

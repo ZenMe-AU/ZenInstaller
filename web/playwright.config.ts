@@ -12,11 +12,8 @@ const currentFilePath = fileURLToPath(import.meta.url,);
 const currentDirectory = path.dirname(currentFilePath,);
 dotenv.config({ path: path.resolve(currentDirectory, ".env",), });
 
-const coverage = process.env.PLAYWRIGHT_COVERAGE === "1"
-  || process.env.npm_lifecycle_event === "test:pw:coverage";
 
 export default defineConfig({
-  metadata: { coverage },
   testDir: "./pwtests",
   outputDir: "./pwtests/test-results",
   updateSnapshots: process.env.CI ? "none" : "missing",
@@ -24,15 +21,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: coverage
-    ? [
-      ["line"],
-      ["html", { outputFolder: "./pwtests/playwright-report", open: "never" }],
-      ["./pwtests/coverage/reporter.mjs"],
-      ...(process.env.PLAYWRIGHT_VSCODE_REPORTER
-        ? [[process.env.PLAYWRIGHT_VSCODE_REPORTER] as [string]] : []),
-    ]
-    : [["html", { outputFolder: './pwtests/playwright-report', open: "never" }]],
+  reporter: [["html", { outputFolder: './pwtests/playwright-report', open: "never" }]],
   timeout: 60_000,
   expect: {
     timeout: 10_000,

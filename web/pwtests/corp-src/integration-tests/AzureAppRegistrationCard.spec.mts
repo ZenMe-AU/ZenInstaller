@@ -59,6 +59,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			test("Happy path", async ({ page, context }, testInfo) => {
 			test.setTimeout(600_000);
 			const runId = Date.now().toString(36);
+			//TODO: Configure repo name in testinit
 			const repoName = safePathSegment(`azure-subscrip-${viewportName}`);
 			const appName = safePathSegment(`zeninstaller-${repoName}-${runId}`);
 			await restoreGithubSessionStorage(context);
@@ -82,6 +83,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
 			const repoCard = await test.step("Select the existing repository and PROD environment", async () => {
 				const card = await expandRepoCard(page);
+				// TODO: Split step to first select repo and then create if it doesn't exist, clearly record that you skip the create if it did exist.
 				const repoSelection = await chooseRepoOption(page, card, repoName, { reuseExisting: true });
 				if (repoSelection === "new") {
 					await card.getByRole("button", { name: "Clone Repository" }).click();
@@ -102,6 +104,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await expectSnapshot(page, card, testInfo, "existing-repo", viewportName);
 				return card;
 			});
+
 
 			await test.step("Save the Azure subscription variables", async () => {
 				const card = await expandAzureSubscriptionCard(page);

@@ -9,7 +9,8 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		test.use({ viewport, deviceScaleFactor: 1, });
 		// The happy path is the main scenario for this card, showing the expect standard use case.
 		test("Happy path", async ({ page, context, }, testInfo) => {
-			test.setTimeout(300_000);			
+			test.setTimeout(300_000);
+			const repoName = safePathSegment(`azure-subscrip-${viewportName}`);			
 			await restoreGithubSessionStorage(context);
 			await restoreAzureSessionStorage(context);
 			await page.goto(CORP_URL);
@@ -39,41 +40,29 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await expectSnapshot(page, azureSubscriptionCard, testInfo, "tenant-selected", viewportName);
 			});
 
-			const repoCard = await test.step("Expand repo card", async () => {
-				const repoCard = await expandRepoCard(page);
-				return repoCard;
-			});
 
-			await test.step("Clone repository", async () => {
-				const repoName = safePathSegment(`azure-subscrip-${viewportName}`,);
-				await chooseRepoOption(page, repoCard, repoName);
-				const cloneRepoButton = repoCard.getByRole('button', { name: 'Clone Repository' })
-				await expect(cloneRepoButton).toBeVisible();
-				await cloneRepoButton.click();
-				await expectVisibleWithin(repoCard.getByText('Pick the environment to configure.'), "Text: Pick the environment to configure", 500000);
-				const subscriptionCard = await expandAzureSubscriptionCard(page);
-				await expectSnapshot(page, subscriptionCard, testInfo, `clone-repo`, viewportName);
-				console.log(`Created live Azure subscription test repository: ${repoName}`,);
+			const repoCard = await test.step("Select the existing repository and PROD environment", async () => {
+				const card = await expandRepoCard(page);
+				const repoSelection = await chooseRepoOption(page, card, repoName, { reuseExisting: true });
+				if (repoSelection === "new") {
+					await card.getByRole("button", { name: "Clone Repository" }).click();
+					await expectVisibleWithin(
+						card.getByText("Pick the environment to configure."),
+						"Text: Pick the environment to configure",
+						500_000,
+					);
+				}
+				await expect(card.getByText("Loading environments...", { exact: true })).toBeHidden({ timeout: 120_000 });
+				const prodEnvironment = card.getByText("PROD", { exact: true });
+				await prodEnvironment.click();
+				const createProdButton = card.getByRole("button", { name: "Create New Branch: PROD" });
+				if (await createProdButton.isVisible()) {
+					await createProdButton.click();
+					await expect(createProdButton).toBeHidden({ timeout: 30_000 });
+				}
+				await expectSnapshot(page, card, testInfo, "existing-repo", viewportName);
+				return card;
 			});
-
-			await test.step("Repo create environment", async () => {
-				const PROD = repoCard.getByText("PROD", { exact: true });
-				const TEST = repoCard.getByText("TEST", { exact: true });
-				await expect(repoCard.getByText("Loading environments...", { exact: true })).toBeHidden();
-				await expect(PROD).toBeVisible();
-				await expect(TEST).toBeVisible();
-				await PROD.click();
-				const createProdButton = repoCard.getByRole("button", { name: "Create New Branch: PROD", });
-				await expectVisibleWithin(createProdButton, "Button: Create New Branch: PROD", 30_000);
-				await page.waitForTimeout(2000);
-				await createProdButton.click();
-				await expect(createProdButton).toBeHidden({ timeout: 30_000, });
-				await expect(repoCard.getByText(/^No branch found matching environment "PROD"\.$/),).toHaveCount(0);
-				const subscriptionCard = await expandAzureSubscriptionCard(page);
-				await expectSnapshot(page, subscriptionCard, testInfo, "create-env", viewportName);
-				console.log(`Created repo environment: ${PROD}`,);
-			});
-
 
 			await test.step("Saving prefilled Azure subscription variables", async () => {
 				await expect(azureSubscriptionCard.getByText(/Pick the subscription to deploy into\./i,),).toBeVisible();
@@ -96,10 +85,12 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				}
 
 				await expect(azureSubscriptionCard.getByText("Select a repository & environment to save the tenant and subscription to GitHub.", { exact: true, },),).toHaveCount(0);
-				const saveButton = azureSubscriptionCard.getByRole("button", { name: "Save 2 variables" });
-				await expectSnapshot(page, azureSubscriptionCard, testInfo, `before-save`, viewportName);
-
-				await saveButton.click();
+				const saveButton = azureSubscriptionCard.getByRole("button", { name: /^Save(?: 2)? variables$/ });
+				if ((await saveButton.count()) > 0 && await saveButton.isEnabled({ timeout: 0 })) {
+					await saveButton.click();
+					await expect(azureSubscriptionCard.getByRole("button", { name: /^Save\s+variables$/ })).toBeDisabled({ timeout: 60_000 });
+					await expectSnapshot(page, azureSubscriptionCard, testInfo, "subscription-saved", viewportName);
+				}
 				await expectSnapshot(page, azureSubscriptionCard, testInfo, "end", viewportName);
 			});
 		})

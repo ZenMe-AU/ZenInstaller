@@ -59,7 +59,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			test("Happy path", async ({ page, context }, testInfo) => {
 			test.setTimeout(600_000);
 			const runId = Date.now().toString(36);
-				const repoName = safePathSegment(`azure-subscrip-${viewportName}`);
+			const repoName = safePathSegment(`azure-subscrip-${viewportName}`);
 			const appName = safePathSegment(`zeninstaller-${repoName}-${runId}`);
 			await restoreGithubSessionStorage(context);
 			await restoreAzureSessionStorage(context);

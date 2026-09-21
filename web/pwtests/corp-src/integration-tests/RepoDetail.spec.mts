@@ -19,24 +19,24 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			});
 
 			await test.step("Typing the new repository name in the textbox", async () => {
-				await expectSnapshot(page, repoCard, testInfo, `start`, viewportName);	
+				await expectSnapshot(page, repoCard, testInfo, "start", viewportName);	
 				await chooseRepoOption(page, repoCard, repoName);
-				await expectSnapshot(page, repoCard, testInfo, `typed-repo`, viewportName);
+				await expectSnapshot(page, repoCard, testInfo, "typed-repo", viewportName);
 			});
 			
 
 			await test.step("Cloning a new repository", async () => {
-				const cloneRepoButton = repoCard.getByRole('button', { name: 'Clone Repository' })
+				const cloneRepoButton = repoCard.getByRole("button", { name: "Clone Repository" })
 				await expect(cloneRepoButton).toBeVisible();
 				await cloneRepoButton.click();
-				await expectVisibleWithin(repoCard.getByText('Pick the environment to configure.'), "Text: Pick the environment to configure", 500000);
+				await expectVisibleWithin(repoCard.getByText("Pick the environment to configure."), "Text: Pick the environment to configure", 500_000);
 				const PROD = repoCard.getByText("PROD", { exact: true });
 				const TEST = repoCard.getByText("TEST", { exact: true });
 				await expect(repoCard.getByText("Loading environments...", { exact: true })).toBeHidden();
 				await expect(PROD).toBeVisible();
 				await expect(TEST).toBeVisible();
 
-				await expectSnapshot(page, repoCard, testInfo, `cloned-repo`, viewportName);
+				await expectSnapshot(page, repoCard, testInfo, "cloned-repo", viewportName);
 			});
 
 			await test.step("Creates new PROD branch from main", async () => {
@@ -56,7 +56,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await expect(missingProdBranch).toHaveCount(0);
 				await expect(repoCard.getByText("Failed to create branch", { exact: true, }),).toHaveCount(0);
 
-				await expectSnapshot(page, repoCard, testInfo, `prod-cloned`, viewportName);
+				await expectSnapshot(page, repoCard, testInfo, "prod-cloned", viewportName);
 
 			});
 
@@ -77,7 +77,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await expect(missingTestBranch).toHaveCount(0);
 				await expect(repoCard.getByText("Failed to create branch", { exact: true, }),).toHaveCount(0);
 
-				await expectSnapshot(page, repoCard, testInfo, `end`, viewportName);
+				await expectSnapshot(page, repoCard, testInfo, "end", viewportName);
 			});
 				
 		});
@@ -86,7 +86,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		test("Edge Integrated - Creates valid repo with no environments", async ({ page, context}, testInfo) => {
 			await restoreGithubSessionStorage(context);
 			await page.goto(CORP_URL);
-			const reponame = `live-no-env-${viewportName}`;
+			const reponame = safePathSegment(`live-no-env-${viewportName}`);
 			const repoCard = await expandRepoCard(page,);
 			await chooseRepoOption(page, repoCard, reponame);
 
@@ -98,12 +98,13 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			const cloneRepoButton = repoCard.getByRole("button", { name: "Clone Repository", });
 			await cloneRepoButton.click();
 
-			await expect(repoCard.getByText("Valid", { exact: true, })).toBeVisible({ timeout: 30_000, });
+			
 			await expect(repoCard.getByText("Loading environments...", { exact: true, })).toBeHidden();
+			await expect(repoCard.getByText("Valid", { exact: true, })).toBeVisible({ timeout: 30_000, });
 			await expect(repoCard.getByText("No environment found",)).toBeVisible();
 			await expect(repoCard.getByRole("button", { name: "Clone Repository", })).toHaveCount(0);
 
-			await expectSnapshot(page, repoCard, testInfo, `repo-no-env`, viewportName);
+			await expectSnapshot(page, repoCard, testInfo, "repo-no-env", viewportName);
 		});
 
 		test("Edge Integrated - Creates PROD branch, then creates TEST from PROD", async ({ page, context}, testInfo) => {
@@ -152,3 +153,5 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		});
 	});
 }
+
+

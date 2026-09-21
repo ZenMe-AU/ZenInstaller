@@ -21,6 +21,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
 			const azureSubscriptionCard = await test.step("Expand Azure Subscription Card", async () => {
 				const azureSubscriptionCard = await expandAzureSubscriptionCard(page);
+				await expectSnapshot(page, azureSubscriptionCard, testInfo, "start", viewportName);
 				return azureSubscriptionCard;
 			});
 
@@ -35,7 +36,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await page.getByRole("option").filter({ hasText: tenantId }).click()
 				await expect(azureSubscriptionCard.getByText("Select a tenant", { exact: true }),).toHaveCount(0);
 
-				await expectSnapshot(page, azureSubscriptionCard, testInfo, `start`, viewportName);
+				await expectSnapshot(page, azureSubscriptionCard, testInfo, "tenant-selected", viewportName);
 			});
 
 			const repoCard = await test.step("Expand repo card", async () => {
@@ -69,7 +70,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await expect(createProdButton).toBeHidden({ timeout: 30_000, });
 				await expect(repoCard.getByText(/^No branch found matching environment "PROD"\.$/),).toHaveCount(0);
 				const subscriptionCard = await expandAzureSubscriptionCard(page);
-				await expectSnapshot(page, subscriptionCard, testInfo, `create-env`, viewportName);
+				await expectSnapshot(page, subscriptionCard, testInfo, "create-env", viewportName);
 				console.log(`Created repo environment: ${PROD}`,);
 			});
 
@@ -99,7 +100,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await expectSnapshot(page, azureSubscriptionCard, testInfo, `before-save`, viewportName);
 
 				await saveButton.click();
-				await expectSnapshot(page, azureSubscriptionCard, testInfo, `end`, viewportName);
+				await expectSnapshot(page, azureSubscriptionCard, testInfo, "end", viewportName);
 			});
 		})
 
@@ -113,7 +114,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expect(azureSubscriptionCard.getByText("Unsaved change — save to apply.", { exact: true, }),).toHaveCount(0);
 			await expect(saveButton).toBeDisabled();
 
-			await expectSnapshot(page, azureSubscriptionCard, testInfo, `edge-case-existing-repo`, viewportName);
+			await expectSnapshot(page, azureSubscriptionCard, testInfo, "edge-case-existing-repo", viewportName);
 		})
 
 		test("Modifying one existing prefilled variable", async ({ page, context, }, testInfo) => {
@@ -126,12 +127,11 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expect(saveOneVariableButton).toBeEnabled();
 			await expect(azureSubscriptionCard.getByText("overwrites", { exact: true, }),).toBeVisible();
 
-			await expectSnapshot(page, azureSubscriptionCard, testInfo, `edge-case-variable-modified`, viewportName);
-
 			await azureSubscriptionCard.getByRole("button", { name: "Revert to saved value", }).click();
 			await expect(subscriptionVariableInput).toHaveValue(savedSubscriptionId);
 			await expect(azureSubscriptionCard.getByText("overwrites", { exact: true, }),).toHaveCount(0);
 			await expect(saveButton).toBeDisabled();
+			await expectSnapshot(page, azureSubscriptionCard, testInfo, "edge-case-variable-modified", viewportName);
 		})
 
 		test("Modifying all existing prefilled variables", async ({ page, context, }, testInfo) => {
@@ -142,14 +142,13 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			const tenantVariableRow = azureSubscriptionCard.getByText("AZURE_TENANT_ID", { exact: true, }).locator("..").locator("..");
 			const subscriptionVariableRow = azureSubscriptionCard.getByText("AZURE_SUBSCRIPTION_ID", { exact: true, }).locator("..").locator("..");
 
-			await tenantVariableInput.fill(`modified`,);
-			await subscriptionVariableInput.fill(`modified`,);
+			await tenantVariableInput.fill("modified");
+			await subscriptionVariableInput.fill("modified");
 			const saveTwoVariablesButton = azureSubscriptionCard.getByRole("button", { name: "Save 2 variables" });
 			await expect(saveTwoVariablesButton).toBeEnabled();
 			await expect(azureSubscriptionCard.getByText("overwrites", { exact: true, }),).toHaveCount(2);
 			
 			const subscriptionSelect = azureSubscriptionCard.getByRole("combobox",);
-			await expectSnapshot(page, azureSubscriptionCard, testInfo, `edge-case-both-variables-modified`, viewportName);
 
 			await tenantVariableRow.getByRole("button", { name: "Revert to saved value", }).click();
 			await subscriptionVariableRow.getByRole("button", { name: "Revert to saved value", }).click();
@@ -157,6 +156,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expect(subscriptionVariableInput).toHaveValue(savedSubscriptionId);
 			await expect(azureSubscriptionCard.getByText("overwrites", { exact: true, }),).toHaveCount(0);
 			await expect(saveButton).toBeDisabled();
+			await expectSnapshot(page, azureSubscriptionCard, testInfo, "edge-case-both-variables-modified", viewportName);
 		})
 
 		test("Both prefilled variables are removed before saving", async ({ page, context, }, testInfo) => {

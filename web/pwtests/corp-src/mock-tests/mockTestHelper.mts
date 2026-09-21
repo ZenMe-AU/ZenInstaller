@@ -1,18 +1,7 @@
 import { expect, type BrowserContext, type Page } from "@playwright/test";
 import { CORP_URL } from "../../testInit";
-import {
-	chooseRepoOption,
-	expandAzureLoginCard,
-	expandAzureSubscriptionCard,
-	expandRepoCard,
-} from "../util/testHelper.mts";
-import {
-	installMockAzure,
-	installMockGitHub,
-	mockSubscriptionId,
-	mockTenantId,
-	signInMockAzure,
-} from "./mockFixtures.mts";
+import { chooseRepoOption, expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard,} from "../util/testHelper.mts";
+import { installMockAzure, installMockGitHub, mockSubscriptionId, mockTenantId, signInMockAzure } from "./mockFixtures.mts";
 
 export async function prepareMockAzureSubscription(
 	page: Page,

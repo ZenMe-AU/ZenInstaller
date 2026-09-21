@@ -1,19 +1,10 @@
 import { expect, test } from "../../coverage/fixture";
 import { CORP_URL, viewports } from "../../testInit";
-import {
-	chooseRepoOption,
-	expandAzureAppRegistrationCard,
-	expandAzureLoginCard,
-	expandAzureSubscriptionCard,
-	expandRepoCard,
-	expectSnapshot,
-	expectVisibleWithin,
-	safePathSegment,
-} from "../util/testHelper.mts";
+import {chooseRepoOption, expandAzureAppRegistrationCard, expandAzureLoginCard, expandAzureSubscriptionCard,expandRepoCard, expectSnapshot, safePathSegment,} from "../util/testHelper.mts";
 import { installMockAzure, installMockGitHub, signInMockAzure } from "./mockFixtures.mts";
 import { prepareMockAzureSubscription } from "./mockTestHelper.mts";
 
-async function prepareAppRegistrationCard(	page: import("@playwright/test").Page,	context: import("@playwright/test").BrowserContext,	repoName: string,) {
+async function prepareMockAppRegistrationCard(	page: import("@playwright/test").Page,	context: import("@playwright/test").BrowserContext,	repoName: string,) {
 	const prepared = await prepareMockAzureSubscription(page, context, repoName, { saveVariables: true });
 	return {
 		...prepared,
@@ -114,7 +105,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
 		test("Edge case - keeps creation disabled for a blank app name", async ({ page, context }, testInfo) => {
 			const runId = Date.now().toString(36);
-			const prepared = await prepareAppRegistrationCard(
+			const prepared = await prepareMockAppRegistrationCard(
 				page,
 				context,
 				`mock-app-blank-${viewportName.toLowerCase()}`,
@@ -135,7 +126,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		});
 
 		test("Edge case - reuses an existing app registration on retry", async ({ page, context }, testInfo) => {
-			const prepared = await prepareAppRegistrationCard(
+			const prepared = await prepareMockAppRegistrationCard(
 				page,
 				context,
 				`mock-app-retry-${viewportName.toLowerCase()}`,

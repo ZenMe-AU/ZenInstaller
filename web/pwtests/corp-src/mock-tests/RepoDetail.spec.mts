@@ -1,5 +1,5 @@
 import { expect, test } from "../../coverage/fixture";
-import { CORP_URL, viewports, } from "../../testInit";
+import { CORP_URL, GITHUB_API_URL, GITHUB_API_URL_REGEX, viewports, } from "../../testInit";
 import { chooseRepoOption, expandRepoCard, logMockAPI, expectSnapshot, expectVisibleWithin } from "../util/testHelper.mts";
 import { installMockGitHub } from "./mockFixtures.mts";
 
@@ -9,7 +9,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		
 		test.beforeEach(async ({ page, context, }) => {
 			// blocks unexpected POST requests (supposed to be mocked)
-			await page.route("https://api.github.com/**", async (route) => {
+			await page.route(`${GITHUB_API_URL}/**`, async (route) => {
 				const request = route.request();
 				if (["GET", "HEAD", "OPTIONS"].includes(request.method())) {
 					await route.continue();
@@ -29,11 +29,11 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			const prodSha = "prod-commit-sha";
 			const createdBranches: Array<{ ref: string; sha: string }> = [];
 			const environments = [
-				{ name: "PROD", id: 1001, url: `https://api.github.com/repos/mock-owner/${newRepoName}/environments/PROD`, },
-				{ name: "TEST", id: 1002, url: `https://api.github.com/repos/mock-owner/${newRepoName}/environments/TEST`, },
+				{ name: "PROD", id: 1001, url: `${GITHUB_API_URL}/repos/mock-owner/${newRepoName}/environments/PROD`, },
+				{ name: "TEST", id: 1002, url: `${GITHUB_API_URL}/repos/mock-owner/${newRepoName}/environments/TEST`, },
 			];
 
-			await page.route(new RegExp("https://api\\.github\\.com/(?:user/repos|orgs/[^/]+/repos)(?:\\?.*)?$",),
+			await page.route(new RegExp(`${GITHUB_API_URL_REGEX}/(?:user/repos|orgs/[^/]+/repos)(?:\\?.*)?$`,),
 				async (route) => {
 					const ownerType = route.request().url().includes("/orgs/") ? "Organization" : "User";
 					await route.fulfill({
@@ -44,7 +44,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				},
 			);
 
-			await page.route(new RegExp("https://api\\.github\\.com/repos/ZenMe-AU/ZenbloxCore/generate(?:\\?.*)?$",),
+			await page.route(new RegExp(`${GITHUB_API_URL_REGEX}/repos/ZenMe-AU/ZenbloxCore/generate(?:\\?.*)?$`,),
 				async (route) => {
 					expect(route.request().postDataJSON()).toMatchObject({
 						name: newRepoName,
@@ -56,14 +56,14 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				},
 			);
 
-			await page.route(new RegExp(`https://api\\.github\\.com/repos/[^/]+/${newRepoName}/environments/(?:PROD|TEST)(?:\\?.*)?$`,),
+			await page.route(new RegExp(`${GITHUB_API_URL_REGEX}/repos/[^/]+/${newRepoName}/environments/(?:PROD|TEST)(?:\\?.*)?$`,),
 				async (route) => {
 					await logMockAPI(page, route, 200, {});
 					await route.fulfill({ status: 200, contentType: "application/json", body: "{}", });
 				},
 			);
 
-			await page.route(new RegExp(`https://api\\.github\\.com/repos/[^/]+/${newRepoName}/environments(?:\\?.*)?$`,),
+			await page.route(new RegExp(`${GITHUB_API_URL_REGEX}/repos/[^/]+/${newRepoName}/environments(?:\\?.*)?$`,),
 				async (route) => {
 					const body = { total_count: environments.length, environments, };
 					await logMockAPI(page, route, 200, body);
@@ -71,7 +71,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				},
 			);
 
-			await page.route(new RegExp(`https://api\\.github\\.com/repos/[^/]+/${newRepoName}/branches(?:\\?.*)?$`,),
+			await page.route(new RegExp(`${GITHUB_API_URL_REGEX}/repos/[^/]+/${newRepoName}/branches(?:\\?.*)?$`,),
 				async (route) => {
 					const branches = [
 						{ name: "main", commit: { sha: mainSha }, protected: true },
@@ -85,7 +85,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				},
 			);
 
-			await page.route(new RegExp(`https://api\\.github\\.com/repos/[^/]+/${newRepoName}/git/ref/heads/(?:main|PROD)(?:\\?.*)?$`,),
+			await page.route(new RegExp(`${GITHUB_API_URL_REGEX}/repos/[^/]+/${newRepoName}/git/ref/heads/(?:main|PROD)(?:\\?.*)?$`,),
 				async (route) => {
 					const sourceSha = route.request().url().includes("/heads/PROD") ? prodSha : mainSha;
 					await route.fulfill({
@@ -96,7 +96,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				},
 			);
 
-			await page.route(new RegExp(`https://api\\.github\\.com/repos/[^/]+/${newRepoName}/git/refs(?:\\?.*)?$`,),
+			await page.route(new RegExp(`${GITHUB_API_URL_REGEX}/repos/[^/]+/${newRepoName}/git/refs(?:\\?.*)?$`,),
 				async (route) => {
 					const branch = route.request().postDataJSON() as { ref: string; sha: string };
 					createdBranches.push(branch);
@@ -104,7 +104,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				},
 			);
 
-			await page.route(new RegExp(`https://api\\.github\\.com/repos/[^/]+/${newRepoName}(?:\\?.*)?$`,),
+			await page.route(new RegExp(`${GITHUB_API_URL_REGEX}/repos/[^/]+/${newRepoName}(?:\\?.*)?$`,),
 				async (route) => {
 					await route.fulfill({
 						status: 200,
@@ -119,12 +119,13 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			);
 
 			const mockedReposLoaded = page.waitForResponse((response) => response.ok()
-				&& new RegExp("https://api\\.github\\.com/(?:user/repos|orgs/[^/]+/repos)(?:\\?.*)?$",).test(response.url()),);
+				&& new RegExp(`${GITHUB_API_URL_REGEX}/(?:user/repos|orgs/[^/]+/repos)(?:\\?.*)?$`,).test(response.url()),);
 			await page.reload();
 			await mockedReposLoaded;
 
 			const repoCard = await test.step("Expand RepoDetail Card", async () => {
-				return expandRepoCard(page);
+				const repoCard = await expandRepoCard(page);
+				return repoCard;
 			});
 
 			await test.step("Typing the new repository name in the textbox", async () => {
@@ -137,11 +138,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				const cloneRepoButton = repoCard.getByRole("button", { name: "Clone Repository" });
 				await expect(cloneRepoButton).toBeVisible();
 				await cloneRepoButton.click();
-				await expectVisibleWithin(
-					repoCard.getByText("Pick the environment to configure."),
-					"Text: Pick the environment to configure",
-					500_000,
-				);
+				await expectVisibleWithin(repoCard.getByText("Pick the environment to configure."),"Text: Pick the environment to configure", 500_000);
 				const PROD = repoCard.getByText("PROD", { exact: true });
 				const TEST = repoCard.getByText("TEST", { exact: true });
 				await expect(repoCard.getByText("Loading environments...", { exact: true })).toBeHidden();
@@ -188,19 +185,20 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 					{ ref: "refs/heads/PROD", sha: mainSha },
 					{ ref: "refs/heads/TEST", sha: prodSha },
 				]);
-				await expect(createTestButton).toBeHidden();
+				await expect(createTestButton).toBeHidden({ timeout: 30_000, });
 				await expect(missingTestBranch).toHaveCount(0);
+				await expect(repoCard.getByText("Failed to create branch", { exact: true, }),).toHaveCount(0);
 				await expectSnapshot(page, repoCard, testInfo, "end", viewportName);
 			});
 		});
 
 		test("MOCK TEST - Typing new repo name in the textbox", async ({ page, }, testInfo) => {
 			const newRepoName = "mock-test";
-			await page.route(new RegExp("https://api\\.github\\.com/(?:user/repos|orgs/[^/]+/repos)(?:\\?.*)?$",),
+			await page.route(new RegExp(`${GITHUB_API_URL_REGEX}/(?:user/repos|orgs/[^/]+/repos)(?:\\?.*)?$`,),
 				async (route) => { await route.fulfill({ status: 200, contentType: "application/json", body: "[]", }); },);
 
 			const mockedReposLoaded = page.waitForResponse((response) => response.ok()
-				&& new RegExp("https://api\\.github\\.com/(?:user/repos|orgs/[^/]+/repos)(?:\\?.*)?$",).test(response.url()),);
+				&& new RegExp(`${GITHUB_API_URL_REGEX}/(?:user/repos|orgs/[^/]+/repos)(?:\\?.*)?$`,).test(response.url()),);
 			await page.reload();
 			await mockedReposLoaded;
 
@@ -228,7 +226,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		test("MOCK TEST - Selecting valid repo with no environments", async ({ page, }, testInfo) => {
 			const validRepoName = "valid-repo-no-env";
 			const validRepoId = 987654323;
-			const repoListPattern = new RegExp("https://api\\.github\\.com/(?:user/repos|orgs/[^/]+/repos)(?:\\?.*)?$",);
+			const repoListPattern = new RegExp(`${GITHUB_API_URL_REGEX}/(?:user/repos|orgs/[^/]+/repos)(?:\\?.*)?$`,);
 
 			await page.route(repoListPattern, async (route) => {
 				const ownerType = route.request().url().includes("/orgs/") ? "Organization" : "User";
@@ -239,7 +237,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				});
 			});
 
-			await page.route(new RegExp(`https://api\\.github\\.com/repos/[^/]+/${validRepoName}(?:\\?.*)?$`,),
+			await page.route(new RegExp(`${GITHUB_API_URL_REGEX}/repos/[^/]+/${validRepoName}(?:\\?.*)?$`,),
 				async (route) => {
 					await route.fulfill({
 						status: 200,
@@ -253,12 +251,12 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				},
 			);
 
-			await page.route(new RegExp(`https://api\\.github\\.com/repos/[^/]+/${validRepoName}/branches(?:\\?.*)?$`,),
+			await page.route(new RegExp(`${GITHUB_API_URL_REGEX}/repos/[^/]+/${validRepoName}/branches(?:\\?.*)?$`,),
 				async (route) => { await route.fulfill({ status: 200, contentType: "application/json", body: "[]", }); },
 			);
 
 			// mock valid repo but no environment 
-			await page.route(new RegExp(`https://api\\.github\\.com/repos/[^/]+/${validRepoName}/environments(?:\\?.*)?$`,),
+			await page.route(new RegExp(`${GITHUB_API_URL_REGEX}/repos/[^/]+/${validRepoName}/environments(?:\\?.*)?$`,),
 				async (route) => {
 					await route.fulfill({
 						status: 200,
@@ -273,12 +271,13 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await mockedReposLoaded;
 
 			const repoCard = await expandRepoCard(page,);
-			const repoInput = repoCard.getByRole("combobox", { name: "Select or type repo name...", });
-			await repoInput.click();
+			const cloneRepoButton = repoCard.getByRole("combobox", { name: "Select or type repo name...", });
+			await cloneRepoButton.click();
 			await page.getByRole("option", { name: validRepoName, }).click();
 
-			await expect(repoInput).toHaveValue(validRepoName);
-			await expect(repoCard.getByText("Valid", { exact: true, })).toBeVisible();
+			await expect(cloneRepoButton).toHaveValue(validRepoName);
+			await expect(repoCard.getByText("Loading environments...", { exact: true, })).toBeHidden();
+			await expect(repoCard.getByText("Valid", { exact: true, })).toBeVisible({ timeout: 30_000, });
 			await expect(repoCard.getByText("No environment found",)).toBeVisible();
 			await expect(repoCard.getByRole("button", { name: "Clone Repository", })).toHaveCount(0);
 
@@ -290,7 +289,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			const repoId = 987654324;
 			const mainSha = "main-commit-sha";
 			const prodSha = "prod-commit-sha";
-			const repoListPattern = new RegExp("https://api\\.github\\.com/(?:user/repos|orgs/[^/]+/repos)(?:\\?.*)?$",);
+			const repoListPattern = new RegExp(`${GITHUB_API_URL_REGEX}/(?:user/repos|orgs/[^/]+/repos)(?:\\?.*)?$`,);
 			const createdBranches: Array<{ ref: string; sha: string }> = [];
 
 			await page.route(repoListPattern, async (route) => {
@@ -302,7 +301,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				});
 			});
 
-			await page.route(new RegExp(`https://api\\.github\\.com/repos/[^/]+/${repoName}(?:\\?.*)?$`,),
+			await page.route(new RegExp(`${GITHUB_API_URL_REGEX}/repos/[^/]+/${repoName}(?:\\?.*)?$`,),
 				async (route) => {
 					await route.fulfill({
 						status: 200,
@@ -316,7 +315,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				},
 			);
 
-			await page.route(new RegExp(`https://api\\.github\\.com/repos/[^/]+/${repoName}/branches(?:\\?.*)?$`,),
+			await page.route(new RegExp(`${GITHUB_API_URL_REGEX}/repos/[^/]+/${repoName}/branches(?:\\?.*)?$`,),
 				async (route) => {
 					await route.fulfill({
 						status: 200,
@@ -326,7 +325,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				},
 			);
 
-			await page.route(new RegExp(`https://api\\.github\\.com/repos/[^/]+/${repoName}/environments(?:\\?.*)?$`,),
+			await page.route(new RegExp(`${GITHUB_API_URL_REGEX}/repos/[^/]+/${repoName}/environments(?:\\?.*)?$`,),
 				async (route) => {
 					await route.fulfill({
 						status: 200,
@@ -334,15 +333,15 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 						body: JSON.stringify({
 							total_count: 2,
 							environments: [
-								{ name: "PROD", id: 1001, url: `https://api.github.com/repos/mock-owner/${repoName}/environments/PROD`, },
-								{ name: "TEST", id: 1002, url: `https://api.github.com/repos/mock-owner/${repoName}/environments/TEST`, },
+								{ name: "PROD", id: 1001, url: `${GITHUB_API_URL}/repos/mock-owner/${repoName}/environments/PROD`, },
+								{ name: "TEST", id: 1002, url: `${GITHUB_API_URL}/repos/mock-owner/${repoName}/environments/TEST`, },
 							],
 						}),
 					});
 				},
 			);
 
-			await page.route(new RegExp(`https://api\\.github\\.com/repos/[^/]+/${repoName}/git/ref/heads/(?:main|PROD)(?:\\?.*)?$`,),
+			await page.route(new RegExp(`${GITHUB_API_URL_REGEX}/repos/[^/]+/${repoName}/git/ref/heads/(?:main|PROD)(?:\\?.*)?$`,),
 				async (route) => {
 					const sourceSha = route.request().url().includes("/heads/PROD") ? prodSha : mainSha;
 					await route.fulfill({
@@ -353,7 +352,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				},
 			);
 
-			await page.route(new RegExp(`https://api\\.github\\.com/repos/[^/]+/${repoName}/git/refs(?:\\?.*)?$`,),
+			await page.route(new RegExp(`${GITHUB_API_URL_REGEX}/repos/[^/]+/${repoName}/git/refs(?:\\?.*)?$`,),
 				async (route) => {
 					createdBranches.push(route.request().postDataJSON() as { ref: string; sha: string });
 					await route.fulfill({ status: 201, contentType: "application/json", body: "{}", });
@@ -406,7 +405,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			const invalidRepoId = 987654321;
 
 			// Mock the repository list for either a user or organisation account.
-			await page.route(new RegExp("https://api\\.github\\.com/(?:user/repos|orgs/[^/]+/repos)(?:\\?.*)?$",),
+			await page.route(new RegExp(`${GITHUB_API_URL_REGEX}/(?:user/repos|orgs/[^/]+/repos)(?:\\?.*)?$`,),
 				async (route) => {
 					const ownerType = route.request().url().includes("/orgs/") ? "Organization" : "User";
 					const mockResponseData = JSON.stringify([{ id: invalidRepoId, name: invalidRepoName, owner: { type: ownerType, }, },]);
@@ -416,7 +415,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			);
 
 			// The repository exists, but it was not created from the required template.
-			await page.route(new RegExp(`https://api\\.github\\.com/repos/[^/]+/${invalidRepoName}(?:\\?.*)?$`,),
+			await page.route(new RegExp(`${GITHUB_API_URL_REGEX}/repos/[^/]+/${invalidRepoName}(?:\\?.*)?$`,),
 				async (route) => {
 					const mockResponseData = JSON.stringify([{ id: invalidRepoId, name: invalidRepoName, owner: { type: "User", }, },]);
 					logMockAPI(page, route, 200, mockResponseData);
@@ -426,7 +425,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
 			// Start waiting before reloading so the mocked response is not missed.
 			const mockedReposLoaded = page.waitForResponse((response) => response.ok()
-				&& new RegExp("https://api\\.github\\.com/(?:user/repos|orgs/[^/]+/repos)(?:\\?.*)?$",).test(response.url()),);
+				&& new RegExp(`${GITHUB_API_URL_REGEX}/(?:user/repos|orgs/[^/]+/repos)(?:\\?.*)?$`,).test(response.url()),);
 			await page.reload();
 			await mockedReposLoaded;
 			const repoCard = await expandRepoCard(page);

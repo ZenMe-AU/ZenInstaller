@@ -12,7 +12,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
             const azureCard = await test.step("Expand Unauthenticated Azure Login Card", async () => {
                 const azureCard = await expandAzureLoginCard(page);
-                await expectSnapshot(page, azureCard, testInfo, `start`, viewportName);
+                await expectSnapshot(page, azureCard, testInfo, "start", viewportName);
                 return azureCard;
             });
 
@@ -26,7 +26,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
               await expect(azureCard.getByText(/^Tenant/)).toBeVisible();
               await expectVisibleWithin(azureCard.getByRole("combobox"), "Combobox: Load already stored tenant id.", 500000);
 
-              await expectSnapshot(page, azureCard, testInfo, `end`, viewportName);
+              await expectSnapshot(page, azureCard, testInfo, "end", viewportName);
 
             });
       });

@@ -1,8 +1,7 @@
 import { expect, test } from "../../coverage/fixture";
 import { CORP_URL, viewports } from "../../testInit";
 import {chooseRepoOption, expandAzureAppRegistrationCard, expandAzureLoginCard, expandAzureSubscriptionCard,expandRepoCard, expectSnapshot, safePathSegment,} from "../util/testHelper.mts";
-import { installMockAzure, installMockGitHub, signInMockAzure } from "./mockFixtures.mts";
-import { prepareMockAzureSubscription } from "./mockTestHelper.mts";
+import { installMockAzure, installMockGitHub, prepareMockAzureSubscription, signInMockAzure } from "../util/mockTestHelper.mts";
 
 async function prepareMockAppRegistrationCard(	page: import("@playwright/test").Page,	context: import("@playwright/test").BrowserContext,	repoName: string,) {
 	const prepared = await prepareMockAzureSubscription(page, context, repoName, { saveVariables: true });
@@ -65,7 +64,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				const appNameInput = card.locator("input:visible").first();
 				await expect(appNameInput).toBeVisible();
 				await appNameInput.fill(appName);
-				await expectSnapshot(page, card, testInfo, `start`, viewportName);
+				await expectSnapshot(page, card, testInfo, "app-prefilled", viewportName);
 				await card.getByRole("button", { name: "Create app registration" }).click();
 				await expect(card.getByText("Running...", { exact: true })).toBeHidden();
 				await expect(card.getByRole("button", { name: "Try again" })).toBeVisible();

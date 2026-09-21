@@ -7,8 +7,7 @@ import {
 	expandRepoCard,
 	expectSnapshot,
 } from "../util/testHelper.mts";
-import { installMockAzure, installMockGitHub, mockSubscriptionId, signInMockAzure } from "./mockFixtures.mts";
-import { prepareMockAzureSubscription, savedAzureVariables } from "./mockTestHelper.mts";
+import { installMockAzure, installMockGitHub, mockSubscriptionId, prepareMockAzureSubscription, savedAzureVariables, signInMockAzure } from "../util/mockTestHelper.mts";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Azure Subscription Card Mock - ${viewportName}`, () => {

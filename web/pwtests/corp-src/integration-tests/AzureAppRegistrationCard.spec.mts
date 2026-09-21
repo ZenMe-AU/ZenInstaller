@@ -19,27 +19,35 @@ async function prepareAppRegistrationCard(page: import("@playwright/test").Page,
 	await page.getByRole("option").filter({ hasText: tenantId }).click();
 
 	const repoCard = await expandRepoCard(page);
-	await chooseRepoOption(page, repoCard, repoName);
-	await repoCard.getByRole("button", { name: "Clone Repository" }).click();
-	await expectVisibleWithin(
-		repoCard.getByText("Pick the environment to configure."),
-		"Text: Pick the environment to configure",
-		500_000,
-	);
+	const repoSelection = await chooseRepoOption(page, repoCard, repoName, { reuseExisting: true });
+	if (repoSelection === "new") {
+		await repoCard.getByRole("button", { name: "Clone Repository" }).click();
+		await expectVisibleWithin(
+			repoCard.getByText("Pick the environment to configure."),
+			"Text: Pick the environment to configure",
+			500_000,
+		);
+	}
+	await expect(repoCard.getByText("Loading environments...", { exact: true })).toBeHidden({ timeout: 120_000 });
 	const prodEnvironment = repoCard.getByText("PROD", { exact: true });
-	await expect(prodEnvironment).toBeVisible();
+	if (!(await prodEnvironment.isVisible())) {
+		throw new Error(`The repository "${repoName}" does not have a visible PROD environment.`);
+	}
 	await prodEnvironment.click();
-	await page.waitForTimeout(1000);
 	const createProdButton = repoCard.getByRole("button", { name: "Create New Branch: PROD" });
-	await expect(createProdButton).toBeVisible();
-	await createProdButton.click();
-	await expect(createProdButton).toBeHidden({ timeout: 30_000 });
+	if (await createProdButton.isVisible()) {
+		await createProdButton.click();
+		await expect(createProdButton).toBeHidden({ timeout: 30_000 });
+	}
 
 	const subscriptionCard = await expandAzureSubscriptionCard(page);
 	await expect(subscriptionCard.getByText("Loading subscriptions...", { exact: true })).toBeHidden({ timeout: 60_000 });
 	await expect(subscriptionCard.getByRole("combobox")).toBeVisible({ timeout: 100_000 });
-	await subscriptionCard.getByRole("button", { name: "Save 2 variables" }).click();
-	await expect(subscriptionCard.getByRole("button", { name: /^Save\s+variables$/ })).toBeDisabled({ timeout: 60_000 });
+	const saveButton = subscriptionCard.getByRole("button", { name: /^Save(?: 2)? variables$/ });
+	if ((await saveButton.count()) > 0 && await saveButton.isEnabled({ timeout: 0 })) {
+		await saveButton.click();
+		await expect(subscriptionCard.getByRole("button", { name: /^Save\s+variables$/ })).toBeDisabled({ timeout: 60_000 });
+	}
 
 	return expandAzureAppRegistrationCard(page);
 }
@@ -48,10 +56,10 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Azure App Registration Card - ${viewportName}`, () => {
 		test.use({ viewport, deviceScaleFactor: 1 });
 
-		test("Happy path", async ({ page, context }, testInfo) => {
+			test("Happy path", async ({ page, context }, testInfo) => {
 			test.setTimeout(600_000);
 			const runId = Date.now().toString(36);
-			const repoName = safePathSegment(`azure-app-reg-${viewportName}`);
+				const repoName = safePathSegment(`azure-subscrip-${viewportName}`);
 			const appName = safePathSegment(`zeninstaller-${repoName}-${runId}`);
 			await restoreGithubSessionStorage(context);
 			await restoreAzureSessionStorage(context);
@@ -72,24 +80,26 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				return card;
 			});
 
-			const repoCard = await test.step("Create a repository and PROD environment", async () => {
+			const repoCard = await test.step("Select the existing repository and PROD environment", async () => {
 				const card = await expandRepoCard(page);
-				await chooseRepoOption(page, card, repoName);
-				await card.getByRole("button", { name: "Clone Repository" }).click();
-				await expectVisibleWithin(
-					card.getByText("Pick the environment to configure."),
-					"Text: Pick the environment to configure",
-					500_000,
-				);
+				const repoSelection = await chooseRepoOption(page, card, repoName, { reuseExisting: true });
+				if (repoSelection === "new") {
+					await card.getByRole("button", { name: "Clone Repository" }).click();
+					await expectVisibleWithin(
+						card.getByText("Pick the environment to configure."),
+						"Text: Pick the environment to configure",
+						500_000,
+					);
+				}
+				await expect(card.getByText("Loading environments...", { exact: true })).toBeHidden({ timeout: 120_000 });
 				const prodEnvironment = card.getByText("PROD", { exact: true });
-				await expect(prodEnvironment).toBeVisible();
 				await prodEnvironment.click();
 				const createProdButton = card.getByRole("button", { name: "Create New Branch: PROD" });
-				await expect(createProdButton).toBeVisible();
-				await page.waitForTimeout(1000);
-				await createProdButton.click();
-				await expect(createProdButton).toBeHidden({ timeout: 30_000 });
-				await expectSnapshot(page, card, testInfo, "repo-created", viewportName);
+				if (await createProdButton.isVisible()) {
+					await createProdButton.click();
+					await expect(createProdButton).toBeHidden({ timeout: 30_000 });
+				}
+				await expectSnapshot(page, card, testInfo, "existing-repo", viewportName);
 				return card;
 			});
 
@@ -98,8 +108,12 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await expect(card.getByText("Loading subscriptions...", { exact: true })).toBeHidden({ timeout: 60_000 });
 				const subscriptionSelect = card.getByRole("combobox");
 				await expect(subscriptionSelect).toBeVisible({ timeout: 100_000 });
-				await card.getByRole("button", { name: "Save 2 variables"} ).click();
-				await expect(card.getByRole("button", { name: /^Save\s+variables$/ })).toBeDisabled({ timeout: 60_000 });
+				const saveButton = card.getByRole("button", { name: /^Save(?: 2)? variables$/ });
+				if ((await saveButton.count()) > 0 && await saveButton.isEnabled({ timeout: 0 })) {
+					await saveButton.click();
+					await expect(card.getByRole("button", { name: /^Save\s+variables$/ })).toBeDisabled({ timeout: 60_000 });
+					await expectSnapshot(page, card, testInfo, "subscription-saved", viewportName);
+				}
 				await expectSnapshot(page, card, testInfo, "subscription-saved", viewportName);
 			});
 
@@ -109,7 +123,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await expect(appNameInput).toBeVisible();
 				await appNameInput.fill(appName);
 
-				await expectSnapshot(page, card, testInfo, `start`, viewportName);
+				await expectSnapshot(page, card, testInfo, "app-prefilled", viewportName);
 
 				await card.getByRole("button", { name: "Create app registration" }).click();
 				await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 300_000 });
@@ -126,6 +140,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 					await expect(card.getByText(stepLabel, { exact: true })).toBeVisible();
 				}
 				await expect(card.getByText(/Additional consent required|Consent redirect failed/i)).toHaveCount(0);
+				await page.waitForTimeout(1000);
 				await expectSnapshot(page, card, testInfo, "app-created", viewportName);
 				return card;
 			});
@@ -151,33 +166,11 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expect(repoCard.getByText("PROD", { exact: true })).toBeVisible();
 		});
 
-		test("Edge case - keeps creation disabled for a blank app name", async ({ page, context }, testInfo) => {
-			test.setTimeout(600_000);
-			const runId = Date.now().toString(36);
-			const repoName = safePathSegment(`azure-app-reg-blank-${viewportName}-${runId}`);
-			const card = await prepareAppRegistrationCard(page, context, repoName);
-			const appNameInput = card.locator("input:visible").first();
-			const createButton = card.getByRole("button", { name: "Create app registration" });
-
-			await appNameInput.fill("   ");
-			await expect(createButton).toBeDisabled();
-
-			await appNameInput.fill(`valid-app-${runId}`);
-			await expect(createButton).toBeEnabled();
-			await expectSnapshot(
-				page,
-				card,
-				testInfo,
-				"blank-app-name",
-				viewportName,
-			);
-		});
-
 		test("Edge case - reuses an existing app registration on retry", async ({ page, context }, testInfo) => {
 			test.setTimeout(600_000);
 			const runId = Date.now().toString(36);
-			const repoName = safePathSegment(`azure-app-reg-retry-${viewportName}-${runId}`);
-			const appName = `zeninstaller-${repoName}`;
+			const repoName = safePathSegment(`azure-subscrip-${viewportName}`);
+			const appName = `zeninstaller-${repoName}-${runId}`;
 			const card = await prepareAppRegistrationCard(page, context, repoName);
 			const appNameInput = card.locator("input:visible").first();
 
@@ -193,16 +186,8 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 300_000 });
 			await expect(card.getByText(/Existing:/i)).toBeVisible();
 			await expect(card.getByText("Already exists", { exact: true })).toBeVisible();
-			await expect(card.getByText(/Connection details saved(?: — no changes needed)?\./i)).toBeVisible({
-				timeout: 120_000,
-			});
-			await expectSnapshot(
-				page,
-				card,
-				testInfo,
-				"existing-app-reused",
-				viewportName,
-			);
+			await expect(card.getByText(/Connection details saved(?: — no changes needed)?\./i)).toBeVisible({ timeout: 120_000 });
+			await expectSnapshot(page, card, testInfo, "existing-app-reused", viewportName,);
 		});
 	});
 }

@@ -2,7 +2,7 @@ import { app } from "@azure/functions";
 import { requireAuth } from "../../utils/auth.js";
 import { corsWrapper } from "../../utils/cors.js";
 import { MissingParam } from "../../error/index.js";
-import { deleteSessionEntity } from "../../utils/sessionTable.js";
+import { deleteSessionEntity, getTableClient } from "../../utils/sessionTable.js";
 
 app.http("deleteSession", {
   methods: ["DELETE"],
@@ -16,7 +16,8 @@ app.http("deleteSession", {
         throw MissingParam({ meta: { required: ["id"] } });
       }
 
-      await deleteSessionEntity(sessionId);
+      const tableClient = await getTableClient(request.auth.msToken);
+      await deleteSessionEntity(tableClient, sessionId);
       context.log(`Session cleaned up: ${sessionId}`);
       return { jsonBody: { ok: true } };
     }),

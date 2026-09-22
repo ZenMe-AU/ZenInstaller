@@ -23,8 +23,7 @@ app.http("register", {
       }
 
       const expiresAt = Date.now() + ttlSeconds * 1000;
-      const { tableClient, tableReadyPromise } = getTableClient();
-      await tableReadyPromise;
+      const tableClient = await getTableClient(request.auth.msToken);
       await tableClient.upsertEntity(
         {
           partitionKey: SESSION_PARTITION_KEY,

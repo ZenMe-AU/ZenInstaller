@@ -1,6 +1,6 @@
-import { DefaultAzureCredential } from "@azure/identity";
 import { InternalError } from "../error/index.js";
 import { WebPubSubServiceClient } from "@azure/web-pubsub";
+import { getCredential } from "./obo.js";
 
 // The SDK wants a bare host, so any scheme or trailing slash is stripped rather than concatenated.
 const WEBPUBSUB_ENDPOINT = process.env.WEBPUBSUB_ENDPOINT?.trim()
@@ -8,18 +8,16 @@ const WEBPUBSUB_ENDPOINT = process.env.WEBPUBSUB_ENDPOINT?.trim()
   .replace(/\/+$/, "");
 const HUB_NAME = process.env.HUB_NAME || "terminal";
 
-let pubSubClient = null;
+const WEBPUBSUB_SCOPES = ["https://webpubsub.azure.com/.default"];
 
-export function getPubSubClient() {
+// Acts as the caller via OBO, so userToken is required.
+export async function getPubSubClient(userToken) {
   if (!WEBPUBSUB_ENDPOINT) {
     throw InternalError({ meta: { missing: "WEBPUBSUB_ENDPOINT" } });
   }
 
-  if (!pubSubClient) {
-    pubSubClient = new WebPubSubServiceClient(`https://${WEBPUBSUB_ENDPOINT}`, new DefaultAzureCredential(), HUB_NAME);
-  }
-
-  return pubSubClient;
+  const credential = await getCredential(WEBPUBSUB_SCOPES, userToken);
+  return new WebPubSubServiceClient(`https://${WEBPUBSUB_ENDPOINT}`, credential, HUB_NAME);
 }
 
 export function normalizeTokenResponse(tokenResponse) {

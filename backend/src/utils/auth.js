@@ -65,7 +65,7 @@ export function getMsToken(request) {
 export function requireAuth({ github = false, ms = false, check } = {}) {
   return (handler) => async (request, context) => {
     const githubToken = tryGetAccessToken(request);
-    const msToken = getMsToken(request);
+    const msToken = getMsToken(request); // check for presence only: the OBO exchange validates it
 
     if (github && !githubToken) throw Unauthorized({ meta: { reason: "github_token_missing" } });
     if (ms && !msToken) throw Unauthorized({ meta: { reason: "microsoft_token_missing" } });

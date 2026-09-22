@@ -1,50 +1,33 @@
-import { DefaultAzureCredential } from "@azure/identity";
 import { InternalError, logError } from "../error/index.js";
 import { TableClient } from "@azure/data-tables";
+import { getCredential } from "./obo.js";
 
-export const SESSION_PARTITION_KEY = "session";
-
+const STORAGE_SCOPES = ["https://storage.azure.com/.default"];
 const SESSION_TABLE_ACCOUNT_NAME = process.env.SESSION_TABLE_ACCOUNT_NAME;
 export const SESSION_TABLE_NAME = process.env.SESSION_TABLE_NAME || "sessions";
+export const SESSION_PARTITION_KEY = "session";
 
-// Module state, so the four functions sharing this module share one client and one create-table call.
-let tableClient = null;
-let tableReadyPromise = null;
-
-export function getTableClient() {
+// Acts as the caller via OBO, so userToken is required.
+export async function getTableClient(userToken) {
   if (!SESSION_TABLE_ACCOUNT_NAME) {
     throw InternalError({ meta: { missing: "SESSION_TABLE_ACCOUNT_NAME" } });
   }
 
-  if (!tableClient) {
-    // The app's system-assigned identity holds Storage Table Data Contributor; no key is stored.
-    const url = `https://${SESSION_TABLE_ACCOUNT_NAME}.table.core.windows.net`;
-    tableClient = new TableClient(url, SESSION_TABLE_NAME, new DefaultAzureCredential());
-  }
-
-  if (!tableReadyPromise) {
-    tableReadyPromise = tableClient.createTable().catch((err) => {
-      // Ignore "table already exists" errors.
-      if (err?.statusCode !== 409) {
-        throw err;
-      }
-    });
-  }
-
-  return { tableClient, tableReadyPromise };
+  const url = `https://${SESSION_TABLE_ACCOUNT_NAME}.table.core.windows.net`;
+  const credential = await getCredential(STORAGE_SCOPES, userToken);
+  // The table itself is created by the deployment terminal card, so it is assumed to exist here.
+  return new TableClient(url, SESSION_TABLE_NAME, credential);
 }
 
-export async function deleteSessionEntity(sessionId) {
-  const { tableClient, tableReadyPromise } = getTableClient();
-  await tableReadyPromise;
-
+// Takes the caller's client, so the delete runs as whoever opened it.
+export async function deleteSessionEntity(tableClient, sessionId) {
   try {
     await tableClient.deleteEntity(SESSION_PARTITION_KEY, sessionId);
   } catch (err) {
-    // A session that is already gone is the outcome the caller wanted; anything else is logged
-    // rather than thrown, since both callers have already decided their own response.
-    if (err?.statusCode !== 404) {
-      logError(err);
-    }
+    // Already gone is the outcome the caller wanted.
+    if (err?.statusCode === 404) return;
+    // Missing RBAC is never what anyone wanted, so the caller hears about it rather than a false success.
+    if (err?.statusCode === 403) throw err;
+    logError(err);
   }
 }

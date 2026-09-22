@@ -2,7 +2,7 @@ import { app } from "@azure/functions";
 import { requireAuth } from "../../utils/auth.js";
 import { corsWrapper } from "../../utils/cors.js";
 import { HttpError, MissingParam } from "../../error/index.js";
-import { SESSION_PARTITION_KEY, getTableClient } from "../../utils/sessionTable.js";
+import { getTableClient, saveSession } from "../../utils/sessionTable.js";
 
 app.http("register", {
   methods: ["POST"],
@@ -24,15 +24,7 @@ app.http("register", {
 
       const expiresAt = Date.now() + ttlSeconds * 1000;
       const tableClient = await getTableClient(request.auth.msToken);
-      await tableClient.upsertEntity(
-        {
-          partitionKey: SESSION_PARTITION_KEY,
-          rowKey: sessionId,
-          accessToken,
-          expiresAt,
-        },
-        "Replace",
-      );
+      await saveSession(tableClient, { sessionId, accessToken, expiresAt });
       context.log(`Session registered: ${sessionId} (TTL ${ttlSeconds}s)`);
       return { jsonBody: { ok: true } };
     }),

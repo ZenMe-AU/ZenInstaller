@@ -1,8 +1,8 @@
 import { app } from "@azure/functions";
 import { requireAuth } from "../../utils/auth.js";
 import { corsWrapper } from "../../utils/cors.js";
-import { Forbidden, HttpError, MissingParam, NotFound, logError } from "../../error/index.js";
-import { SESSION_PARTITION_KEY, deleteSessionEntity, getTableClient } from "../../utils/sessionTable.js";
+import { Forbidden, HttpError, MissingParam, logError } from "../../error/index.js";
+import { deleteSessionEntity, getTableClient, readSession } from "../../utils/sessionTable.js";
 import { getPubSubClient, normalizeTokenResponse } from "../../utils/webPubSub.js";
 
 app.http("negotiate", {
@@ -20,21 +20,15 @@ app.http("negotiate", {
 
       const tableClient = await getTableClient(request.auth.msToken);
 
-      let entity;
-      try {
-        entity = await tableClient.getEntity(SESSION_PARTITION_KEY, sessionId);
-      } catch (err) {
-        if (err?.statusCode === 404) throw NotFound({ cause: err, meta: { reason: "session_not_found" } });
-        throw err;
-      }
+      const session = await readSession(tableClient, sessionId);
 
-      if (Date.now() > Number(entity.expiresAt)) {
+      if (Date.now() > session.expiresAt) {
         // Tell the caller the session expired even if this cleanup fails.
         await deleteSessionEntity(tableClient, sessionId).catch(logError);
         throw new HttpError(410, "Session expired");
       }
 
-      if (entity.accessToken !== token) {
+      if (session.accessToken !== token) {
         throw Forbidden({ meta: { reason: "invalid_session_token" } });
       }
 

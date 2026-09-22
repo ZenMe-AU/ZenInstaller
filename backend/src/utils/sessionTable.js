@@ -1,11 +1,11 @@
-import { InternalError, logError } from "../error/index.js";
+import { InternalError, NotFound, logError } from "../error/index.js";
 import { TableClient } from "@azure/data-tables";
 import { getCredential } from "./obo.js";
 
 const STORAGE_SCOPES = ["https://storage.azure.com/.default"];
 const SESSION_TABLE_ACCOUNT_NAME = process.env.SESSION_TABLE_ACCOUNT_NAME;
 export const SESSION_TABLE_NAME = process.env.SESSION_TABLE_NAME || "sessions";
-export const SESSION_PARTITION_KEY = "session";
+const SESSION_PARTITION_KEY = "session";
 
 // Acts as the caller via OBO, so userToken is required.
 export async function getTableClient(userToken) {
@@ -19,7 +19,29 @@ export async function getTableClient(userToken) {
   return new TableClient(url, SESSION_TABLE_NAME, credential);
 }
 
-// Takes the caller's client, so the delete runs as whoever opened it.
+/*
+ * The three below take the caller's client, so each runs as whoever opened it. Between them they
+ * are the only code that knows how a session is laid out in the table.
+ */
+
+export async function saveSession(tableClient, { sessionId, accessToken, expiresAt }) {
+  await tableClient.upsertEntity(
+    { partitionKey: SESSION_PARTITION_KEY, rowKey: sessionId, accessToken, expiresAt },
+    "Replace",
+  );
+}
+
+export async function readSession(tableClient, sessionId) {
+  let entity;
+  try {
+    entity = await tableClient.getEntity(SESSION_PARTITION_KEY, sessionId);
+  } catch (err) {
+    if (err?.statusCode === 404) throw NotFound({ cause: err, meta: { reason: "session_not_found" } });
+    throw err;
+  }
+  return { accessToken: entity.accessToken, expiresAt: Number(entity.expiresAt) };
+}
+
 export async function deleteSessionEntity(tableClient, sessionId) {
   try {
     await tableClient.deleteEntity(SESSION_PARTITION_KEY, sessionId);

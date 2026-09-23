@@ -7,6 +7,7 @@
     "GITHUB_TOKEN": "",
     "FUNCTION_TENANT_ID": "<the tenant the Function App lives in>",
     "FUNCTION_CLIENT_ID": "<app registration that exposes api://.../access_as_user>",
+    "FUNCTION_CLIENT_SECRET": "<local only; leave unset in Azure to use the managed identity>",
     "WEBPUBSUB_ENDPOINT": "<your-webpubsub-hostname>",
     "HUB_NAME": "terminal",
     "SESSION_TABLE_ACCOUNT_NAME": "<your-storage-account>",

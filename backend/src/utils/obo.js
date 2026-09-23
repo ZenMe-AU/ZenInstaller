@@ -7,6 +7,14 @@ const FEDERATION_SCOPE = "api://AzureADTokenExchange/.default";
 
 const TENANT_ID = process.env.FUNCTION_TENANT_ID;
 const CLIENT_ID = process.env.FUNCTION_CLIENT_ID;
+const CLIENT_SECRET = process.env.FUNCTION_CLIENT_SECRET; // Local only
+
+function clientCredential() {
+  if (CLIENT_SECRET) return { clientSecret: CLIENT_SECRET };
+  const functionIdentity = new ManagedIdentityCredential();
+  // A callback rather than a value: the managed identity's token expires, so it is fetched per use.
+  return { clientAssertion: async () => (await functionIdentity.getToken(FEDERATION_SCOPE)).token };
+}
 
 let client = null;
 
@@ -16,13 +24,11 @@ function getClient() {
 
   // msal-node keeps its own token cache, so a burst of calls from one person costs one exchange.
   if (!client) {
-    const functionIdentity = new ManagedIdentityCredential();
     client = new ConfidentialClientApplication({
       auth: {
         clientId: CLIENT_ID,
         authority: `https://login.microsoftonline.com/${TENANT_ID}`,
-        // A callback rather than a value: the managed identity's token expires, so it is fetched per use.
-        clientAssertion: async () => (await functionIdentity.getToken(FEDERATION_SCOPE)).token,
+        ...clientCredential(),
       },
     });
   }

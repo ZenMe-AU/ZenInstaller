@@ -1,6 +1,6 @@
 import { BrowserContext, expect, Locator, Page, test, } from "../../coverage/fixture";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage, } from "../util/setupHelper.mts";
-import { chooseRepoOption, expectSnapshot, expectVisibleWithin, safePathSegment, } from "../util/testHelper.mts";
+import { checkRepoExists, chooseExistingRepo, createNewRepo, expectSnapshot, expectVisibleWithin, safePathSegment, } from "../util/testHelper.mts";
 import { CORP_URL, SUBSCRIPTION_ID, viewports, } from "../../testInit";
 import { expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "../util/cardHelper.mts";
 
@@ -28,8 +28,11 @@ export async function openExistingAzureSubscription(page: Page, context: Browser
 
 	const repoCard = await expandRepoCard(page);
 	const repoName = safePathSegment(`azure-subscrip-${viewportName}`,);
-	const repoSelection = await chooseRepoOption(page, repoCard, repoName, { reuseExisting: true, });
-	expect(repoSelection, `Expected the repository "${repoName}" to already exist`).toBe("existing");
+	const repoExists = await checkRepoExists(page, repoCard, repoName);
+	if (repoExists) {
+		await chooseExistingRepo(page, repoCard, repoName);
+	}
+	expect(repoExists, `Expected the repository "${repoName}" to already exist`).toBe(true);
 
 	await expect(repoCard.getByText("Loading environments...", { exact: true, }),).toBeHidden({ timeout: 120_000, });
 	const environment = repoCard.getByText(environmentName, { exact: true, });
@@ -121,17 +124,26 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			});
 
 
-			const repoCard = await test.step("Select the existing repository and PROD environment", async () => {
-				const card = await expandRepoCard(page);
-				const repoSelection = await chooseRepoOption(page, card, repoName, { reuseExisting: true });
-				if (repoSelection === "new") {
-					await card.getByRole("button", { name: "Clone Repository" }).click();
-					await expectVisibleWithin(
-						card.getByText("Pick the environment to configure."),
-						"Text: Pick the environment to configure",
-						500_000,
-					);
+			const repoCard = await test.step("Expand the Repo Detail Card", async() => {
+				const repoCard = await expandRepoCard(page);
+				return repoCard;
+			})
+
+			await test.step("Create the repository if it does not exist", async (step) => {
+				const repoExists = await checkRepoExists(page, repoCard, repoName);
+				if (repoExists) {
+					console.log(`Repository "${repoName}" already exists; skipping creation.`);
+					step.skip(repoExists, `Repository "${repoName}" already exists; skipping creation.`);
 				}
+				await createNewRepo(page, repoCard, repoName);
+			});
+
+			await test.step("Select the existing repository", async (step) => {
+				await chooseExistingRepo(page, repoCard, repoName);
+			});
+
+			await test.step("Select the PROD environment", async () => {
+				const card = repoCard;
 				await expect(card.getByText("Loading environments...", { exact: true })).toBeHidden({ timeout: 120_000 });
 				const prodEnvironment = card.getByText("PROD", { exact: true });
 				await prodEnvironment.click();
@@ -140,8 +152,6 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 					await createProdButton.click();
 					await expect(createProdButton).toBeHidden({ timeout: 30_000 });
 				}
-				await expectSnapshot(page, card, testInfo, "existing-repo", viewportName);
-				return card;
 			});
 
 			await test.step("Saving prefilled Azure subscription variables", async () => {

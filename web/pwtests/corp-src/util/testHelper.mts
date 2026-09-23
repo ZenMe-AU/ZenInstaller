@@ -90,7 +90,8 @@ export async function expectSnapshot(page: Page, locator: Locator, testInfo: Tes
 	}
 }
 
-export async function chooseRepoOption(page: Page, card: Locator, reponame: string, options: { reuseExisting?: boolean } = {}) {
+// Checks availability without selecting either an existing repository or a clone option.
+export async function checkRepoExists(page: Page, card: Locator, reponame: string): Promise<boolean> {
 	const repoInput = card.getByRole("combobox", { name: "Select or type repo name...", });
 	await repoInput.click();
 	await waitForLocatorContentLoaded(page.getByRole("option",), "No options", "Repo list", 5000000);
@@ -99,16 +100,38 @@ export async function chooseRepoOption(page: Page, card: Locator, reponame: stri
 	const alreadyClonedOption = page.getByRole("option", { name: new RegExp(`^(?:▪\\s*)?${escapedRepoName}$`, "i",), });
 	const cloneOption = page.getByRole("option", { name: new RegExp(`^Clone as [\"'“‘]${escapedRepoName}[\"'”’]$`,), });
 
-	await expect(alreadyClonedOption.or(cloneOption),).toBeVisible();
-	if (await alreadyClonedOption.isVisible()) {
-		if (!options.reuseExisting) {
-			throw new Error(`The repo "${reponame}" already exists. Please delete it from your GitHub account before running this test.`);
-		}
+	await expect(alreadyClonedOption.or(cloneOption)).toBeVisible();
+	const repoExists = await alreadyClonedOption.isVisible();
+	await repoInput.press("Escape");
+	return repoExists;
+}
 
-		await alreadyClonedOption.click();
-		await expect(repoInput).toHaveValue(reponame);
-		await expect(card.getByText("Valid", { exact: true, }),).toBeVisible();
-		return "existing" as const;
+export async function chooseExistingRepo(page: Page, card: Locator, reponame: string): Promise<void> {
+	const repoInput = card.getByRole("combobox", { name: "Select or type repo name...", });
+	await repoInput.click();
+	await waitForLocatorContentLoaded(page.getByRole("option",), "No options", "Repo list", 5000000);
+	await repoInput.fill(reponame);
+	const escapedRepoName = reponame.replace(/[.*+?^${}()|[\]\\]/g, "\\$&",);
+	const alreadyClonedOption = page.getByRole("option", { name: new RegExp(`^(?:▪\\s*)?${escapedRepoName}$`, "i",), });
+
+	await expect(alreadyClonedOption).toBeVisible();
+	await alreadyClonedOption.click();
+	await expect(repoInput).toHaveValue(reponame);
+	await expect(card.getByText("Valid", { exact: true })).toBeVisible();
+}
+
+export async function createNewRepo(page: Page, card: Locator, reponame: string): Promise<void> {
+	const repoInput = card.getByRole("combobox", { name: "Select or type repo name...", });
+	await repoInput.click();
+	await waitForLocatorContentLoaded(page.getByRole("option",), "No options", "Repo list", 5000000);
+	await repoInput.fill(reponame);
+	const escapedRepoName = reponame.replace(/[.*+?^${}()|[\]\\]/g, "\\$&",);
+	const alreadyClonedOption = page.getByRole("option", { name: new RegExp(`^(?:▪\\s*)?${escapedRepoName}$`, "i",), });
+	const cloneOption = page.getByRole("option", { name: new RegExp(`^Clone as [\"'“‘]${escapedRepoName}[\"'”’]$`,), });
+
+	await expect(alreadyClonedOption.or(cloneOption)).toBeVisible();
+	if (await alreadyClonedOption.isVisible()) {
+		throw new Error(`The repo "${reponame}" already exists. Please delete it from your GitHub account before running this test.`);
 	}
 
 	await expectVisibleWithin(cloneOption, `Clone as ${reponame}`, 500,);
@@ -122,7 +145,8 @@ export async function chooseRepoOption(page: Page, card: Locator, reponame: stri
 	await expect(card.getByRole("switch", { name: "Clone all branches" }),).not.toBeChecked();
 	await expect(card.getByRole("switch", { name: "Create environments" }),).toBeChecked();
 	await expect(card.getByText(/Pick the environment to configure/i),).toHaveCount(0);
-	return "new" as const;
+	await card.getByRole("button", { name: "Clone Repository" }).click();
+	await expectVisibleWithin(card.getByText("Pick the environment to configure."), "Text: Pick the environment to configure", 500_000,);
 }
 
 export async function logMockAPI(page: Page, route: Route, status: number, body: unknown) {

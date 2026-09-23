@@ -1,6 +1,6 @@
 import { expect, test } from "../../coverage/fixture";
 import { CORP_URL, GITHUB_API_URL, GITHUB_API_URL_REGEX, viewports, } from "../../testInit";
-import { chooseRepoOption, logMockAPI, expectSnapshot, expectVisibleWithin } from "../util/testHelper.mts";
+import { createNewRepo, logMockAPI, expectSnapshot, expectVisibleWithin } from "../util/testHelper.mts";
 import { installMockGitHub } from "../util/mockTestHelper.mts";
 import { expandRepoCard } from "../util/cardHelper.mts";
 
@@ -131,7 +131,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
 			await test.step("Typing the new repository name in the textbox", async () => {
 				await expectSnapshot(page, repoCard, testInfo, "start", viewportName);
-				await chooseRepoOption(page, repoCard, newRepoName);
+				await createNewRepo(page, repoCard, newRepoName);
 				await expectSnapshot(page, repoCard, testInfo, "typed-repo", viewportName);
 			});
 

@@ -1,6 +1,6 @@
 import { expect, test } from "../../coverage/fixture";
 import { CORP_URL, viewports } from "../../testInit";
-import { chooseRepoOption, expectSnapshot, safePathSegment,} from "../util/testHelper.mts";
+import { createNewRepo, expectSnapshot, safePathSegment,} from "../util/testHelper.mts";
 import { installMockAzure, installMockGitHub, prepareMockAzureSubscription, signInMockAzure } from "../util/mockTestHelper.mts";
 import { expandAzureAppRegistrationCard, expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "../util/cardHelper.mts";
 
@@ -39,7 +39,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
 			const repoCard = await test.step("Create a repository and PROD environment", async () => {
 				const card = await expandRepoCard(page);
-				await chooseRepoOption(page, card, repoName);
+				await createNewRepo(page, card, repoName);
 				await card.getByRole("button", { name: "Clone Repository" }).click();
 				await expect(card.getByText("Pick the environment to configure.")).toBeVisible();
 				await card.getByText("PROD", { exact: true }).click();

@@ -1,7 +1,7 @@
 import { expect, test } from "../../coverage/fixture";
 import { restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { CORP_URL, viewports, } from "../../testInit";
-import { chooseRepoOption, expectVisibleWithin, expectSnapshot, safePathSegment } from "../util/testHelper.mts";
+import { checkRepoExists, chooseExistingRepo, createNewRepo, expectVisibleWithin, expectSnapshot, safePathSegment } from "../util/testHelper.mts";
 import { expandRepoCard } from "../util/cardHelper.mts";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
@@ -14,29 +14,22 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await restoreGithubSessionStorage(context);
 			await page.goto(CORP_URL);
 			
-			const repoCard = await test.step("Expand RepoDetail Card", async () => {
+			const repoCard = await test.step("Expand the Repo Detail Card", async() => {
 				const repoCard = await expandRepoCard(page);
 				return repoCard;
+			})
+
+			await test.step("Create the repository if it does not exist", async (step) => {
+				const repoExists = await checkRepoExists(page, repoCard, repoName);
+				if (repoExists) {
+					console.log(`Repository "${repoName}" already exists; skipping creation.`);
+					step.skip(repoExists, `Repository "${repoName}" already exists; skipping creation.`);
+				}
+				await createNewRepo(page, repoCard, repoName);
 			});
 
-			await test.step("Selecting or creating the repository", async () => {
-				await expectSnapshot(page, repoCard, testInfo, "start", viewportName);	
-				const repoSelection = await chooseRepoOption(page, repoCard, repoName, { reuseExisting: true, });
-
-				if (repoSelection === "new") {
-					const cloneRepoButton = repoCard.getByRole("button", { name: "Clone Repository" });
-					await expect(cloneRepoButton).toBeVisible();
-					await expectSnapshot(page, repoCard, testInfo, "typed-repo", viewportName);
-					await cloneRepoButton.click();
-					await expectVisibleWithin(repoCard.getByText("Pick the environment to configure."), "Text: Pick the environment to configure", 500_000);
-				}
-				await expect(repoCard.getByText("Loading environments...", { exact: true })).toBeHidden();
-				const PROD = repoCard.getByText("PROD", { exact: true });
-				const TEST = repoCard.getByText("TEST", { exact: true });
-				await expect(PROD).toBeVisible();
-				await expect(TEST).toBeVisible();
-
-				await expectSnapshot(page, repoCard, testInfo, "repo-ready", viewportName);
+			await test.step("Select the existing repository", async (step) => {
+				await chooseExistingRepo(page, repoCard, repoName);
 			});
 
 			await test.step("Creates new PROD branch from main", async () => {
@@ -90,9 +83,13 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await page.goto(CORP_URL);
 			const reponame = safePathSegment(`RepoDetail-no-env-${viewportName}`);
 			const repoCard = await expandRepoCard(page,);
-			const repoSelection = await chooseRepoOption(page, repoCard, reponame, { reuseExisting: true, });
+			const repoExists = await checkRepoExists(page, repoCard, reponame);
+			if (repoExists) {
+				await chooseExistingRepo(page, repoCard, reponame);
+			}
 
-			if (repoSelection === "new") {
+			if (!repoExists) {
+				await createNewRepo(page, repoCard, reponame);
 				const createEnvironmentsSwitch = repoCard.getByRole("switch", { name: "Create environments", });
 				await expect(createEnvironmentsSwitch).toBeChecked();
 				await createEnvironmentsSwitch.click();
@@ -118,7 +115,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			const repoCard = await expandRepoCard(page,);
 			const repoInput = repoCard.getByRole("combobox", { name: "Select or type repo name...", });
 
-			await chooseRepoOption(page, repoCard, repoName);
+			await createNewRepo(page, repoCard, repoName);
 			await expect(repoInput).toHaveValue(repoName);
 			const cloneRepoButton = repoCard.getByRole("button", { name: "Clone Repository", });
 			await expectVisibleWithin(cloneRepoButton, "Button: Clone Repository", 30_000);

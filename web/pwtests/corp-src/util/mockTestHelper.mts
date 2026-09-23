@@ -1,7 +1,7 @@
 import { expect, type BrowserContext, type Page, type Route } from "@playwright/test";
 import { AZURE_MANAGEMENT_SCOPE, AZURE_MANAGEMENT_URL, CORP_URL, GITHUB_API_URL, GRAPH_APPLICATION_SCOPE, GRAPH_APP_ROLE_ASSIGNMENT_SCOPE, MICROSOFT_GRAPH_URL, MICROSOFT_LOGIN_URL, MOCK_BACKEND_URL } from "../../testInit";
 import { expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard,} from "./cardHelper.mts";
-import { chooseRepoOption,} from "./testHelper.mts";
+import { createNewRepo,} from "./testHelper.mts";
 
 const mockUser = { login: "mock-user", id: 12345 };
 const mockTenantId = "00000000-0000-0000-0000-000000000001";
@@ -331,7 +331,7 @@ export async function prepareMockAzureSubscription(
 	await page.getByRole("option", { name: /Mock tenant/i }).click();
 
 	const repoCard = await expandRepoCard(page);
-	await chooseRepoOption(page, repoCard, repoName);
+	await createNewRepo(page, repoCard, repoName);
 	await repoCard.getByRole("button", { name: "Clone Repository" }).click();
 	await expect(repoCard.getByText("Pick the environment to configure.")).toBeVisible();
 	await repoCard.getByText("PROD", { exact: true }).click();

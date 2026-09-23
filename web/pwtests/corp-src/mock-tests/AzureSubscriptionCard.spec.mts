@@ -1,6 +1,6 @@
 import { expect, test } from "../../coverage/fixture";
 import { CORP_URL, viewports } from "../../testInit";
-import { chooseRepoOption, expectSnapshot } from "../util/testHelper.mts";
+import { createNewRepo, expectSnapshot } from "../util/testHelper.mts";
 import { installMockAzure, installMockGitHub, mockSubscriptionId, prepareMockAzureSubscription, savedAzureVariables, signInMockAzure } from "../util/mockTestHelper.mts";
 import { expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "../util/cardHelper.mts";
 
@@ -42,7 +42,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			});
 
 			await test.step("Clone repository", async () => {
-				await chooseRepoOption(page, repoCard, `mock-azure-subscription-${viewportName.toLowerCase()}`);
+				await createNewRepo(page, repoCard, `mock-azure-subscription-${viewportName.toLowerCase()}`);
 				await repoCard.getByRole("button", { name: "Clone Repository" }).click();
 				await expect(repoCard.getByText("Pick the environment to configure.")).toBeVisible();
 				await expectSnapshot(page, azureSubscriptionCard, testInfo, "clone-repo", viewportName);

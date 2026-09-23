@@ -3,6 +3,8 @@
 export const HOME_URL = "http://localhost:5173/";
 export const ACCESS_PASS_URL = "http://localhost:5173/accessPass.html";
 export const CORP_URL = "http://localhost:5173/";
+
+// Mock test APIs
 export const MOCK_BACKEND_URL = "http://localhost:7071";
 export const GITHUB_API_URL = "https://api.github.com";
 export const GITHUB_API_URL_REGEX = "https://api\\.github\\.com";

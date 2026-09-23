@@ -1,7 +1,8 @@
 import { expect, test } from "../../coverage/fixture";
 import { restoreAzureSessionStorage } from "../util/setupHelper.mts";
 import { CORP_URL, viewports } from "../../testInit";
-import { expandAzureLoginCard, expectSnapshot, expectVisibleWithin, safePathSegment } from "../util/testHelper.mts";
+import { expectSnapshot, expectVisibleWithin } from "../util/testHelper.mts";
+import { expandAzureLoginCard } from "../util/cardHelper.mts";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
   test.describe(`Azure Login Card - ${viewportName}`, () => {

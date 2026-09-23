@@ -1,7 +1,8 @@
 import { expect, test } from "../../coverage/fixture";
 import { CORP_URL, GITHUB_API_URL, GITHUB_API_URL_REGEX, viewports, } from "../../testInit";
-import { chooseRepoOption, expandRepoCard, logMockAPI, expectSnapshot, expectVisibleWithin } from "../util/testHelper.mts";
+import { chooseRepoOption, logMockAPI, expectSnapshot, expectVisibleWithin } from "../util/testHelper.mts";
 import { installMockGitHub } from "../util/mockTestHelper.mts";
+import { expandRepoCard } from "../util/cardHelper.mts";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Mock Tests - ${viewportName}`, () => {

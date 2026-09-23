@@ -1,7 +1,8 @@
 import { expect, test } from "../../coverage/fixture";
 import { restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { CORP_URL, viewports, } from "../../testInit";
-import { expandRepoCard, chooseRepoOption, expectVisibleWithin, expectSnapshot, safePathSegment } from "../util/testHelper.mts";
+import { chooseRepoOption, expectVisibleWithin, expectSnapshot, safePathSegment } from "../util/testHelper.mts";
+import { expandRepoCard } from "../util/cardHelper.mts";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`RepoDetail Integrated - ${viewportName}`, () => {

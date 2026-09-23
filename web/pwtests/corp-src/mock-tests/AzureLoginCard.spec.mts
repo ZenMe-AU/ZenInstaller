@@ -1,7 +1,8 @@
 import { expect, test } from "../../coverage/fixture";
 import { installMockAzure, signInMockAzure } from "../util/mockTestHelper.mts";
 import { CORP_URL, viewports } from "../../testInit";
-import { expandAzureLoginCard, expectSnapshot } from "../util/testHelper.mts";
+import { expectSnapshot } from "../util/testHelper.mts";
+import { expandAzureLoginCard } from "../util/cardHelper.mts";
 
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {

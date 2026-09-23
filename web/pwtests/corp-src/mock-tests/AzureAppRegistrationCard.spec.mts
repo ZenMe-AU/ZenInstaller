@@ -1,7 +1,8 @@
 import { expect, test } from "../../coverage/fixture";
 import { CORP_URL, viewports } from "../../testInit";
-import {chooseRepoOption, expandAzureAppRegistrationCard, expandAzureLoginCard, expandAzureSubscriptionCard,expandRepoCard, expectSnapshot, safePathSegment,} from "../util/testHelper.mts";
+import { chooseRepoOption, expectSnapshot, safePathSegment,} from "../util/testHelper.mts";
 import { installMockAzure, installMockGitHub, prepareMockAzureSubscription, signInMockAzure } from "../util/mockTestHelper.mts";
+import { expandAzureAppRegistrationCard, expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "../util/cardHelper.mts";
 
 async function prepareMockAppRegistrationCard(	page: import("@playwright/test").Page,	context: import("@playwright/test").BrowserContext,	repoName: string,) {
 	const prepared = await prepareMockAzureSubscription(page, context, repoName, { saveVariables: true });

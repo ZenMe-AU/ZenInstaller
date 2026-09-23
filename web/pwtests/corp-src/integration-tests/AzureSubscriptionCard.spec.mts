@@ -1,8 +1,88 @@
-import { expect, test, } from "../../coverage/fixture";
+import { BrowserContext, expect, Locator, Page, test, } from "../../coverage/fixture";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage, } from "../util/setupHelper.mts";
-import { chooseRepoOption, expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard, expectSnapshot, expectVisibleWithin, openExistingAzureSubscription, safePathSegment, } from "../util/testHelper.mts";
+import { chooseRepoOption, expectSnapshot, expectVisibleWithin, safePathSegment, } from "../util/testHelper.mts";
 import { CORP_URL, SUBSCRIPTION_ID, viewports, } from "../../testInit";
+import { expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "../util/cardHelper.mts";
 
+export async function openExistingAzureSubscription(page: Page, context: BrowserContext, viewportName: string, options: {
+	environmentName?: "PROD" | "TEST";
+	expectSavedVariables?: boolean;
+} = {},): Promise<{
+	azureSubscriptionCard: Locator;
+	tenantVariableInput: Locator;
+	subscriptionVariableInput: Locator;
+	saveButton: Locator;
+}> {
+	const { environmentName = "PROD", expectSavedVariables = true, } = options;
+	await restoreGithubSessionStorage(context);
+	await restoreAzureSessionStorage(context);
+	await page.goto(CORP_URL);
+
+	const azureCard = await expandAzureLoginCard(page);
+	const tenantSelect = azureCard.getByTestId("tenant-select");
+	await expect(tenantSelect).toBeVisible({ timeout: 120_000, });
+	const tenantId = (await tenantSelect.locator("input").inputValue()).trim();
+	expect(tenantId, "The restored Azure tenant ID should not be empty").not.toBe("");
+	await tenantSelect.click();
+	await page.getByRole("option").filter({ hasText: tenantId, }).click();
+
+	const repoCard = await expandRepoCard(page);
+	const repoName = safePathSegment(`azure-subscrip-${viewportName}`,);
+	const repoSelection = await chooseRepoOption(page, repoCard, repoName, { reuseExisting: true, });
+	expect(repoSelection, `Expected the repository "${repoName}" to already exist`).toBe("existing");
+
+	await expect(repoCard.getByText("Loading environments...", { exact: true, }),).toBeHidden({ timeout: 120_000, });
+	const environment = repoCard.getByText(environmentName, { exact: true, });
+	await expect(environment).toBeVisible();
+	await environment.click();
+
+	const azureSubscriptionCard = await expandAzureSubscriptionCard(page);
+	const createBranchButton = repoCard.getByRole("button", { name: `Create New Branch: ${environmentName}`, });
+	const selectEnvironmentMessage = azureSubscriptionCard.getByText("Select a repository & environment to save the tenant and subscription to GitHub.", { exact: true, });
+	await expect.poll(async () => await createBranchButton.isVisible() || await selectEnvironmentMessage.count() === 0, {
+		timeout: 30_000,
+		message: `${environmentName} branch state did not finish loading`,
+	},).toBeTruthy();
+	if (await createBranchButton.isVisible()) {
+		await createBranchButton.click();
+		await expect(createBranchButton).toBeHidden({ timeout: 30_000, });
+	}
+
+	await expect(selectEnvironmentMessage).toHaveCount(0);
+	await expect(azureSubscriptionCard.getByText("Loading subscriptions...", { exact: true, }),).toBeHidden({ timeout: 60_000, });
+	const subscriptionSelect = azureSubscriptionCard.getByRole("combobox",);
+	await expect(subscriptionSelect).toBeVisible({ timeout: 100_000, });
+
+	// a prior run may have saved a tenant/subscription that no longer restores automatically
+	if (expectSavedVariables) {
+		await subscriptionSelect.click();
+		const subscriptionOption = page.getByRole("option").filter({ hasText: SUBSCRIPTION_ID, });
+		await expect(subscriptionOption).toBeVisible({ timeout: 30_000, });
+		await subscriptionOption.click();
+		// Defocus the select so it doesn't render a focus ring in any upcoming snapshot.
+		await azureSubscriptionCard.getByText(/Pick the subscription to deploy into\./i,).click();
+
+		const saveVariablesButton = azureSubscriptionCard.getByRole("button", { name: /^Save(?: \d+)? variables?$/, });
+		if (await saveVariablesButton.isEnabled().catch(() => false)) {
+			console.log("Detected drift between the currently selected tenant/subscription and the saved GitHub variables — re-saving.");
+			await saveVariablesButton.click();
+			await expect(azureSubscriptionCard.getByRole("button", { name: "Save variables", }),).toBeDisabled({ timeout: 60_000, });
+		}
+	}
+
+	const tenantVariableInput = azureSubscriptionCard.getByText("AZURE_TENANT_ID", { exact: true, }).locator("..").locator("..").getByRole("textbox",);
+	const subscriptionVariableInput = azureSubscriptionCard.getByText("AZURE_SUBSCRIPTION_ID", { exact: true, }).locator("..").locator("..").getByRole("textbox",);
+	const saveButton = azureSubscriptionCard.getByRole("button", { name: "Save variables" });
+	await expect.poll(async () => (await tenantVariableInput.inputValue()).trim(), { timeout: 60_000, },).not.toBe("");
+	await expect.poll(async () => (await subscriptionVariableInput.inputValue()).trim(), { timeout: 60_000, },).not.toBe("");
+	if (expectSavedVariables) {
+		await expect(saveButton).toBeDisabled({ timeout: 60_000, });
+	} else {
+		await expect(azureSubscriptionCard.getByText("2 not configured", { exact: true, }),).toBeVisible({ timeout: 60_000, });
+	}
+
+	return { azureSubscriptionCard, tenantVariableInput, subscriptionVariableInput, saveButton, };
+}
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Azure Subscription Card - ${viewportName}`, () => {

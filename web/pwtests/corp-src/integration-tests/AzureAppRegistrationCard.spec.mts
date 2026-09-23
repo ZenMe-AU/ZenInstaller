@@ -1,7 +1,8 @@
 import { expect, test } from "../../coverage/fixture";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage } from "../util/setupHelper.mts";
-import {chooseRepoOption, expandAzureAppRegistrationCard, expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard, expectSnapshot, expectVisibleWithin, safePathSegment} from "../util/testHelper.mts";
+import {chooseRepoOption, expectSnapshot, expectVisibleWithin, safePathSegment} from "../util/testHelper.mts";
 import { CORP_URL, viewports } from "../../testInit";
+import { expandAzureAppRegistrationCard, expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "../util/cardHelper.mts";
 
 async function prepareAppRegistrationCard(page: import("@playwright/test").Page, context: import("@playwright/test").BrowserContext, repoName: string) {
 	await restoreGithubSessionStorage(context);

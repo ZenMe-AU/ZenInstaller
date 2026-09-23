@@ -1,7 +1,8 @@
 import { expect, test } from "../../coverage/fixture";
 import { CORP_URL, viewports } from "../../testInit";
-import { expandGithubLoginCard, expectSnapshot } from "../util/testHelper.mts";
+import { expectSnapshot } from "../util/testHelper.mts";
 import { installMockGitHub } from "../util/mockTestHelper.mts";
+import { expandGithubLoginCard } from "../util/cardHelper.mts";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`GitHub Login Card Mock - ${viewportName}`, () => {

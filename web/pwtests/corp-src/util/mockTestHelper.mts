@@ -1,6 +1,7 @@
 import { expect, type BrowserContext, type Page, type Route } from "@playwright/test";
 import { AZURE_MANAGEMENT_SCOPE, AZURE_MANAGEMENT_URL, CORP_URL, GITHUB_API_URL, GRAPH_APPLICATION_SCOPE, GRAPH_APP_ROLE_ASSIGNMENT_SCOPE, MICROSOFT_GRAPH_URL, MICROSOFT_LOGIN_URL, MOCK_BACKEND_URL } from "../../testInit";
-import { chooseRepoOption, expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard,} from "./testHelper.mts";
+import { expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard,} from "./cardHelper.mts";
+import { chooseRepoOption,} from "./testHelper.mts";
 
 const mockUser = { login: "mock-user", id: 12345 };
 const mockTenantId = "00000000-0000-0000-0000-000000000001";

@@ -1,13 +1,8 @@
 import { expect, test } from "../../coverage/fixture";
 import { CORP_URL, viewports } from "../../testInit";
-import {
-	chooseRepoOption,
-	expandAzureLoginCard,
-	expandAzureSubscriptionCard,
-	expandRepoCard,
-	expectSnapshot,
-} from "../util/testHelper.mts";
+import { chooseRepoOption, expectSnapshot } from "../util/testHelper.mts";
 import { installMockAzure, installMockGitHub, mockSubscriptionId, prepareMockAzureSubscription, savedAzureVariables, signInMockAzure } from "../util/mockTestHelper.mts";
+import { expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "../util/cardHelper.mts";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Azure Subscription Card Mock - ${viewportName}`, () => {

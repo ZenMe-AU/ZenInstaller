@@ -32,7 +32,9 @@ app.http("negotiate", {
         throw Forbidden({ meta: { reason: "invalid_session_token" } });
       }
 
-      const wsClient = await getPubSubClient(request.auth.msToken);
+      // Web PubSub publishes no delegated permission, so this one runs as the app.
+      // const wsClient = await getPubSubClient(request.auth.msToken);
+      const wsClient = getPubSubClient();
       const tokenResponse = await wsClient.getClientAccessToken({
         roles: [`webpubsub.joinLeaveGroup.${sessionId}`, `webpubsub.sendToGroup.${sessionId}`],
         expiresInMinutes: 30,

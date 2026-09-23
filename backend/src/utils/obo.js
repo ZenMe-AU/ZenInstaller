@@ -1,5 +1,10 @@
 import { ConfidentialClientApplication } from "@azure/msal-node";
-import { AuthenticationError, CredentialUnavailableError, ManagedIdentityCredential } from "@azure/identity";
+import {
+  AuthenticationError,
+  CredentialUnavailableError,
+  DefaultAzureCredential,
+  ManagedIdentityCredential,
+} from "@azure/identity";
 import { Forbidden, InternalError, Unauthorized, logError } from "../error/index.js";
 
 // The audience every workload identity federation token is issued for.
@@ -75,6 +80,12 @@ function expiryOf(token) {
     // Not a readable JWT; let the SDK treat it as short-lived.
   }
   return Date.now() + 5 * 60 * 1000;
+}
+
+let appCredential = null;
+// For resources OBO cannot reach: Web PubSub publishes no delegated permission to exchange for.
+export function getAppCredential() {
+  return (appCredential ??= new DefaultAzureCredential());
 }
 
 // With the caller's token, act as them via OBO for the resource `scopes` names.

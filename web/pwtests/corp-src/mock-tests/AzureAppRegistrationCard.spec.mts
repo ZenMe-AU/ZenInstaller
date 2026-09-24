@@ -3,6 +3,7 @@ import { CORP_URL, viewports } from "../../testInit";
 import { createNewRepo, expectSnapshot, safePathSegment,} from "../util/testHelper.mts";
 import { installMockAzure, installMockGitHub, prepareMockAzureSubscription, signInMockAzure } from "../util/mockTestHelper.mts";
 import { expandAzureAppRegistrationCard, expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "../util/cardHelper.mts";
+import { writeFile } from "fs/promises";
 
 async function prepareMockAppRegistrationCard(	page: import("@playwright/test").Page,	context: import("@playwright/test").BrowserContext,	repoName: string,) {
 	const prepared = await prepareMockAzureSubscription(page, context, repoName, { saveVariables: true });
@@ -15,6 +16,24 @@ async function prepareMockAppRegistrationCard(	page: import("@playwright/test").
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Azure App Registration Card Mock - ${viewportName}`, () => {
 		test.use({ viewport, deviceScaleFactor: 1 });
+
+		test.beforeEach(async ({ page, },) => {
+			await page.coverage.startJSCoverage({ resetOnNavigation: false, });
+		});
+		
+		test.afterEach(async ({ page, }, testInfo,) => {
+			if (page.isClosed()) {
+				return;
+			}
+		
+			const entries = await page.coverage.stopJSCoverage();
+			const file = testInfo.outputPath("v8-coverage.json");
+			await writeFile(file, JSON.stringify(entries), "utf8");
+			await testInfo.attach("v8-coverage", {
+				path: file,
+				contentType: "application/json",
+			});
+		});
 
 		test("Happy path", async ({ page, context }, testInfo) => {
 			const runId = Date.now().toString(36);

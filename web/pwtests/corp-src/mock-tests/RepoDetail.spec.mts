@@ -3,6 +3,7 @@ import { CORP_URL, GITHUB_API_URL, GITHUB_API_URL_REGEX, viewports, } from "../.
 import { createNewRepo, logMockAPI, expectSnapshot, expectVisibleWithin } from "../util/testHelper.mts";
 import { installMockGitHub } from "../util/mockTestHelper.mts";
 import { expandRepoCard } from "../util/cardHelper.mts";
+import { writeFile } from "fs/promises";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Mock Tests - ${viewportName}`, () => {
@@ -10,6 +11,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		
 		test.beforeEach(async ({ page, context, }) => {
 			// blocks unexpected POST requests (supposed to be mocked)
+			await page.coverage.startJSCoverage({ resetOnNavigation: false, });
 			await page.route(`${GITHUB_API_URL}/**`, async (route) => {
 				const request = route.request();
 				if (["GET", "HEAD", "OPTIONS"].includes(request.method())) {
@@ -21,6 +23,21 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			});
 			await installMockGitHub(page, context);
 			await page.goto(CORP_URL);
+		});
+
+		
+		test.afterEach(async ({ page, }, testInfo,) => {
+			if (page.isClosed()) {
+				return;
+			}
+		
+			const entries = await page.coverage.stopJSCoverage();
+			const file = testInfo.outputPath("v8-coverage.json");
+			await writeFile(file, JSON.stringify(entries), "utf8");
+			await testInfo.attach("v8-coverage", {
+				path: file,
+				contentType: "application/json",
+			});
 		});
 
 		test("Happy path", async ({ page, }, testInfo) => {

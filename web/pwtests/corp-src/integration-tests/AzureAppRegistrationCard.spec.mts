@@ -3,6 +3,25 @@ import { restoreAzureSessionStorage, restoreGithubSessionStorage } from "../util
 import {checkRepoExists, chooseExistingRepo, createNewRepo, expectSnapshot, expectVisibleWithin, safePathSegment} from "../util/testHelper.mts";
 import { CORP_URL, SUBSCRIPTION_ID, TEST_REPO_MAIN, viewports } from "../../testInit";
 import { expandAzureAppRegistrationCard, expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "../util/cardHelper.mts";
+import { writeFile } from "fs/promises";
+
+test.beforeEach(async ({ page, },) => {
+	await page.coverage.startJSCoverage({ resetOnNavigation: false, });
+});
+
+test.afterEach(async ({ page, }, testInfo,) => {
+	if (page.isClosed()) {
+		return;
+	}
+
+	const entries = await page.coverage.stopJSCoverage();
+	const file = testInfo.outputPath("v8-coverage.json");
+	await writeFile(file, JSON.stringify(entries), "utf8");
+	await testInfo.attach("v8-coverage", {
+		path: file,
+		contentType: "application/json",
+	});
+});
 
 async function prepareAppRegistrationCard(page: import("@playwright/test").Page, context: import("@playwright/test").BrowserContext, repoName: string) {
 	await restoreGithubSessionStorage(context);

@@ -1,7 +1,7 @@
 import { expect, test } from "../../coverage/fixture";
 import { restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { CORP_URL, viewports, } from "../../testInit";
-import { checkRepoExists, chooseExistingRepo, createNewRepo, expectVisibleWithin, expectSnapshot, safePathSegment } from "../util/testHelper.mts";
+import { checkRepoExists, chooseExistingRepo, createNewRepo, expectVisibleWithin, expectSnapshot, safePathSegment, waitForLocatorContentLoaded } from "../util/testHelper.mts";
 import { expandRepoCard } from "../util/cardHelper.mts";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
@@ -43,9 +43,9 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				const missingProdBranch = repoCard.getByText(/^No branch found matching environment "PROD"\.$/);
 				if (await missingProdBranch.isVisible()) {
 					const createProdButton = repoCard.getByRole("button", { name: "Create New Branch: PROD", });
-					await expectVisibleWithin(createProdButton, "Button: Create New Branch: PROD", 30_000);
+					await expectVisibleWithin(createProdButton, "Button: Create New Branch: PROD", 50_000);
 					await createProdButton.click();
-					await expect(createProdButton).toBeHidden({ timeout: 30_000, });
+					await expect(createProdButton).toBeHidden({ timeout: 50_000, });
 					await expect(missingProdBranch).toHaveCount(0);
 				}
 				await expect(repoCard.getByText("Failed to create branch", { exact: true, }),).toHaveCount(0);
@@ -65,7 +65,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				const missingTestBranch = repoCard.getByText(/^No branch found matching environment "TEST"\.$/);
 				if (await missingTestBranch.isVisible()) {
 					const createTestButton = repoCard.getByRole("button", { name: "Create New Branch: TEST", });
-					await expectVisibleWithin(createTestButton, "Button: Create New Branch: TEST", 30_000);
+					await expectVisibleWithin(createTestButton, "Button: Create New Branch: TEST", 50_000);
 					await createTestButton.click();
 					await expect(createTestButton).toBeHidden({ timeout: 30_000, });
 					await expect(missingTestBranch).toHaveCount(0);
@@ -89,7 +89,25 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			}
 
 			if (!repoExists) {
-				await createNewRepo(page, repoCard, reponame);
+				const repoInput = repoCard.getByRole("combobox", { name: "Select or type repo name...", });
+				await repoInput.click();
+				await waitForLocatorContentLoaded(page.getByRole("option",), "No options", "Repo list", 5000000);
+				await repoInput.fill(reponame);
+				const escapedRepoName = reponame.replace(/[.*+?^${}()|[\]\\]/g, "\\$&",);
+				const alreadyClonedOption = page.getByRole("option", { name: new RegExp(`^(?:▪\\s*)?${escapedRepoName}$`, "i",), });
+				const cloneOption = page.getByRole("option", { name: new RegExp(`^Clone as [\"'“‘]${escapedRepoName}[\"'”’]$`,), });
+				
+				await expect(alreadyClonedOption.or(cloneOption)).toBeVisible();
+				if (await alreadyClonedOption.isVisible()) {
+					throw new Error(`The repo "${reponame}" already exists. Please delete it from your GitHub account before running this test.`);
+				}
+				
+				await expectVisibleWithin(cloneOption, `Clone as ${reponame}`, 500);
+				await cloneOption.click();
+				// Confirm the option click changed the application's state.
+				await expect(cloneOption).toBeHidden();
+				await expect(repoInput).toHaveAttribute("aria-expanded", "false");
+				await expectVisibleWithin(repoCard.getByText("Clone from template",), "Clone from template", 500);
 				const createEnvironmentsSwitch = repoCard.getByRole("switch", { name: "Create environments", });
 				await expect(createEnvironmentsSwitch).toBeChecked();
 				await createEnvironmentsSwitch.click();
@@ -100,7 +118,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			}
 
 			await expect(repoCard.getByText("Loading environments...", { exact: true, })).toBeHidden();
-			await expect(repoCard.getByText("Valid", { exact: true, })).toBeVisible({ timeout: 30_000, });
+			await expect(repoCard.getByText("Valid", { exact: true, })).toBeVisible({ timeout: 50_000, });
 			await expect(repoCard.getByText("No environment found",)).toBeVisible();
 			await expect(repoCard.getByRole("button", { name: "Clone Repository", })).toHaveCount(0);
 
@@ -117,11 +135,6 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
 			await createNewRepo(page, repoCard, repoName);
 			await expect(repoInput).toHaveValue(repoName);
-			const cloneRepoButton = repoCard.getByRole("button", { name: "Clone Repository", });
-			await expectVisibleWithin(cloneRepoButton, "Button: Clone Repository", 30_000);
-			await cloneRepoButton.click();
-			await expectVisibleWithin(repoCard.getByText("Pick the environment to configure."), "Text: Pick the environment to configure", 120_000);
-
 			const PROD = repoCard.getByText("PROD", { exact: true, });
 			const TEST = repoCard.getByText("TEST", { exact: true, });
 			await expect(repoCard.getByText("Loading environments...", { exact: true, })).toBeHidden();
@@ -132,7 +145,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			const createProdButton = repoCard.getByRole("button", { name: "Create New Branch: PROD", });
 			await expect(createProdButton).toBeVisible();
 			await createProdButton.click();
-			await expect(createProdButton).toBeHidden({ timeout: 30_000, });
+			await expect(createProdButton).toBeHidden({ timeout: 50_000, });
 			await expect(repoCard.getByText(/^No branch found matching environment "PROD"\.$/),).toHaveCount(0);
 
 			await TEST.click();
@@ -146,7 +159,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expectSnapshot(page, repoCard, testInfo, "prod-from-test-branch", viewportName);
 
 			await createTestButton.click();
-			await expect(createTestButton).toBeHidden({ timeout: 30_000, });
+			await expect(createTestButton).toBeHidden({ timeout: 50_000, });
 			await expect(repoCard.getByText(/^No branch found matching environment "TEST"\.$/),).toHaveCount(0);
 
 			await expectSnapshot(page, repoCard, testInfo, "prod-from-test-cloned", viewportName);

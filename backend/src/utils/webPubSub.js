@@ -20,6 +20,17 @@ const HUB_NAME = process.env.HUB_NAME || "terminal";
 //  return new WebPubSubServiceClient(`https://${WEBPUBSUB_ENDPOINT}`, credential, HUB_NAME);
 // }
 
+export function webPubSubResourceId() {
+  if (process.env.WEBPUBSUB_RESOURCE_ID) return process.env.WEBPUBSUB_RESOURCE_ID;
+
+  const subscriptionId = process.env.WEBSITE_OWNER_NAME?.split("+")[0];
+  const resourceGroup = process.env.WEBSITE_RESOURCE_GROUP;
+  const name = WEBPUBSUB_ENDPOINT?.split(".")[0];
+  if (!subscriptionId || !resourceGroup || !name) return null;
+
+  return `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.SignalRService/webPubSub/${name}`;
+}
+
 let appPubSubClient = null;
 export function getPubSubClient() {
   if (!WEBPUBSUB_ENDPOINT) {

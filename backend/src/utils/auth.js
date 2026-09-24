@@ -1,4 +1,5 @@
 import { Forbidden, Unauthorized } from "../error/index.js";
+import { assertRoles } from "./rbac.js";
 
 export const GH_TOKEN_HEADER = "Zb.Github.Authorization";
 export const MS_TOKEN_HEADER = "Zb.Msal.Authorization";
@@ -62,13 +63,16 @@ export function getMsToken(request) {
  * `{ github: true, ms: true }` demands both. `check` is for anything beyond "is this person signed
  * in" — return false to refuse.
  */
-export function requireAuth({ github = false, ms = false, check } = {}) {
+export function requireAuth({ github = false, ms = false, msRbac, check } = {}) {
   return (handler) => async (request, context) => {
     const githubToken = tryGetAccessToken(request);
     const msToken = getMsToken(request); // check for presence only: the OBO exchange validates it
 
     if (github && !githubToken) throw Unauthorized({ meta: { reason: "github_token_missing" } });
     if (ms && !msToken) throw Unauthorized({ meta: { reason: "microsoft_token_missing" } });
+
+    // Azure enforces its own roles where a call runs as the caller; this is for the calls that do not.
+    if (msRbac?.length) await assertRoles(msToken, msRbac);
 
     // Attached to the request so handlers keep the signature Azure Functions expects.
     request.auth = { githubToken, msToken };

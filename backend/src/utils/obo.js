@@ -47,7 +47,7 @@ function isOurFault(err) {
 }
 
 // On-behalf-of: trades the token for downstream Azure resource as the same user.
-async function getOboToken(userToken, scopes) {
+export async function getOboToken(userToken, scopes) {
   // Outside the try: missing configuration is our fault, and must not surface as the caller's 401.
   const client = getClient();
 

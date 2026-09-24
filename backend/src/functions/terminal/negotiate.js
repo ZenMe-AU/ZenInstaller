@@ -10,7 +10,7 @@ app.http("negotiate", {
   route: "terminal/negotiate",
   authLevel: "anonymous",
   handler: corsWrapper(
-    requireAuth({ ms: true })(async (request) => {
+    requireAuth({ ms: true, msRbac: ["Web PubSub Service Owner"] })(async (request) => {
       const sessionId = request.query.get("session");
       const token = request.query.get("token");
 

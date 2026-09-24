@@ -21,7 +21,10 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: [["html", { outputFolder: './pwtests/playwright-report', open: "never" }]],
+  reporter: [
+    ["html", { outputFolder: './pwtests/playwright-report', open: "never" }],
+    ["./pwtests/coverage/report-after-tests.mts"],
+  ],
   timeout: 60_000,
   expect: {
     timeout: 10_000,

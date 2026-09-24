@@ -1,4 +1,4 @@
-import { expect, test } from "../../coverage/fixture";
+import { expect, test } from "@playwright/test";
 import { CORP_URL, viewports } from "../../testInit";
 import { expectSnapshot } from "../util/testHelper.mts";
 import { installMockGitHub } from "../util/mockTestHelper.mts";

@@ -1,4 +1,4 @@
-import { expect, test } from "../../coverage/fixture";
+import { expect, test } from "@playwright/test";
 import { restoreAzureSessionStorage } from "../util/setupHelper.mts";
 import { CORP_URL, viewports } from "../../testInit";
 import { expectSnapshot, expectVisibleWithin } from "../util/testHelper.mts";

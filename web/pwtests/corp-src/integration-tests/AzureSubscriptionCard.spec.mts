@@ -1,8 +1,27 @@
-import { BrowserContext, expect, Locator, Page, test, } from "../../coverage/fixture";
+import { writeFile, } from "node:fs/promises";
+import { BrowserContext, expect, Locator, Page, test, } from "@playwright/test";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage, } from "../util/setupHelper.mts";
 import { checkRepoExists, chooseExistingRepo, createNewRepo, expectSnapshot, expectVisibleWithin, safePathSegment, } from "../util/testHelper.mts";
 import { CORP_URL, SUBSCRIPTION_ID, TEST_REPO_MAIN, viewports, } from "../../testInit";
 import { expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "../util/cardHelper.mts";
+
+test.beforeEach(async ({ page, },) => {
+	await page.coverage.startJSCoverage({ resetOnNavigation: false, });
+});
+
+test.afterEach(async ({ page, }, testInfo,) => {
+	if (page.isClosed()) {
+		return;
+	}
+
+	const entries = await page.coverage.stopJSCoverage();
+	const file = testInfo.outputPath("v8-coverage.json");
+	await writeFile(file, JSON.stringify(entries), "utf8");
+	await testInfo.attach("v8-coverage", {
+		path: file,
+		contentType: "application/json",
+	});
+});
 
 export async function openExistingAzureSubscription(page: Page, context: BrowserContext, viewportName: string, options: {
 	environmentName?: "PROD" | "TEST";
@@ -168,7 +187,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 					console.log(`Selecting subscription "${SUBSCRIPTION_ID}" automatically.`);
 					await subscriptionSelect.click();
 					const subscriptionOption = page.getByRole("option").filter({ hasText: SUBSCRIPTION_ID, });
-					await expect(subscriptionOption).toBeVisible({ timeout: 30_000, });
+					await expect(subscriptionOption,`Timed out waiting for subscription selection. Tenant may not have access to "${SUBSCRIPTION_ID}" or it does not exist.`).toBeVisible({ timeout: 30_000, });
 					await subscriptionOption.click();
 					// Defocus the select so it doesn't render a focus ring in the upcoming snapshot.
 					await azureSubscriptionCard.getByText(/Pick the subscription to deploy into\./i,).click();

@@ -1,7 +1,7 @@
 import { expect, test } from "../../coverage/fixture";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import {checkRepoExists, chooseExistingRepo, createNewRepo, expectSnapshot, expectVisibleWithin, safePathSegment} from "../util/testHelper.mts";
-import { CORP_URL, viewports } from "../../testInit";
+import { CORP_URL, TEST_REPO_MAIN, viewports } from "../../testInit";
 import { expandAzureAppRegistrationCard, expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "../util/cardHelper.mts";
 
 async function prepareAppRegistrationCard(page: import("@playwright/test").Page, context: import("@playwright/test").BrowserContext, repoName: string) {
@@ -53,8 +53,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			test("Happy path", async ({ page, context }, testInfo) => {
 			test.setTimeout(600_000);
 			const runId = Date.now().toString(36);
-			//TODO: Configure repo name in testinit
-			const repoName = safePathSegment(`azure-subscrip-${viewportName}`);
+			const repoName = safePathSegment(`${TEST_REPO_MAIN}-${viewportName}`);
 			const appName = safePathSegment(`zeninstaller-${repoName}-${runId}`);
 			await restoreGithubSessionStorage(context);
 			await restoreAzureSessionStorage(context);
@@ -122,17 +121,28 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await expectSnapshot(page, card, testInfo, "subscription-saved", viewportName);
 			});
 
-			const appRegistrationCard = await test.step("Create the app registration and grant access", async () => {
-				const card = await expandAzureAppRegistrationCard(page);
-				const appNameInput = card.locator("input:visible").first();
+			const appRegistrationCard = await test.step("Expand app registration card", async () => {
+				const appRegistrationCard = await expandAzureAppRegistrationCard(page);
+				return appRegistrationCard;
+			})
+			
+
+			await test.step("Create new app registration and grant access", async (step) => {
+				const overwriteWarning = appRegistrationCard.getByText("This will overwrite your current connection details");
+				if (await overwriteWarning.isVisible().catch(() => false)) {
+					console.log("Existing connection details detected; skipping create-new flow.");
+					step.skip(true, "Existing connection details are present; skipping create-new flow.");
+				}
+
+				const appNameInput = appRegistrationCard.locator("input:visible").first();
 				await expect(appNameInput).toBeVisible();
 				await appNameInput.fill(appName);
 
-				await expectSnapshot(page, card, testInfo, "app-prefilled", viewportName);
+				await expectSnapshot(page, appRegistrationCard, testInfo, "new-app-prefilled", viewportName);
 
-				await card.getByRole("button", { name: "Create app registration" }).click();
-				await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 300_000 });
-				await expect(card.getByRole("button", { name: "Try again" })).toBeVisible();
+				await appRegistrationCard.getByRole("button", { name: "Create app registration" }).click();
+				await expect(appRegistrationCard.getByText("Running...", { exact: true })).toBeHidden({ timeout: 300_000 });
+				await expect(appRegistrationCard.getByRole("button", { name: "Try again" })).toBeVisible();
 
 				for (const stepLabel of [
 					"Confirm Microsoft permissions",
@@ -142,13 +152,43 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 					"Add federated credentials",
 					"Assign RBAC roles",
 				]) {
-					await expect(card.getByText(stepLabel, { exact: true })).toBeVisible();
+					await expect(appRegistrationCard.getByText(stepLabel, { exact: true })).toBeVisible();
 				}
-				await expect(card.getByText(/Additional consent required|Consent redirect failed/i)).toHaveCount(0);
+				await expect(appRegistrationCard.getByText(/Additional consent required|Consent redirect failed/i)).toHaveCount(0);
 				await page.waitForTimeout(1000);
-				await expectSnapshot(page, card, testInfo, "app-created", viewportName);
-				return card;
+				await expectSnapshot(page, appRegistrationCard, testInfo, "app-created", viewportName);
 			});
+
+				await test.step("Overwrite existing app registration and grant access", async (step) => {
+					const overwriteWarning = appRegistrationCard.getByText("This will overwrite your current connection details");
+					if (!(await overwriteWarning.isVisible().catch(() => false))) {
+						step.skip(true, "Overwrite warning is not present; there is nothing to overwrite.");
+					}
+
+					const appNameInput = appRegistrationCard.locator("input:visible").first();
+					await expect(appNameInput).toBeVisible();
+					await appNameInput.fill(appName);
+
+					await expectSnapshot(page, appRegistrationCard, testInfo, "existing-app-prefilled", viewportName);
+
+					await appRegistrationCard.getByRole("button", { name: "Create app registration" }).click();
+					await expect(appRegistrationCard.getByText("Running...", { exact: true })).toBeHidden({ timeout: 300_000 });
+					await expect(appRegistrationCard.getByRole("button", { name: "Try again" })).toBeVisible();
+
+					for (const stepLabel of [
+						"Confirm Microsoft permissions",
+						"Create app registration",
+						"Create service principal",
+						"Switch GitHub OIDC to immutable subject",
+						"Add federated credentials",
+						"Assign RBAC roles",
+					]) {
+						await expect(appRegistrationCard.getByText(stepLabel, { exact: true })).toBeVisible();
+					}
+					await expect(appRegistrationCard.getByText(/Additional consent required|Consent redirect failed/i)).toHaveCount(0);
+					await page.waitForTimeout(1000);
+					await expectSnapshot(page, appRegistrationCard, testInfo, "app-created", viewportName);
+				});
 
 			await test.step("Verify connection details were auto-saved", async () => {
 				await expect(
@@ -171,10 +211,10 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expect(repoCard.getByText("PROD", { exact: true })).toBeVisible();
 		});
 
-		test("Edge case - reuses an existing app registration on retry", async ({ page, context }, testInfo) => {
+		test("Reuses an existing app registration on retry", async ({ page, context }, testInfo) => {
 			test.setTimeout(600_000);
 			const runId = Date.now().toString(36);
-			const repoName = safePathSegment(`azure-subscrip-${viewportName}`);
+			const repoName = safePathSegment(`${TEST_REPO_MAIN}-${viewportName}`);
 			const appName = `zeninstaller-${repoName}-${runId}`;
 			const card = await prepareAppRegistrationCard(page, context, repoName);
 			const appNameInput = card.locator("input:visible").first();

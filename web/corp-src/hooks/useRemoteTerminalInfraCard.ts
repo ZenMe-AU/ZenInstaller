@@ -361,7 +361,7 @@ export function useRemoteTerminalInfraCard({
       const finished: RemoteTerminalInfraResult = {
         corpName,
         subscriptionId,
-        apiUrl: `https://${functionAppName}.azurewebsites.net/api`,
+        apiUrl: `https://${functionAppName}.azurewebsites.net`,
         webPubSubHost: `${webPubSubName}.webpubsub.azure.com`,
         hubName: TERMINAL_HUB,
         pipelineClientId: app.appId,

@@ -112,6 +112,56 @@ export async function createAppRegistration(
   return { appId: data.appId, id: data.id };
 }
 
+export async function ensureExposedApiScope(
+  account: AzureAccount,
+  appObjectId: string,
+  appId: string,
+  scopeValue: string,
+  authorizedClientIds: readonly string[],
+  overrideTenantId?: string,
+): Promise<string> {
+  const token = await getToken(account, APP_SCOPES, overrideTenantId);
+  const current = await gFetch(token, GRAPH, `/applications/${appObjectId}?$select=id,api,identifierUris`);
+
+  type Scope = { id: string; value: string; [key: string]: unknown };
+  const existingScopes: Scope[] = current?.api?.oauth2PermissionScopes ?? [];
+  const existing = existingScopes.find((scope) => scope.value === scopeValue);
+  const scopeId = existing?.id ?? crypto.randomUUID();
+
+  const scope: Scope = {
+    id: scopeId,
+    value: scopeValue,
+    type: "User", // A user may consent for themselves; no tenant admin needed.
+    isEnabled: true,
+    adminConsentDisplayName: `Access ZenInstaller as the signed-in user`,
+    adminConsentDescription: `Allows the app to call the ZenInstaller API on behalf of the signed-in user.`,
+    userConsentDisplayName: `Access ZenInstaller on your behalf`,
+    userConsentDescription: `Allows the app to call the ZenInstaller API as you.`,
+  };
+
+  const identifierUri = `api://${appId}`;
+  const identifierUris: string[] = current?.identifierUris?.includes(identifierUri)
+    ? current.identifierUris
+    : [...(current?.identifierUris ?? []), identifierUri];
+
+  await gFetch(token, GRAPH, `/applications/${appObjectId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      identifierUris,
+      api: {
+        ...current?.api,
+        oauth2PermissionScopes: [...existingScopes.filter((s) => s.value !== scopeValue), scope],
+        preAuthorizedApplications: authorizedClientIds.map((clientId) => ({
+          appId: clientId,
+          delegatedPermissionIds: [scopeId],
+        })),
+      },
+    }),
+  });
+
+  return `${identifierUri}/${scopeValue}`;
+}
+
 // ── Service principal ──────────────────────────────────────────────────────────
 
 export async function getExistingSP(

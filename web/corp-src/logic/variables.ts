@@ -14,6 +14,7 @@ export const DEPLOYMENT_TERMINAL_KEYS = [
   "WEBPUBSUB_CLIENT_ID",
   "WEBPUBSUB_TENANT_ID",
   "BACKEND_API",
+  "FUNCTION_CLIENT_ID",
 ] as const;
 export const AWS_VARIABLE_KEYS = ["AWS_ROLE_ARN"] as const;
 export const CORP_NAME_KEYS = ["NAME"] as const;

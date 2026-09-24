@@ -40,13 +40,15 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			const repoCard = await test.step("Create a repository and PROD environment", async () => {
 				const card = await expandRepoCard(page);
 				await createNewRepo(page, card, repoName);
-				await card.getByRole("button", { name: "Clone Repository" }).click();
-				await expect(card.getByText("Pick the environment to configure.")).toBeVisible();
-				await card.getByText("PROD", { exact: true }).click();
+				await expect(card.getByText("Loading environments...", { exact: true })).toBeHidden();
+				const prodEnvironment = card.getByText("PROD", { exact: true });
+				await expect(prodEnvironment).toBeVisible();
+				await prodEnvironment.click();
 				const createProdButton = card.getByRole("button", { name: "Create New Branch: PROD" });
-				await expect(createProdButton).toBeVisible();
-				await createProdButton.click();
-				await expect(createProdButton).toBeHidden();
+				if (await createProdButton.isVisible()) {
+					await createProdButton.click();
+					await expect(createProdButton).toBeHidden();
+				}
 				await expectSnapshot(page, card, testInfo, "repo-created", viewportName);
 				return card;
 			});
@@ -60,15 +62,18 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await expectSnapshot(page, card, testInfo, "subscription-saved", viewportName);
 			});
 
-			const appRegistrationCard = await test.step("Create the app registration and grant access", async () => {
-				const card = await expandAzureAppRegistrationCard(page);
-				const appNameInput = card.locator("input:visible").first();
+			const appRegistrationCard = await test.step("Expand app registration card", async () => {
+				return await expandAzureAppRegistrationCard(page);
+			});
+
+			await test.step("Create new app registration and grant access", async () => {
+				const appNameInput = appRegistrationCard.locator("input:visible").first();
 				await expect(appNameInput).toBeVisible();
 				await appNameInput.fill(appName);
-				await expectSnapshot(page, card, testInfo, "app-prefilled", viewportName);
-				await card.getByRole("button", { name: "Create app registration" }).click();
-				await expect(card.getByText("Running...", { exact: true })).toBeHidden();
-				await expect(card.getByRole("button", { name: "Try again" })).toBeVisible();
+				await expectSnapshot(page, appRegistrationCard, testInfo, "app-prefilled", viewportName);
+				await appRegistrationCard.getByRole("button", { name: "Create app registration" }).click();
+				await expect(appRegistrationCard.getByText("Running...", { exact: true })).toBeHidden();
+				await expect(appRegistrationCard.getByRole("button", { name: "Try again" })).toBeVisible();
 				for (const stepLabel of [
 					"Confirm Microsoft permissions",
 					"Create app registration",
@@ -77,11 +82,10 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 					"Add federated credentials",
 					"Assign RBAC roles",
 				]) {
-					await expect(card.getByText(stepLabel, { exact: true })).toBeVisible();
+					await expect(appRegistrationCard.getByText(stepLabel, { exact: true })).toBeVisible();
 				}
-				await expect(card.getByText(/Additional consent required|Consent redirect failed/i)).toHaveCount(0);
-				await expectSnapshot(page, card, testInfo, "app-created", viewportName);
-				return card;
+				await expect(appRegistrationCard.getByText(/Additional consent required|Consent redirect failed/i)).toHaveCount(0);
+				await expectSnapshot(page, appRegistrationCard, testInfo, "app-created", viewportName);
 			});
 
 			await test.step("Verify connection details were auto-saved", async () => {

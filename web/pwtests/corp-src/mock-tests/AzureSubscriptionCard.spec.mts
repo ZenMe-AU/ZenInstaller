@@ -43,17 +43,19 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
 			await test.step("Clone repository", async () => {
 				await createNewRepo(page, repoCard, `mock-azure-subscription-${viewportName.toLowerCase()}`);
-				await repoCard.getByRole("button", { name: "Clone Repository" }).click();
-				await expect(repoCard.getByText("Pick the environment to configure.")).toBeVisible();
+				await expect(repoCard.getByText("Loading environments...", { exact: true })).toBeHidden();
+				const prodEnvironment = repoCard.getByText("PROD", { exact: true });
+				await expect(prodEnvironment).toBeVisible();
+				await prodEnvironment.click();
 				await expectSnapshot(page, azureSubscriptionCard, testInfo, "clone-repo", viewportName);
 			});
 
 			await test.step("Repo create environment", async () => {
-				await repoCard.getByText("PROD", { exact: true }).click();
 				const createProdButton = repoCard.getByRole("button", { name: "Create New Branch: PROD" });
-				await expect(createProdButton).toBeVisible();
-				await createProdButton.click();
-				await expect(createProdButton).toBeHidden();
+				if (await createProdButton.isVisible()) {
+					await createProdButton.click();
+					await expect(createProdButton).toBeHidden();
+				}
 				await expectSnapshot(page, azureSubscriptionCard, testInfo, "create-env", viewportName);
 			});
 

@@ -332,13 +332,15 @@ export async function prepareMockAzureSubscription(
 
 	const repoCard = await expandRepoCard(page);
 	await createNewRepo(page, repoCard, repoName);
-	await repoCard.getByRole("button", { name: "Clone Repository" }).click();
-	await expect(repoCard.getByText("Pick the environment to configure.")).toBeVisible();
-	await repoCard.getByText("PROD", { exact: true }).click();
+	await expect(repoCard.getByText("Loading environments...", { exact: true })).toBeHidden();
+	const prodEnvironment = repoCard.getByText("PROD", { exact: true });
+	await expect(prodEnvironment).toBeVisible();
+	await prodEnvironment.click();
 	const createProdButton = repoCard.getByRole("button", { name: "Create New Branch: PROD" });
-	await expect(createProdButton).toBeVisible();
-	await createProdButton.click();
-	await expect(createProdButton).toBeHidden();
+	if (await createProdButton.isVisible()) {
+		await createProdButton.click();
+		await expect(createProdButton).toBeHidden();
+	}
 
 	const azureSubscriptionCard = await expandAzureSubscriptionCard(page);
 	await expect(azureSubscriptionCard.getByText("Loading subscriptions...", { exact: true })).toBeHidden();

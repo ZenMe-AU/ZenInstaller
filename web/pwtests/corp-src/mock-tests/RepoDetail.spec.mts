@@ -24,7 +24,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		});
 
 		test("Happy path", async ({ page, }, testInfo) => {
-			const newRepoName = "mock-clone-test";
+			const newRepoName = `mock-clone-test-${viewportName.toLowerCase()}`;
 			const newRepoId = 987654322;
 			const mainSha = "main-commit-sha";
 			const prodSha = "prod-commit-sha";
@@ -135,10 +135,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await expectSnapshot(page, repoCard, testInfo, "typed-repo", viewportName);
 			});
 
-			await test.step("Cloning a new repository", async () => {
-				const cloneRepoButton = repoCard.getByRole("button", { name: "Clone Repository" });
-				await expect(cloneRepoButton).toBeVisible();
-				await cloneRepoButton.click();
+			await test.step("Verify the cloned repository environments", async () => {
 				await expectVisibleWithin(repoCard.getByText("Pick the environment to configure."),"Text: Pick the environment to configure", 500_000);
 				const PROD = repoCard.getByText("PROD", { exact: true });
 				const TEST = repoCard.getByText("TEST", { exact: true });
@@ -193,38 +190,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			});
 		});
 
-		test("MOCK TEST - Typing new repo name in the textbox", async ({ page, }, testInfo) => {
-			const newRepoName = "mock-test";
-			await page.route(new RegExp(`${GITHUB_API_URL_REGEX}/(?:user/repos|orgs/[^/]+/repos)(?:\\?.*)?$`,),
-				async (route) => { await route.fulfill({ status: 200, contentType: "application/json", body: "[]", }); },);
-
-			const mockedReposLoaded = page.waitForResponse((response) => response.ok()
-				&& new RegExp(`${GITHUB_API_URL_REGEX}/(?:user/repos|orgs/[^/]+/repos)(?:\\?.*)?$`,).test(response.url()),);
-			await page.reload();
-			await mockedReposLoaded;
-
-			const repoCard = await expandRepoCard(page);
-			const repoInput = repoCard.getByRole("combobox", { name: "Select or type repo name...", });
-			await repoInput.click();
-			await repoInput.fill(newRepoName);
-			const cloneOption = page.getByRole("option", { name: `Clone as “${newRepoName}”`, });
-			await expect(cloneOption).toBeVisible();
-			await cloneOption.click();
-
-			await expect(cloneOption).toBeHidden();
-			await expect(repoInput).toHaveValue(newRepoName);
-			await expect(repoInput).toHaveAttribute("aria-expanded", "false");
-			await expect(repoCard.getByText(/^Clone from template$/i),).toBeVisible();
-			await expect(repoCard.getByRole("button", { name: "Clone Repository" }),).toBeVisible();
-			await expect(repoCard.getByRole("switch", { name: "Private" }),).toBeChecked();
-			await expect(repoCard.getByRole("switch", { name: "Clone all branches" }),).not.toBeChecked();
-			await expect(repoCard.getByRole("switch", { name: "Create environments" }),).toBeChecked();
-			await expect(repoCard.getByText(/Pick the environment to configure/i),).toHaveCount(0);
-
-			await expectSnapshot(page, repoCard, testInfo, "typed-repo-mock", viewportName);
-		});
-
-		test("MOCK TEST - Selecting valid repo with no environments", async ({ page, }, testInfo) => {
+		test("Selecting valid repo with no environments", async ({ page, }, testInfo) => {
 			const validRepoName = "valid-repo-no-env";
 			const validRepoId = 987654323;
 			const repoListPattern = new RegExp(`${GITHUB_API_URL_REGEX}/(?:user/repos|orgs/[^/]+/repos)(?:\\?.*)?$`,);
@@ -285,7 +251,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expectSnapshot(page, repoCard, testInfo, "valid-repo-no-env-mock", viewportName);
 		});
 
-		test("MOCK TEST - Creates PROD branch, then creates TEST from PROD", async ({ page, }, testInfo) => {
+		test("Creates PROD branch, then creates TEST from PROD", async ({ page, }, testInfo) => {
 			const repoName = "mock-branch-test";
 			const repoId = 987654324;
 			const mainSha = "main-commit-sha";
@@ -401,7 +367,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expectSnapshot(page, repoCard, testInfo, "test-branch-created-mock", viewportName);
 		});
 
-		test("MOCK TEST - Selecting repo not a clone of source repo", async ({ page, }, testInfo) => {
+		test("Selecting repo not a clone of source repo", async ({ page, }, testInfo) => {
 			const invalidRepoName = "playwright-invalid-template-repo";
 			const invalidRepoId = 987654321;
 

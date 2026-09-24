@@ -1,7 +1,7 @@
 import { BrowserContext, expect, Locator, Page, test, } from "../../coverage/fixture";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage, } from "../util/setupHelper.mts";
 import { checkRepoExists, chooseExistingRepo, createNewRepo, expectSnapshot, expectVisibleWithin, safePathSegment, } from "../util/testHelper.mts";
-import { CORP_URL, SUBSCRIPTION_ID, viewports, } from "../../testInit";
+import { CORP_URL, SUBSCRIPTION_ID, TEST_REPO_MAIN, viewports, } from "../../testInit";
 import { expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "../util/cardHelper.mts";
 
 export async function openExistingAzureSubscription(page: Page, context: BrowserContext, viewportName: string, options: {
@@ -27,7 +27,7 @@ export async function openExistingAzureSubscription(page: Page, context: Browser
 	await page.getByRole("option").filter({ hasText: tenantId, }).click();
 
 	const repoCard = await expandRepoCard(page);
-	const repoName = safePathSegment(`azure-subscrip-${viewportName}`,);
+	const repoName = safePathSegment(`${TEST_REPO_MAIN}-${viewportName}`,);
 	const repoExists = await checkRepoExists(page, repoCard, repoName);
 	if (repoExists) {
 		await chooseExistingRepo(page, repoCard, repoName);
@@ -93,7 +93,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		// The happy path is the main scenario for this card, showing the expect standard use case.
 		test("Happy path", async ({ page, context, }, testInfo) => {
 			test.setTimeout(300_000);
-			const repoName = safePathSegment(`azure-subscrip-${viewportName}`);			
+			const repoName = safePathSegment(`${TEST_REPO_MAIN}-${viewportName}`);			
 			await restoreGithubSessionStorage(context);
 			await restoreAzureSessionStorage(context);
 			await page.goto(CORP_URL);

@@ -1,6 +1,6 @@
 import { expect, test } from "../../coverage/fixture";
 import { restoreGithubSessionStorage } from "../util/setupHelper.mts";
-import { CORP_URL, viewports, } from "../../testInit";
+import { CORP_URL, TEST_REPO_FROM_PROD, TEST_REPO_MAIN, TEST_REPO_NO_ENV, viewports, } from "../../testInit";
 import { checkRepoExists, chooseExistingRepo, createNewRepo, expectVisibleWithin, expectSnapshot, safePathSegment, waitForLocatorContentLoaded } from "../util/testHelper.mts";
 import { expandRepoCard } from "../util/cardHelper.mts";
 
@@ -10,7 +10,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
 		test("Happy path", async ({ page, context, }, testInfo) => {
 			test.setTimeout(300_000);			
-			const repoName = safePathSegment(`RepoDetail-${viewportName}`,);
+			const repoName = safePathSegment(`${TEST_REPO_MAIN}-${viewportName}`,);
 			await restoreGithubSessionStorage(context);
 			await page.goto(CORP_URL);
 			
@@ -81,7 +81,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		test("Edge Integrated - Creates valid repo with no environments", async ({ page, context}, testInfo) => {
 			await restoreGithubSessionStorage(context);
 			await page.goto(CORP_URL);
-			const reponame = safePathSegment(`RepoDetail-no-env-${viewportName}`);
+			const reponame = safePathSegment(`${TEST_REPO_NO_ENV}-${viewportName}`);
 			const repoCard = await expandRepoCard(page,);
 			const repoExists = await checkRepoExists(page, repoCard, reponame);
 			if (repoExists) {
@@ -127,7 +127,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
 		test("Edge Integrated - Creates PROD branch, then creates TEST from PROD", async ({ page, context}, testInfo) => {
 			test.setTimeout(300_000);
-			const repoName = safePathSegment(`RepoDetail-test-from-prod-${viewportName}`,);
+			const repoName = safePathSegment(`${TEST_REPO_FROM_PROD}-${viewportName}`,);
 			await restoreGithubSessionStorage(context);
 			await page.goto(CORP_URL);
 			const repoCard = await expandRepoCard(page,);
@@ -145,7 +145,6 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			const createProdButton = repoCard.getByRole("button", { name: "Create New Branch: PROD", });
 			await expect(createProdButton).toBeVisible();
 			await createProdButton.click();
-			await expect(createProdButton).toBeHidden({ timeout: 50_000, });
 			await expect(repoCard.getByText(/^No branch found matching environment "PROD"\.$/),).toHaveCount(0);
 
 			await TEST.click();

@@ -50,7 +50,7 @@ setup("Manual setup for corp Azure auth tests", async ({ page, context }) => {
     console.log("Page failed to redirect after manual sign in.");
     console.log(`Current URL: ${page.url()}`);
 
-    if (page.url().startsWith("http://localhost:5173")) {
+    if (page.url().startsWith(CORP_URL)) {
       await page
         .goto(CORP_URL, { waitUntil: "domcontentloaded", timeout: 30_000 })
         .catch((err) => {
@@ -64,12 +64,13 @@ setup("Manual setup for corp Azure auth tests", async ({ page, context }) => {
   console.log(`Selecting tenant "${TENANT_ID}" automatically.`);
   await selectAzureTenant(page, authenticatedAzureCard, TENANT_ID);
 
+  console.log("Waiting for Azure auth flow...")
   const microsoftConsent = page.waitForURL(/login\.microsoftonline\.com|login\.live\.com/i, { timeout: 15_000 })
     .then(() => true)
     .catch(() => false);
   if (await microsoftConsent) {
     await page.pause();
-    await page.waitForURL(/localhost:5173\/?(?:[/?#].*)?$/i, { timeout: 180_000 });
+    await page.waitForURL(CORP_URL, { timeout: 180_000 });
   }
 
   const restoredAzureCard = page.locator("#card-azure_login");

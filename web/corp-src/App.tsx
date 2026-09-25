@@ -136,7 +136,7 @@ function AppDashboard() {
       subscriptionId: azureSubscription.selectedSubscriptionId,
       corpName,
       tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
-      allowedOrigin: window.location.origin,
+      allowedOrigins: [window.location.origin, ...(dnsName ? [`https://www.${dnsName}`, `https://${dnsName}`] : [])],
       githubAccount: githubRepoEnv.repo.selectedAccount,
       githubRepo: githubRepoEnv.repo.selectedRepo?.name ?? "",
       githubRepoId: typeof githubRepoEnv.repo.selectedRepo?.id === "number" ? githubRepoEnv.repo.selectedRepo.id : null,

@@ -56,8 +56,8 @@ export type RemoteTerminalInfraResult = {
 
 export interface UseRemoteTerminalInfraCardParams extends AzureTarget {
   corpName: string;
-  // Origin the browser calls /register and /negotiate from; without it every session fails on CORS.
-  allowedOrigin: string;
+  // Origins the browser calls /register and /negotiate from; without them every session fails on CORS.
+  allowedOrigins: string[];
   githubAccount: Account | null;
   githubRepo: string;
   // GitHub's numeric repo id — needed for the immutable OIDC subject.
@@ -92,7 +92,7 @@ export function useRemoteTerminalInfraCard({
   subscriptionId,
   corpName,
   tenantId,
-  allowedOrigin,
+  allowedOrigins,
   githubAccount,
   githubRepo,
   githubRepoId,
@@ -301,12 +301,14 @@ export function useRemoteTerminalInfraCard({
           AzureWebJobsStorage__blobServiceUri: `${blobBase}/`,
           AzureWebJobsStorage__tableServiceUri: `${tableBase}/`,
           AzureWebJobsStorage__queueServiceUri: `https://${storageAccountName}.queue.core.windows.net/`,
+          // The platform's cors block is separate; the backend reads this one itself.
+          ALLOWED_ORIGINS: allowedOrigins.join(","),
           WEBPUBSUB_ENDPOINT: `${webPubSubName}.webpubsub.azure.com`,
           HUB_NAME: TERMINAL_HUB,
           SESSION_TABLE_ACCOUNT_NAME: storageAccountName,
           SESSION_TABLE_NAME: TERMINAL_SESSION_TABLE,
         },
-        allowedOrigin ? [allowedOrigin] : [],
+        allowedOrigins,
         tenantId,
       );
       mark("app", appResult);
@@ -377,7 +379,7 @@ export function useRemoteTerminalInfraCard({
       setRunning(false);
     }
   }, [
-    allowedOrigin,
+    allowedOrigins,
     appInsightsName,
     azureAccount,
     corpName,

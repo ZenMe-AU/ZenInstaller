@@ -8,7 +8,6 @@ import { PIPELINE } from "./logic/pipeline";
 import { useGithubLoginCard } from "./hooks/useGithubLoginCard";
 import { useRepoCard } from "./hooks/useRepoCard";
 import { useGithubVariables } from "./hooks/useGithubVariables";
-import { useTerminalApi } from "./hooks/useTerminalApi";
 import { useUrlRestore, useUrlSync } from "./hooks/useUrlStateManager";
 import { useDeploymentPlan } from "./hooks/useDeploymentPlan";
 import { useCorpStageCards } from "./hooks/useCorpStageCards";
@@ -68,7 +67,6 @@ function AppDashboard() {
     envName: githubRepoEnv.env.branchMatchError ? null : (githubRepoEnv.env.selectedEnv?.name ?? null),
   });
   const githubVariableValues = githubVariables.values;
-  useTerminalApi(githubVariableValues);
 
   const corpName = githubVariableValues.NAME ?? "";
   const dnsName = githubVariableValues.DNS ?? "";

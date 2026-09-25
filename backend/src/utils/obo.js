@@ -7,6 +7,11 @@ import {
 } from "@azure/identity";
 import { Forbidden, InternalError, Unauthorized, logError } from "../error/index.js";
 
+/*
+ * UNUSED for now:
+ * now the browser sends an ARM token
+ */
+
 // The audience every workload identity federation token is issued for.
 const FEDERATION_SCOPE = "api://AzureADTokenExchange/.default";
 
@@ -82,8 +87,10 @@ function expiryOf(token) {
   return Date.now() + 5 * 60 * 1000;
 }
 
+// ── The one piece still in use ────────────────────────────────────────────────
+
 let appCredential = null;
-// For resources OBO cannot reach: Web PubSub publishes no delegated permission to exchange for.
+// Every Azure call runs as this app; requireAuth checks the caller's own grant beforehand.
 export function getAppCredential() {
   return (appCredential ??= new DefaultAzureCredential());
 }

@@ -9,7 +9,7 @@ app.http("register", {
   route: "terminal/register",
   authLevel: "anonymous",
   handler: corsWrapper(
-    requireAuth({ ms: true })(async (request, context) => {
+    requireAuth({ ms: true, msRbac: ["Storage Table Data Contributor"] })(async (request, context) => {
       const body = await request.json();
       const sessionId = body?.sessionId;
       const accessToken = body?.accessToken;
@@ -23,7 +23,7 @@ app.http("register", {
       }
 
       const expiresAt = Date.now() + ttlSeconds * 1000;
-      const tableClient = await getTableClient(request.auth.msToken);
+      const tableClient = getTableClient();
       await saveSession(tableClient, { sessionId, accessToken, expiresAt });
       context.log(`Session registered: ${sessionId} (TTL ${ttlSeconds}s)`);
       return { jsonBody: { ok: true } };

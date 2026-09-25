@@ -69,8 +69,8 @@ export function requireAuth({ github = false, ms = false, msRbac, check } = {}) 
     const msToken = getMsToken(request); // check for presence only: the OBO exchange validates it
 
     if (github && !githubToken) throw Unauthorized({ meta: { reason: "github_token_missing" } });
+    // only check for presence; the actual validation happens during rbac checks.
     if (ms && !msToken) throw Unauthorized({ meta: { reason: "microsoft_token_missing" } });
-
     // Azure enforces its own roles where a call runs as the caller; this is for the calls that do not.
     if (msRbac?.length) await assertRoles(msToken, msRbac);
 

@@ -1,28 +1,31 @@
 import { InternalError, NotFound, logError } from "../error/index.js";
 import { TableClient } from "@azure/data-tables";
-import { getCredential } from "./obo.js";
+import { getAppCredential } from "./obo.js";
 
-const STORAGE_SCOPES = ["https://storage.azure.com/.default"];
 const SESSION_TABLE_ACCOUNT_NAME = process.env.SESSION_TABLE_ACCOUNT_NAME;
 export const SESSION_TABLE_NAME = process.env.SESSION_TABLE_NAME || "sessions";
 const SESSION_PARTITION_KEY = "session";
 
-// Acts as the caller via OBO, so userToken is required.
-export async function getTableClient(userToken) {
+export function sessionTableResourceId() {
+  if (process.env.SESSION_TABLE_RESOURCE_ID) return process.env.SESSION_TABLE_RESOURCE_ID;
+
+  const subscriptionId = process.env.WEBSITE_OWNER_NAME?.split("+")[0];
+  const resourceGroup = process.env.WEBSITE_RESOURCE_GROUP;
+  if (!subscriptionId || !resourceGroup || !SESSION_TABLE_ACCOUNT_NAME) return null;
+
+  return `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Storage/storageAccounts/${SESSION_TABLE_ACCOUNT_NAME}`;
+}
+
+export function getTableClient() {
   if (!SESSION_TABLE_ACCOUNT_NAME) {
     throw InternalError({ meta: { missing: "SESSION_TABLE_ACCOUNT_NAME" } });
   }
 
   const url = `https://${SESSION_TABLE_ACCOUNT_NAME}.table.core.windows.net`;
-  const credential = await getCredential(STORAGE_SCOPES, userToken);
+  const credential = getAppCredential();
   // The table itself is created by the deployment terminal card, so it is assumed to exist here.
   return new TableClient(url, SESSION_TABLE_NAME, credential);
 }
-
-/*
- * The three below take the caller's client, so each runs as whoever opened it. Between them they
- * are the only code that knows how a session is laid out in the table.
- */
 
 export async function saveSession(tableClient, { sessionId, accessToken, expiresAt }) {
   await tableClient.upsertEntity(

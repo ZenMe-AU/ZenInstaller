@@ -9,14 +9,14 @@ app.http("deleteSession", {
   route: "terminal/session/{id}",
   authLevel: "anonymous",
   handler: corsWrapper(
-    requireAuth({ ms: true })(async (request, context) => {
+    requireAuth({ ms: true, msRbac: ["Storage Table Data Contributor"] })(async (request, context) => {
       const sessionId = request.params.id;
 
       if (!sessionId) {
         throw MissingParam({ meta: { required: ["id"] } });
       }
 
-      const tableClient = await getTableClient(request.auth.msToken);
+      const tableClient = getTableClient();
       await deleteSessionEntity(tableClient, sessionId);
       context.log(`Session cleaned up: ${sessionId}`);
       return { jsonBody: { ok: true } };

@@ -1,5 +1,6 @@
 import { app } from "@azure/functions";
 import { requireAuth } from "../../utils/auth.js";
+import { anyOf } from "../../utils/rbac.js";
 import { corsWrapper } from "../../utils/cors.js";
 import { Forbidden, HttpError, MissingParam, logError } from "../../error/index.js";
 import { deleteSessionEntity, getTableClient, readSession } from "../../utils/sessionTable.js";
@@ -10,7 +11,10 @@ app.http("negotiate", {
   route: "terminal/negotiate",
   authLevel: "anonymous",
   handler: corsWrapper(
-    requireAuth({ ms: true, msRbac: ["Web PubSub Service Owner"] })(async (request) => {
+    requireAuth({
+      ms: true,
+      msRbac: [anyOf("Storage Table Data Reader", "Storage Table Data Contributor"), "Web PubSub Service Owner"],
+    })(async (request) => {
       const sessionId = request.query.get("session");
       const token = request.query.get("token");
 
@@ -18,7 +22,7 @@ app.http("negotiate", {
         throw MissingParam({ meta: { required: ["session", "token"] } });
       }
 
-      const tableClient = await getTableClient(request.auth.msToken);
+      const tableClient = getTableClient();
 
       const session = await readSession(tableClient, sessionId);
 

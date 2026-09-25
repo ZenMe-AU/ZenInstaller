@@ -15,7 +15,7 @@ import {
   type AzureLocation,
 } from "../api/azureArm";
 import { getExistingSP } from "../api/azureGraph";
-import { ensureScopeConsent } from "../api/msal";
+import { ensureScopeConsent } from "../cards/AzureLogin/msal";
 import {
   getRootResourceGroupName,
   getLogAnalyticsWorkspaceName,

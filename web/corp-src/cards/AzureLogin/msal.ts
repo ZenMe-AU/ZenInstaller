@@ -1,6 +1,6 @@
 import { InteractionRequiredAuthError, PublicClientApplication } from "@azure/msal-browser";
-import { AZURE_CLIENT_ID } from "../config/azureConfig";
-import type { AzureAccount } from "../types";
+import { AZURE_CLIENT_ID } from "../../config/azureConfig";
+import type { AzureAccount } from "../../types";
 
 export const MSA_TENANT = "9188040d-6c67-4c5b-b112-36a304b66dad"; // Microsoft consumer tenant (MSA accounts)
 

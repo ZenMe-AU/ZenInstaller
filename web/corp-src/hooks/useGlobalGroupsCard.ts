@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getMsal } from "../api/msal";
+import { getMsal } from "../cards/AzureLogin/msal";
 import { GROUPS_SCOPES, AZURE_CLIENT_ID } from "../config/azureConfig";
 import {
   listGroups,
@@ -305,11 +305,11 @@ export function useGlobalGroupsCard({
         prev.map((r) =>
           r.id === id
             ? {
-                ...r,
-                groupName: saved.displayName,
-                description: saved.description,
-                memberOfGroupNames: [...saved.memberOfGroupNames],
-              }
+              ...r,
+              groupName: saved.displayName,
+              description: saved.description,
+              memberOfGroupNames: [...saved.memberOfGroupNames],
+            }
             : r,
         ),
       );

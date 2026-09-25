@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getMsal, MSA_TENANT } from "../api/msal";
-import { LOGIN_SCOPES, ARM_SCOPES } from "../config/azureConfig";
-import { listTenants } from "../api/azureGraph";
-import type { AzureTenant } from "../types";
-import { getToken } from "../api/msal";
-import { createResultStorage } from "../logic/resultStorage";
-import type { AzureAccount, LoginHook } from "../types";
+import { getMsal, MSA_TENANT } from "./msal";
+import { LOGIN_SCOPES, ARM_SCOPES } from "../../config/azureConfig";
+import { listTenants } from "../../api/azureGraph";
+import type { AzureTenant } from "../../types";
+import { getToken } from "./msal";
+import { createResultStorage } from "../../logic/resultStorage";
+import type { AzureAccount, LoginHook } from "../../types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -274,7 +274,7 @@ export function useAzureAccount(): UseAzureAccount {
 
   const clearSession = useCallback(async () => {
     const msal = await getMsal();
-    if (msal) await msal.clearCache().catch(() => {});
+    if (msal) await msal.clearCache().catch(() => { });
     setAccount(null);
     setTenants([]);
     setManualTenantId("");
@@ -291,7 +291,7 @@ export function useAzureAccount(): UseAzureAccount {
     account,
     login,
     logout,
-    refresh: () => {},
+    refresh: () => { },
     loggingIn,
 
     loginError,

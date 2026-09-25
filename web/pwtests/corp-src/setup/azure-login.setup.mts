@@ -13,7 +13,7 @@ async function selectAzureTenant(page: Page, azureCard: Locator, tenantId: strin
   if (await tenantSelect.isVisible()) {
     await tenantSelect.click();
     const tenantOption = page.getByRole("option").filter({ hasText: tenantId });
-    await expect(tenantOption).toBeVisible({ timeout: 30_000 });
+    await expect(tenantOption).toBeVisible({ timeout: 30_000 }); //TODO: This is often failing even when the function seem to work.
     await tenantOption.click();
   } else {
     await tenantInput.fill(tenantId);
@@ -21,15 +21,16 @@ async function selectAzureTenant(page: Page, azureCard: Locator, tenantId: strin
   }
 }
 
+// TODO: If the auth state already exist and is valid, only then succeed, otherwise fail!
 setup("Manual setup for corp Azure auth tests", async ({ page, context }) => {
   fs.mkdirSync(authDir, { recursive: true });
 
-  if (corpAzureAuthStateExists() && process.env.FORCE_AZURE_PASSKEY_SETUP !== "true") {
-    console.log("Azure auth state already exists. Skipping manual passkey login.");
-    console.log(`Storage state: ${azureStorageStateFile}`);
-    console.log(`Session storage: ${azureSessionStorageFile}`);
-    return;
-  }
+  // if (corpAzureAuthStateExists() && process.env.FORCE_AZURE_PASSKEY_SETUP !== "true") {
+  //   console.log("Azure auth state already exists. Skipping manual passkey login.");
+  //   console.log(`Storage state: ${azureStorageStateFile}`);
+  //   console.log(`Session storage: ${azureSessionStorageFile}`);
+  //   return;
+  // }
 
   await page.goto(CORP_URL);
 
@@ -50,7 +51,7 @@ setup("Manual setup for corp Azure auth tests", async ({ page, context }) => {
     console.log("Page failed to redirect after manual sign in.");
     console.log(`Current URL: ${page.url()}`);
 
-    if (page.url().startsWith("http://localhost:5173")) {
+    if (page.url().startsWith(CORP_URL)) {
       await page
         .goto(CORP_URL, { waitUntil: "domcontentloaded", timeout: 30_000 })
         .catch((err) => {
@@ -64,12 +65,13 @@ setup("Manual setup for corp Azure auth tests", async ({ page, context }) => {
   console.log(`Selecting tenant "${TENANT_ID}" automatically.`);
   await selectAzureTenant(page, authenticatedAzureCard, TENANT_ID);
 
+  console.log("Waiting for Azure auth flow...")
   const microsoftConsent = page.waitForURL(/login\.microsoftonline\.com|login\.live\.com/i, { timeout: 15_000 })
     .then(() => true)
     .catch(() => false);
   if (await microsoftConsent) {
     await page.pause();
-    await page.waitForURL(/localhost:5173\/?(?:[/?#].*)?$/i, { timeout: 180_000 });
+    await page.waitForURL(CORP_URL, { timeout: 180_000 });
   }
 
   const restoredAzureCard = page.locator("#card-azure_login");

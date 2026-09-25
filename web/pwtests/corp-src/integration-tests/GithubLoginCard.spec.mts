@@ -1,18 +1,38 @@
-import { expect, test } from "../../coverage/fixture";
+import { expect, test } from "@playwright/test";
 import { getCorpGithubAuthMode, restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { CORP_URL, viewports, } from "../../testInit";
-import { expandGithubLoginCard, expectSnapshot } from "../util/testHelper.mts";
+import { expectSnapshot } from "../util/testHelper.mts";
+import { expandGithubLoginCard } from "../util/cardHelper.mts";
+import { writeFile } from "fs/promises";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`GitHub Login Card - ${viewportName}`, () => {
 		test.use({ viewport, deviceScaleFactor: 1 });
+
+		test.beforeEach(async ({ page, },) => {
+			await page.coverage.startJSCoverage({ resetOnNavigation: false, });
+		});
+		
+		test.afterEach(async ({ page, }, testInfo,) => {
+			if (page.isClosed()) {
+				return;
+			}
+		
+			const entries = await page.coverage.stopJSCoverage();
+			const file = testInfo.outputPath("v8-coverage.json");
+			await writeFile(file, JSON.stringify(entries), "utf8");
+			await testInfo.attach("v8-coverage", {
+				path: file,
+				contentType: "application/json",
+			});
+		});
 		
 		test("Happy path", async ({ page, context, }, testInfo) => {
 			await page.goto(CORP_URL);
 			
 			const githubCard = await test.step("Expand Unauthenticated Github Login Card", async () => {
 				const githubCard = await expandGithubLoginCard(page,);
-				await expectSnapshot(page, githubCard, testInfo, `start`, viewportName);
+				await expectSnapshot(page, githubCard, testInfo, "start", viewportName);
 				return githubCard;
 			});
 			
@@ -32,7 +52,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				}
 				await expect(githubCard.getByRole("button", { name: "Sign out", exact: true, }),).toBeVisible();
 				await expect(githubCard.getByRole("button", { name: "Login with GitHub", exact: true, }),).toHaveCount(0);
-				await expectSnapshot(page, githubCard, testInfo, `end`, viewportName);
+				await expectSnapshot(page, githubCard, testInfo, "end", viewportName);
 			});
 
 		});

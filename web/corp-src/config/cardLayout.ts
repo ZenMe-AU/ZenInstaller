@@ -10,7 +10,7 @@ import { MONO as mono } from "./styles";
  * spans exactly that 3-card width (3 cards + two 12px gaps) so its right edge lines up.
  */
 export const CARD_W = 300;
-export const EXPANDED_W = CARD_W * 3 + 24;
+export const EXPANDED_W = 1280;
 
 /*
  * Viewport width at which 3 collapsed cards + gaps + the outer container's sm+

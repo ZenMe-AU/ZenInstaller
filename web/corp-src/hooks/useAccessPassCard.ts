@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { getMsal } from "../api/msal";
+import { getMsal } from "../cards/AzureLogin/msal";
 import { ACCESS_PASS_SCOPES } from "../config/azureConfig";
 import {
   listUsersManagedBySignedInUser,

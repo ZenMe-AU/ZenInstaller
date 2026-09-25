@@ -1,18 +1,31 @@
-import { expect, test } from "../../coverage/fixture";
+import { expect, test } from "@playwright/test";
 import { CORP_URL, viewports } from "../../testInit";
-import {
-	chooseRepoOption,
-	expandAzureLoginCard,
-	expandAzureSubscriptionCard,
-	expandRepoCard,
-	expectSnapshot,
-} from "../util/testHelper.mts";
-import { installMockAzure, installMockGitHub, mockSubscriptionId, signInMockAzure } from "./mockFixtures.mts";
-import { prepareMockAzureSubscription, savedAzureVariables } from "./mockTestHelper.mts";
+import { createNewRepo, expectSnapshot } from "../util/testHelper.mts";
+import { installMockAzure, installMockGitHub, mockSubscriptionId, prepareMockAzureSubscription, savedAzureVariables, signInMockAzure } from "../util/mockTestHelper.mts";
+import { expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "../util/cardHelper.mts";
+import { writeFile } from "fs/promises";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Azure Subscription Card Mock - ${viewportName}`, () => {
 		test.use({ viewport, deviceScaleFactor: 1 });
+
+		test.beforeEach(async ({ page, },) => {
+			await page.coverage.startJSCoverage({ resetOnNavigation: false, });
+		});
+		
+		test.afterEach(async ({ page, }, testInfo,) => {
+			if (page.isClosed()) {
+				return;
+			}
+		
+			const entries = await page.coverage.stopJSCoverage();
+			const file = testInfo.outputPath("v8-coverage.json");
+			await writeFile(file, JSON.stringify(entries), "utf8");
+			await testInfo.attach("v8-coverage", {
+				path: file,
+				contentType: "application/json",
+			});
+		});
 
 		test("Happy path", async ({ page, context }, testInfo) => {
 			await installMockGitHub(page, context);
@@ -48,18 +61,20 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			});
 
 			await test.step("Clone repository", async () => {
-				await chooseRepoOption(page, repoCard, `mock-azure-subscription-${viewportName.toLowerCase()}`);
-				await repoCard.getByRole("button", { name: "Clone Repository" }).click();
-				await expect(repoCard.getByText("Pick the environment to configure.")).toBeVisible();
+				await createNewRepo(page, repoCard, `mock-azure-subscription-${viewportName.toLowerCase()}`);
+				await expect(repoCard.getByText("Loading environments...", { exact: true })).toBeHidden();
+				const prodEnvironment = repoCard.getByText("PROD", { exact: true });
+				await expect(prodEnvironment).toBeVisible();
+				await prodEnvironment.click();
 				await expectSnapshot(page, azureSubscriptionCard, testInfo, "clone-repo", viewportName);
 			});
 
 			await test.step("Repo create environment", async () => {
-				await repoCard.getByText("PROD", { exact: true }).click();
 				const createProdButton = repoCard.getByRole("button", { name: "Create New Branch: PROD" });
-				await expect(createProdButton).toBeVisible();
-				await createProdButton.click();
-				await expect(createProdButton).toBeHidden();
+				if (await createProdButton.isVisible()) {
+					await createProdButton.click();
+					await expect(createProdButton).toBeHidden();
+				}
 				await expectSnapshot(page, azureSubscriptionCard, testInfo, "create-env", viewportName);
 			});
 

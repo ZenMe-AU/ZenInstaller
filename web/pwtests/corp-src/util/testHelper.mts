@@ -1,8 +1,5 @@
-import { BrowserContext, expect, type Locator, type Page, type Route, type TestInfo } from "@playwright/test";
-import fs from "fs";
+import { expect, type Locator, type Page, type Route, type TestInfo } from "@playwright/test";
 import path from "node:path";
-import { restoreAzureSessionStorage, restoreGithubSessionStorage } from "./setupHelper.mts";
-import { CORP_URL, SUBSCRIPTION_ID } from "../../testInit";
 
 export type PageSnapshotOptions = {
 	userId: string;
@@ -12,7 +9,8 @@ export type PageSnapshotOptions = {
   	stabilizeAuth?: boolean;
 };
 
-/* -------------------------------------- SHARED HELPER FUNCTIONS ------------------------------------------------------------------*/
+// printing debug and API info when running test
+const isDebugEnabled = process.env.DEBUG?.includes('pw:api') || process.env.NODE_ENV === 'development';
 
 // Returns sensitive identity fields contained by the supplied page or locator.
 export function sensitiveTextMasks(root: Page | Locator,): Locator[] {
@@ -30,11 +28,11 @@ export function safePathSegment(value: string,): string {
 
 function snapshotPath(testInfo: TestInfo, viewportName: string, fileSubstring: string,): string[] {
 	const testName = safePathSegment(testInfo.title);
-	let snapshotName = `${fileSubstring}.png`
+	let snapshotName = safePathSegment(`${fileSubstring}.png`);
 	if (testName.toLowerCase() == "happy-path") {
-		snapshotName = `${testName}-${fileSubstring}.png`
+		snapshotName = safePathSegment(`${testName}-${fileSubstring}.png`);
 	}
-	const relativeTestPath = path.relative(testInfo.project.testDir, testInfo.file,);
+	const relativeTestPath = path.relative(testInfo.project.testDir, testInfo.file);
 	const testPathSegments = relativeTestPath.split(path.sep,).map((segment,) => safePathSegment(segment,),);
 	const testFile = testPathSegments.pop()?.replace(/\.spec\.(?:m?[jt]sx?)$/, "",) ?? "unnamed";
 	const sourceFolder = testPathSegments.shift();
@@ -42,10 +40,9 @@ function snapshotPath(testInfo: TestInfo, viewportName: string, fileSubstring: s
 	return [
 		...(sourceFolder ? [sourceFolder,] : []), "snapshots", ...testPathSegments,
 		safePathSegment(testFile,), safePathSegment(viewportName,),
-		safePathSegment(snapshotName.endsWith(".png") ? snapshotName : `${snapshotName}.png`,),
+		safePathSegment(snapshotName.endsWith(".png") ? snapshotName : safePathSegment(`${snapshotName}.png`)),
 	];
 }
-
 
 // takes snapshot of a specific card element, rather than the whole page
 export async function expectSnapshot(page: Page, locator: Locator, testInfo: TestInfo, snapshotName: string, viewportName: string,): Promise<void> {
@@ -82,50 +79,19 @@ export async function expectSnapshot(page: Page, locator: Locator, testInfo: Tes
 			maskColor: "rgb(0, 0, 0)",
 		},);
 	} finally {
-		await screenshotStyle.evaluate((element,) => element.parentNode?.removeChild(element),);
-		await locator.evaluate((element, style,) => {
+		await screenshotStyle.evaluate((element) => element.parentNode?.removeChild(element));
+		await locator.evaluate((element, style) => {
 			if (style === null) {
 				element.removeAttribute("style");
 			} else {
-				element.setAttribute("style", style,);
+				element.setAttribute("style", style);
 			}
 		}, originalStyle,);
 	}
 }
 
-/* ---------------------------------------------- GITHUB LOGIN CARD ------------------------------------------------------------------*/
-
-export async function expandGithubLoginCard(page: Page,) {
-	const githubCard = page.locator("#card-github_login",);
-	const introText = githubCard.getByText(/Connect your GitHub account so ZenInstaller can create the repository, environment, and secrets needed to deploy Zenblox\./i,);
-	if (!(await introText.isVisible())) {await githubCard.getByText(/^GitHub login$/i,).click();}
-	await expect(introText).toBeVisible();
-	return githubCard;
-}
-
-/* ---------------------------------------------- AZURE LOGIN CARD ------------------------------------------------------------------*/
-
-export async function expandAzureLoginCard(page: Page) {
-	const azureCard = page.locator("#card-azure_login");
-	const introText = azureCard.getByText(/Sign in with Azure so we can create the app registration and cloud resources for you\./i);
-	if (!(await introText.isVisible())) {await azureCard.getByText(/^Azure login$/i).click();}
-	await expect(introText).toBeVisible();
-	return azureCard;
-}
-
-/* ---------------------------------------------- REP ENV CARD ------------------------------------------------------------------*/
-
-const isDebugEnabled = process.env.DEBUG?.includes('pw:api') || process.env.NODE_ENV === 'development';
-
-export async function expandRepoCard(page: Page,) {
-	const repoCard = page.locator("#card-repo",);
-	const repoInput = repoCard.getByRole("combobox", { name: "Select or type repo name...", },);
-	if (!(await repoInput.isVisible())) {await repoCard.getByText(/^Repository & environment$/i,).click();}
-	await expect(repoInput).toBeVisible();
-	return repoCard;
-}
-
-export async function chooseRepoOption(page: Page, card: Locator, reponame: string, options: { reuseExisting?: boolean } = {}) {
+// Checks availability without selecting either an existing repository or a clone option.
+export async function checkRepoExists(page: Page, card: Locator, reponame: string): Promise<boolean> {
 	const repoInput = card.getByRole("combobox", { name: "Select or type repo name...", });
 	await repoInput.click();
 	await waitForLocatorContentLoaded(page.getByRole("option",), "No options", "Repo list", 5000000);
@@ -134,16 +100,38 @@ export async function chooseRepoOption(page: Page, card: Locator, reponame: stri
 	const alreadyClonedOption = page.getByRole("option", { name: new RegExp(`^(?:▪\\s*)?${escapedRepoName}$`, "i",), });
 	const cloneOption = page.getByRole("option", { name: new RegExp(`^Clone as [\"'“‘]${escapedRepoName}[\"'”’]$`,), });
 
-	await expect(alreadyClonedOption.or(cloneOption),).toBeVisible();
-	if (await alreadyClonedOption.isVisible()) {
-		if (!options.reuseExisting) {
-			throw new Error(`The repo "${reponame}" already exists. Please delete it from your GitHub account before running this test.`);
-		}
+	await expect(alreadyClonedOption.or(cloneOption)).toBeVisible();
+	const repoExists = await alreadyClonedOption.isVisible();
+	await repoInput.press("Escape");
+	return repoExists;
+}
 
-		await alreadyClonedOption.click();
-		await expect(repoInput).toHaveValue(reponame);
-		await expect(card.getByText("Valid", { exact: true, }),).toBeVisible();
-		return "existing" as const;
+export async function chooseExistingRepo(page: Page, card: Locator, reponame: string): Promise<void> {
+	const repoInput = card.getByRole("combobox", { name: "Select or type repo name...", });
+	await repoInput.click();
+	await waitForLocatorContentLoaded(page.getByRole("option",), "No options", "Repo list", 5000000);
+	await repoInput.fill(reponame);
+	const escapedRepoName = reponame.replace(/[.*+?^${}()|[\]\\]/g, "\\$&",);
+	const alreadyClonedOption = page.getByRole("option", { name: new RegExp(`^(?:▪\\s*)?${escapedRepoName}$`, "i",), });
+
+	await expect(alreadyClonedOption).toBeVisible();
+	await alreadyClonedOption.click();
+	await expect(repoInput).toHaveValue(reponame);
+	await expect(card.getByText("Valid", { exact: true })).toBeVisible();
+}
+
+export async function createNewRepo(page: Page, card: Locator, reponame: string): Promise<void> {
+	const repoInput = card.getByRole("combobox", { name: "Select or type repo name...", });
+	await repoInput.click();
+	await waitForLocatorContentLoaded(page.getByRole("option",), "No options", "Repo list", 5000000);
+	await repoInput.fill(reponame);
+	const escapedRepoName = reponame.replace(/[.*+?^${}()|[\]\\]/g, "\\$&",);
+	const alreadyClonedOption = page.getByRole("option", { name: new RegExp(`^(?:▪\\s*)?${escapedRepoName}$`, "i",), });
+	const cloneOption = page.getByRole("option", { name: new RegExp(`^Clone as [\"'“‘]${escapedRepoName}[\"'”’]$`,), });
+
+	await expect(alreadyClonedOption.or(cloneOption)).toBeVisible();
+	if (await alreadyClonedOption.isVisible()) {
+		throw new Error(`The repo "${reponame}" already exists. Please delete it from your GitHub account before running this test.`);
 	}
 
 	await expectVisibleWithin(cloneOption, `Clone as ${reponame}`, 500,);
@@ -157,7 +145,8 @@ export async function chooseRepoOption(page: Page, card: Locator, reponame: stri
 	await expect(card.getByRole("switch", { name: "Clone all branches" }),).not.toBeChecked();
 	await expect(card.getByRole("switch", { name: "Create environments" }),).toBeChecked();
 	await expect(card.getByText(/Pick the environment to configure/i),).toHaveCount(0);
-	return "new" as const;
+	await card.getByRole("button", { name: "Clone Repository" }).click();
+	await expectVisibleWithin(card.getByText("Pick the environment to configure."), "Text: Pick the environment to configure", 500_000,);
 }
 
 export async function logMockAPI(page: Page, route: Route, status: number, body: unknown) {
@@ -192,102 +181,3 @@ export async function waitForLocatorContentLoaded(locator: Locator, emptyPlaceho
 }
 
 
-export async function expandAzureSubscriptionCard(page: Page) {
-	const subscriptionCard = page.locator("#card-azure_subscription",);
-	const introText = subscriptionCard.getByText(/Pick the subscription to deploy into\./i,);
-	if (!(await introText.isVisible())) {
-		await subscriptionCard.getByText(/^Choose Azure subscription$/i).click();
-	}
-	await expect(introText).toBeVisible();
-	return subscriptionCard;
-}
-
-export async function openExistingAzureSubscription(page: Page, context: BrowserContext, viewportName: string, options: {
-	environmentName?: "PROD" | "TEST";
-	expectSavedVariables?: boolean;
-} = {},): Promise<{
-	azureSubscriptionCard: Locator;
-	tenantVariableInput: Locator;
-	subscriptionVariableInput: Locator;
-	saveButton: Locator;
-}> {
-	const { environmentName = "PROD", expectSavedVariables = true, } = options;
-	await restoreGithubSessionStorage(context);
-	await restoreAzureSessionStorage(context);
-	await page.goto(CORP_URL);
-
-	const azureCard = await expandAzureLoginCard(page);
-	const tenantSelect = azureCard.getByTestId("tenant-select");
-	await expect(tenantSelect).toBeVisible({ timeout: 120_000, });
-	const tenantId = (await tenantSelect.locator("input").inputValue()).trim();
-	expect(tenantId, "The restored Azure tenant ID should not be empty").not.toBe("");
-	await tenantSelect.click();
-	await page.getByRole("option").filter({ hasText: tenantId, }).click();
-
-	const repoCard = await expandRepoCard(page);
-	const repoName = safePathSegment(`azure-subscrip-${viewportName}`,);
-	const repoSelection = await chooseRepoOption(page, repoCard, repoName, { reuseExisting: true, });
-	expect(repoSelection, `Expected the repository "${repoName}" to already exist`).toBe("existing");
-
-	await expect(repoCard.getByText("Loading environments...", { exact: true, }),).toBeHidden({ timeout: 120_000, });
-	const environment = repoCard.getByText(environmentName, { exact: true, });
-	await expect(environment).toBeVisible();
-	await environment.click();
-
-	const azureSubscriptionCard = await expandAzureSubscriptionCard(page);
-	const createBranchButton = repoCard.getByRole("button", { name: `Create New Branch: ${environmentName}`, });
-	const selectEnvironmentMessage = azureSubscriptionCard.getByText("Select a repository & environment to save the tenant and subscription to GitHub.", { exact: true, });
-	await expect.poll(async () => await createBranchButton.isVisible() || await selectEnvironmentMessage.count() === 0, {
-		timeout: 30_000,
-		message: `${environmentName} branch state did not finish loading`,
-	},).toBeTruthy();
-	if (await createBranchButton.isVisible()) {
-		await createBranchButton.click();
-		await expect(createBranchButton).toBeHidden({ timeout: 30_000, });
-	}
-
-	await expect(selectEnvironmentMessage).toHaveCount(0);
-	await expect(azureSubscriptionCard.getByText("Loading subscriptions...", { exact: true, }),).toBeHidden({ timeout: 60_000, });
-	const subscriptionSelect = azureSubscriptionCard.getByRole("combobox",);
-	await expect(subscriptionSelect).toBeVisible({ timeout: 100_000, });
-
-	// a prior run may have saved a tenant/subscription that no longer restores automatically
-	if (expectSavedVariables) {
-		await subscriptionSelect.click();
-		const subscriptionOption = page.getByRole("option").filter({ hasText: SUBSCRIPTION_ID, });
-		await expect(subscriptionOption).toBeVisible({ timeout: 30_000, });
-		await subscriptionOption.click();
-		// Defocus the select so it doesn't render a focus ring in any upcoming snapshot.
-		await azureSubscriptionCard.getByText(/Pick the subscription to deploy into\./i,).click();
-
-		const saveVariablesButton = azureSubscriptionCard.getByRole("button", { name: /^Save(?: \d+)? variables?$/, });
-		if (await saveVariablesButton.isEnabled().catch(() => false)) {
-			console.log("Detected drift between the currently selected tenant/subscription and the saved GitHub variables — re-saving.");
-			await saveVariablesButton.click();
-			await expect(azureSubscriptionCard.getByRole("button", { name: "Save variables", }),).toBeDisabled({ timeout: 60_000, });
-		}
-	}
-
-	const tenantVariableInput = azureSubscriptionCard.getByText("AZURE_TENANT_ID", { exact: true, }).locator("..").locator("..").getByRole("textbox",);
-	const subscriptionVariableInput = azureSubscriptionCard.getByText("AZURE_SUBSCRIPTION_ID", { exact: true, }).locator("..").locator("..").getByRole("textbox",);
-	const saveButton = azureSubscriptionCard.getByRole("button", { name: "Save variables" });
-	await expect.poll(async () => (await tenantVariableInput.inputValue()).trim(), { timeout: 60_000, },).not.toBe("");
-	await expect.poll(async () => (await subscriptionVariableInput.inputValue()).trim(), { timeout: 60_000, },).not.toBe("");
-	if (expectSavedVariables) {
-		await expect(saveButton).toBeDisabled({ timeout: 60_000, });
-	} else {
-		await expect(azureSubscriptionCard.getByText("2 not configured", { exact: true, }),).toBeVisible({ timeout: 60_000, });
-	}
-
-	return { azureSubscriptionCard, tenantVariableInput, subscriptionVariableInput, saveButton, };
-}
-
-export async function expandAzureAppRegistrationCard(page: Page) {
-	const appRegistrationCard = page.locator("#card-azure_app_registration",);
-	const introText = appRegistrationCard.getByText(/Create an app registration for GitHub Actions/i,);
-	if (!(await introText.isVisible())) {
-		await appRegistrationCard.getByText(/^Create an app registration in Azure$/i,).click();
-	}
-	await expect(introText).toBeVisible();
-	return appRegistrationCard;
-}

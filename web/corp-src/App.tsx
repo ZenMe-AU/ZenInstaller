@@ -11,7 +11,7 @@ import { useGithubVariables } from "./hooks/useGithubVariables";
 import { useUrlRestore, useUrlSync } from "./hooks/useUrlStateManager";
 import { useDeploymentPlan } from "./hooks/useDeploymentPlan";
 import { useCorpStageCards } from "./hooks/useCorpStageCards";
-import { useAzureLoginCard } from "./hooks/useAzureLoginCard";
+import { useAzureLoginCard } from "./cards/AzureLogin/useAzureLoginCard";
 import { useAzureAppRegistrationCard } from "./hooks/useAzureAppRegistrationCard";
 import { useAzureSubscriptionCard } from "./hooks/useAzureSubscriptionCard";
 import { useCreateDomainCard } from "./hooks/useCreateDomainCard";
@@ -26,7 +26,7 @@ import NavBar from "./components/NavBar";
 import RestoreToast from "./components/RestoreToast";
 import GithubLoginCard from "./cards/GithubLoginCard";
 import RepoCard from "./cards/RepoCard";
-import AzureLoginCard from "./cards/AzureLoginCard";
+import AzureLoginCard from "./cards/AzureLogin/AzureLoginCard";
 import AzureAppRegistrationCard from "./cards/AzureAppRegistrationCard";
 import AzureSubscriptionCard from "./cards/AzureSubscriptionCard";
 import CoreInfraCard from "./cards/CoreInfraCard";
@@ -40,6 +40,8 @@ import StageCard from "./cards/StageCard";
 
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
+
+// TODO: Remove fontSize and fontFamily from all Typography components and rely on theme defaults instead.
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
@@ -299,7 +301,7 @@ function AppDashboard() {
               boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
             }}
           >
-            <Typography sx={{ fontSize: "0.85rem", color: "#475569", lineHeight: 1.7 }}>
+            <Typography sx={{ color: "#475569", lineHeight: 1.7 }}>
               ZenInstaller is used to create your organisation configuration on a number of cloud hosting providers of
               your choosing. Before starting, you will need the following: <br />
               1. A personal email address, using Google, or any other email hosting provider. <br />

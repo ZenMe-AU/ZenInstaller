@@ -258,7 +258,10 @@ export default function AzureAppRegistrationCard({
                       value={appName}
                       onChange={(e) => setAppName(e.target.value)}
                       sx={{ minWidth: 280 }}
-                      inputProps={{ style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" } }}
+                      inputProps={{
+                        "data-sensitive": true,
+                        style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" },
+                      }}
                     />
                   </Box>
 

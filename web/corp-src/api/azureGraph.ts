@@ -1,4 +1,4 @@
-import { getToken } from "./msal";
+import { getToken } from "../cards/AzureLogin/msal";
 import { azFetch as gFetch, ARM, GRAPH } from "./azureFetch";
 import {
   APP_SCOPES,
@@ -278,7 +278,7 @@ export async function revokeOAuth2Grants(
   const grantsRes = await gFetch(token, GRAPH, `/oauth2PermissionGrants?$filter=clientId eq '${spId}'`);
   const ids: string[] = (grantsRes?.value ?? []).map((g: { id: string }) => g.id);
   await Promise.all(
-    ids.map((id) => gFetch(token, GRAPH, `/oauth2PermissionGrants/${id}`, { method: "DELETE" }).catch(() => {})),
+    ids.map((id) => gFetch(token, GRAPH, `/oauth2PermissionGrants/${id}`, { method: "DELETE" }).catch(() => { })),
   );
 }
 

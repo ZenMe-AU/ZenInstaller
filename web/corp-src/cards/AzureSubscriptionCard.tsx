@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Box, Button, CircularProgress, MenuItem, Select, Typography } from "@mui/material";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { Account, CardChrome, GhEnv } from "../types";
-import type { UseAzureAccount } from "../hooks/useAzureAccount";
+import type { UseAzureAccount } from "./AzureLogin/useAzureAccount";
 import type { UseAzureSubscriptionCard } from "../hooks/useAzureSubscriptionCard";
 import type { UseGithubVariables } from "../hooks/useGithubVariables";
 import { INITIAL_URL_PARAMS } from "../hooks/useUrlStateManager";

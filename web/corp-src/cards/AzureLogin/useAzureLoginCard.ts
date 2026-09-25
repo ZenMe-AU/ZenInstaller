@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef } from "react";
-import type { CardHook, CardRequirements, CardStatus, LoginHook, AzureAccount } from "../types";
-import { AZURE_CLIENT_ID } from "../config/azureConfig";
-import type { AzureTenant } from "../types";
-import { tenantDisplayName } from "../logic/tenant";
-import { findIgnoreCase } from "../logic/search";
-import { INITIAL_URL_PARAMS, type UrlRestoreField } from "./useUrlStateManager";
+import type { CardHook, CardRequirements, CardStatus, LoginHook, AzureAccount } from "../../types";
+import { AZURE_CLIENT_ID } from "../../config/azureConfig";
+import type { AzureTenant } from "../../types";
+import { tenantDisplayName } from "../../logic/tenant";
+import { findIgnoreCase } from "../../logic/search";
+import { INITIAL_URL_PARAMS, type UrlRestoreField } from "../../hooks/useUrlStateManager";
 import { useAzureAccount, type UseAzureAccount } from "./useAzureAccount";
-import { setActiveAzureIdentity } from "../api/msal";
+import { setActiveAzureIdentity } from "./msal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -91,8 +91,8 @@ export function useAzureLoginCard({ savedTenantId }: UseAzureLoginCardParams): U
       ? "Sign in to Azure"
       : done
         ? [azure.account.username, tenantDisplayName(azure.tenants, azure.confirmedTenantId)]
-            .filter(Boolean)
-            .join(" · ") || "Signed in"
+          .filter(Boolean)
+          .join(" · ") || "Signed in"
         : "Select a tenant";
 
   return {

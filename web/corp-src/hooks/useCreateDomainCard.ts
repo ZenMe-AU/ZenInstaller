@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ensureScopeConsent, getMsal } from "../api/msal";
+import { ensureScopeConsent, getMsal } from "../cards/AzureLogin/msal";
 import {
   APP_SCOPES,
   DNS_PROVIDERS,

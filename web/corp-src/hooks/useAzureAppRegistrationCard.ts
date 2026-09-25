@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { ensureScopeConsent, getMsal } from "../api/msal";
+import { ensureScopeConsent, getMsal } from "../cards/AzureLogin/msal";
 import { APP_SCOPES, AZURE_CLIENT_ID } from "../config/azureConfig";
 import {
   getExistingApp,

@@ -1,12 +1,10 @@
 import { expect, test as setup, } from "@playwright/test";
 import fs from "fs";
-import { CORP_URL, } from "../../testInit";
+import { CORP_URL } from "../../testInit";
 import { authDir, corpGithubAuthStateExists, saveGithubSessionStorage, githubStorageStateFile, githubSessionStorageFile } from "../util/setupHelper.mts";
 
 const pat = process.env.GITHUB_TOKEN;
-
-setup("GitHub PAT login for corp auth tests", async ({ page, context }) => {
-	setup.skip(!pat, "No GITHUB_TOKEN found in web/.env file. Add a valid PAT to use this setup.",);
+setup("Automatic GitHub PAT login for corp auth tests", async ({ page, context }) => {
 	fs.mkdirSync(authDir, { recursive: true, });
 
 	if (corpGithubAuthStateExists("direct",)) {
@@ -14,6 +12,10 @@ setup("GitHub PAT login for corp auth tests", async ({ page, context }) => {
 		console.log(`Storage state: ${githubStorageStateFile}`);
 		console.log(`Session storage: ${githubSessionStorageFile}`);
 		return;
+	}
+
+	if (!pat) {
+		throw new Error("GITHUB_TOKEN is missing or empty in web/pwtests/.env file.");
 	}
 
 	await page.goto(CORP_URL);
@@ -25,7 +27,7 @@ setup("GitHub PAT login for corp auth tests", async ({ page, context }) => {
 	await githubCard.getByRole("button", { name: "Direct (PAT)", exact: true, },).click();
 	const patInput = githubCard.getByPlaceholder("ghp_… or github_pat_…",);
 	await expect(patInput,).toBeVisible();
-	await patInput.fill(pat!,);
+	await patInput.fill(pat!);
 	await githubCard.getByRole("button", { name: "Connect with PAT", exact: true, },).click();
 	await expect(githubCard.getByText(/Authenticated as/i,),).toBeVisible({ timeout: 30_000, });
 

@@ -1,18 +1,38 @@
-import { expect, test } from "../../coverage/fixture";
+import { expect, test } from "@playwright/test";
 import { restoreAzureSessionStorage } from "../util/setupHelper.mts";
 import { CORP_URL, viewports } from "../../testInit";
-import { expandAzureLoginCard, expectSnapshot, expectVisibleWithin, safePathSegment } from "../util/testHelper.mts";
+import { expectSnapshot, expectVisibleWithin } from "../util/testHelper.mts";
+import { expandAzureLoginCard } from "../util/cardHelper.mts";
+import { writeFile } from "fs/promises";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
   test.describe(`Azure Login Card - ${viewportName}`, () => {
     test.use({ viewport, deviceScaleFactor: 1 });
+
+    test.beforeEach(async ({ page, },) => {
+      await page.coverage.startJSCoverage({ resetOnNavigation: false, });
+    });
+    
+    test.afterEach(async ({ page, }, testInfo,) => {
+      if (page.isClosed()) {
+        return;
+      }
+    
+      const entries = await page.coverage.stopJSCoverage();
+      const file = testInfo.outputPath("v8-coverage.json");
+      await writeFile(file, JSON.stringify(entries), "utf8");
+      await testInfo.attach("v8-coverage", {
+        path: file,
+        contentType: "application/json",
+      });
+    });
 
       test("Happy path", async ({ page, context, }, testInfo) => {
             await page.goto(CORP_URL);
 
             const azureCard = await test.step("Expand Unauthenticated Azure Login Card", async () => {
                 const azureCard = await expandAzureLoginCard(page);
-                await expectSnapshot(page, azureCard, testInfo, `start`, viewportName);
+                await expectSnapshot(page, azureCard, testInfo, "start", viewportName);
                 return azureCard;
             });
 
@@ -26,7 +46,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
               await expect(azureCard.getByText(/^Tenant/)).toBeVisible();
               await expectVisibleWithin(azureCard.getByRole("combobox"), "Combobox: Load already stored tenant id.", 500000);
 
-              await expectSnapshot(page, azureCard, testInfo, `end`, viewportName);
+              await expectSnapshot(page, azureCard, testInfo, "end", viewportName);
 
             });
       });

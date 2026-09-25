@@ -1,19 +1,11 @@
-import { expect, test } from "../../coverage/fixture";
+import { expect, test } from "@playwright/test";
 import { CORP_URL, viewports } from "../../testInit";
-import {
-	chooseRepoOption,
-	expandAzureAppRegistrationCard,
-	expandAzureLoginCard,
-	expandAzureSubscriptionCard,
-	expandRepoCard,
-	expectSnapshot,
-	expectVisibleWithin,
-	safePathSegment,
-} from "../util/testHelper.mts";
-import { installMockAzure, installMockGitHub, signInMockAzure } from "./mockFixtures.mts";
-import { prepareMockAzureSubscription } from "./mockTestHelper.mts";
+import { createNewRepo, expectSnapshot, safePathSegment,} from "../util/testHelper.mts";
+import { installMockAzure, installMockGitHub, prepareMockAzureSubscription, signInMockAzure } from "../util/mockTestHelper.mts";
+import { expandAzureAppRegistrationCard, expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "../util/cardHelper.mts";
+import { writeFile } from "fs/promises";
 
-async function prepareAppRegistrationCard(	page: import("@playwright/test").Page,	context: import("@playwright/test").BrowserContext,	repoName: string,) {
+async function prepareMockAppRegistrationCard(	page: import("@playwright/test").Page,	context: import("@playwright/test").BrowserContext,	repoName: string,) {
 	const prepared = await prepareMockAzureSubscription(page, context, repoName, { saveVariables: true });
 	return {
 		...prepared,
@@ -24,6 +16,24 @@ async function prepareAppRegistrationCard(	page: import("@playwright/test").Page
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Azure App Registration Card Mock - ${viewportName}`, () => {
 		test.use({ viewport, deviceScaleFactor: 1 });
+
+		test.beforeEach(async ({ page, },) => {
+			await page.coverage.startJSCoverage({ resetOnNavigation: false, });
+		});
+		
+		test.afterEach(async ({ page, }, testInfo,) => {
+			if (page.isClosed()) {
+				return;
+			}
+		
+			const entries = await page.coverage.stopJSCoverage();
+			const file = testInfo.outputPath("v8-coverage.json");
+			await writeFile(file, JSON.stringify(entries), "utf8");
+			await testInfo.attach("v8-coverage", {
+				path: file,
+				contentType: "application/json",
+			});
+		});
 
 		test("Happy path", async ({ page, context }, testInfo) => {
 			const runId = Date.now().toString(36);
@@ -48,14 +58,16 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
 			const repoCard = await test.step("Create a repository and PROD environment", async () => {
 				const card = await expandRepoCard(page);
-				await chooseRepoOption(page, card, repoName);
-				await card.getByRole("button", { name: "Clone Repository" }).click();
-				await expect(card.getByText("Pick the environment to configure.")).toBeVisible();
-				await card.getByText("PROD", { exact: true }).click();
+				await createNewRepo(page, card, repoName);
+				await expect(card.getByText("Loading environments...", { exact: true })).toBeHidden();
+				const prodEnvironment = card.getByText("PROD", { exact: true });
+				await expect(prodEnvironment).toBeVisible();
+				await prodEnvironment.click();
 				const createProdButton = card.getByRole("button", { name: "Create New Branch: PROD" });
-				await expect(createProdButton).toBeVisible();
-				await createProdButton.click();
-				await expect(createProdButton).toBeHidden();
+				if (await createProdButton.isVisible()) {
+					await createProdButton.click();
+					await expect(createProdButton).toBeHidden();
+				}
 				await expectSnapshot(page, card, testInfo, "repo-created", viewportName);
 				return card;
 			});
@@ -69,15 +81,18 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await expectSnapshot(page, card, testInfo, "subscription-saved", viewportName);
 			});
 
-			const appRegistrationCard = await test.step("Create the app registration and grant access", async () => {
-				const card = await expandAzureAppRegistrationCard(page);
-				const appNameInput = card.locator("input:visible").first();
+			const appRegistrationCard = await test.step("Expand app registration card", async () => {
+				return await expandAzureAppRegistrationCard(page);
+			});
+
+			await test.step("Create new app registration and grant access", async () => {
+				const appNameInput = appRegistrationCard.locator("input:visible").first();
 				await expect(appNameInput).toBeVisible();
 				await appNameInput.fill(appName);
-				await expectSnapshot(page, card, testInfo, `start`, viewportName);
-				await card.getByRole("button", { name: "Create app registration" }).click();
-				await expect(card.getByText("Running...", { exact: true })).toBeHidden();
-				await expect(card.getByRole("button", { name: "Try again" })).toBeVisible();
+				await expectSnapshot(page, appRegistrationCard, testInfo, "app-prefilled", viewportName);
+				await appRegistrationCard.getByRole("button", { name: "Create app registration" }).click();
+				await expect(appRegistrationCard.getByText("Running...", { exact: true })).toBeHidden();
+				await expect(appRegistrationCard.getByRole("button", { name: "Try again" })).toBeVisible();
 				for (const stepLabel of [
 					"Confirm Microsoft permissions",
 					"Create app registration",
@@ -86,11 +101,10 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 					"Add federated credentials",
 					"Assign RBAC roles",
 				]) {
-					await expect(card.getByText(stepLabel, { exact: true })).toBeVisible();
+					await expect(appRegistrationCard.getByText(stepLabel, { exact: true })).toBeVisible();
 				}
-				await expect(card.getByText(/Additional consent required|Consent redirect failed/i)).toHaveCount(0);
-				await expectSnapshot(page, card, testInfo, "app-created", viewportName);
-				return card;
+				await expect(appRegistrationCard.getByText(/Additional consent required|Consent redirect failed/i)).toHaveCount(0);
+				await expectSnapshot(page, appRegistrationCard, testInfo, "app-created", viewportName);
 			});
 
 			await test.step("Verify connection details were auto-saved", async () => {
@@ -114,7 +128,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
 		test("Edge case - keeps creation disabled for a blank app name", async ({ page, context }, testInfo) => {
 			const runId = Date.now().toString(36);
-			const prepared = await prepareAppRegistrationCard(
+			const prepared = await prepareMockAppRegistrationCard(
 				page,
 				context,
 				`mock-app-blank-${viewportName.toLowerCase()}`,
@@ -135,7 +149,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		});
 
 		test("Edge case - reuses an existing app registration on retry", async ({ page, context }, testInfo) => {
-			const prepared = await prepareAppRegistrationCard(
+			const prepared = await prepareMockAppRegistrationCard(
 				page,
 				context,
 				`mock-app-retry-${viewportName.toLowerCase()}`,

@@ -1,4 +1,4 @@
-import { getToken } from "./msal";
+import { getToken } from "../cards/AzureLogin/msal";
 import { azFetch as gFetch, ARM } from "./azureFetch";
 import { ARM_SCOPES, BACKEND_VERSION_KEYS, RBAC_ROLE_IDS } from "../config/azureConfig";
 import { deterministicUuid } from "../logic/crypto";
@@ -98,7 +98,7 @@ export async function deployZipToFunctionApp(
   // One-deploy returns as soon as the package is accepted; the unpack happens afterwards.
   onProgress?.("deploying");
   const start = Date.now();
-  for (;;) {
+  for (; ;) {
     await new Promise((r) => setTimeout(r, 5000));
     const status = await fetch(`${scm}/api/deployments/latest`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -144,7 +144,7 @@ async function pollProvisioning(
   timeoutMs = 120_000,
 ): Promise<void> {
   const start = Date.now();
-  for (;;) {
+  for (; ;) {
     const state = await fetchState();
     if (state === "Succeeded") return;
     if (state === "Failed" || state === "Canceled") throw new Error(`${resourceLabel} provisioning ${state}`);

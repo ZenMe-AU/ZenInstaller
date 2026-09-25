@@ -1,11 +1,32 @@
-import { expect, test } from "../../coverage/fixture";
+import { expect, test } from "@playwright/test";
+import { installMockAzure, signInMockAzure } from "../util/mockTestHelper.mts";
 import { CORP_URL, viewports } from "../../testInit";
-import { expandAzureLoginCard, expectSnapshot } from "../util/testHelper.mts";
-import { installMockAzure, signInMockAzure } from "./mockFixtures.mts";
+import { expectSnapshot } from "../util/testHelper.mts";
+import { expandAzureLoginCard } from "../util/cardHelper.mts";
+import { writeFile } from "fs/promises";
+
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Azure Login Card Mock - ${viewportName}`, () => {
 		test.use({ viewport, deviceScaleFactor: 1 });
+
+		test.beforeEach(async ({ page, },) => {
+			await page.coverage.startJSCoverage({ resetOnNavigation: false, });
+		});
+		
+		test.afterEach(async ({ page, }, testInfo,) => {
+			if (page.isClosed()) {
+				return;
+			}
+		
+			const entries = await page.coverage.stopJSCoverage();
+			const file = testInfo.outputPath("v8-coverage.json");
+			await writeFile(file, JSON.stringify(entries), "utf8");
+			await testInfo.attach("v8-coverage", {
+				path: file,
+				contentType: "application/json",
+			});
+		});
 
 		test("Happy path", async ({ page }, testInfo) => {
 			const card = await test.step("Expand unauthenticated Azure login card", async () => {
